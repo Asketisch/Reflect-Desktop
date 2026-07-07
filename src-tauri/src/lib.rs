@@ -1,9 +1,13 @@
-//! `reflect-desktop` Tauri 2 backend lib.
+//! `reflect-desktop` Tauri 2 backend lib。
 //!
-//! M1.x 里程碑 —— 协议桥接通：19 个 Tauri command + Event 转发到前端。
-//! M2.x 补: 真实 reflect-core::AgentThread + 4 product 联动 (tray/menu/shortcut/dock)。
+//! ## 里程碑
 //!
-//! 设计蓝图（历史）: docs/gui/03-architecture.md (Reflect-Agent 仓 docs/, M1.x 沉淀)。
+//! - **M1.x** (已): 协议桥 —— 19 个 Tauri command + Event 转发到前端,MinimalAgent stub。
+//! - **M2.x** (当前): 真后端 —— MinimalAgent 改为嵌入 `reflect_core::AgentThread`
+//!   (stub model + EchoTool,不依赖网络);4 个产品联动 (tray / menu / shortcut / dock) 实装;
+//!   macOS close-to-tray。
+//!
+//! 蓝图（历史）: Reflect-Agent `docs/gui/03-architecture.md` §5 (M1.x 设计沉淀)。
 
 pub mod commands;
 pub mod dock;
@@ -31,17 +35,29 @@ struct PingResp {
     version: String,
 }
 
-/// 启动 Tauri 应用：
-///   1. 构造并注册 `MinimalAgent`(M1.x 暂用 stub 后端;真实 AgentThread 见 M2.x)。
-///   2. 在 setup 中启动 `forward_agent_events`。
-///   3. 注册 19 个 Tauri command + ping 占位。
+/// 启动 Tauri 应用:
 ///
-/// M2.x 起增 tray/menu/shortcut/dock。当前 stub 模块占位。
+/// 1. 注册 `MinimalAgent` (M2.x = 真 `reflect_core::AgentThread` + stub model);
+/// 2. 注册 19 个 reflect command + ping + `reflect_set_dock_badge`;
+/// 3. 注册 `tauri-plugin-global-shortcut` plugin;
+/// 4. 在 setup 中:
+///     - 启动 `forward_agent_events` 把 agent event 推到前端;
+///     - 注册全局快捷键 + 应用菜单 + 托盘图标;
+///     - 启动 `AgentThread` 的 session event forwarder;
+/// 5. `on_window_event` 拦截 macOS 关闭按钮 → hide (close-to-tray)。
 pub fn run() {
     tracing_subscriber::fmt::init();
 
     tauri::Builder::default()
-        .manage(MinimalAgent::spawn())
+        // ====== Plugins ======
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        // ====== State ======
+        .manage(MinimalAgent::new_empty())
+        // ====== Menu (在 builder 阶段静态注入) ======
+        .enable_macos_default_menu(false)
+        .menu(menu::build_menu)
+        .on_menu_event(menu::handle_menu_event)
+        // ====== IPC commands ======
         .invoke_handler(tauri::generate_handler![
             ping,
             reflect_submit,
@@ -63,17 +79,51 @@ pub fn run() {
             reflect_rename_session,
             reflect_delete_session,
             reflect_replay_session,
+            dock::reflect_set_dock_badge,
         ])
+        // ====== Window 事件:macOS close-to-tray ======
+        .on_window_event(|window, event| {
+            menu::handle_close_to_tray(window, event);
+        })
+        // ====== Setup ======
         .setup(|app| {
-            // M1.2: 启动 submission loop (在 Tauri runtime 内部) + forward events。
-            let agent = app.state::<MinimalAgent>();
-            agent.start();
-            let session_rx = agent.subscribe_session();
+            // 1. 系统托盘 (macOS-only,其他平台为 no-op)。Tray 必须在 setup 同步阶段建
+            //    (因为 tray 注册在 sync builder context)。
+            tray::build_tray(&app.handle())?;
+
+            // 2. 全局快捷键 (跨平台,plugin 注册)。
+            shortcut::register_global_shortcuts(&app.handle())?;
+
+            // 3. 启动时清空 dock badge。
+            dock::set_dock_badge(&app.handle(), None);
+
+            // 4. 二段构造 AgentThread —— Tauri setup 闭包**不是** tokio runtime
+            //    上下文,必须用 tauri::async_runtime::spawn 把 install 推迟到
+            //    Tauri 内部 runtime 起来之后 (event loop 阶段)。
+            //
+            //    install_agent_thread() 内部会构造真 AgentThread (内部 tokio::spawn
+            //    submission_loop) 并启动 session forwarder。
+            let agent_for_install: MinimalAgent = (*app.state::<MinimalAgent>()).clone();
+            tauri::async_runtime::spawn(async move {
+                agent_for_install.install_agent_thread();
+            });
+
+            // 5. 启动 broadcast → Tauri event 转发 (独立于 install,可在 sync setup
+            //    后立刻 spawn,broadcast channel 已 ready,subscriber 可以先于 agent
+            //    安装;eventual lag 由 Tauri Emitter 端容忍)。
+            let agent_for_forward: MinimalAgent = (*app.state::<MinimalAgent>()).clone();
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                let session_rx = agent_for_forward.subscribe_session();
                 events::forward_agent_events(app_handle, session_rx).await;
             });
-            // M2.x 在此调 tray::build_tray / shortcut::register_global_shortcuts / dock::set_dock_badge
+
+            tracing::info!(
+                "[reflect-gui] setup complete (model={}, workspace={}); agent thread installing in async runtime",
+                app.state::<MinimalAgent>().model_spec(),
+                app.state::<MinimalAgent>().workspace().display()
+            );
+
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -88,23 +138,3 @@ fn ping() -> PingResp {
         version: env!("CARGO_PKG_VERSION").into(),
     }
 }
-
-#[allow(dead_code)]
-fn _ensure_delete_registered() {
-    let _ = commands::reflect_delete_session;
-    let _ = tray::TR;  // silence module
-    let _ = menu::MK; // silence module
-    let _ = dock::DK;
-    let _ = shortcut::SK;
-}
-
-mod _stub_modules {
-    use super::*;
-    pub(crate) struct Marker<T>(T);
-    impl tray::Stub for Marker<()> {}
-    impl menu::Stub for Marker<()> {}
-    impl dock::Stub for Marker<()> {}
-    impl shortcut::Stub for Marker<()> {}
-}
-
-trait Stub {}

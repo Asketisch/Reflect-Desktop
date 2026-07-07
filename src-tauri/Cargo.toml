@@ -17,29 +17,36 @@ name = "reflect-desktop"
 path = "src/main.rs"
 
 [dependencies]
-tauri              = { version = "2", features = ["tray-icon", "macos-private-api"] }
-serde              = { workspace = true }
-serde_json         = { workspace = true }
-tokio              = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
-anyhow             = { workspace = true }
-tracing            = { workspace = true }
-tracing-subscriber = { workspace = true }
-parking_lot        = { workspace = true }
-reflect-protocol    = { workspace = true }
-reflect-core        = { workspace = true }
-reflect-app-core    = { workspace = true }
-reflect-config      = { workspace = true }
-reflect-rollout     = { workspace = true }
-reflect-skills      = { workspace = true }
-reflect-memory      = { workspace = true }
-reflect-permissions = { workspace = true }
-reflect-tools       = { workspace = true }
-reflect-llm         = { workspace = true }
-reflect-hooks       = { workspace = true }
-uuid               = { workspace = true }
-futures            = { workspace = true }
-dirs               = "5"
-once_cell          = { workspace = true }
+tauri                       = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
+tauri-plugin-global-shortcut = "2"
+serde                       = { workspace = true }
+serde_json                  = { workspace = true }
+tokio                       = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
+anyhow                      = { workspace = true }
+tracing                     = { workspace = true }
+tracing-subscriber          = { workspace = true }
+parking_lot                 = { workspace = true }
+reflect-protocol            = { workspace = true }
+reflect-core                = { workspace = true }
+reflect-app-core            = { workspace = true }
+reflect-config              = { workspace = true }
+reflect-rollout             = { workspace = true }
+reflect-skills              = { workspace = true }
+reflect-memory              = { workspace = true }
+reflect-permissions         = { workspace = true }
+reflect-tools               = { workspace = true }
+reflect-llm                 = { workspace = true }
+reflect-hooks               = { workspace = true }
+uuid                        = { workspace = true }
+futures                     = { workspace = true }
+dirs                        = "5"
+once_cell                   = { workspace = true }
+
+# macOS-only dock badge: NSApplication.dockTile.badgeLabel via objc2.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2            = "0.5"
+objc2-app-kit    = { version = "0.2", features = ["NSApplication", "NSDockTile"] }
+objc2-foundation = { version = "0.2", features = ["NSString"] }
 
 [build-dependencies]
 tauri-build = { workspace = true }

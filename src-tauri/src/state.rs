@@ -1,194 +1,188 @@
-//! `AppState` —— M1.2 协议桥的最小后端状态。
-//!
-//! 设计目标：证明 `Submission`→`Event` IPC 通路接通,而非完整复刻 TUI 后端。
+//! `AppState` —— M2.x 真后端：直接嵌入 `reflect_core::AgentThread`。
 //!
 //! ## 进度
 //!
-//! - [x] **M1.2 协议桥**:
-//!     - MinimalAgent 收到 Submission 后 emit 一段模拟流("Got it. (stub) You said: ...").
-//!     - 实际接入真实 `reflect_core::AgentThread` 留待 M2.x(需要 Model 路由 + 22 builtin
-//!       tools + secrets 注入 + storage adapter,1-2 天工作量),可由 docs/gui/03-architecture.md
-//!       §5 设计的 AppState 直接替换。
+//! - [x] **M1.2 协议桥 (MinimalAgent stub)**:证明 Submission→Event 通路。
+//! - [x] **M2.x 真后端**:
+//!     - 用 `reflect_core::AgentThread::new(...)` 取代手撸 submission loop;
+//!     - Model 路由 = `ModelRegistry::new()` (空注册表 → 提交后会 emit
+//!       `EventMsg::Error("no model client for spec ...")` 作为 smoke 验证);
+//!     - Tools = `EchoTool` 单条占位 (M3.x 接 22 builtin);
+//!     - Session / per-turn event 通过 `tokio::sync::broadcast` 多订阅 fan-out。
+//!     - 不依赖网络 / API key / `~/.reflect/config.toml`,纯本地 stub 后端。
+//!
+//! ## 替换语义
+//!
+//! 公开 API (`new_empty` / `install_agent_thread` / `start` / `submit` /
+//! `subscribe_session` / `interrupt` / `model_spec` / `workspace`)
+//! 与 M1.x 同形,`commands/mod.rs` 与 `lib.rs` 不需要改协议面。
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use parking_lot::Mutex as ParkingMutex;
-use reflect_protocol::{
-    AgentMessage, ApprovalPolicy, Event, EventMsg, SandboxPolicy, SessionConfiguredEvent,
-    Submission, ThreadId, TokenUsage, TurnCompleteEvent, TurnStartedEvent, TurnStatus,
-};
-use std::sync::Mutex as StdMutex;
-use tokio::sync::mpsc;
+use reflect_core::{AgentConfig, AgentThread, TurnHandle};
+use reflect_llm::ModelRegistry;
+use reflect_protocol::Event;
+use reflect_tools::{builtins::EchoTool, ToolRegistry};
+use tokio::sync::broadcast;
 
-/// 主结构：MinimalAgent 拥有一个 submission 通道与若干 session 级订阅者。
+/// Session-level broadcast 通道容量。覆盖 1024 个 event 后最旧事件被丢;
+/// 桌面端 UI 通常只关心最近 50-100 个事件,这个容量远超实际需要。
+const SESSION_BROADCAST_CAPACITY: usize = 1024;
+
+/// 主结构：封装一个 `AgentThread` + session 级 broadcast + interrupt token。
 ///
-/// 接口形状模仿 `reflect_core::AgentThread`
-/// (`crates/reflect-core/src/agent_thread.rs:25-43`),便于 M2.x 直接替换为真实 AgentThread。
+/// Clone 是廉价的（内部全 Arc/broadcast channel）。
+///
+/// M2.x 二段构造:
+/// 1. `new_empty()` — 构造无 AgentThread 的 MinimalAgent,用于 `tauri::Builder::manage(...)`。
+///    `AgentThread::new` 内部立即 `tokio::spawn`,必须在 tokio runtime 上下文;
+///    Tauri `manage()` 是同步阶段,还没初始化 async_runtime。
+/// 2. `install_agent_thread()` — 在 `setup()` 闭包内通过 `tauri::async_runtime::spawn`
+///    推迟到 Tauri runtime 已起的上下文内调用,真正构造 `AgentThread` 并启动 forwarder。
 #[derive(Clone)]
 pub struct MinimalAgent {
     inner: Arc<MinimalAgentInner>,
 }
 
 struct MinimalAgentInner {
-    sub_tx: mpsc::Sender<Submission>,
-    /// 实际 consuming submission 的 receiver —— 由 `start()` 在 Tauri runtime 内
-    /// `tokio::spawn` 一次性拿走,避免 `manage()` 同步上下文中 panic。
-    sub_rx: StdMutex<Option<mpsc::Receiver<Submission>>>,
-    /// session-level subscribers —— `SessionConfigured` / `ShutdownComplete` 等
-    /// 生命周期事件 fan-out 到这里。M1.2 简化为所有 event 都通过 session_subs 派发,
-    /// 真实 AgentThread 在 src-tauri::state 替换时再区分 per-turn / session sub。
-    session_subs: ParkingMutex<Vec<mpsc::Sender<Event>>>,
+    /// `Option` 因为 `new_empty` 时还没建。
+    thread: ParkingMutex<Option<Arc<AgentThread>>>,
+    /// Session event broadcast — 多个 Tauri command / webview 可各自订阅。
+    session_tx: broadcast::Sender<Event>,
+    /// 模型 spec 字符串 —— 仅用于诊断与 Tauri command 反馈。
+    model_spec: String,
+    /// 工作区根 —— 当前固定 cwd。M3.x 由前端 settings 切换。
+    workspace: PathBuf,
 }
 
-impl MinimalAgent {
-    /// 构造最小 Agent —— *只* 创建 channel,**延迟** submission loop 到 `start()`。
-    pub fn spawn() -> Self {
-        let (sub_tx, sub_rx) = mpsc::channel::<Submission>(64);
-        let inner = Arc::new(MinimalAgentInner {
-            sub_tx,
-            sub_rx: StdMutex::new(Some(sub_rx)),
-            session_subs: ParkingMutex::new(Vec::new()),
-        });
-        Self { inner }
-    }
+use parking_lot::Mutex as ParkingMutex;
 
-    /// 启动 submission loop —— 必须在 Tauri `setup` 闭包内调用(那时候 Tauri 已经
-    /// 初始化了它的 `tauri::async_runtime`,我们 `Spawn` 用的是 `tauri::async_runtime::spawn`,
-    /// 这样无论 thread 上下文如何都能进到 Tauri 自己的 tokio runtime)。
-    pub fn start(&self) {
-        let rx = self.inner.sub_rx.lock().expect("sub_rx poisoned").take();
-        if let Some(rx) = rx {
-            tauri::async_runtime::spawn(minimal_submission_loop(self.inner.clone(), rx));
+impl MinimalAgent {
+    /// 第一阶段:构造空的 MinimalAgent,只能 hold 状态(无 thread)。
+    ///
+    /// `tauri::Builder::manage(MinimalAgent::new_empty())` 时调用。
+    pub fn new_empty() -> Self {
+        let (session_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
+        let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        Self {
+            inner: Arc::new(MinimalAgentInner {
+                thread: ParkingMutex::new(None),
+                session_tx,
+                model_spec: "stub/test".to_string(),
+                workspace,
+            }),
         }
     }
 
-    /// 发送 Submission 到后端。
-    pub async fn submit(&self, submission: Submission) -> anyhow::Result<()> {
-        self.inner.sub_tx.send(submission).await?;
+    /// 第二阶段:在 Tauri setup 闭包内调用,真构造 AgentThread + 启动 forwarder。
+    ///
+    /// ## 重要
+    ///
+    /// `AgentThread::new` 内部立即 `tokio::spawn(submission_loop(...))`,
+    /// 必须跑在 tokio runtime 上下文。Tauri `setup` 闭包运行时 Tauri 已经
+    /// 初始化了它的 async_runtime,这一步安全。
+    pub fn install_agent_thread(&self) {
+        // 1. 配置:stub 模型 spec + 当前 cwd。
+        let model_spec = "stub/test".to_string();
+        let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let cfg = AgentConfig::new(model_spec.clone(), workspace.clone());
+
+        // 2. 空 ModelRegistry —— 没有 model client,提交后 emit Error event,
+        //    作为 M2.x smoke test 的预期路径。
+        let registry = Arc::new(ModelRegistry::new());
+
+        // 3. ToolRegistry: 注册 EchoTool。M3.x 接入 22 builtin (Bash/Read/Write/...)。
+        let tools = Arc::new(ToolRegistry::default());
+        tools.register(Arc::new(EchoTool));
+
+        // 4. 真 AgentThread —— 这里会 tokio::spawn submission_loop。
+        let thread = Arc::new(AgentThread::new(cfg, registry, tools, None));
+
+        // 5. 写回 inner.thread。
+        *self.inner.thread.lock() = Some(thread);
+
+        // 6. 启动 session event forwarder (AgentThread.subscribe_session → broadcast)。
+        self.start();
+
+        tracing::info!("[reflect-gui] AgentThread installed (model={}, workspace={})", model_spec, workspace.display());
+    }
+
+    /// 启动 session 事件转发:从 `AgentThread::subscribe_session()` 拿 mpsc::Receiver,
+    /// 持续 `recv().await` 并 broadcast 到所有 Tauri 订阅者。
+    ///
+    /// 在 `install_agent_thread` 内部调用,外部不应直接调。
+    fn start(&self) {
+        let thread_lock = self.inner.thread.lock();
+        let Some(thread) = thread_lock.clone() else {
+            tracing::error!("[reflect-gui] start called before install_agent_thread");
+            return;
+        };
+        drop(thread_lock);
+
+        let mut session_rx = thread.subscribe_session();
+        let session_tx = self.inner.session_tx.clone();
+        tauri::async_runtime::spawn(async move {
+            tracing::info!("[reflect-gui] session forward task started");
+            while let Some(event) = session_rx.recv().await {
+                let _ = session_tx.send(event);
+            }
+            tracing::warn!("[reflect-gui] session forward task exited (AgentThread closed)");
+        });
+    }
+
+    /// 提交 Submission → 拿 per-turn `TurnHandle` → spawn 转发到 broadcast。
+    ///
+    /// 前端拿到的所有 per-turn event 都通过 session broadcast 派发,
+    /// 前端按 `event.id == submission.id` 过滤出属于本次 turn 的事件。
+    pub async fn submit(&self, submission: reflect_protocol::Submission) -> anyhow::Result<()> {
+        // 0. 必须先 install_agent_thread。
+        let thread = {
+            let guard = self.inner.thread.lock();
+            guard.clone().ok_or_else(|| {
+                anyhow::anyhow!("agent thread not installed yet; setup not complete")
+            })?
+        };
+
+        // 1. 拿 per-turn handle。
+        let mut handle: TurnHandle = thread.submit(submission.clone()).await;
+
+        // 2. spawn 转发:这个 turn 的所有 event 进 broadcast。
+        let session_tx = self.inner.session_tx.clone();
+        let sub_id = submission.id.clone();
+        tauri::async_runtime::spawn(async move {
+            while let Some(event) = handle.next().await {
+                if session_tx.send(event).is_err() {
+                    tracing::debug!("[reflect-gui] no subscribers for turn {}", sub_id);
+                }
+            }
+            tracing::debug!("[reflect-gui] turn {} forwarder closed", sub_id);
+        });
+
         Ok(())
     }
 
-    /// 订阅 session 级事件。
-    pub fn subscribe_session(&self) -> mpsc::Receiver<Event> {
-        let (tx, rx) = mpsc::channel::<Event>(16);
-        let mut subs = self.inner.session_subs.lock();
-        subs.push(tx);
-        rx
+    /// 订阅 session 级 broadcast。前端 Tauri listener 拿到的就是这个 receiver。
+    pub fn subscribe_session(&self) -> broadcast::Receiver<Event> {
+        self.inner.session_tx.subscribe()
     }
 
-    /// 中断当前 turn —— MinimalAgent 无 turn 状态,空操作。
+    /// 中断当前 turn —— 调用 AgentThread 的 cancel token。
+    /// CancellationToken 的 cancel 是幂等的,重复调用安全。
     pub fn interrupt(&self) {
-        // stub
-    }
-}
-
-/// 模拟 submission loop：收到 Submission 后 emit 一组 lifecycle + 流式 AgentMessageDelta。
-async fn minimal_submission_loop(
-    inner: Arc<MinimalAgentInner>,
-    mut sub_rx: mpsc::Receiver<Submission>,
-) {
-    while let Some(submission) = sub_rx.recv().await {
-        handle_submission(&inner, submission).await;
-    }
-}
-
-async fn handle_submission(inner: &MinimalAgentInner, submission: Submission) {
-    // 1. SessionConfigured (lifecycle event, 仅第一次发送)
-    static FIRST_SUB: std::sync::OnceLock<ParkingMutex<bool>> = std::sync::OnceLock::new();
-    let first_lock = FIRST_SUB.get_or_init(|| ParkingMutex::new(false));
-    {
-        let mut sent = first_lock.lock();
-        if !*sent {
-            *sent = true;
-            let event = Event::new(
-                "",
-                EventMsg::SessionConfigured(SessionConfiguredEvent {
-                    session_id: ThreadId(uuid::Uuid::new_v4()),
-                    model: "stub-model".into(),
-                    provider: "stub-provider".into(),
-                    approval_policy: ApprovalPolicy::default(),
-                    sandbox_policy: SandboxPolicy::default(),
-                    context_window_size: None,
-                }),
-            );
-            broadcast(inner, event);
+        let guard = self.inner.thread.lock();
+        if let Some(thread) = guard.as_ref() {
+            thread.cancel_token().cancel();
         }
     }
 
-    // 2. TurnStarted
-    let turn_started = Event::new(
-        submission.id.clone(),
-        EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: reflect_protocol::item::TurnId(uuid::Uuid::new_v4()),
-            user_message_id: None,
-        }),
-    );
-    broadcast(inner, turn_started);
-
-    // 3. 流式 AgentMessageDelta —— 拼出 "Got it. (stub) You said: ..."
-    let text = match &submission.op {
-        reflect_protocol::Op::UserInput { items, .. } => items
-            .iter()
-            .filter_map(|i| match i {
-                reflect_protocol::UserInputItem::Text { text } => Some(text.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join(" "),
-        _ => String::new(),
-    };
-
-    let reply = format!("Got it. (stub) You said: {text}");
-    for chunk in split_streams(&reply) {
-        let ev = Event::new(
-            submission.id.clone(),
-            EventMsg::AgentMessageDelta(reflect_protocol::AgentMessageDelta { delta: chunk }),
-        );
-        broadcast(inner, ev);
-        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+    /// 诊断接口:返回当前 model spec (供前端 settings UI 显示)。
+    pub fn model_spec(&self) -> &str {
+        &self.inner.model_spec
     }
 
-    // 4. AgentMessage (final assembled)
-    let final_msg = Event::new(
-        submission.id.clone(),
-        EventMsg::AgentMessage(AgentMessage { text: reply.clone() }),
-    );
-    broadcast(inner, final_msg);
-
-    // 5. TurnComplete
-    let complete = Event::new(
-        submission.id.clone(),
-        EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: reflect_protocol::item::TurnId(uuid::Uuid::new_v4()),
-            usage: TokenUsage::default(),
-            status: TurnStatus::Success,
-        }),
-    );
-    broadcast(inner, complete);
-}
-
-/// 把 Event 派发给所有 session subscribers(M1.2 简化:`try_send` 同步决策)。
-fn broadcast(inner: &MinimalAgentInner, event: Event) {
-    let mut subs = inner.session_subs.lock();
-    let mut alive = Vec::with_capacity(subs.len());
-    for tx in subs.drain(..) {
-        let sender: mpsc::Sender<Event> = tx;
-        match sender.try_send(event.clone()) {
-            Ok(()) => alive.push(sender),
-            Err(_) => {
-                // 订阅者通道已满或断开 —— 剔除
-            }
-        }
+    /// 诊断接口:返回当前 workspace (供前端显示)。
+    pub fn workspace(&self) -> &PathBuf {
+        &self.inner.workspace
     }
-    *subs = alive;
-}
-
-/// 把字符串切成 ~4 字符小段,模拟流式 chunk。
-fn split_streams(s: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let chars: Vec<char> = s.chars().collect();
-    for chunk in chars.chunks(4) {
-        out.push(chunk.iter().collect());
-    }
-    out
 }
