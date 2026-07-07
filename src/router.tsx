@@ -25,27 +25,18 @@ import { PlanView } from '@/features/plan/PlanView';
 import { PromptsView } from '@/features/prompts/PromptsView';
 import { NotificationsView } from '@/features/notifications/NotificationsView';
 import { TerminalView } from '@/features/terminal/TerminalView';
+import { AboutView } from '@/features/about/AboutView';
+import { AppsView } from '@/features/apps/AppsView';
+import { CollaborationView } from '@/features/collaboration/CollaborationView';
+import { DebugView } from '@/features/debug/DebugView';
+import { DesignSystemView } from '@/features/design-system/DesignSystemView';
+import { DictationView } from '@/features/dictation/DictationView';
+import { MobileView } from '@/features/mobile/MobileView';
+import { UpdateView } from '@/features/update/UpdateView';
 
 // ====== Placeholder route components ======
 
-function PlaceholderView({ title, description }: { title: string; description: string }) {
-  return (
-    <div style={{ padding: 24, maxWidth: 640 }}>
-      <h1>{title}</h1>
-      <p style={{ color: '#888' }}>{description}</p>
-      <p style={{ color: '#aaa', fontSize: 12 }}>M3.x 实装</p>
-    </div>
-  );
-}
 
-const AboutView = () => <PlaceholderView title="About Reflect" description="Reflect Desktop — AI coding agent GUI for Reflect Agent." />;
-const UpdateView = () => <PlaceholderView title="Updates" description="Check for Reflect Desktop updates." />;
-const DebugView = () => <PlaceholderView title="Debug" description="Debug panel — dev only." />;
-const AppsView = () => <PlaceholderView title="Apps" description="App integrations." />;
-const CollaborationView = () => <PlaceholderView title="Collaboration" description="Multi-user collaboration." />;
-const MobileView = () => <PlaceholderView title="Mobile" description="Mobile companion view." />;
-const DictationView = () => <PlaceholderView title="Dictation" description="Voice input." />;
-const DesignSystemView = () => <PlaceholderView title="Design System" description="Component library reference." />;
 
 // ====== Layout components ======
 
