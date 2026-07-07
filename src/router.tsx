@@ -18,6 +18,11 @@ import { HomeView } from '@/features/home/HomeView';
 import { ThreadsView } from '@/features/threads/ThreadsView';
 import { ModelsView } from '@/features/models/ModelsView';
 import { FilesView } from '@/features/files/FilesView';
+import { GitView } from '@/features/git/GitView';
+import { SkillsView } from '@/features/skills/SkillsView';
+import { WorkspacesView } from '@/features/workspaces/WorkspacesView';
+import { PlanView } from '@/features/plan/PlanView';
+import { PromptsView } from '@/features/prompts/PromptsView';
 
 // ====== Placeholder route components ======
 
@@ -31,12 +36,7 @@ function PlaceholderView({ title, description }: { title: string; description: s
   );
 }
 
-const SkillsView = () => <PlaceholderView title="Skills" description="Manage Reflect skills and plugins." />;
-const WorkspacesView = () => <PlaceholderView title="Workspaces" description="Switch between project workspaces." />;
-const GitView = () => <PlaceholderView title="Git" description="Git status, diff, and commit workflow." />;
 const TerminalView = () => <PlaceholderView title="Terminal" description="Embedded terminal for shell commands." />;
-const PlanView = () => <PlaceholderView title="Plan" description="Plan mode viewer and approval workflow." />;
-const PromptsView = () => <PlaceholderView title="Prompts" description="Prompt library and templates." />;
 const AboutView = () => <PlaceholderView title="About Reflect" description="Reflect Desktop — AI coding agent GUI for Reflect Agent." />;
 const UpdateView = () => <PlaceholderView title="Updates" description="Check for Reflect Desktop updates." />;
 const NotificationsView = () => <PlaceholderView title="Notifications" description="Notification center." />;
