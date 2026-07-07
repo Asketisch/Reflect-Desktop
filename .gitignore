@@ -1,0 +1,27 @@
+# ─── ReflectDesktop ─── standalone Tauri 2 GUI for Reflect Agent
+
+# Rust
+**/target/
+
+# Node / Vite / Tauri
+**/node_modules/
+**/dist/
+**/gen/
+pnpm-lock.yaml
+.pnpmfile.cjs.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config
+*.local.toml
+
+# Build artifacts
+WixTools/
+
+# ─── Cargo vendor mirrors ───
+# vendor/* are git subtree pulls from the ReflectAgent crate, locked at HEAD
+# when the ReflectDesktop was first cut. They are NOT to be developed in
+# place: pull updates with `bash scripts/vendor-sync.sh` from the source repo.
+# Note: build artifacts inside vendor/**/target/ are still ignored globally.

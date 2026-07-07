@@ -1,0 +1,31 @@
+[package]
+name = "reflect-app-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Reflect: shared UI-agnostic reducer / RenderState / Services bundle reused by TUI and GUI"
+
+[lib]
+name = "reflect_app_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Reflect crates —— 与 docs/gui/03-architecture.md §2.2 对齐
+reflect-protocol = { workspace = true }
+reflect-core     = { workspace = true }
+reflect-task     = { workspace = true }
+reflect-skills   = { workspace = true }
+reflect-memory   = { workspace = true }
+reflect-permissions = { workspace = true }
+reflect-tools    = { workspace = true }
+reflect-llm      = { workspace = true }
+reflect-hooks    = { workspace = true }
+
+# 通用
+anyhow      = { workspace = true }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+tokio       = { workspace = true, features = ["sync", "rt", "macros"] }
+parking_lot = { workspace = true }
+tracing     = { workspace = true }
+tempfile    = "3"

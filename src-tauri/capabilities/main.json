@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Main window capabilities (M1.1 baseline; plugins added in later milestones)",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}
