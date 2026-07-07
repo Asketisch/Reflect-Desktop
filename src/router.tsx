@@ -1,14 +1,7 @@
 /**
  * TanStack Router v1 — ReflectDesktop route tree。
  *
- * M2.x 里程碑：引入路由基础设施,后续 M3.x 填充各 feature slice。
- *
- * 路由设计：
- * - `/` — Chat (Composer + MessageList, 默认视图)
- * - `/chat/:sessionId` — Chat with specific session
- * - `/sessions` — Session history sidebar expanded
- * - `/settings` — Settings
- * - 其余 feature slice 占位 (M3.x 实装)
+ * M3.x 里程碑：19 条路由 + AppLayout + SettingsShell。
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -21,9 +14,12 @@ import { SettingsView } from '@/features/settings/SettingsView';
 import { Sidebar } from '@/features/sessions/components/Sidebar';
 import { useSessions } from '@/features/sessions/hooks/useSessions';
 import { Topbar, BottomBar } from '@/widgets/StatusBar';
+import { HomeView } from '@/features/home/HomeView';
+import { ThreadsView } from '@/features/threads/ThreadsView';
+import { ModelsView } from '@/features/models/ModelsView';
+import { FilesView } from '@/features/files/FilesView';
 
-// ====== Placeholder route components for empty feature slices ======
-// M3.x 替换为真实实现。
+// ====== Placeholder route components ======
 
 function PlaceholderView({ title, description }: { title: string; description: string }) {
   return (
@@ -35,11 +31,9 @@ function PlaceholderView({ title, description }: { title: string; description: s
   );
 }
 
-const FilesView = () => <PlaceholderView title="Files" description="Browse and edit workspace files." />;
 const SkillsView = () => <PlaceholderView title="Skills" description="Manage Reflect skills and plugins." />;
 const WorkspacesView = () => <PlaceholderView title="Workspaces" description="Switch between project workspaces." />;
 const GitView = () => <PlaceholderView title="Git" description="Git status, diff, and commit workflow." />;
-const ModelsView = () => <PlaceholderView title="Models" description="Select and configure LLM models." />;
 const TerminalView = () => <PlaceholderView title="Terminal" description="Embedded terminal for shell commands." />;
 const PlanView = () => <PlaceholderView title="Plan" description="Plan mode viewer and approval workflow." />;
 const PromptsView = () => <PlaceholderView title="Prompts" description="Prompt library and templates." />;
@@ -53,10 +47,8 @@ const MobileView = () => <PlaceholderView title="Mobile" description="Mobile com
 const DictationView = () => <PlaceholderView title="Dictation" description="Voice input." />;
 const DesignSystemView = () => <PlaceholderView title="Design System" description="Component library reference." />;
 
-// ====== Layout component ======
+// ====== Layout components ======
 
-// TanStack Router v1 route components receive children as a React prop for parent routes.
-// We type as `any` to satisfy v1's `RouteComponent` type which is `(props: {}) => any`.
 function AppLayout(props: { children?: React.ReactNode }) {
   const sessions = useSessions();
   const { children } = props;
@@ -81,7 +73,6 @@ function AppLayout(props: { children?: React.ReactNode }) {
   );
 }
 
-// Settings is a full-screen view without sidebar.
 function SettingsShell({ children }: { children?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -100,137 +91,32 @@ const rootRoute = new RootRoute({
   component: AppLayout,
 });
 
-const indexRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  component: ChatView,
-});
-
-const chatRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'chat',
-  component: ChatView,
-});
-
-const chatSessionRoute = new Route({
-  getParentRoute: () => chatRoute,
-  path: '$sessionId',
-  component: ChatView,
-});
-
-const sessionsRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'sessions',
-  component: ChatView,
-});
-
+const indexRoute = new Route({ getParentRoute: () => rootRoute, path: '/', component: HomeView });
+const chatRoute = new Route({ getParentRoute: () => rootRoute, path: 'chat', component: ChatView });
+const chatSessionRoute = new Route({ getParentRoute: () => chatRoute, path: '$sessionId', component: ChatView });
+const sessionsRoute = new Route({ getParentRoute: () => rootRoute, path: 'sessions', component: ThreadsView });
 const settingsRoute = new Route({
   getParentRoute: () => rootRoute,
   path: 'settings',
   component: () => <SettingsShell><SettingsView onClose={() => router.navigate({ to: '/' })} /></SettingsShell>,
 });
-
-const filesRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'files',
-  component: FilesView,
-});
-
-const skillsRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'skills',
-  component: SkillsView,
-});
-
-const workspacesRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'workspaces',
-  component: WorkspacesView,
-});
-
-const gitRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'git',
-  component: GitView,
-});
-
-const modelsRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'models',
-  component: ModelsView,
-});
-
-const terminalRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'terminal',
-  component: TerminalView,
-});
-
-const planRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'plan',
-  component: PlanView,
-});
-
-const promptsRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'prompts',
-  component: PromptsView,
-});
-
-const aboutRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'about',
-  component: AboutView,
-});
-
-const updateRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'update',
-  component: UpdateView,
-});
-
-const notificationsRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'notifications',
-  component: NotificationsView,
-});
-
-const debugRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'debug',
-  component: DebugView,
-});
-
-const appsRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'apps',
-  component: AppsView,
-});
-
-const collaborationRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'collaboration',
-  component: CollaborationView,
-});
-
-const mobileRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'mobile',
-  component: MobileView,
-});
-
-const dictationRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'dictation',
-  component: DictationView,
-});
-
-const designSystemRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'design-system',
-  component: DesignSystemView,
-});
+const filesRoute = new Route({ getParentRoute: () => rootRoute, path: 'files', component: FilesView });
+const modelsRoute = new Route({ getParentRoute: () => rootRoute, path: 'models', component: ModelsView });
+const skillsRoute = new Route({ getParentRoute: () => rootRoute, path: 'skills', component: SkillsView });
+const workspacesRoute = new Route({ getParentRoute: () => rootRoute, path: 'workspaces', component: WorkspacesView });
+const gitRoute = new Route({ getParentRoute: () => rootRoute, path: 'git', component: GitView });
+const terminalRoute = new Route({ getParentRoute: () => rootRoute, path: 'terminal', component: TerminalView });
+const planRoute = new Route({ getParentRoute: () => rootRoute, path: 'plan', component: PlanView });
+const promptsRoute = new Route({ getParentRoute: () => rootRoute, path: 'prompts', component: PromptsView });
+const aboutRoute = new Route({ getParentRoute: () => rootRoute, path: 'about', component: AboutView });
+const updateRoute = new Route({ getParentRoute: () => rootRoute, path: 'update', component: UpdateView });
+const notificationsRoute = new Route({ getParentRoute: () => rootRoute, path: 'notifications', component: NotificationsView });
+const debugRoute = new Route({ getParentRoute: () => rootRoute, path: 'debug', component: DebugView });
+const appsRoute = new Route({ getParentRoute: () => rootRoute, path: 'apps', component: AppsView });
+const collaborationRoute = new Route({ getParentRoute: () => rootRoute, path: 'collaboration', component: CollaborationView });
+const mobileRoute = new Route({ getParentRoute: () => rootRoute, path: 'mobile', component: MobileView });
+const dictationRoute = new Route({ getParentRoute: () => rootRoute, path: 'dictation', component: DictationView });
+const designSystemRoute = new Route({ getParentRoute: () => rootRoute, path: 'design-system', component: DesignSystemView });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -238,10 +124,10 @@ const routeTree = rootRoute.addChildren([
   sessionsRoute,
   settingsRoute,
   filesRoute,
+  modelsRoute,
   skillsRoute,
   workspacesRoute,
   gitRoute,
-  modelsRoute,
   terminalRoute,
   planRoute,
   promptsRoute,
@@ -258,29 +144,23 @@ const routeTree = rootRoute.addChildren([
 
 // ====== Router instance ======
 
-export const router = new Router({
-  routeTree,
-});
+export const router = new Router({ routeTree });
 
 // ====== Type inference ======
 
 export type AppRouter = typeof router;
 
-// ====== React Query + Router provider ======
+// ====== React Query provider ======
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 30, // 30s
+      staleTime: 1000 * 30,
       retry: 1,
     },
   },
 });
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
