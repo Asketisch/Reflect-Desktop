@@ -66,7 +66,11 @@ export function useAgent() {
   return { turns, session, submit };
 }
 
-function handle_event(
+/**
+ * 纯函数 —— 根据 event 更新 turns / session state。
+ * 导出供测试和外部使用。
+ */
+export function handle_event(
   setTurns: React.Dispatch<React.SetStateAction<Turn[]>>,
   setSession: React.Dispatch<React.SetStateAction<AgentSession | null>>,
   e: ReflectEvent,

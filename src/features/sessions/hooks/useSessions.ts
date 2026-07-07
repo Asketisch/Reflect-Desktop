@@ -1,14 +1,17 @@
 /**
- * M1.3 Session 列表 hook —— 调 `reflect_list_sessions` + 时间分桶。
+ * M3.x Session 列表 hook —— TanStack Query 驱动。
  *
- * 时间分桶规则(沿用 CodexMonitor `Sidebar.tsx`):
+ * - useQuery 缓存 `reflect_list_sessions` 结果(5min staleTime)
+ * - useMutation 处理 rename → invalidate → 自动重刷
+ * - 时间分桶规则(沿用 CodexMonitor `Sidebar.tsx`):
  *   - Now       : < 1h
  *   - Today     : < 24h
  *   - Yesterday : 1-2 天前
  *   - This week : 3-7 天前
  *   - Older     : > 7 天
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   reflect_list_sessions,
   reflect_rename_session,
@@ -34,29 +37,24 @@ function bucket(s: ReflectSessionInfo, now: number): string {
 }
 
 export function useSessions() {
-  const [all, setAll] = useState<ReflectSessionInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const qc = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await reflect_list_sessions();
-      setAll(list);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: all = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['sessions'],
+    queryFn: reflect_list_sessions,
+    staleTime: 5 * 60_000,
+  });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, newName }: { id: string; newName: string }) =>
+      reflect_rename_session(id, newName),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sessions'] });
+    },
+  });
 
-  const buckets = useMemo<SessionBucket[]>(() => {
+  const buckets = all.length > 0 ? (() => {
     const now = Date.now();
     const groups = new Map<string, ReflectSessionInfo[]>();
     for (const s of all) {
@@ -68,12 +66,21 @@ export function useSessions() {
     return order
       .filter((l) => groups.has(l))
       .map((l) => ({ label: l, sessions: groups.get(l)! }));
-  }, [all]);
+  })() : [];
 
-  const rename = useCallback(async (id: string, new_name: string) => {
-    await reflect_rename_session(id, new_name);
-    await refresh();
-  }, [refresh]);
+  const rename = useCallback(async (id: string, newName: string) => {
+    await renameMutation.mutateAsync({ id, newName });
+  }, [renameMutation]);
 
-  return { buckets, all, loading, error, refresh, activeId, setActiveId, rename };
+  return {
+    buckets,
+    all,
+    loading: isLoading,
+    error: (error as Error | null)?.message ?? null,
+    refetch,
+    refresh: () => refetch(),
+    activeId,
+    setActiveId,
+    rename,
+  };
 }
