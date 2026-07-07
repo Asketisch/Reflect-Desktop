@@ -23,6 +23,8 @@ import { SkillsView } from '@/features/skills/SkillsView';
 import { WorkspacesView } from '@/features/workspaces/WorkspacesView';
 import { PlanView } from '@/features/plan/PlanView';
 import { PromptsView } from '@/features/prompts/PromptsView';
+import { NotificationsView } from '@/features/notifications/NotificationsView';
+import { TerminalView } from '@/features/terminal/TerminalView';
 
 // ====== Placeholder route components ======
 
@@ -36,10 +38,8 @@ function PlaceholderView({ title, description }: { title: string; description: s
   );
 }
 
-const TerminalView = () => <PlaceholderView title="Terminal" description="Embedded terminal for shell commands." />;
 const AboutView = () => <PlaceholderView title="About Reflect" description="Reflect Desktop — AI coding agent GUI for Reflect Agent." />;
 const UpdateView = () => <PlaceholderView title="Updates" description="Check for Reflect Desktop updates." />;
-const NotificationsView = () => <PlaceholderView title="Notifications" description="Notification center." />;
 const DebugView = () => <PlaceholderView title="Debug" description="Debug panel — dev only." />;
 const AppsView = () => <PlaceholderView title="Apps" description="App integrations." />;
 const CollaborationView = () => <PlaceholderView title="Collaboration" description="Multi-user collaboration." />;
