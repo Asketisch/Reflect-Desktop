@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReflectDesktop — Tauri 2 + React 19 GUI for Reflect Agent</title>
+  <meta name="description" content="Standalone Tauri 2 + React 19 desktop GUI for the Reflect Agent. Multi-pane chat, session sidebar, composer with slash popup, approval modals." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" type="image/svg+xml" href="./assets/placeholder.svg" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a href="./index.html" class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">ReflectDesktop</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/CNB/ReflectDesktop" class="cta">GitHub →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <span class="eyebrow">v0.1.0 · MVP released</span>
+        <h1>Desktop GUI for the<br/><span class="accent">Reflect Agent</span></h1>
+        <p class="lead">
+          Tauri&nbsp;2 + React&nbsp;19 · multi-pane chat, session sidebar, slash-popup composer,
+          in-process <code>reflect_core::AgentThread</code> · binary &lt; 20&nbsp;MB · macOS/Linux/Windows.
+        </p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#install">Install</a>
+          <a class="btn ghost" href="./codebase-map.html">Browse docs</a>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <img src="./assets/placeholder.svg" alt="ReflectDesktop screenshot placeholder" />
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features">
+      <div class="container">
+        <h2>What's in the box</h2>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Three-pane layout</h3>
+            <p>Time-bucketed session sidebar (Now / Today / Yesterday / This week / Older) on the left, chat in the middle, tool inspector + cost ring on the right.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Streaming chat</h3>
+            <p><code>react-markdown</code> + Shiki for code blocks; tool rows collapse consecutive calls; thinking deltas live in a collapsible panel.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Composer</h3>
+            <p>Auto-grow textarea, <code>/</code> slash popup (47 commands from TUI), <code>@</code> file mention, drag/drop image attachments, history navigation.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Modal suite</h3>
+            <p>Approval (Tool / Hook / Plan), multi-question AskUser with "Other" custom text, free-text AskUser, Plan-Ready markdown review.</p>
+          </article>
+          <article class="feature-card">
+            <h3>In-process backend</h3>
+            <p>Direct <code>Arc&lt;AgentThread&gt;</code> sharing with TUI/CLI — zero serialization, identical behavior across frontends.</p>
+          </article>
+          <article class="feature-card">
+            <h3>macOS-native</h3>
+            <p>Overlay titlebar with vibrancy, close-to-tray, dock badge, <code>Cmd+.</code> interrupt, global hotkeys via <code>tauri-plugin-global-shortcut</code>.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenshots" class="screenshots">
+      <div class="container">
+        <h2>Screenshots</h2>
+        <p class="muted">Drop <code>docs/assets/main.png</code> + feature1..6.png to replace placeholders. See <a href="./assets/README.html">assets/README</a> for capture conventions.</p>
+        <div class="screenshot-grid">
+          <figure>
+            <img src="./assets/placeholder.svg" alt="Main UI placeholder" />
+            <figcaption>Main UI (home)</figcaption>
+          </figure>
+          <figure>
+            <img src="./assets/placeholder.svg" alt="Composer + slash popup placeholder" />
+            <figcaption>Composer + slash popup</figcaption>
+          </figure>
+          <figure>
+            <img src="./assets/placeholder.svg" alt="Sidebar placeholder" />
+            <figcaption>Session sidebar</figcaption>
+          </figure>
+          <figure>
+            <img src="./assets/placeholder.svg" alt="Approval modal placeholder" />
+            <figcaption>Approval modal</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="install" class="install">
+      <div class="container">
+        <h2>Install</h2>
+
+        <h3>From source</h3>
+<pre><code>git clone https://github.com/CNB/ReflectDesktop.git
+cd ReflectDesktop
+pnpm install
+bash scripts/vendor-sync.sh /path/to/Reflect-Agent main
+pnpm tauri build --bundles app
+bash scripts/install.sh
+# → /usr/local/bin/reflect-desktop
+# → ~/Applications/ReflectDesktop.app</code></pre>
+
+        <h3>Dev mode</h3>
+<pre><code>pnpm tauri dev</code></pre>
+
+        <p>See <a href="../README.html">README</a> for platform-specific notes.</p>
+      </div>
+    </section>
+
+    <section class="docs">
+      <div class="container">
+        <h2>Documentation</h2>
+        <ul class="docs-list">
+          <li><a href="./codebase-map.html">codebase-map.md</a> — task-oriented "if you need X, edit Y"</li>
+          <li><a href="./PROTOCOL_BRIDGE.html">PROTOCOL_BRIDGE.md</a> — Tauri ↔ reflect-protocol envelope spec</li>
+          <li><a href="./ARCHITECTURE.html">ARCHITECTURE.md</a> — top-level layout + state flow</li>
+          <li><a href="./CHANGELOG.html">CHANGELOG.md</a> — release notes</li>
+          <li><a href="./USER_GUIDE.html">USER_GUIDE.md</a> — end-user guide</li>
+          <li><a href="../AGENTS.html">AGENTS.md</a> — agent contract for the repo</li>
+          <li><a href="./gui/00-index.html">docs/gui/</a> — historical design docs</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>ReflectDesktop is part of the <a href="https://github.com/CNB/Reflect-Agent">Reflect Agent</a> ecosystem · MIT licensed.</p>
+    </div>
+  </footer>
+</body>
+</html>
