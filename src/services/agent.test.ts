@@ -110,6 +110,54 @@ describe('handle_event', () => {
     expect(state.turns[0].reply).toBe('hello');
     expect(state.turns[0].done).toBe(false);
   });
+
+  it('session_configured ignores empty model/provider', () => {
+    let session: { model: string; provider: string } | null = { model: 'old', provider: 'old' };
+    const setSession = (v: unknown) => { session = v as typeof session; };
+
+    handle_event(
+      () => {},
+      setSession,
+      { id: '', msg: { type: 'session_configured', model: '', provider: '' } },
+    );
+
+    // No update because both fields empty
+    expect(session).toEqual({ model: 'old', provider: 'old' });
+  });
+
+  it('agent_message_delta with missing id does not throw', () => {
+    const state = { turns: [{ id: 't1', user: 'hi', reply: '', done: false }] };
+    const setTurns = (v: unknown) => {
+      state.turns = typeof v === 'function'
+        ? (v as (prev: Turn[]) => Turn[])(state.turns)
+        : (v as Turn[]);
+    };
+
+    // id matches nothing → no-op for the array (still safe)
+    expect(() => {
+      handle_event(
+        setTurns,
+        () => {},
+        { id: 'no-such-id', msg: { type: 'agent_message_delta', delta: 'x' } },
+      );
+    }).not.toThrow();
+  });
+
+  it('agent_message_delta tolerates missing delta field', () => {
+    const state = { turns: [{ id: 't1', user: 'hi', reply: 'base', done: false }] };
+    const setTurns = (v: unknown) => {
+      state.turns = typeof v === 'function'
+        ? (v as (prev: Turn[]) => Turn[])(state.turns)
+        : (v as Turn[]);
+    };
+
+    handle_event(
+      setTurns,
+      () => {},
+      { id: 't1', msg: { type: 'agent_message_delta' } as unknown as { type: 'agent_message_delta'; delta: string } },
+    );
+    expect(state.turns[0].reply).toBe('base');
+  });
 });
 
 // ====== useAgent hook 测试 ======

@@ -1,0 +1,64 @@
+/* ReflectDesktop design tokens — single source of truth.
+ *
+ * Mirror of docs/styles.css design tokens (用于 docs 网站)。
+ * 整个 src/** 唯一允许 import 的样式入口。
+ *
+ * CodexMonitor 参考: src/styles/tokens.css
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Typography */
+  --font-sans: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-3xl: 36px;
+
+  /* Light theme (default) */
+  --bg: #ffffff;
+  --bg-2: #f8fafc;
+  --ink: #1e293b;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --accent: #3b82f6;
+  --accent-2: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #080b14;
+    --bg-2: #101629;
+    --ink: #e8edf5;
+    --muted: #b2bccf;
+    --line: rgba(255, 255, 255, 0.08);
+    --accent: #5dd1c6;
+    --accent-2: #f7b267;
+    --danger: #f87171;
+    --warning: #fbbf24;
+  }
+}
