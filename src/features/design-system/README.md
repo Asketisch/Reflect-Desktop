@@ -1,13 +1,70 @@
-# design-system (placeholder)
+# design-system
 
-对标 CodexMonitor 的 `src/features/design-system/`。 当前（M1.x）仅有空目录；待 B1-B10 阶段逐步填实 components + hooks + stores。
+Design System primitives + token catalog。
 
-参考实现：
-- 文件结构：CodexMonitor-main/src/features/design-system/
-- 镜像任务规格：docs/ARCHITECTURE.md（待 M2 更新）
+## 目录结构
 
-## 计划接入的组件
-- components/ — 7-12 个 React 组件
-- hooks/    — `use<Feature>State` + `use<Feature>Actions`
-- stores/   — Zustand slice (when state is local to this feature)
-- services/ — IPC `@tauri-apps` invoke/listen 包装（仅 settings / workspaces）
+```
+design-system/
+├── primitives/
+│   ├── Button.tsx              # 4 variant × 2 size × block
+│   ├── Button.test.tsx         # 7 个测试
+│   ├── Toast.tsx               # 4 kind × auto-dismiss
+│   ├── Toast.test.tsx          # 4 个测试
+│   ├── ContextRing.tsx         # SVG ring with N segments
+│   ├── ContextRing.test.tsx    # 4 个测试
+│   ├── KeyHint.tsx             # 跨平台快捷键标签
+│   └── KeyHint.test.tsx        # 3 个测试
+├── utils/
+│   ├── buttonStyles.ts         # inline style 计算
+│   ├── buttonStyles.test.ts    # 6 个测试
+│   ├── ring.ts                 # SVG geometry + arc
+│   ├── ring.test.ts            # 3 个测试
+│   ├── keyHints.ts             # macOS/other 标签
+│   ├── keyHints.test.ts        # 7 个测试
+│   ├── toast.ts                # toast kind 颜色表
+├── DesignSystemView.tsx        # catalog 页（路由 /design-system）
+├── index.ts                    # barrel
+└── README.md
+```
+
+## Primitives
+
+| Primitive | 用途 | 来自 CodexMonitor |
+|---|---|---|
+| `Button` | 全局 button (primary/secondary/danger/ghost × sm/md) | `src/components/Button.tsx` |
+| `Toast` | 单条 toast (4 kinds + auto-dismiss) | `src/components/Toast.tsx` |
+| `ContextRing` | SVG ring 显示 context 用量 | `src/widgets/ContextRing.tsx` |
+| `KeyHint` | 跨平台快捷键标签 | `src/widgets/KeyHint.tsx` |
+
+## Utils
+
+| Util | 纯函数 |
+|---|---|
+| `buttonStyle({variant, size, block})` | 计算 button inline style |
+| `ringGeometry(size, stroke)` | SVG 几何 (cx, cy, radius, circumference) |
+| `segmentArc(geom, start, length)` | 单 segment arc dasharray |
+| `shortcutLabel(combo, platform)` | "Cmd+Enter" → "⌘↩" (macOS) |
+| `platformLabel(platform)` | 全键位 label 表 |
+| `detectPlatform()` | navigator.platform 检测 |
+| `TOAST_COLORS` | 4 kind × {bg, fg, border} |
+
+## Tokens
+
+- 单一真相源：`src/styles/tokens.css`（CSS variables）
+- 通过 `import '@/styles/tokens.css'` 注入（main.tsx）
+- `detectPlatform` 选 macos vs other
+
+## 测试覆盖
+
+- utils 17 个（buttonStyles 6 + ring 3 + keyHints 7 + toast 颜色表）
+- primitives 18 个（Button 7 + Toast 4 + ContextRing 4 + KeyHint 3）
+
+合计 **35 个 design-system 测试**。
+
+## 使用规约
+
+- **样式**：所有 inline style 一律走 `utils/*Style.ts` 计算函数（避免到处散落 hex 字面量）
+- **导出**：唯一对外 API 是 `index.ts` barrel；feature 内禁止 deep import `primitives/*`
+- **新 primitive**：先写 utils 测试 → primitive 实现 → primitive 测试 → catalog 加入示例 → index 导出
+- **跨平台**：快捷键一律过 `shortcutLabel`，禁止直接拼接字符串

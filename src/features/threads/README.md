@@ -1,13 +1,37 @@
-# threads (placeholder)
+# threads
 
-对标 CodexMonitor 的 `src/features/threads/`。 当前（M1.x）仅有空目录；待 B1-B10 阶段逐步填实 components + hooks + stores。
+线程（threads）列表视图 + 链接生成工具。
 
-参考实现：
-- 文件结构：CodexMonitor-main/src/features/threads/
-- 镜像任务规格：docs/ARCHITECTURE.md（待 M2 更新）
+## 目录结构
 
-## 计划接入的组件
-- components/ — 7-12 个 React 组件
-- hooks/    — `use<Feature>State` + `use<Feature>Actions`
-- stores/   — Zustand slice (when state is local to this feature)
-- services/ — IPC `@tauri-apps` invoke/listen 包装（仅 settings / workspaces）
+```
+threads/
+├── components/
+│   ├── ThreadItem.tsx              # 单个 thread 行(router Link)
+│   └── ThreadBucketGroup.tsx       # 时间桶 + 列表
+├── utils/
+│   ├── threadLabels.ts             # chatLinkFor + shortTimestamp
+│   └── threadLabels.test.ts        # 4 个工具测试
+├── ThreadsView.tsx                 # 顶层容器
+├── ThreadsView.test.tsx            # 3 个视图测试
+├── index.ts                        # 公共 barrel
+└── README.md
+```
+
+## 入口
+
+- **路由挂载**：`src/router.tsx` → `ThreadsView`
+- **公共 API**：`import { ThreadsView } from '@/features/threads'`
+
+## 依赖关系
+
+- 复用 `features/sessions` 的 `useSessions` + `useActiveSession` + `SessionBucket`（**禁止**直接复制 buckets 规则）
+- ThreadBucketGroup 只接受 SessionBucket 输入 → 单一真相源
+
+## 测试覆盖
+
+- `utils/threadLabels.test.ts` — 4 个测试（chatLink × 2、shortTimestamp × 2）
+- `ThreadsView.test.tsx` — 3 个测试（render / empty / active highlight）
+- `components/ThreadBucketGroup.test.tsx` — 4 个测试（render / active / click / multi）
+
+合计 **11 个 thread slice 测试**。

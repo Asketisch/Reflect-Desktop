@@ -3,12 +3,9 @@
  *
  * - useQuery 缓存 `reflect_list_sessions` 结果(5min staleTime)
  * - useMutation 处理 rename → invalidate → 自动重刷
- * - 时间分桶规则(沿用 CodexMonitor `Sidebar.tsx`):
- *   - Now       : < 1h
- *   - Today     : < 24h
- *   - Yesterday : 1-2 天前
- *   - This week : 3-7 天前
- *   - Older     : > 7 天
+ * - 时间分桶规则已抽出到 `./utils/buckets.ts`(纯函数,可独立测试)
+ *
+ * CodexMonitor 同名: `src/features/threads/hooks/useThreads.ts`
  */
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,56 +14,40 @@ import {
   reflect_rename_session,
   type ReflectSessionInfo,
 } from '@/utils/tauri';
+import { bucketSessions, type SessionBucket } from '../utils/buckets';
 
-export interface SessionBucket {
-  label: string;
-  sessions: ReflectSessionInfo[];
+export type { SessionBucket };
+
+export const SESSIONS_QUERY_KEY = ['sessions'] as const;
+const SESSIONS_STALE_MS = 5 * 60_000;
+
+export interface UseSessionsResult {
+  buckets: SessionBucket[];
+  all: ReflectSessionInfo[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+  refresh: () => void;
+  rename: (id: string, newName: string) => Promise<void>;
 }
 
-function bucket(s: ReflectSessionInfo, now: number): string {
-  const t = Date.parse(s.started_at);
-  if (Number.isNaN(t)) return 'Older';
-  const ageMs = now - t;
-  const h = ageMs / (1000 * 60 * 60);
-  if (h < 1) return 'Now';
-  if (h < 24) return 'Today';
-  const d = h / 24;
-  if (d < 2) return 'Yesterday';
-  if (d < 7) return 'This week';
-  return 'Older';
-}
-
-export function useSessions() {
+export function useSessions(): UseSessionsResult {
   const qc = useQueryClient();
-  const [activeId, setActiveId] = useState<string | null>(null);
-
   const { data: all = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['sessions'],
+    queryKey: SESSIONS_QUERY_KEY,
     queryFn: reflect_list_sessions,
-    staleTime: 5 * 60_000,
+    staleTime: SESSIONS_STALE_MS,
   });
+
+  const buckets = bucketSessions(all);
 
   const renameMutation = useMutation({
     mutationFn: async ({ id, newName }: { id: string; newName: string }) =>
       reflect_rename_session(id, newName),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['sessions'] });
+      qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
     },
   });
-
-  const buckets = all.length > 0 ? (() => {
-    const now = Date.now();
-    const groups = new Map<string, ReflectSessionInfo[]>();
-    for (const s of all) {
-      const k = bucket(s, now);
-      if (!groups.has(k)) groups.set(k, []);
-      groups.get(k)!.push(s);
-    }
-    const order = ['Now', 'Today', 'Yesterday', 'This week', 'Older'];
-    return order
-      .filter((l) => groups.has(l))
-      .map((l) => ({ label: l, sessions: groups.get(l)! }));
-  })() : [];
 
   const rename = useCallback(async (id: string, newName: string) => {
     await renameMutation.mutateAsync({ id, newName });
@@ -77,10 +58,22 @@ export function useSessions() {
     all,
     loading: isLoading,
     error: (error as Error | null)?.message ?? null,
-    refetch,
-    refresh: () => refetch(),
-    activeId,
-    setActiveId,
+    refetch: () => {
+      void refetch();
+    },
+    refresh: () => {
+      void refetch();
+    },
     rename,
   };
+}
+
+/**
+ * 维护当前活动 session id(local state,non-persisted)。
+ *
+ * CodexMonitor 同名: `src/features/threads/hooks/useActiveThread.ts`
+ */
+export function useActiveSession() {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  return { activeId, setActiveId };
 }

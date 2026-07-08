@@ -1,0 +1,45 @@
+# sessions
+
+会话侧栏（time-bucketed sidebar）+ 时间分桶工具 + 命名 session。
+
+## 目录结构
+
+```
+sessions/
+├── components/
+│   ├── Sidebar.tsx           # 容器侧栏
+│   ├── Sidebar.test.tsx      # 6 个组件测试
+│   ├── BucketGroup.tsx       # 单个时间桶
+│   └── SessionItem.tsx       # 单个 session 行 (memo)
+├── hooks/
+│   ├── useSessions.ts        # TanStack Query 数据 + rename mutation
+│   └── useSessions.test.tsx  # 5 个 hook 测试 + 1 个 useActiveSession
+├── utils/
+│   ├── buckets.ts            # 纯函数分桶 + displayTitle
+│   └── buckets.test.ts       # 11 个纯函数测试
+├── SessionsView.tsx          # 顶层容器(组合 hook + Sidebar)
+├── index.ts                  # 公共 barrel
+└── README.md
+```
+
+## 入口
+
+- **路由挂载**：`src/router.tsx` 用 `SessionsView`（之前是 `Sidebar`，现在统一到 view）
+- **侧栏复用**：router 可以直接用 `Sidebar` 组件配合外部状态
+- **数据获取**：`useSessions()` 返回 `{ buckets, all, loading, error, refetch, refresh, rename }`
+- **当前活动**：`useActiveSession()` 返回 `{ activeId, setActiveId }`
+
+## 关键决策
+
+1. **bucket 规则抽到 utils**：`bucketFor` / `bucketSessions` / `displayTitle` 是纯函数，跨测试/跨 feature 复用方便（详见 [`utils/buckets.test.ts`](utils/buckets.test.ts)）。
+2. **activeId 独立 hook**：`useActiveSession` 不与 useSessions 耦合，便于多视图共享。
+3. **SessionItem memo**：避免列表 re-render。
+4. **Barrel export**：`index.ts` 是唯一对外 API；router/其他 feature 只从这里 import。
+
+## 测试覆盖
+
+- `utils/buckets.test.ts` — 11 个测试（5 个 bucketFor + 3 个 bucketSessions + 1 个 displayTitle + 2 个边界）
+- `hooks/useSessions.test.tsx` — 6 个测试（mount、buckets、rename、error、refresh、activeId）
+- `components/Sidebar.test.tsx` — 6 个测试（empty/loading/error/render/select/refresh）
+
+合计 **23 个 session slice 测试**。

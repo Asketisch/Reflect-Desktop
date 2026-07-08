@@ -7,7 +7,6 @@
  * 3. refresh 重新拉取
  * 4. rename 调用 reflect_rename_session + refresh
  * 5. 错误处理 (invoke reject)
- * 6. activeId 选择
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -27,7 +26,6 @@ function hookWrapper({ children }: { children: React.ReactNode }) {
 describe('useSessions', () => {
   beforeEach(() => {
     resetMockInvoke();
-    // Default: return 3 sessions at different times
     const now = Date.now();
     mockInvoke('reflect_list_sessions', async () => [
       {
@@ -127,23 +125,11 @@ describe('useSessions', () => {
     });
 
     await waitFor(() => expect(!!result.current.error).toBe(true), { timeout: 2000 });
-    // TanStack Query error may be Error or string depending on version
     const err = result.current.error;
-    const msg = typeof err === 'string' ? err : ((err as Error | null)?.message ?? String(err as unknown as Record<string, string>));
+    const msg = typeof err === 'string'
+      ? err
+      : ((err as Error | null)?.message ?? String(err));
     expect(msg).toContain('network error');
-  });
-
-  it('supports activeId selection', async () => {
-    mockInvoke('reflect_list_sessions', async () => []);
-
-    const { result } = renderHook(() => useSessions(), {
-      wrapper: hookWrapper,
-    });
-
-    await waitFor(() => expect(result.current.buckets.length).toBe(0), { timeout: 2000 });
-
-    act(() => result.current.setActiveId('s1'));
-    expect(result.current.activeId).toBe('s1');
   });
 
   it('refresh re-fetches sessions', async () => {
@@ -162,5 +148,16 @@ describe('useSessions', () => {
     act(() => result.current.refetch());
 
     await waitFor(() => expect(callCount).toBe(2), { timeout: 2000 });
+  });
+});
+
+describe('useActiveSession', () => {
+  it('starts with null and accepts setActiveId', async () => {
+    const { useActiveSession } = await import('@/features/sessions/hooks/useSessions');
+    const { result } = renderHook(() => useActiveSession(), { wrapper: hookWrapper });
+
+    expect(result.current.activeId).toBeNull();
+    act(() => result.current.setActiveId('s1'));
+    expect(result.current.activeId).toBe('s1');
   });
 });

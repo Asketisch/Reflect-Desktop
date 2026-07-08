@@ -1,0 +1,19 @@
+/**
+ * Threads 工具 —— 链接生成 + 日期格式化。
+ *
+ * CodexMonitor 同名: `src/features/threads/utils/threadLink.ts`
+ */
+import type { ReflectSessionInfo } from '@/utils/tauri';
+
+/** 生成 chat 路由路径。 */
+export function chatLinkFor(session: Pick<ReflectSessionInfo, 'session_id'>): string {
+  return `/chat/${session.session_id}`;
+}
+
+/** 简短时间标签(用于 thread 行 meta)。 */
+export function shortTimestamp(iso: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const d = new Date(t);
+  return d.toLocaleString();
+}

@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { Sidebar } from '@/features/sessions/components/Sidebar';
-import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { ChatView } from '@/features/messages/ChatView';
 import { SettingsView } from '@/features/settings/SettingsView';
 import { Topbar, BottomBar } from '@/widgets/StatusBar';
@@ -16,6 +16,7 @@ interface Props {
 
 export function AppLayout({ children }: Props) {
   const sessions = useSessions();
+  const { activeId, setActiveId } = useActiveSession();
   const [showRight, setShowRight] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -31,8 +32,8 @@ export function AppLayout({ children }: Props) {
           buckets={sessions.buckets}
           loading={sessions.loading}
           error={sessions.error}
-          activeId={sessions.activeId}
-          onSelect={sessions.setActiveId}
+          activeId={activeId}
+          onSelect={setActiveId}
           onRefresh={sessions.refresh}
         />
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

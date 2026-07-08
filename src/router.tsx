@@ -12,7 +12,7 @@ import React from 'react';
 import { ChatView } from '@/features/messages/ChatView';
 import { SettingsView } from '@/features/settings/SettingsView';
 import { Sidebar } from '@/features/sessions/components/Sidebar';
-import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { Topbar, BottomBar } from '@/widgets/StatusBar';
 import { HomeView } from '@/features/home/HomeView';
 import { ThreadsView } from '@/features/threads/ThreadsView';
@@ -42,6 +42,7 @@ import { UpdateView } from '@/features/update/UpdateView';
 
 function AppLayout(props: { children?: React.ReactNode }) {
   const sessions = useSessions();
+  const { activeId, setActiveId } = useActiveSession();
   const { children } = props;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -51,8 +52,8 @@ function AppLayout(props: { children?: React.ReactNode }) {
           buckets={sessions.buckets}
           loading={sessions.loading}
           error={sessions.error}
-          activeId={sessions.activeId}
-          onSelect={sessions.setActiveId}
+          activeId={activeId}
+          onSelect={setActiveId}
           onRefresh={sessions.refresh}
         />
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>

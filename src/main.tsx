@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { AppProviders, router } from './router';
+import './styles/tokens.css';
 
 const root = document.getElementById('root');
 if (!root) {

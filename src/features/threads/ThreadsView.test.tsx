@@ -5,6 +5,7 @@
  * 1. 渲染 session buckets
  * 2. 空状态显示
  * 3. 显示 session 信息
+ * 4. active 高亮
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -12,11 +13,12 @@ import { render, screen } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThreadsView } from '@/features/threads/ThreadsView';
 import { resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
-import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 
-// Mock useSessions hook
+// Mock useSessions + useActiveSession hooks
 vi.mock('@/features/sessions/hooks/useSessions', () => ({
   useSessions: vi.fn(),
+  useActiveSession: vi.fn(),
 }));
 
 // Mock @tanstack/react-router Link
@@ -65,9 +67,11 @@ describe('ThreadsView', () => {
       error: null,
       refetch: vi.fn(),
       refresh: vi.fn(),
+      rename: vi.fn(),
+    });
+    vi.mocked(useActiveSession).mockReturnValue({
       activeId: null,
       setActiveId: vi.fn(),
-      rename: vi.fn(),
     });
 
     render(
@@ -90,9 +94,11 @@ describe('ThreadsView', () => {
       error: null,
       refetch: vi.fn(),
       refresh: vi.fn(),
+      rename: vi.fn(),
+    });
+    vi.mocked(useActiveSession).mockReturnValue({
       activeId: null,
       setActiveId: vi.fn(),
-      rename: vi.fn(),
     });
 
     render(
@@ -131,9 +137,11 @@ describe('ThreadsView', () => {
       error: null,
       refetch: vi.fn(),
       refresh: vi.fn(),
+      rename: vi.fn(),
+    });
+    vi.mocked(useActiveSession).mockReturnValue({
       activeId: 's1',
       setActiveId: vi.fn(),
-      rename: vi.fn(),
     });
 
     render(
@@ -143,7 +151,6 @@ describe('ThreadsView', () => {
     );
 
     expect(screen.getByText('Active chat')).toBeDefined();
-    // Active session is rendered with bolder font weight (600 vs 400)
     const activeLink = screen.getByText('Active chat').closest('a');
     expect(activeLink).toBeDefined();
   });
