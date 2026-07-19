@@ -20,6 +20,9 @@ Thumbs.db
 # Build artifacts
 WixTools/
 
+# Local agent tooling (plan files, scratch)
+.zcode/
+
 # ─── Cargo vendor mirrors ───
 # vendor/* are git subtree pulls from the ReflectAgent crate, locked at HEAD
 # when the ReflectDesktop was first cut. They are NOT to be developed in

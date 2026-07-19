@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:native": "bash scripts/build.sh",
+    "build:universal": "bash scripts/build.sh --universal",
+    "build:fast": "bash scripts/build.sh --fast"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",

@@ -96,9 +96,28 @@ git clone https://github.com/CNB/ReflectDesktop.git
 cd ReflectDesktop
 pnpm install
 bash scripts/vendor-sync.sh /path/to/Reflect-Agent main
-pnpm tauri build --bundles app
-bash scripts/install.sh
+bash scripts/build.sh        # auto-detects OS, outputs native bundles
+bash scripts/install.sh      # macOS: installs .app + binary
 ```
+
+`scripts/build.sh` detects the current OS and emits the right bundle type:
+
+| OS       | Default bundles   | Output path                                   |
+|----------|-------------------|-----------------------------------------------|
+| macOS    | `app,dmg`         | `target/release/bundle/macos/`                |
+| Linux    | `deb,appimage`    | `target/release/bundle/{deb,appimage}/`       |
+| Windows  | `msi`             | `target/release/bundle/msi/`                  |
+
+Useful flags:
+```bash
+bash scripts/build.sh --fast          # release-fast profile (no LTO, ~2x faster)
+bash scripts/build.sh --universal     # macOS universal arm64+x86_64 binary
+bash scripts/build.sh --bundles=app   # override bundle list
+bash scripts/build.sh --dry-run       # print commands without executing
+bash scripts/build.sh --help
+```
+
+Equivalent npm scripts: `pnpm build:native`, `pnpm build:universal`, `pnpm build:fast`.
 
 ### Dev mode
 

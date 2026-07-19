@@ -1,0 +1,146 @@
+# Cross-platform release builder for ReflectDesktop.
+#
+# Triggered only by `git push --tags v*`. Builds native bundles on all three
+# OSes in parallel, uploads artifacts to the workflow run, and (if the tag
+# looks like a release) attaches them to a GitHub Release.
+#
+# Local one-shot builds do NOT need this — use `bash scripts/build.sh` instead.
+# This workflow is intentionally kept disabled for branch pushes: daily work
+# never triggers it.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:    # manual trigger from Actions tab
+
+permissions:
+  contents: write       # required by softprops/action-gh-release to upload assets
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # Single matrix job covering all three OSes. Each runner produces only
+  # the bundles native to its OS — no cross-compilation (Tauri doesn't
+  # support it reliably).
+  # ─────────────────────────────────────────────────────────────────────
+  build:
+    name: build (${{ matrix.os }} / ${{ matrix.bundles }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-arm64
+            runner: macos-14
+            bundles: app,dmg
+          - os: macos-x86_64
+            runner: macos-13
+            bundles: app,dmg
+          - os: linux
+            runner: ubuntu-22.04
+            bundles: deb,appimage
+          - os: windows
+            runner: windows-latest
+            bundles: msi
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node + pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+
+      # Linux: Tauri runtime deps (webkit2gtk-4.1, appindicator, librsvg).
+      # Names align with src-tauri/tauri.conf.json bundle.linux.deb.depends.
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf
+
+      - name: Install frontend deps
+        run: pnpm install
+        # NOTE: pnpm-lock.yaml is gitignored in this repo, so we intentionally
+        # do NOT pass --frozen-lockfile. The lockfile will be regenerated.
+
+      - name: Build native bundles
+        # --no-frontend: pnpm tauri build's beforeBuildCommand already runs
+        # `pnpm build`; passing it twice is wasteful on CI runners.
+        run: bash scripts/build.sh --bundles=${{ matrix.bundles }} --no-frontend
+        # Windows runners don't have bash by default in GHA, but Git Bash is
+        # preinstalled on windows-latest and is the default shell for `run:`
+        # steps with `bash` prefix.
+
+      - name: Locate artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          # Collect every bundle file Tauri produced into a flat staging dir.
+          find target/release/bundle -type f \( \
+            -name '*.dmg' -o \
+            -name '*.app' -o \
+            -name '*.deb' -o \
+            -name '*.AppImage' -o \
+            -name '*.msi' -o \
+            -name '*.exe' \) -print -exec cp {} artifacts/ \;
+          echo "List of staged artifacts:"
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: reflect-desktop-${{ matrix.os }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Release upload: only runs after all matrix jobs succeed, and only if
+  # this was triggered by a tag push. Manual dispatch just stages artifacts.
+  # ─────────────────────────────────────────────────────────────────────
+  release:
+    name: attach to release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List downloaded
+        run: ls -la release-assets/
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

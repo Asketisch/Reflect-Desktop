@@ -35,13 +35,33 @@
     "shortDescription": "AI coding agent GUI",
     "longDescription": "Reflect GUI for Reflect-Agent",
     "publisher": "CNB",
-    "homepage": "https://github.com/CNB/Reflect",
+    "homepage": "https://github.com/CNB/ReflectDesktop",
+    "copyright": "Copyright © 2026 CNB. Apache-2.0.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/256x256.png",
       "icons/icon.png",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "exceptionDomain": "",
+      "frameworks": []
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libayatana-appindicator3-1",
+          "librsvg2-2"
+        ]
+      }
+    }
   }
 }
