@@ -22,6 +22,8 @@ members = [
     "vendor/reflect-ast",
     "vendor/reflect-subagent",
     "vendor/reflect-sandbox",
+    "vendor/reflect-mcp",
+    "vendor/reflect-lsp",
     "app-core",
     "src-tauri",
 ]
@@ -56,6 +58,8 @@ reflect-notes       = { path = "vendor/reflect-notes" }
 reflect-ast         = { path = "vendor/reflect-ast" }
 reflect-subagent    = { path = "vendor/reflect-subagent" }
 reflect-sandbox     = { path = "vendor/reflect-sandbox" }
+reflect-mcp         = { path = "vendor/reflect-mcp" }
+reflect-lsp         = { path = "vendor/reflect-lsp" }
 reflect-app-core    = { path = "app-core" }
 
 # Common externals
@@ -104,7 +108,13 @@ crossterm          = "0.28"
 color-eyre         = "0.6"
 filetime           = "0.2"
 lsp-types          = { version = "=0.97", default-features = false }
-rmcp               = { version = "=1.7.0" }
+# rmcp features 对齐上游 Reflect-Agent(client + stdio/http transport);
+# reflect-mcp 运行时需要这些才能构造 McpConnectionManager。
+rmcp               = { version = "=1.7.0", features = [
+    "client",
+    "transport-child-process",
+    "transport-streamable-http-client-reqwest",
+] }
 reqwest            = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
 opentelemetry         = "0.27"
 opentelemetry_sdk     = { version = "0.27", features = ["rt-tokio"] }

@@ -29,8 +29,12 @@ describe('commands (forwarding to mock invoke)', () => {
 
   it('reflect_tool_approval accepts ReviewDecision', async () => {
     await expect(reflect_tool_approval('id-1', 'approve')).rejects.toThrow(/not mocked/);
-    await expect(reflect_tool_approval('id-2', 'deny')).rejects.toThrow(/not mocked/);
-    await expect(reflect_tool_approval('id-3', 'abort')).rejects.toThrow(/not mocked/);
+    await expect(
+      reflect_tool_approval('id-2', { deny: { reason: 'risky' } }),
+    ).rejects.toThrow(/not mocked/);
+    await expect(
+      reflect_tool_approval('id-3', 'approve_for_session'),
+    ).rejects.toThrow(/not mocked/);
   });
 
   it('reflect_set_permission_mode is mocked by setup and returns undefined', async () => {

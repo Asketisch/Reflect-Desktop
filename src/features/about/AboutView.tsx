@@ -1,46 +1,35 @@
 /**
- * M3.x About —— 关于 Reflect Desktop。
- *
- * - 版本号、构建信息
- * - 依赖开源项目致谢
- * - 系统信息 (OS、架构、Tauri 版本)
+ * About —— 阶段 5b:用真实命令(ping + agent_status)替换 phantom invoke。
  */
-
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-
-interface SystemInfo {
-  os: string;
-  arch: string;
-  tauriVersion: string;
-}
+import { useQuery } from '@tanstack/react-query';
+import { ping, reflect_agent_status } from '@/utils/tauri';
 
 export function AboutView() {
-  const [sys, setSys] = useState<SystemInfo | null>(null);
+  const pingQ = useQuery({ queryKey: ['ping'], queryFn: ping, staleTime: Infinity });
+  const statusQ = useQuery({
+    queryKey: ['agent-status'],
+    queryFn: reflect_agent_status,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    invoke<SystemInfo>('reflect_system_info').then(setSys).catch(() => setSys(null));
-  }, []);
+  const version = pingQ.data?.version ?? '—';
+  const status = statusQ.data;
 
   return (
     <div style={{ padding: 32, maxWidth: 640, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, marginBottom: 16 }}>About Reflect Desktop</h1>
 
       <div style={{ marginBottom: 24 }}>
-        <p style={{ margin: '4px 0', fontSize: 14 }}>
-          <strong>Version:</strong> 0.1.0
-        </p>
-        <p style={{ margin: '4px 0', fontSize: 14 }}>
-          <strong>Build:</strong> {new Date().toLocaleDateString()}
-        </p>
-        {sys && (
+        <Row label="Version" value={version} />
+        <Row label="Build" value={new Date().toLocaleDateString()} />
+        {status && (
           <>
-            <p style={{ margin: '4px 0', fontSize: 14 }}>
-              <strong>OS:</strong> {sys.os} ({sys.arch})
-            </p>
-            <p style={{ margin: '4px 0', fontSize: 14 }}>
-              <strong>Tauri:</strong> {sys.tauriVersion}
-            </p>
+            <Row label="Model" value={status.model} />
+            <Row label="Workspace" value={status.workspace} />
+            <Row
+              label="Status"
+              value={status.has_model ? '✓ ready' : '⚠ degraded (set API key in Settings)'}
+            />
           </>
         )}
       </div>
@@ -60,5 +49,13 @@ export function AboutView() {
         </p>
       </section>
     </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <p style={{ margin: '4px 0', fontSize: 14 }}>
+      <strong>{label}:</strong> {value}
+    </p>
   );
 }

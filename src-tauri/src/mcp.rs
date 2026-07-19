@@ -1,0 +1,201 @@
+//! MCP / LSP 运行时接入(阶段 3d)。
+//!
+//! 参照 `Reflect-Agent/crates/runtime/reflect-exec/src/bootstrap.rs` 的
+//! `bootstrap_m6` / `bootstrap_lsp`,但把 lifecycle event 推到 MinimalAgent
+//! 的 session broadcast(单一事件通道,前端 dispatcher 按 msg.type 分发)。
+//!
+//! 设计:
+//! - 读 `cfg.mcp_server_configs()` / `cfg.lsp_server_configs()`;
+//! - 配置为空或非法 → warn + 跳过(单 server 错不阻塞 agent 启动);
+//! - `McpConnectionManager` / `LspConnectionManager` 的 internal lifecycle event
+//!   经后台 task 转成 `EventMsg::McpServerStarted/Failed` / `LspServerStarted/Failed`,
+//!   通过 `MinimalAgent::subscribe_session` 的 broadcast 反向推送(用 MinimalAgent
+//!   暴露的 session_tx 句柄);
+//! - MCP 工具逐个 `register_if_absent(ToolSource::Runtime, McpToolAdapter)`;
+//! - LSP 单例 `LspTool::new(manager)` 注册。
+//!
+//! 注意:**返回 manager Arc 给 MinimalAgent 持有**,供后续 config 热重载的
+//! diff 重启用(reload task 在阶段 4 接入)。
+
+use std::sync::Arc;
+
+use reflect_config::ReflectConfig;
+use reflect_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
+use reflect_mcp::{
+    McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter,
+};
+use reflect_protocol::{EVENT_ID_NONE, Event, EventMsg};
+use reflect_tools::{ToolRegistry, ToolSource};
+use tokio::sync::broadcast;
+
+/// bootstrap MCP servers + 返回 manager 句柄(供热重载)。
+///
+/// `session_tx` = MinimalAgent 的 session broadcast sender;lifecycle event
+/// 经它推给所有前端订阅者。
+pub(crate) async fn bootstrap_mcp(
+    cfg: &ReflectConfig,
+    tools: Arc<ToolRegistry>,
+    session_tx: broadcast::Sender<Event>,
+) -> Option<Arc<McpConnectionManager>> {
+    let configs = match cfg.mcp_server_configs() {
+        Ok(c) if c.is_empty() => return None,
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(error = %e, "MCP config invalid; skipping all MCP servers");
+            return None;
+        }
+    };
+
+    let (internal_tx, mut internal_rx) =
+        tokio::sync::mpsc::channel::<McpLifecycleEvent>(32);
+    let manager = Arc::new(McpConnectionManager::new(internal_tx));
+
+    // 后台 task:internal lifecycle event → protocol Event → session broadcast。
+    tokio::spawn(async move {
+        while let Some(evt) = internal_rx.recv().await {
+            let msg = match evt {
+                McpLifecycleEvent::Started {
+                    server,
+                    tools,
+                    tool_names,
+                    transport,
+                } => EventMsg::McpServerStarted(reflect_protocol::McpServerStartedEvent {
+                    server,
+                    tool_count: tools,
+                    tool_names,
+                    transport: transport_mirror(transport),
+                }),
+                McpLifecycleEvent::Failed {
+                    server,
+                    error,
+                    will_retry,
+                } => EventMsg::McpServerFailed(reflect_protocol::McpServerFailedEvent {
+                    server,
+                    error,
+                    will_retry,
+                }),
+                McpLifecycleEvent::Stopped { server: _ } => continue,
+            };
+            let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
+        }
+    });
+
+    // 并发启动每个 server;每个 task 拿 handle 后注册其 tools。
+    for cfg_shape in &configs {
+        let mcp_cfg: McpServerConfig = McpServerConfig::from(cfg_shape.clone());
+        let mgr = manager.clone();
+        let tools_clone = tools.clone();
+        tokio::spawn(async move {
+            match mgr.start_server(mcp_cfg.clone()).await {
+                Ok(handle) => {
+                    for desc in &handle.tools {
+                        let adapter = McpToolAdapter::from_descriptor(
+                            handle.inner.clone(),
+                            desc,
+                            &mcp_cfg.name,
+                            mcp_cfg.timeout,
+                        );
+                        let arc: Arc<dyn reflect_tools::Tool> = Arc::new(adapter);
+                        if !tools_clone.register_if_absent(ToolSource::Runtime, arc) {
+                            tracing::warn!(
+                                tool = %desc.full_name,
+                                "MCP tool name collision, skipped"
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        server = %mcp_cfg.name,
+                        error = %e,
+                        "MCP server failed to start"
+                    );
+                }
+            }
+        });
+    }
+
+    tracing::info!(mcp_servers = configs.len(), "MCP bootstrap: spawning start tasks");
+    Some(manager)
+}
+
+/// bootstrap LSP servers + 返回 manager 句柄。
+pub(crate) async fn bootstrap_lsp(
+    cfg: &ReflectConfig,
+    tools: Arc<ToolRegistry>,
+    session_tx: broadcast::Sender<Event>,
+) -> Option<Arc<LspConnectionManager>> {
+    let configs = match cfg.lsp_server_configs() {
+        Ok(c) if c.is_empty() => return None,
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(error = %e, "LSP config invalid; skipping all LSP servers");
+            return None;
+        }
+    };
+
+    let (internal_tx, mut internal_rx) =
+        tokio::sync::mpsc::channel::<LspLifecycleEvent>(32);
+    let manager = Arc::new(LspConnectionManager::new(internal_tx));
+
+    tokio::spawn(async move {
+        while let Some(evt) = internal_rx.recv().await {
+            let msg = match evt {
+                LspLifecycleEvent::Started {
+                    server,
+                    methods,
+                    language_ids,
+                } => EventMsg::LspServerStarted(reflect_protocol::LspServerStartedEvent {
+                    server,
+                    methods,
+                    language_ids,
+                }),
+                LspLifecycleEvent::Failed {
+                    server,
+                    error,
+                    will_retry,
+                } => EventMsg::LspServerFailed(reflect_protocol::LspServerFailedEvent {
+                    server,
+                    error,
+                    will_retry,
+                }),
+                LspLifecycleEvent::Stopped { server: _ } => continue,
+            };
+            let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
+        }
+    });
+
+    // 单例 LspTool(单一 `lsp` tool,按 file_path 路由到对应 server)。
+    let tool = Arc::new(LspTool::new(manager.clone()));
+    tools.register_with_source(ToolSource::Runtime, tool);
+
+    for cfg_shape in &configs {
+        let lsp_cfg: LspServerConfig = match cfg_shape.clone().try_into() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(error = %e, "LSP config shape→strong-type conversion failed");
+                continue;
+            }
+        };
+        let mgr = manager.clone();
+        tokio::spawn(async move {
+            if let Err(e) = mgr.start_server(lsp_cfg).await {
+                tracing::warn!(error = %e, "LSP server failed to start");
+            }
+        });
+    }
+
+    tracing::info!(lsp_servers = configs.len(), "LSP bootstrap: spawning start tasks");
+    Some(manager)
+}
+
+/// 把 reflect_mcp 的 transport kind 映射成 protocol 的 mirror 枚举。
+fn transport_mirror(
+    transport: reflect_mcp::McpTransport,
+) -> reflect_protocol::McpTransportMirror {
+    match transport {
+        reflect_mcp::McpTransport::Stdio => reflect_protocol::McpTransportMirror::Stdio,
+        reflect_mcp::McpTransport::Http => reflect_protocol::McpTransportMirror::Http,
+        reflect_mcp::McpTransport::Sse => reflect_protocol::McpTransportMirror::Sse,
+    }
+}

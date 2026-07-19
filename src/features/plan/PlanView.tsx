@@ -41,7 +41,7 @@ export function PlanView() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async (id: string) => reflect_plan_approval(id, 'deny'),
+    mutationFn: async (id: string) => reflect_plan_approval(id, { deny: { reason: 'rejected by user' } }),
     onSuccess: (_, id) => {
       setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'rejected' as const } : p)));
       qc.invalidateQueries({ queryKey: ['plan'] });

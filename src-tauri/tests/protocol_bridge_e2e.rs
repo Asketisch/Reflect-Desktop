@@ -68,6 +68,18 @@ async fn real_agent_thread_emits_session_configured() {
 
 #[tokio::test]
 async fn real_agent_thread_emits_error_for_stub_model() {
+    // 这个测试只覆盖「无 provider」降级路径(stub model → Error event)。
+    // 本机若配了 ~/.reflect/config.toml + API key,会走真实 provider 路径,
+    // 事件流变成 SessionConfigured/TurnStarted/真实 LLM 响应 —— 不是 stub 路径,
+    // 此时跳过(降级路径是 CI / 无 key 环境的回归保护)。
+    let probe = MinimalAgent::new_empty();
+    let cfg_handle = probe.cfg();
+    let has_provider = cfg_handle.read().active_provider().is_some();
+    if has_provider {
+        eprintln!("SKIP: provider configured; stub-model test only covers degraded path");
+        return;
+    }
+
     // 没注册 model client → 提交 UserInput 后应 emit Error event (no panic)。
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread();

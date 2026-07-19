@@ -1,58 +1,73 @@
 /**
- * M3.x Models —— 模型选择器。
+ * Models —— 阶段 4:从真实 config + agent status 读数据。
  *
- * - 列出当前可用的 model spec
- * - 选择后通过 `reflect_set_effort` 下发
- * - M3.x 扩展:从 reflect-config 读真实 provider/model 列表
+ * - 当前 model 来自 `reflect_agent_status`(后端 resolved_model_spec)。
+ * - reasoning effort 经 `reflect_set_effort` 下发(后端期望 low/medium/high 小写)。
  */
-
 import { useState } from 'react';
-import { reflect_set_effort } from '@/utils/tauri';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { reflect_agent_status, reflect_set_effort } from '@/utils/tauri';
 
-const STUB_MODELS = [
-  { id: 'stub/test', label: 'Stub Test (no network)', provider: 'local' },
-  { id: 'anthropic/claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'anthropic' },
-  { id: 'openai/gpt-4o', label: 'GPT-4o', provider: 'openai' },
-  { id: 'google/gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google' },
-];
-
-const REASONING_EFFORTS = ['Low', 'Medium', 'High'] as const;
+const REASONING_EFFORTS = ['low', 'medium', 'high'] as const;
+type Effort = (typeof REASONING_EFFORTS)[number];
 
 export function ModelsView() {
-  const [selected, setSelected] = useState('stub/test');
-  const [effort, setEffort] = useState<string>('Low');
+  const [effort, setEffort] = useState<Effort>('medium');
   const [saved, setSaved] = useState(false);
 
-  const onSave = async () => {
-    await reflect_set_effort(effort);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  const statusQuery = useQuery({
+    queryKey: ['agent-status'],
+    queryFn: reflect_agent_status,
+    staleTime: 30_000,
+  });
+
+  const effortMutation = useMutation({
+    mutationFn: async (level: Effort) => reflect_set_effort(level),
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const status = statusQuery.data;
+  const hasModel = Boolean(status?.has_model);
 
   return (
     <div style={{ padding: 24, maxWidth: 640, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, marginBottom: 16 }}>Models</h1>
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>Model</h2>
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          style={{ width: '100%', padding: 8, fontSize: 14 }}
-        >
-          {STUB_MODELS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label} ({m.provider})
-            </option>
-          ))}
-        </select>
-        <p style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
-          M3.x: 从 `~/.reflect/config.toml` 动态加载可用模型列表。
-        </p>
+      <section
+        style={{
+          marginBottom: 24,
+          padding: 12,
+          borderRadius: 6,
+          background: hasModel ? '#dcfce7' : '#fef3c7',
+          border: `1px solid ${hasModel ? '#22c55e' : '#f59e0b'}`,
+        }}
+      >
+        <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>Current model</h2>
+        {statusQuery.isLoading ? (
+          <p style={{ fontSize: 13 }}>Loading…</p>
+        ) : (
+          <code style={{ fontSize: 14 }}>{status?.model ?? '(unknown)'}</code>
+        )}
+        {status?.workspace && (
+          <p style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+            workspace: {status.workspace}
+          </p>
+        )}
+        {!hasModel && (
+          <p style={{ fontSize: 12, color: '#92400e', marginTop: 8 }}>
+            ⚠ No provider configured. Go to Settings to set an API key.
+          </p>
+        )}
       </section>
 
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>Reasoning Effort</h2>
+        <p style={{ fontSize: 11, color: '#888', marginTop: 0, marginBottom: 8 }}>
+          切换会话内 reasoning 强度(经 Op::SetEffort)。model spec 在 Settings 页编辑。
+        </p>
         <div style={{ display: 'flex', gap: 8 }}>
           {REASONING_EFFORTS.map((e) => (
             <button
@@ -73,19 +88,20 @@ export function ModelsView() {
           ))}
         </div>
         <button
-          onClick={onSave}
+          onClick={() => effortMutation.mutate(effort)}
+          disabled={effortMutation.isPending}
           style={{
             marginTop: 12,
             padding: '8px 16px',
-            background: '#3b82f6',
+            background: effortMutation.isPending ? '#93c5fd' : '#3b82f6',
             color: 'white',
             border: 'none',
             borderRadius: 6,
-            cursor: 'pointer',
+            cursor: effortMutation.isPending ? 'wait' : 'pointer',
             fontSize: 13,
           }}
         >
-          {saved ? 'Saved ✓' : 'Save Effort'}
+          {effortMutation.isPending ? 'Saving…' : saved ? 'Saved ✓' : 'Apply Effort'}
         </button>
       </section>
     </div>

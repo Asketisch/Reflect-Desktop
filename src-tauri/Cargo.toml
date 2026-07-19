@@ -37,9 +37,16 @@ reflect-permissions         = { workspace = true }
 reflect-tools               = { workspace = true }
 reflect-llm                 = { workspace = true }
 reflect-hooks               = { workspace = true }
+# 阶段 3d:MCP / LSP 运行时接入。
+reflect-mcp                 = { workspace = true }
+reflect-lsp                 = { workspace = true }
+# 阶段 1:真实 agent 集成所需 — sanitizer / 工具输出脱敏(默认 10 pattern)。
+# Sanitizer::with_defaults() 直接可用,无需 reflect-config 的 SanitizeSection 转换。
 uuid                        = { workspace = true }
 futures                     = { workspace = true }
 dirs                        = "5"
+# 阶段 2:config 读写命令(to_string_pretty / load_from_str 校验)。
+toml                        = { workspace = true }
 once_cell                   = { workspace = true }
 
 # macOS-only dock badge: NSApplication.dockTile.badgeLabel via objc2.
@@ -50,3 +57,6 @@ objc2-foundation = { version = "0.2", features = ["NSString"] }
 
 [build-dependencies]
 tauri-build = { workspace = true }
+
+[dev-dependencies]
+tokio-util = { workspace = true }

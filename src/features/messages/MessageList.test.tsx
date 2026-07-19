@@ -1,78 +1,100 @@
 /**
- * Vitest — MessageList 组件测试。
+ * Vitest — MessageList 组件测试(阶段 3b:items 模型)。
+ *
+ * MessageList 直接从 useAgentStore 读 state,测试通过 store API 注入 state。
  *
  * 验证:
  * 1. 渲染空状态
  * 2. 显示 session 等待信息
+ * 3. 渲染 user_text + assistant_text items
+ * 4. 渲染 tool_call + error items
  */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MessageList } from '@/features/messages/MessageList';
 import { createTestQueryClient } from '@/test/setup.tsx';
-import { useAgent } from '@/services/agent';
+import { useAgentStore } from '@/stores/agentStore';
 
-// Mock useAgent hook
-vi.mock('@/services/agent', () => ({
-  useAgent: vi.fn(),
-}));
+function wrap(node: React.ReactNode) {
+  return <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>;
+}
 
 describe('MessageList', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    useAgentStore.getState().reset();
+  });
+  afterEach(() => {
+    cleanup();
   });
 
   it('renders empty state initially', () => {
-    vi.mocked(useAgent).mockReturnValue({
-      turns: [],
-      session: null,
-      submit: vi.fn(),
-    });
-
-    render(
-      <QueryClientProvider client={createTestQueryClient()}>
-        <MessageList />
-      </QueryClientProvider>
-    );
-
+    render(wrap(<MessageList />));
     expect(screen.getByText('说点什么开始对话…')).toBeDefined();
   });
 
   it('shows waiting for session when no session', () => {
-    vi.mocked(useAgent).mockReturnValue({
-      turns: [],
-      session: null,
-      submit: vi.fn(),
-    });
-
-    render(
-      <QueryClientProvider client={createTestQueryClient()}>
-        <MessageList />
-      </QueryClientProvider>
-    );
-
-    // Should show waiting session message
-    const sessionTexts = screen.getAllByText(/session: \(waiting/);
-    expect(sessionTexts.length).toBeGreaterThanOrEqual(1);
+    render(wrap(<MessageList />));
+    expect(screen.getAllByText(/session: \(waiting/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders turns when agent has turns', () => {
-    vi.mocked(useAgent).mockReturnValue({
+  it('renders user_text + assistant_text items', () => {
+    useAgentStore.setState({
       turns: [
-        { id: 't1', user: 'hello', reply: 'Hi there!', done: true },
+        {
+          id: 't1',
+          status: 'done',
+          items: [
+            { kind: 'user_text', text: 'hello' },
+            { kind: 'assistant_text', text: 'Hi there!', streaming: false },
+          ],
+        },
       ],
       session: { model: 'stub/test', provider: 'local' },
-      submit: vi.fn(),
     });
-
-    render(
-      <QueryClientProvider client={createTestQueryClient()}>
-        <MessageList />
-      </QueryClientProvider>
-    );
-
+    render(wrap(<MessageList />));
     expect(screen.getByText('hello')).toBeDefined();
     expect(screen.getByText('Hi there!')).toBeDefined();
+  });
+
+  it('renders tool_call row with status badge', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't2',
+          status: 'streaming',
+          items: [
+            { kind: 'user_text', text: 'list files' },
+            {
+              kind: 'tool_call',
+              toolName: 'bash',
+              callId: 'c1',
+              argsSummary: 'ls',
+              status: 'done',
+            },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    // tool_call 标签含 tool name + 状态徽标。
+    expect(screen.getByText(/bash\(ls\)/)).toBeDefined();
+  });
+
+  it('renders error item as red banner', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't3',
+          status: 'done',
+          items: [
+            { kind: 'user_text', text: 'go' },
+            { kind: 'error', text: 'something broke' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    expect(screen.getByText(/something broke/)).toBeDefined();
   });
 });

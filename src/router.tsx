@@ -6,7 +6,9 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, RootRoute, Router } from '@tanstack/react-router';
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useAgentStore } from '@/stores/agentStore';
+import { ModalStack } from '@/features/modals';
 
 // ====== Route components ======
 import { ChatView } from '@/features/messages/ChatView';
@@ -61,6 +63,8 @@ function AppLayout(props: { children?: React.ReactNode }) {
         </main>
       </div>
       <BottomBar />
+      {/* 阶段 3c:全局 modal 栈 —— 从 store 的 pending 队列渲染审批/问题/计划 modal。 */}
+      <ModalStack />
     </div>
   );
 }
@@ -154,5 +158,12 @@ const queryClient = new QueryClient({
 });
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
+  // 阶段 3a:在 provider mount 时建立唯一的 reflect_event 订阅。
+  // store.subscribe() 是幂等的(防止 React 18 StrictMode 双 mount 重复订阅)。
+  // unmount 时清理(返回的 cleanup 调 unlisten + 标记未订阅)。
+  useEffect(() => {
+    const unsubscribe = useAgentStore.getState().subscribe();
+    return unsubscribe;
+  }, []);
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

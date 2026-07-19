@@ -19,56 +19,93 @@ export async function reflect_submit(s: ReflectSubmission): Promise<string> {
   return invoke<string>('reflect_submit', { submission: s });
 }
 
-/** Lifecycle / turn 控制。 */
+/** Lifecycle / turn 控制。Op 命令返回 submission id(供前端 pairing/调试)。 */
 export async function reflect_interrupt(): Promise<void> {
   return invoke<void>('reflect_interrupt');
 }
-export async function reflect_compact(): Promise<void> {
-  return invoke<void>('reflect_compact');
+export async function reflect_compact(): Promise<string> {
+  return invoke<string>('reflect_compact');
 }
-export async function reflect_rewind(to_turn_id?: string): Promise<void> {
-  return invoke<void>('reflect_rewind', { toTurnId: to_turn_id ?? null });
+export async function reflect_rewind(to_turn_id?: string): Promise<string> {
+  return invoke<string>('reflect_rewind', { toTurnId: to_turn_id ?? null });
 }
-export async function reflect_shutdown(): Promise<void> {
-  return invoke<void>('reflect_shutdown');
+export async function reflect_shutdown(): Promise<string> {
+  return invoke<string>('reflect_shutdown');
 }
 
 /** Approvals. */
-export async function reflect_tool_approval(id: string, decision: ReviewDecision): Promise<void> {
-  return invoke<void>('reflect_tool_approval', { id, decision });
+export async function reflect_tool_approval(id: string, decision: ReviewDecision): Promise<string> {
+  return invoke<string>('reflect_tool_approval', { id, decision });
 }
-export async function reflect_hook_approval(id: string, decision: ReviewDecision): Promise<void> {
-  return invoke<void>('reflect_hook_approval', { id, decision });
+export async function reflect_hook_approval(id: string, decision: ReviewDecision): Promise<string> {
+  return invoke<string>('reflect_hook_approval', { id, decision });
 }
-export async function reflect_plan_approval(id: string, decision: ReviewDecision): Promise<void> {
-  return invoke<void>('reflect_plan_approval', { id, decision });
+export async function reflect_plan_approval(id: string, decision: ReviewDecision): Promise<string> {
+  return invoke<string>('reflect_plan_approval', { id, decision });
 }
 
 /** Plan mode. */
-export async function reflect_enter_plan_mode(task: string): Promise<void> {
-  return invoke<void>('reflect_enter_plan_mode', { task });
+export async function reflect_enter_plan_mode(task: string): Promise<string> {
+  return invoke<string>('reflect_enter_plan_mode', { task });
 }
-export async function reflect_exit_plan_mode(): Promise<void> {
-  return invoke<void>('reflect_exit_plan_mode');
+export async function reflect_exit_plan_mode(): Promise<string> {
+  return invoke<string>('reflect_exit_plan_mode');
 }
 
 /** Effort / permission. */
-export async function reflect_set_effort(level: string): Promise<void> {
-  return invoke<void>('reflect_set_effort', { level });
+export async function reflect_set_effort(level: string): Promise<string> {
+  return invoke<string>('reflect_set_effort', { level });
 }
-export async function reflect_set_permission_mode(mode: string): Promise<void> {
-  return invoke<void>('reflect_set_permission_mode', { mode });
+export async function reflect_set_permission_mode(mode: string): Promise<string> {
+  return invoke<string>('reflect_set_permission_mode', { mode });
 }
-export async function reflect_cycle_permission_mode(): Promise<void> {
-  return invoke<void>('reflect_cycle_permission_mode');
+export async function reflect_cycle_permission_mode(): Promise<string> {
+  return invoke<string>('reflect_cycle_permission_mode');
 }
 
 /** Ask user. */
-export async function reflect_ask_user_question_response(id: string, answers: unknown): Promise<void> {
-  return invoke<void>('reflect_ask_user_question_response', { id, answers });
+export async function reflect_ask_user_question_response(id: string, answers: unknown): Promise<string> {
+  return invoke<string>('reflect_ask_user_question_response', { id, answers });
 }
-export async function reflect_ask_user_input_response(id: string, text: string): Promise<void> {
-  return invoke<void>('reflect_ask_user_input_response', { id, text });
+export async function reflect_ask_user_input_response(id: string, text: string): Promise<string> {
+  return invoke<string>('reflect_ask_user_input_response', { id, text });
+}
+
+// ====== 诊断 / config / tools(阶段 2 新增) ======
+
+/** agent 状态快照 —— 前端状态徽标 + 降级引导用。 */
+export interface ReflectAgentStatus {
+  ready: boolean;
+  has_model: boolean;
+  model: string;
+  workspace: string;
+  degraded_reason: string | null;
+}
+
+/** 单个工具的 name + description。 */
+export interface ReflectToolInfo {
+  name: string;
+  description: string;
+}
+
+/** 返回 agent 状态(ready / has_model / model / workspace / degraded_reason)。 */
+export async function reflect_agent_status(): Promise<ReflectAgentStatus> {
+  return invoke<ReflectAgentStatus>('reflect_agent_status');
+}
+
+/** 读取 ~/.reflect/config.toml 的 TOML 字符串。Settings 页加载用。 */
+export async function reflect_get_config(): Promise<string> {
+  return invoke<string>('reflect_get_config');
+}
+
+/** 写回 ~/.reflect/config.toml(写盘前校验合法性)。 */
+export async function reflect_save_config(toml: string): Promise<void> {
+  return invoke<void>('reflect_save_config', { toml });
+}
+
+/** 列出当前 ToolRegistry 中所有工具(name + description)。 */
+export async function reflect_list_tools(): Promise<ReflectToolInfo[]> {
+  return invoke<ReflectToolInfo[]>('reflect_list_tools');
 }
 
 /** Session I/O. */

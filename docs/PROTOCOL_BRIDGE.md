@@ -47,6 +47,23 @@ Two channels:
 | 14 | `SetPermissionMode { mode }` | `reflect_set_permission_mode` | `{ mode: PermissionMode }` |
 | 15 | `CyclePermissionMode` | `reflect_cycle_permission_mode` | `null` |
 
+> **注**:除 `UserInput` 经 `reflect_submit` 接受完整 `Submission` 外,其余 14 个命令
+> 后端在 `commands/mod.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递(阶段 2 实装,
+> 不再是空 `Ok(())`)。所有 Op 命令返回 `string`(submission id,供前端 pairing/调试)。
+
+### 2.0 非 Op 命令(诊断 / 配置 / 工具列表)
+
+这些命令不对应 `Op` 变体,是 ReflectDesktop 自己的诊断/配置面:
+
+| Command | Payload | Returns | 用途 |
+|---|---|---|---|
+| `ping` | `null` | `{ msg, version }` | IPC 通路健康检查 |
+| `reflect_agent_status` | `null` | `{ ready, has_model, model, workspace, degraded_reason }` | 前端状态徽标 + 降级引导 |
+| `reflect_get_config` | `null` | `string`(TOML) | 读 `~/.reflect/config.toml` |
+| `reflect_save_config` | `{ toml: string }` | `null` | 写回(写盘前 `load_from_str` 校验,热更新共享 cfg) |
+| `reflect_list_tools` | `null` | `Vec<{ name, description }>` | 当前 ToolRegistry 注册的工具 |
+| `reflect_list_sessions` / `reflect_rename_session` / `reflect_delete_session` / `reflect_replay_session` | — | — | session I/O(rollout) |
+
 `Submission` wraps the op:
 
 ```rust

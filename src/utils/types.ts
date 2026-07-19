@@ -26,4 +26,16 @@ export interface ReflectRolloutRecord {
   [k: string]: unknown;
 }
 
-export type ReviewDecision = 'approve' | 'deny' | 'abort';
+/**
+ * ReviewDecision —— 对齐 Rust `reflect_protocol::ReviewDecision`。
+ *
+ * Rust 用 `#[serde(rename_all = "snake_case")]`,且 `Deny` 是 struct variant
+ * (带 reason)。前端必须传以下形态之一,否则后端反序列化失败:
+ *   - "approve"
+ *   - "approve_for_session"
+ *   - { deny: { reason: "..." } }
+ */
+export type ReviewDecision =
+  | 'approve'
+  | 'approve_for_session'
+  | { deny: { reason: string } };

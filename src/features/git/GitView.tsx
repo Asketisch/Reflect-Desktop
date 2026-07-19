@@ -1,87 +1,57 @@
 /**
- * M3.x Git —— Git 状态 + 工作区变更。
- *
- * - 显示当前分支、状态 (clean / dirty)
- * - 列出 modified / untracked 文件
- * - M3.x 扩展:diff viewer + commit + push
+ * Git —— 阶段 5b:移除 phantom invoke(reflect_git_status 不存在),
+ * 改成"通过 agent 操作 git"——快捷按钮发预设 prompt。
  */
+import { useState } from 'react';
+import { useAgentStore } from '@/stores/agentStore';
 
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-
-interface GitStatus {
-  branch: string;
-  clean: boolean;
-  files: Array<{ path: string; status: 'M' | 'A' | 'D' | '?' }>;
-}
+const QUICK_PROMPTS = [
+  { label: '查看当前分支和状态', prompt: '请用 bash 运行 `git status -sb` 并总结当前分支和工作区变更。' },
+  { label: '查看最近提交', prompt: '请用 bash 运行 `git log --oneline -10` 展示最近 10 条提交。' },
+  { label: '查看未推送的提交', prompt: '请用 bash 运行 `git log origin/HEAD..HEAD --oneline`(若失败说明无上游)。' },
+  { label: '创建提交', prompt: '我想创建一个 git commit。请先用 git status 和 git diff 查看变更,然后建议 commit message。' },
+];
 
 export function GitView() {
-  const [status, setStatus] = useState<GitStatus | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const submit = useAgentStore((s) => s.submit);
+  const [sent, setSent] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // M3.x: replace with real Rust command `reflect_git_status`
-      const result: GitStatus = await invoke('reflect_git_status');
-      setStatus(result);
-    } catch {
-      setStatus(null);
-    } finally {
-      setLoading(false);
-    }
+  const send = async (prompt: string) => {
+    await submit(prompt);
+    setSent(prompt);
+    setTimeout(() => setSent(null), 2000);
   };
-
-  useEffect(() => { load(); }, []);
 
   return (
     <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, marginBottom: 16 }}>Git</h1>
-
-      {loading && <p style={{ color: '#888' }}>Loading…</p>}
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
-
-      {status && (
-        <>
-          <div style={{ marginBottom: 16, fontSize: 13 }}>
-            <strong>Branch:</strong> <code>{status.branch}</code>
-            <span style={{ marginLeft: 12, color: status.clean ? '#22c55e' : '#f59e0b' }}>
-              {status.clean ? 'clean' : `${status.files.length} changes`}
-            </span>
-          </div>
-
-          {status.files.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ textAlign: 'left', padding: 6, width: 60 }}>Status</th>
-                  <th style={{ textAlign: 'left', padding: 6 }}>Path</th>
-                </tr>
-              </thead>
-              <tbody>
-                {status.files.map((f, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: 6, color: statusColor(f.status) }}>{f.status}</td>
-                    <td style={{ padding: 6 }}><code>{f.path}</code></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
-      )}
+      <div style={{ padding: 12, marginBottom: 16, background: '#f8fafc', borderRadius: 6, fontSize: 13 }}>
+        Git 操作通过 agent 的 <code>bash</code> 工具完成。点击快捷操作发到对话,
+        或直接在 Chat 描述需求(如"帮我提交并推送")。
+      </div>
+      <section>
+        <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>快捷操作</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {QUICK_PROMPTS.map((q) => (
+            <button
+              key={q.label}
+              onClick={() => send(q.prompt)}
+              style={{
+                padding: '10px 14px',
+                textAlign: 'left',
+                border: '1px solid #e2e8f0',
+                borderRadius: 6,
+                background: sent === q.prompt ? '#dcfce7' : 'white',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              {sent === q.prompt ? '✓ 已发送到对话 → ' : ''}
+              {q.label}
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
-}
-
-function statusColor(s: string): string {
-  switch (s) {
-    case 'M': return '#3b82f6';
-    case 'A': return '#22c55e';
-    case 'D': return '#ef4444';
-    case '?': return '#f59e0b';
-    default: return '#888';
-  }
 }

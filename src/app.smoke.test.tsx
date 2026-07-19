@@ -10,7 +10,7 @@
  * 6. DesignSystemView —— 6 个 section 全部渲染 + 4 primitives 可见
  * 7. Barrel exports —— features/<slice>/index.ts 全部能 import
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from '@/features/app/AppLayout';
@@ -29,6 +29,18 @@ import { HomeView } from '@/features/home/HomeView';
 import { DesignSystemView } from '@/features/design-system/DesignSystemView';
 import { ThreadsView } from '@/features/threads/ThreadsView';
 import { useAgent } from '@/services/agent';
+import { useAgentStore } from '@/stores/agentStore';
+
+/** 从 agentHook 的指定 turn 提取 assistant_text item 的文本(测试辅助)。 */
+function assistantText(
+  hook: ReturnType<typeof useAgent>,
+  turnId: string,
+): string {
+  const turn = hook.turns.find((t) => t.id === turnId);
+  if (!turn) return '';
+  const item = turn.items.find((i) => i.kind === 'assistant_text');
+  return item && item.kind === 'assistant_text' ? item.text : '';
+}
 import {
   mockInvoke,
   resetMockInvoke,
@@ -124,9 +136,17 @@ describe('AppLayout (top-level shell)', () => {
 // ===========================================================================
 
 describe('Event-driven agent flow', () => {
+  let unsubscribe: (() => void) | null = null;
   beforeEach(() => {
     resetMockInvoke();
     mockInvoke('reflect_submit', async (s: { id: string }) => s.id);
+    // 清空 store + 建立事件订阅(生产环境由 AppProviders 建立)。
+    useAgentStore.getState().reset();
+    unsubscribe = useAgentStore.getState().subscribe();
+  });
+  afterEach(() => {
+    unsubscribe?.();
+    unsubscribe = null;
   });
 
   it('full streaming flow: submit → delta → delta → turn_complete → done', async () => {
@@ -142,9 +162,11 @@ describe('Event-driven agent flow', () => {
       await agentHook!.submit('hello');
     });
     expect(agentHook!.turns.length).toBe(1);
-    expect(agentHook!.turns[0].user).toBe('hello');
-    expect(agentHook!.turns[0].done).toBe(false);
-    const submissionId = agentHook!.turns[0].id;
+    // 新模型:user_text 是 turn.items[0]。
+    const turn0 = agentHook!.turns[0];
+    expect(turn0.items[0]).toMatchObject({ kind: 'user_text', text: 'hello' });
+    expect(turn0.status).toBe('streaming');
+    const submissionId = turn0.id;
 
     // 2. Stream delta 1
     await act(async () => {
@@ -153,7 +175,7 @@ describe('Event-driven agent flow', () => {
         msg: { type: 'agent_message_delta', delta: 'Hi' },
       });
     });
-    expect(agentHook!.turns[0].reply).toBe('Hi');
+    expect(assistantText(agentHook!, submissionId)).toBe('Hi');
 
     // 3. Stream delta 2
     await act(async () => {
@@ -162,7 +184,7 @@ describe('Event-driven agent flow', () => {
         msg: { type: 'agent_message_delta', delta: ' there' },
       });
     });
-    expect(agentHook!.turns[0].reply).toBe('Hi there');
+    expect(assistantText(agentHook!, submissionId)).toBe('Hi there');
 
     // 4. Turn complete
     await act(async () => {
@@ -171,7 +193,7 @@ describe('Event-driven agent flow', () => {
         msg: { type: 'turn_complete', turn_id: 'turn-1', usage: {}, status: 'success' },
       });
     });
-    expect(agentHook!.turns[0].done).toBe(true);
+    expect(agentHook!.turns[0].status).toBe('done');
   });
 
   it('session_configured sets model/provider on agent session', async () => {
@@ -308,17 +330,27 @@ describe('Settings save flow', () => {
     mockInvoke('reflect_set_permission_mode', async (_cmd: string, args: { mode: string }) => {
       (globalThis as { __lastMode?: string }).__lastMode = args.mode;
     });
+    mockInvoke('reflect_save_config', async () => {});
+    mockInvoke('reflect_get_config', async () => '[active]\nprovider = "anthropic"\n');
+    mockInvoke('reflect_agent_status', async () => ({
+      ready: true,
+      has_model: true,
+      model: 'anthropic/claude',
+      workspace: '/tmp',
+      degraded_reason: null,
+    }));
   });
 
-  it('clicking Save triggers reflect_set_permission_mode mutation', async () => {
+  it('clicking permission button triggers reflect_set_permission_mode mutation', async () => {
     render(wrap(<SettingsView />));
 
-    const saveBtn = screen.getByRole('button', { name: /save/i });
+    // permission 按钮(auto/prompt/deny/plan)直接 mutate。
+    const planBtn = await screen.findByText('plan');
     await act(async () => {
-      saveBtn.click();
+      planBtn.click();
     });
 
-    expect((globalThis as { __lastMode?: string }).__lastMode).toBeTruthy();
+    expect((globalThis as { __lastMode?: string }).__lastMode).toBe('plan');
   });
 });
 
