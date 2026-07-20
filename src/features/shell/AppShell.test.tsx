@@ -98,4 +98,17 @@ describe('AppShell collapse behavior', () => {
     render(wrap(<AppShell />));
     expect(screen.getByTestId('outlet-content')).toBeDefined();
   });
+
+  // 回归保护：TitleBar 必须挂 data-tauri-drag-region（否则窗口无法拖动），
+  // 必须是 .shell 的第一个子元素（贯通全宽，红绿灯嵌在里面 —— 对齐 ZCode/Codex）。
+  it('TitleBar is top-level (spans full width) and has drag region', () => {
+    const { container } = render(wrap(<AppShell />));
+    const titlebar = container.querySelector('[data-testid="titlebar"]');
+    expect(titlebar).not.toBeNull();
+    expect(titlebar?.hasAttribute('data-tauri-drag-region')).toBe(true);
+
+    // .shell 的第一个子元素应当是 titlebar（不是 ActivityBar）。
+    const shell = container.firstChild as HTMLElement;
+    expect(shell.firstChild).toBe(titlebar);
+  });
 });

@@ -22,6 +22,13 @@
   --space-8: 48px;
   --space-9: 64px;
 
+  /* ===== Window chrome（macOS Overlay 标题栏专用）=====
+   * `titleBarStyle: "Overlay"` 下红绿灯按钮浮在 webview 之上，
+   * React 必须为它预留避让空间（见 TitleBar.module.css）。
+   */
+  --titlebar-height: 40px;        /* 贯通顶栏高度（macOS 标准）*/
+  --traffic-light-gutter: 80px;   /* 红绿灯避让宽度（3 个 14px 圆 + 间距 + 左 padding）*/
+
   /* ===== Typography ===== */
   --font-sans: "Inter", "DM Sans", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;

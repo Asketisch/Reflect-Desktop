@@ -3,11 +3,14 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  height: 44px;
-  padding: 0 var(--space-3);
+  height: var(--titlebar-height);
+  /* 左 padding 为 macOS 红绿灯按钮让位（Overlay 模式下浮在 webview 之上）。
+   * 右 padding 维持普通 space-3。 */
+  padding: 0 var(--space-3) 0 var(--traffic-light-gutter);
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-surface);
   flex-shrink: 0;
+  user-select: none;
 }
 
 .left,

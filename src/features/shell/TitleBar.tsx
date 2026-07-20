@@ -1,10 +1,13 @@
 /**
- * TitleBar —— Main 区域顶部标题栏。
+ * TitleBar —— 贯通全宽的顶栏（macOS Overlay 标题栏）。
  *
- * 左：sidebar 折叠按钮 + 当前 view 标题 + session 状态(model @ provider / waiting)。
- * 右：inspector 折叠按钮 + permission mode。
+ * 关键设计：
+ *   - 根元素挂 `data-tauri-drag-region` —— 整条顶栏可拖动窗口。
+ *   - 高度 = `--titlebar-height` token（40px，macOS 标准）。
+ *   - 左侧 `--traffic-light-gutter` (80px) padding 为红绿灯按钮让位。
+ *   - 内容：sidebar toggle + 当前 view 标题 + session 状态 / 右侧 permission + inspector toggle。
  *
- * **session 状态文案**：保留 `session: (waiting...)` 字面契约（测试断言依赖），
+ * **session 状态文案**：保留 `session: (waiting…)` 字面契约（测试断言依赖），
  * 但在 `session_configured` 事件未到时，从 `reflect_agent_status` 查询拿 model 名，
  * 避免开局永远显示「waiting」。
  */
@@ -77,7 +80,10 @@ export function TitleBar({
       : '(waiting…)';
 
   return (
-    <header className={s.bar}>
+    // data-tauri-drag-region：让整条顶栏可拖动窗口。
+    // 内部的 button/a/input 由 base.css 的 `[data-tauri-drag-region] button { no-drag }` 自动豁免，
+    // 保证 sidebar/inspector toggle 仍可点击。
+    <header className={s.bar} data-tauri-drag-region data-testid="titlebar">
       <div className={s.left}>
         <Tooltip label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} side="bottom">
           <IconButton label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} onClick={onToggleSidebar}>

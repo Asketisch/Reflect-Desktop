@@ -1,10 +1,22 @@
 /**
- * AppShell —— IDE 式三栏布局。
+ * AppShell —— IDE 式三栏布局（贯通顶栏版）。
+ *
+ * 结构（从上到下）：
+ *   ┌────────────────────────────────────────────────────┐
+ *   │ TitleBar (贯通全宽，红绿灯 + drag region)            │  ← .shell[0]
+ *   ├──────┬────────────┬──────────────┬─────────────────┤
+ *   │Activ │ Sidebar    │ Main content │ Inspector       │  ← .body
+ *   │ Bar  │ (sessions) │ (Outlet)     │                 │
+ *   ├──────┴────────────┴──────────────┴─────────────────┤
+ *   │ StatusBar                                          │  ← .shell[2]
+ *   └────────────────────────────────────────────────────┘
+ *
+ * 关键决策：TitleBar 是 .shell 的第一个子元素（**与 ActivityBar 同级，而非嵌在 .main 内**），
+ * 这样它横跨整个窗口宽度。macOS 红绿灯按钮（titleBarStyle: "Overlay"）嵌在顶栏左侧
+ * （由 TitleBar 的 `--traffic-light-gutter` 左 padding 让位），对齐 ZCode/Codex 范式。
  *
  * **TanStack Router v1 根路由契约**：rootRoute 的 component 必须渲染 `<Outlet />`
  * 才能把匹配到的子路由（HomeView / ChatView / SettingsView / …）挂到 DOM。
- * 早期版本误用 `children` prop —— Router 不会向 root component 传 children，
- * 导致整个主内容区永久空白（标题栏/侧栏/状态栏正常，唯独内容空）。
  *
  * 阶段 A2 历史：
  *   - Sidebar onSelect 同步 URL（navigate 到 /chat/$sessionId）+ 本地高亮。
@@ -41,8 +53,18 @@ export function AppShell() {
 
   return (
     <div className={s.shell}>
-      <ActivityBar />
+      {/* 贯通全宽顶栏：红绿灯按钮（macOS Overlay）嵌在里面。
+       * 必须是 .shell 的第一个子元素，让 .body（ActivityBar + Sidebar + Main + Inspector）
+       * 全部从顶栏下方开始 —— 对齐 ZCode/Codex 的「一条深色顶栏」范式。
+       */}
+      <TitleBar
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        inspectorOpen={inspectorOpen}
+        onToggleInspector={() => setInspectorOpen((v) => !v)}
+      />
       <div className={s.body}>
+        <ActivityBar />
         {sidebarOpen && (
           <aside className={s.sidebar} aria-label="Sessions" data-testid="shell-sidebar">
             <Sidebar
@@ -57,12 +79,6 @@ export function AppShell() {
           </aside>
         )}
         <main className={s.main}>
-          <TitleBar
-            sidebarOpen={sidebarOpen}
-            onToggleSidebar={() => setSidebarOpen((v) => !v)}
-            inspectorOpen={inspectorOpen}
-            onToggleInspector={() => setInspectorOpen((v) => !v)}
-          />
           <div className={s.content}>
             {/* TanStack Router v1：渲染匹配到的子路由。 */}
             <Outlet />

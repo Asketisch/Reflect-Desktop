@@ -4,6 +4,25 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Fixed — 顶栏贯通 + 红绿灯避让 + drag region（对齐 ZCode/Codex）
+
+- **根因**:`tauri.conf.json` 已设 `titleBarStyle: "Overlay"`(红绿灯按钮浮在
+  webview 之上),但 React 树**没有任何元素为红绿灯预留避让空间**,
+  `ActivityBar` 的 32px "R" logo 正好被 3 个圆点盖住。同时 `base.css` 的
+  `[data-tauri-drag-region]` 规则虽然存在,**全代码库没有任何元素挂这个属性** ——
+  整个窗口无法靠标题栏拖动。此外旧 `TitleBar` 只横跨主区(嵌在 `.main` 内),
+  与 ActivityBar/Sidebar 视觉脱节,与 ZCode/Codex「一条贯通全宽的深色顶栏」范式不符。
+- **修复**:
+  - `AppShell` 把 `TitleBar` 从 `.main` 内提升到 `.shell` 顶层(与 ActivityBar 同级、
+    在它之前),顶栏现在横跨整个窗口宽度;`.body`(ActivityBar + Sidebar + Main + Inspector)
+    全部从顶栏下方开始。
+  - `TitleBar` 根元素挂 `data-tauri-drag-region`(整条顶栏可拖动窗口);内部 button/a/input
+    由 `base.css` 既有规则自动 `no-drag`,sidebar/inspector toggle 仍可点击。
+  - 新增 `--titlebar-height: 40px` / `--traffic-light-gutter: 80px` token;
+    `TitleBar.module.css` 用 token 驱动高度 + 左 padding 为红绿灯让位。
+- **回归保护**:`AppShell.test.tsx` 新增断言 TitleBar 是 `.shell` 的第一个子元素
+  且挂了 `data-tauri-drag-region`。
+
 ### Fixed — 主内容区永久空白（critical regression）
 
 - **根因**:`AppShell` 用 `children` prop 渲染主内容,但 TanStack Router v1 的
