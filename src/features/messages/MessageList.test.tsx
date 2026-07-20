@@ -30,12 +30,12 @@ describe('MessageList', () => {
 
   it('renders empty state initially', () => {
     render(wrap(<MessageList />));
-    expect(screen.getByText('说点什么开始对话…')).toBeDefined();
+    expect(screen.getByText(/Start a conversation/i)).toBeDefined();
   });
 
-  it('shows waiting for session when no session', () => {
+  it('shows empty-state hint when no turns (no session yet)', () => {
     render(wrap(<MessageList />));
-    expect(screen.getAllByText(/session: \(waiting/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Start a conversation/i)).toBeDefined();
   });
 
   it('renders user_text + assistant_text items', () => {

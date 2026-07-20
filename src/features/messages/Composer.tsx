@@ -1,10 +1,10 @@
 /**
- * M1.5 Composer —— auto-grow textarea + SlashPopup + Tier A toolbar。
- *   - 输入 `/` 触发 SlashPopup,选择命令 → 把 `/cmd` 写入文本框等待回车
- *   - Tier A toolbar (9 按钮):快速触发常用 slash 命令
- *   - Cmd/Ctrl+Enter 提交(IME 安全)
+ * Composer —— 卡片式输入区（CSS Modules 版）。
  *
- * M2.x 升级:@提及文件、图像附件、外部编辑器。
+ *   - 输入 `/` 触发 SlashPopup
+ *   - Tier A toolbar: 9 个常用 slash 命令
+ *   - Cmd/Ctrl+Enter 提交（IME 安全）
+ *   - 卡片容器 + 底部工具栏 + Send IconButton（ArrowUp 图标）
  */
 import {
   useState,
@@ -13,9 +13,12 @@ import {
   type KeyboardEvent,
   type ChangeEvent,
 } from 'react';
+import { ArrowUp, SlashSquare } from 'lucide-react';
+import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { SlashPopup } from '@/features/composer/SlashPopup';
 import { TIER_A_TOOLBAR } from '@/features/composer/slashCommands';
 import { useAgent } from '@/services/agent';
+import s from './Composer.module.css';
 
 export function Composer() {
   const { submit } = useAgent();
@@ -28,7 +31,6 @@ export function Composer() {
   const onChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
     setText(v);
-    // 检测当前是否在 `/xxx` 上下文 —— 简化:只匹配文本末尾 `/` 后无空格的 token
     const slashRe = new RegExp('(^|\\s)(\\/\\w*)$');
     const m = slashRe.exec(v);
     if (m) {
@@ -38,7 +40,6 @@ export function Composer() {
       setSlashVisible(false);
       setSlashQuery('');
     }
-    // auto-grow 1→6 行
     const el = e.target;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
@@ -48,7 +49,7 @@ export function Composer() {
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        doSubmit();
+        void doSubmit();
       } else if (e.key === 'Escape' && slashVisible) {
         setSlashVisible(false);
       }
@@ -76,7 +77,6 @@ export function Composer() {
   const onSlashSelect = useCallback((cmd: string) => {
     setText((prev) => {
       const replaced = prev.replace(/(\/\w*)$/, `/${cmd} `);
-      // 移动 cursor 到末尾
       requestAnimationFrame(() => {
         const el = ref.current;
         if (el) {
@@ -95,47 +95,29 @@ export function Composer() {
     ref.current?.focus();
   };
 
+  const canSend = !busy && !!text.trim();
+  const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
+  const sendHint = isMac ? 'Send (⌘↵)' : 'Send (Ctrl+↵)';
+
   return (
-    <div style={{ position: 'relative' }}>
-      <SlashPopup
-        query={slashQuery}
-        visible={slashVisible}
-        onSelect={onSlashSelect}
-      />
-      <div
-        style={{
-          display: 'flex',
-          gap: 4,
-          marginBottom: 6,
-          flexWrap: 'wrap',
-        }}
-      >
+    <div className={s.wrap}>
+      <SlashPopup query={slashQuery} visible={slashVisible} onSelect={onSlashSelect} />
+
+      <div className={s.toolbar}>
         {TIER_A_TOOLBAR.map((c) => (
           <button
             key={c.name}
             type="button"
             onClick={() => onToolbarClick(c.name)}
             title={c.summary}
-            style={{
-              padding: '4px 8px',
-              fontSize: 11,
-              border: '1px solid #ddd',
-              borderRadius: 4,
-              background: 'white',
-              cursor: 'pointer',
-            }}
+            className={s.toolBtn}
           >
-            {c.name}
+            /{c.name}
           </button>
         ))}
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          doSubmit();
-        }}
-        style={{ display: 'flex', gap: 8 }}
-      >
+
+      <div className={s.card}>
         <textarea
           ref={ref}
           rows={1}
@@ -143,21 +125,41 @@ export function Composer() {
           disabled={busy}
           onChange={onChange}
           onKeyDown={onKey}
-          placeholder="Say hi (type / for commands, Cmd/Ctrl+Enter to send)"
-          style={{
-            flex: 1,
-            padding: 8,
-            fontSize: 14,
-            fontFamily: 'inherit',
-            resize: 'none',
-            maxHeight: 200,
-            minHeight: 36,
-          }}
+          placeholder="Ask Reflect anything…  (type / for commands)"
+          aria-label="Message Reflect"
+          className={s.textarea}
+          autoFocus
         />
-        <button type="submit" disabled={busy || !text.trim()}>
-          Send
-        </button>
-      </form>
+        <div className={s.bottomBar}>
+          <div className={s.bottomLeft}>
+            <Tooltip label="Slash commands" side="top">
+              <IconButton
+                label="Slash commands"
+                size="sm"
+                onClick={() => {
+                  setText((v) => (v.startsWith('/') ? v : '/' + v));
+                  ref.current?.focus();
+                }}
+              >
+                <Icon icon={SlashSquare} size={14} />
+              </IconButton>
+            </Tooltip>
+          </div>
+          <div className={s.bottomRight}>
+            <Tooltip label={sendHint} side="top">
+              <IconButton
+                label={sendHint}
+                variant={canSend ? 'primary' : 'default'}
+                size="md"
+                disabled={!canSend}
+                onClick={() => void doSubmit()}
+              >
+                <Icon icon={ArrowUp} size={16} />
+              </IconButton>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

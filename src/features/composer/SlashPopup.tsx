@@ -1,14 +1,16 @@
 /**
- * M1.5 SlashPopup —— 输入 `/` 后弹出命令候选。
+ * SlashPopup —— `/` 命令候选弹层（CSS Modules 版）。
  *
- * 当前 stub 实现:选中后把 `/<cmd>` 文本填回 Composer。
- * M2.x 把每个命令绑定到对应 Tauri command / Reflect API。
+ * 契约（SlashPopup.test.tsx）：
+ *   - 渲染 button 元素，文本含 `/<name>`
+ *   - 点击 button 调 onSelect(name)
+ *   - visible=false / 无匹配时返回 null
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SLASH_COMMANDS } from './slashCommands';
+import s from './SlashPopup.module.css';
 
 interface Props {
-  /** 当前已经输入的 slash 文本,如 "/co" */
   query: string;
   onSelect: (cmd: string) => void;
   visible: boolean;
@@ -28,12 +30,10 @@ export function SlashPopup({ query, onSelect, visible }: Props) {
     );
   }, [query]);
 
-  // query 改变重置选中
   useEffect(() => {
     setActiveIdx(0);
   }, [query]);
 
-  // 键盘导航
   useEffect(() => {
     if (!visible) return;
     const node = listRef.current;
@@ -60,42 +60,20 @@ export function SlashPopup({ query, onSelect, visible }: Props) {
   if (!visible || filtered.length === 0) return null;
 
   return (
-    <div
-      ref={listRef}
-      tabIndex={-1}
-      style={{
-        position: 'absolute',
-        bottom: '100%',
-        left: 0,
-        right: 0,
-        marginBottom: 8,
-        background: 'white',
-        border: '1px solid #ddd',
-        borderRadius: 6,
-        maxHeight: 240,
-        overflowY: 'auto',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-        zIndex: 10,
-      }}
-    >
+    <div ref={listRef} tabIndex={-1} className={s.popup} role="listbox">
       {filtered.map((c, i) => (
         <button
           type="button"
           key={c.name}
           onMouseEnter={() => setActiveIdx(i)}
           onClick={() => onSelect(c.name)}
-          style={{
-            display: 'block',
-            width: '100%',
-            textAlign: 'left',
-            padding: '6px 10px',
-            border: 'none',
-            background: i === activeIdx ? '#eef2ff' : 'transparent',
-            cursor: 'pointer',
-          }}
+          className={s.item}
+          data-active={i === activeIdx || undefined}
+          role="option"
+          aria-selected={i === activeIdx}
         >
-          <div style={{ fontWeight: 500 }}>/{c.name}</div>
-          <div style={{ fontSize: 11, color: '#666' }}>{c.summary}</div>
+          <span className={s.name}>/{c.name}</span>
+          <span className={s.summary}>{c.summary}</span>
         </button>
       ))}
     </div>

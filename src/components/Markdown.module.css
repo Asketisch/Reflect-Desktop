@@ -1,0 +1,198 @@
+/* Markdown 渲染 —— 消费 token */
+
+.md {
+  font-size: var(--fs-base);
+  line-height: var(--lh-relaxed);
+  color: var(--text-primary);
+}
+
+.md :global(p) {
+  margin: 0 0 var(--space-3);
+}
+.md :global(p:last-child) {
+  margin-bottom: 0;
+}
+
+.md :global(h1),
+.md :global(h2),
+.md :global(h3),
+.md :global(h4) {
+  margin: var(--space-4) 0 var(--space-2);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+}
+.md :global(h1) {
+  font-size: var(--fs-2xl);
+}
+.md :global(h2) {
+  font-size: var(--fs-xl);
+}
+.md :global(h3) {
+  font-size: var(--fs-lg);
+}
+.md :global(h4) {
+  font-size: var(--fs-base);
+}
+
+.md :global(ul),
+.md :global(ol) {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+}
+.md :global(li) {
+  margin-bottom: var(--space-1);
+}
+.md :global(ul) {
+  list-style: disc;
+}
+.md :global(ol) {
+  list-style: decimal;
+}
+
+.md :global(blockquote) {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  border-left: 3px solid var(--accent-border);
+  background: var(--accent-subtle);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.md :global(a) {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--transition-fast);
+}
+.md :global(a:hover) {
+  border-bottom-color: var(--accent);
+}
+
+.md :global(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-sm);
+}
+.md :global(th),
+.md :global(td) {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  text-align: left;
+}
+.md :global(th) {
+  background: var(--bg-surface);
+  font-weight: var(--fw-semibold);
+}
+
+.md :global(hr) {
+  border: none;
+  border-top: 1px solid var(--border-default);
+  margin: var(--space-4) 0;
+}
+
+/* inline code */
+.inlineCode {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+}
+
+/* code block */
+.codeWrap {
+  margin: 0 0 var(--space-3);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  background: #0a0e14;
+}
+
+.codeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.codeLang {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  border-radius: var(--radius-xs);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.copyBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.pre {
+  margin: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: #e6e9ef;
+}
+
+/* Prism token 配色（深色 okaidia 风格） */
+.pre :global(.token.comment),
+.pre :global(.token.prolog),
+.pre :global(.token.doctype),
+.pre :global(.token.cdata) {
+  color: #6b7488;
+}
+.pre :global(.token.punctuation) {
+  color: #c9d1e0;
+}
+.pre :global(.token.property),
+.pre :global(.token.tag),
+.pre :global(.token.boolean),
+.pre :global(.token.number),
+.pre :global(.token.constant),
+.pre :global(.token.symbol) {
+  color: #f7b267;
+}
+.pre :global(.token.selector),
+.pre :global(.token.attr-name),
+.pre :global(.token.string),
+.pre :global(.token.char),
+.pre :global(.token.builtin) {
+  color: #5dd1c6;
+}
+.pre :global(.token.operator),
+.pre :global(.token.entity),
+.pre :global(.token.url) {
+  color: #a4adbe;
+}
+.pre :global(.token.atrule),
+.pre :global(.token.attr-value),
+.pre :global(.token.keyword) {
+  color: #a78bfa;
+}
+.pre :global(.token.function) {
+  color: #60a5fa;
+}
+.pre :global(.token.regex),
+.pre :global(.token.important),
+.pre :global(.token.variable) {
+  color: #fbbf24;
+}

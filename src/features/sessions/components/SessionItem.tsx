@@ -1,11 +1,12 @@
 /**
- * SessionItem —— 单个 session 行。
+ * SessionItem —— 单个 session 行（CSS Modules 版）。
  *
- * CodexMonitor 同名: `src/features/threads/components/SessionItem.tsx`
+ * 契约：button 元素 + aria-pressed（active 反馈）。
  */
 import { memo } from 'react';
 import type { ReflectSessionInfo } from '@/utils/tauri';
 import { displayTitle } from '../utils/buckets';
+import s from './SessionItem.module.css';
 
 export interface SessionItemProps {
   session: ReflectSessionInfo;
@@ -19,20 +20,11 @@ function SessionItemImpl({ session, active, onClick }: SessionItemProps) {
     <button
       onClick={onClick}
       aria-pressed={active}
-      style={{
-        display: 'block',
-        width: '100%',
-        textAlign: 'left',
-        padding: '6px 8px',
-        marginBottom: 4,
-        border: active ? '1px solid #3b82f6' : '1px solid #eee',
-        borderRadius: 4,
-        background: active ? '#eef2ff' : 'white',
-        cursor: 'pointer',
-      }}
+      className={s.item}
+      data-active={active || undefined}
     >
-      <div style={{ fontSize: 13, fontWeight: 500 }}>{title}</div>
-      <div style={{ fontSize: 11, color: '#666' }}>
+      <div className={s.title}>{title}</div>
+      <div className={s.meta}>
         {session.message_count} msgs · {session.token_total} tok
       </div>
     </button>

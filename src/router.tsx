@@ -1,7 +1,7 @@
 /**
  * TanStack Router v1 — ReflectDesktop route tree。
  *
- * M3.x 里程碑：19 条路由 + AppLayout + SettingsShell。
+ * 阶段 2：root component 从 AppLayout 切到 IDE 式 AppShell。
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,13 +9,11 @@ import { Route, RootRoute, Router } from '@tanstack/react-router';
 import React, { useEffect } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { ModalStack } from '@/features/modals';
+import { AppShell } from '@/features/shell/AppShell';
 
 // ====== Route components ======
 import { ChatView } from '@/features/messages/ChatView';
 import { SettingsView } from '@/features/settings/SettingsView';
-import { Sidebar } from '@/features/sessions/components/Sidebar';
-import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
-import { Topbar, BottomBar } from '@/widgets/StatusBar';
 import { HomeView } from '@/features/home/HomeView';
 import { ThreadsView } from '@/features/threads/ThreadsView';
 import { ModelsView } from '@/features/models/ModelsView';
@@ -36,66 +34,18 @@ import { DictationView } from '@/features/dictation/DictationView';
 import { MobileView } from '@/features/mobile/MobileView';
 import { UpdateView } from '@/features/update/UpdateView';
 
-// ====== Placeholder route components ======
-
-
-
-// ====== Layout components ======
-
-function AppLayout(props: { children?: React.ReactNode }) {
-  const sessions = useSessions();
-  const { activeId, setActiveId } = useActiveSession();
-  const { children } = props;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <Topbar />
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <Sidebar
-          buckets={sessions.buckets}
-          loading={sessions.loading}
-          error={sessions.error}
-          activeId={activeId}
-          onSelect={setActiveId}
-          onRefresh={sessions.refresh}
-        />
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-          {children}
-        </main>
-      </div>
-      <BottomBar />
-      {/* 阶段 3c:全局 modal 栈 —— 从 store 的 pending 队列渲染审批/问题/计划 modal。 */}
-      <ModalStack />
-    </div>
-  );
-}
-
-function SettingsShell({ children }: { children?: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <Topbar />
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {children}
-      </div>
-      <BottomBar />
-    </div>
-  );
-}
-
 // ====== Route tree (TanStack Router v1 API) ======
 
 const rootRoute = new RootRoute({
-  component: AppLayout,
+  component: AppShell,
 });
 
-const indexRoute = new Route({ getParentRoute: () => rootRoute, path: '/', component: HomeView });
+const indexRoute = new Route({ getParentRoute: () => rootRoute, path: '/', component: ChatView });
+const homeRoute = new Route({ getParentRoute: () => rootRoute, path: 'home', component: HomeView });
 const chatRoute = new Route({ getParentRoute: () => rootRoute, path: 'chat', component: ChatView });
 const chatSessionRoute = new Route({ getParentRoute: () => chatRoute, path: '$sessionId', component: ChatView });
 const sessionsRoute = new Route({ getParentRoute: () => rootRoute, path: 'sessions', component: ThreadsView });
-const settingsRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: 'settings',
-  component: () => <SettingsShell><SettingsView onClose={() => router.navigate({ to: '/' })} /></SettingsShell>,
-});
+const settingsRoute = new Route({ getParentRoute: () => rootRoute, path: 'settings', component: SettingsView });
 const filesRoute = new Route({ getParentRoute: () => rootRoute, path: 'files', component: FilesView });
 const modelsRoute = new Route({ getParentRoute: () => rootRoute, path: 'models', component: ModelsView });
 const skillsRoute = new Route({ getParentRoute: () => rootRoute, path: 'skills', component: SkillsView });
@@ -116,6 +66,7 @@ const designSystemRoute = new Route({ getParentRoute: () => rootRoute, path: 'de
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  homeRoute,
   chatRoute.addChildren([chatSessionRoute]),
   sessionsRoute,
   settingsRoute,
@@ -167,3 +118,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, []);
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
+
+// re-export ModalStack for backward compat（旧 import 路径）
+export { ModalStack };
