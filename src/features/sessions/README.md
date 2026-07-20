@@ -24,10 +24,13 @@ sessions/
 
 ## 入口
 
-- **路由挂载**：`src/router.tsx` 用 `SessionsView`（之前是 `Sidebar`，现在统一到 view）
-- **侧栏复用**：router 可以直接用 `Sidebar` 组件配合外部状态
+- **侧栏主入口**：`src/features/shell/AppShell.tsx` 渲染 `<Sidebar>`（AppShell 是 IDE shell 的 root）
+- **路由入口**：`/sessions` 路由用 `ThreadsView`（独立全屏列表视图）
+- **侧栏复用**：AppShell 直接传 props 用 Sidebar 组件
 - **数据获取**：`useSessions()` 返回 `{ buckets, all, loading, error, refetch, refresh, rename }`
 - **当前活动**：`useActiveSession()` 返回 `{ activeId, setActiveId }`
+
+> 注：`SessionsView` 是 Sidebar 的薄包装（保留为 barrel 导出契约），未被任何路由直接挂载。
 
 ## 关键决策
 

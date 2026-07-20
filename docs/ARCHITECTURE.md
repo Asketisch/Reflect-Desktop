@@ -10,18 +10,24 @@ ReflectDesktop/
 ├── vendor/                  # git subtree: 21 reflect-* crates mirrored from
 │                            # Reflect-Agent/. rsync-managed via scripts/.
 ├── app-core/                # shared UI-agnostic reducer + state
-├── src/                     # React 19 + Vite + 24 feature slices
-│   ├── features/{about, app, collaboration, composer, debug, design-system,
-│   │             dictation, files, git, home, layout, messages, mobile,
-│   │             models, modals, notifications, plan, prompts, settings,
-│   │             sessions, shared, skills, terminal, threads,
-│   │             update, workspaces}/
-│   ├── components/          # cross-slice atoms (e.g. Markdown, ModalShell)
-│   ├── widgets/             # composite widgets (Topbar, BottomBar)
-│   ├── stores/              # global Zustand stores (threadStore, agentStore,
-│   │                        # uiStore, tauriStore)
-│   ├── services/            # IPC wrappers (tauri.ts, agent.ts)
-│   ├── utils/               # tauri invoke/listen glue + debounce / i18n
+├── src/                     # React 19 + Vite + feature slices
+│   ├── features/
+│   │   ├── shell/           # IDE 5-pane layout (AppShell, ActivityBar,
+│   │   │                    #   TitleBar, StatusBar, Inspector, PageShell)
+│   │   ├── messages/        # ChatView, MessageList, Composer, Collapsible
+│   │   ├── sessions/        # Sidebar, BucketGroup, SessionItem, useSessions
+│   │   ├── composer/        # SlashPopup + slashCommands
+│   │   ├── modals/          # ModalShell + Approval/Question/AskUser/PlanReady
+│   │   ├── design-system/   # primitives (Button, Icon, Input, Card, ...) +
+│   │   │                    #   DesignSystemView catalog
+│   │   └── {about,collaboration,debug,dictation,files,git,home,mobile,
+│   │            models,notifications,plan,prompts,settings,skills,
+│   │            terminal,threads,update,workspaces}/
+│   ├── components/          # cross-slice atoms (e.g. Markdown)
+│   ├── stores/              # Zustand store (agentStore: single source of truth)
+│   ├── services/            # IPC wrappers (agent.ts re-exports store)
+│   ├── styles/              # tokens.css + base.css + typography.module.css
+│   ├── utils/               # tauri invoke/listen glue + theme + debounce / i18n
 │   └── types/               # generated from reflect-protocol's schema dump
 ├── src-tauri/               # Rust backend (Tauri 2)
 │   ├── Cargo.toml           # bin name: reflect-desktop
@@ -44,8 +50,8 @@ ReflectDesktop/
 ├── tsconfig.json / tsconfig.node.json
 ├── vite.config.ts           # @/ → src/ alias; dev server :5173
 ├── index.html               # SPA entry
-├── docs/                    # USER_GUIDE + ARCHITECTURE + (planned)
-│                              #   PRODUCT_LINKAGES + PROTOCOL_BRIDGE
+├── docs/                    # USER_GUIDE + ARCHITECTURE + codebase-map +
+│                              #   PROTOCOL_BRIDGE + CHANGELOG + gui/ (history)
 └── scripts/
     ├── install.sh           # dual-binary install (script + .app)
     └── vendor-sync.sh       # one-way rsync from Reflect-Agent/crates/* → vendor/
@@ -53,7 +59,7 @@ ReflectDesktop/
 
 ## 2. IPC contract
 
-See `docs/PROTOCOL_BRIDGE.md` (planned) for the request envelope and event
+See `docs/PROTOCOL_BRIDGE.md` for the request envelope and event
 formats. The wire format is identical to `reflect-protocol::Event` /
 `Submission` (snake_case JSON), avoiding custom serializers.
 
@@ -91,23 +97,24 @@ M1.x exposes 19 `#[tauri::command]`s and 1 push event (`reflect_event`):
 mirrors changes from `Reflect-Agent/crates/*` into `vendor/*`. Both can
 run independently — there is no build-time dependency between them.
 
-## 4. State flow (M1.x stub → M2.x real)
+## 4. State flow
 
 ```text
-┌─────────────── React 19 ───────────────┐
-│ features/messages/ChatView            │
-│ features/composer/Composer            │
-│ features/sessions/Sidebar (B2)        │
-│ features/modals/{Approval|Question}…  │  ← modal-driven, B5
-│   ↑                                    │
-│   │ useAgent (services/agent.ts)       │
-│   ▼                                    │
-│ reflect_event (Tauri listen)          │
-└─────────────┬──────────────────────────┘
-              │ Tauri 2 IPC
-┌─────────────▼──────────────────────────┐
-│ src-tauri/                              │
-│   events::forward_agent_events(...)    │
+┌───────────────── React 19 (single Zustand store) ──────────────────┐
+│ features/shell/AppShell (ActivityBar / Sidebar / Main / Inspector) │
+│ features/messages/ChatView (MessageList + Composer)               │
+│ features/sessions/Sidebar (time-bucketed sessions)                 │
+│ features/modals/ModalStack (Approval/Question/AskUser/PlanReady)   │
+│   ↑                                                                   │
+│   │ useAgentStore (stores/agentStore.ts) — single source of truth    │
+│   │ useAgent (services/agent.ts) — compat re-export                  │
+│   ▼                                                                   │
+│ onReflectEvent → reduceEvent (agentStore.ts reducer)                │
+└─────────────────────────┬─────────────────────────────────────────┘
+                          │ Tauri 2 IPC (invoke / listen)
+┌─────────────────────────▼─────────────────────────────────────────┐
+│ src-tauri/                                                          │
+│   events::forward_agent_events(...)                                │
 │   commands::{reflect_submit, ...}      │
 │   state::MinimalAgent (M1.x)           │
 │     ├─ mpsc Sender<Submission>         │

@@ -33,11 +33,12 @@ If behavior must run in headless (CLI/TUI) too, the change lives in `vendor/refl
 
 | Need | Primary files |
 | --- | --- |
-| Add a new feature slice / route | `src/router.tsx`, `src/features/<slice>/<View>.tsx`, `src/features/app/AppLayout.tsx` |
+| Add a new feature slice / route | `src/router.tsx`, `src/features/<slice>/<View>.tsx`, `src/features/shell/AppShell.tsx` |
 | Add/change Tauri command from frontend | `src/utils/tauri.ts`, `src-tauri/src/commands/mod.rs`, `src-tauri/src/lib.rs` (handler list) |
 | Add/change event handler in UI | `src/services/agent.ts` (`handle_event`), `src/features/<slice>/hooks/*` |
-| Change composer (input box) | `src/features/composer/Composer.tsx`, `src/features/composer/SlashPopup.tsx`, `src/features/composer/slashCommands.ts` |
+| Change composer (input box) | `src/features/messages/Composer.tsx`, `src/features/composer/SlashPopup.tsx`, `src/features/composer/slashCommands.ts` |
 | Change chat rendering | `src/features/messages/MessageList.tsx`, `src/features/messages/ChatView.tsx` |
+| Change IDE shell (layout / activity bar / status bar) | `src/features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx` |
 | Change approval / question / plan modal | `src/features/modals/ModalShell.tsx`, `src/features/modals/index.tsx` |
 | Change session list (sidebar) | `src/features/sessions/components/Sidebar.tsx`, `src/features/sessions/hooks/useSessions.ts` |
 | Change settings persistence | `src/features/settings/SettingsView.tsx`, `src/utils/tauri.ts`, `src-tauri/src/commands/mod.rs` |
@@ -52,12 +53,14 @@ If behavior must run in headless (CLI/TUI) too, the change lives in `vendor/refl
 
 ## Frontend Navigation
 
-- Composition root: `src/main.tsx` → `src/App.tsx`
+- Composition root: `src/main.tsx`
 - Router (TanStack Router): `src/router.tsx`
-- App layout shell: `src/features/app/AppLayout.tsx`
+- App layout shell (IDE 5-pane): `src/features/shell/AppShell.tsx` (+ ActivityBar/TitleBar/StatusBar/Inspector/PageShell)
 - Tauri IPC wrapper: `src/utils/tauri.ts`
 - Agent hook (event fanout + submit): `src/services/agent.ts`
-- Global Zustand stores: `src/stores/` (planned; not yet extracted from feature-local state)
+- Global Zustand store: `src/stores/agentStore.ts`
+- Theme infra: `src/utils/theme.ts`
+- Design tokens / base reset: `src/styles/{tokens,base}.css` + `typography.module.css`
 - Shared types: `src/types/protocol.ts`
 
 ### Feature slices
@@ -65,8 +68,9 @@ If behavior must run in headless (CLI/TUI) too, the change lives in `vendor/refl
 | Slice | Files | Notes |
 | --- | --- | --- |
 | `home` | `features/home/HomeView.tsx` | Dashboard / quick actions |
-| `messages` | `features/messages/{ChatView,MessageList}.tsx` + test | Chat scrollback + rows |
-| `composer` | `features/composer/{Composer,SlashPopup}.tsx` + `slashCommands.ts` | Input + `/` popup |
+| `messages` | `features/messages/{ChatView,MessageList,Composer,Collapsible}.tsx` | Chat scrollback + rows + input |
+| `composer` | `features/composer/{SlashPopup}.tsx` + `slashCommands.ts` | `/` popup (Composer lives in messages/) |
+| `shell` | `features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx` | IDE 5-pane layout |
 | `modals` | `features/modals/{ModalShell,index}.tsx` | Approval / Question / Plan / AskUser |
 | `sessions` | `features/sessions/{components/Sidebar,hooks/useSessions}.{tsx,ts}` + test | Time-bucketed sidebar |
 | `settings` | `features/settings/SettingsView.tsx` + test | Display / Editor / Provider |
@@ -86,15 +90,13 @@ If behavior must run in headless (CLI/TUI) too, the change lives in `vendor/refl
 | `update` | `features/update/UpdateView.tsx` | Auto-update UI |
 | `debug` | `features/debug/DebugView.tsx` | Debug panel |
 | `about` | `features/about/AboutView.tsx` | About / version |
-| `design-system` | `features/design-system/DesignSystemView.tsx` | DS catalog (planned) |
-| `app` | `features/app/AppLayout.tsx` | Top-level layout wiring |
+| `design-system` | `features/design-system/{DesignSystemView,primitives/*}.tsx` | DS catalog + primitives (live) |
 
 ### Import Aliases
 
 Use TS/Vite aliases:
 
 - `@/*` → `src/*`
-- (planned) `@features/*`, `@services/*`, `@utils/*`, `@types/*`, `@stores/*`, `@widgets/*`
 
 ---
 

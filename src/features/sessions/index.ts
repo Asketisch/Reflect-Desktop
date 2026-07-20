@@ -2,8 +2,9 @@
  * sessions slice public API barrel.
  *
  * CodexMonitor 同名: `src/features/threads/index.ts`。
+ *
+ * Sidebar 是主入口（直接由 AppShell 渲染），不再导出 SessionsView（薄包装，已删除）。
  */
-export { SessionsView } from './SessionsView';
 export { Sidebar } from './components/Sidebar';
 export { SessionItem } from './components/SessionItem';
 export { BucketGroup } from './components/BucketGroup';

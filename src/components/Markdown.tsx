@@ -1,8 +1,9 @@
 /**
- * M1.4 简易 Markdown 渲染 —— `react-markdown` + `remark-gfm` + `prismjs` 高亮。
+ * Markdown 渲染 —— react-markdown + remark-gfm + prismjs + CSS Modules。
  *
- * M2.x 升级到 streamdown；M1 接受 react-markdown 的非打字机体验。
+ * 代码块带复制按钮 + 深色主题。
  */
+import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Prism from 'prismjs';
@@ -11,6 +12,9 @@ import 'prismjs/components/prism-typescript.js';
 import 'prismjs/components/prism-bash.js';
 import 'prismjs/components/prism-json.js';
 import 'prismjs/components/prism-python.js';
+import { Check, Copy } from 'lucide-react';
+import { Icon } from '@/features/design-system';
+import s from './Markdown.module.css';
 
 interface Props {
   text: string;
@@ -22,59 +26,64 @@ function highlight(code: string, lang: string): string | null {
   return Prism.highlight(code, g, lang);
 }
 
-export function Markdown({ text }: Props) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        code({ inline, className, children }: {
-          inline?: boolean;
-          className?: string;
-          children?: React.ReactNode;
-        }) {
-          const code = String(children ?? '').replace(/\n$/, '');
-          const lang = /language-(\w+)/.exec(className ?? '')?.[1] ?? '';
-          if (inline || !lang) {
-            return <code style={inlineStyle}>{code}</code>;
-          }
-          const html = highlight(code, lang);
-          return (
-            <pre style={preStyle}>
-              <code
-                className={`language-${lang}`}
-                dangerouslySetInnerHTML={{ __html: html ?? escapeHtml(code) }}
-              />
-            </pre>
-          );
-        },
-      }}
-    >
-      {text}
-    </ReactMarkdown>
-  );
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"]/g, (c) =>
+function escapeHtml(str: string): string {
+  return str.replace(/[&<>"]/g, (c) =>
     c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;',
   );
 }
 
-const inlineStyle: React.CSSProperties = {
-  background: '#f1f5f9',
-  padding: '2px 4px',
-  borderRadius: 3,
-  fontFamily: 'ui-monospace, monospace',
-  fontSize: '0.9em',
-};
+export function Markdown({ text }: Props) {
+  return (
+    <div className={s.md}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ inline, className, children }: {
+            inline?: boolean;
+            className?: string;
+            children?: React.ReactNode;
+          }) {
+            const code = String(children ?? '').replace(/\n$/, '');
+            const lang = /language-(\w+)/.exec(className ?? '')?.[1] ?? '';
+            if (inline || !lang) {
+              return <code className={s.inlineCode}>{code}</code>;
+            }
+            return <CodeBlock code={code} lang={lang} />;
+          },
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
-const preStyle: React.CSSProperties = {
-  position: 'relative',
-  background: '#0f172a',
-  color: '#e2e8f0',
-  padding: 12,
-  borderRadius: 6,
-  overflow: 'auto',
-  fontFamily: 'ui-monospace, monospace',
-  fontSize: 13,
-};
+function CodeBlock({ code, lang }: { code: string; lang: string }) {
+  const [copied, setCopied] = useState(false);
+  const html = highlight(code, lang);
+
+  const onCopy = useCallback(() => {
+    void navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [code]);
+
+  return (
+    <div className={s.codeWrap}>
+      <div className={s.codeHeader}>
+        <span className={s.codeLang}>{lang}</span>
+        <button onClick={onCopy} className={s.copyBtn} title="Copy code">
+          <Icon icon={copied ? Check : Copy} size={12} />
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <pre className={s.pre}>
+        <code
+          className={`language-${lang}`}
+          dangerouslySetInnerHTML={{ __html: html ?? escapeHtml(code) }}
+        />
+      </pre>
+    </div>
+  );
+}

@@ -52,14 +52,15 @@ For backend behavior changes, follow this order:
 Use project aliases for frontend imports (defined in `tsconfig.json` + `vite.config.ts`):
 
 - `@/*` → `src/*`
-- (planned) `@features/*`, `@services/*`, `@utils/*`, `@types/*`, `@stores/*`, `@widgets/*`
 
 ## Key File Anchors
 
-- Frontend composition root: `src/App.tsx`
+- Frontend composition root: `src/main.tsx`
 - Frontend router: `src/router.tsx`
+- IDE app shell: `src/features/shell/AppShell.tsx`
 - Frontend IPC wrapper: `src/utils/tauri.ts`
-- Frontend agent hook: `src/services/agent.ts`
+- Frontend agent store: `src/stores/agentStore.ts`
+- Frontend agent hook (re-export): `src/services/agent.ts`
 - App command registry: `src-tauri/src/lib.rs`
 - App state (AgentThread host): `src-tauri/src/state.rs`
 - Event forwarder: `src-tauri/src/events.rs`
@@ -95,9 +96,9 @@ For broader path maps, use `docs/codebase-map.md`.
 For Queue vs Steer follow-up behavior, start here:
 
 - Settings model + defaults: `src/features/settings/SettingsView.tsx`
-- Composer runtime behavior: `src/features/composer/Composer.tsx`
-- Send intent routing: `src/services/agent.ts::submit`
-- App/layout wiring: `src/features/app/AppLayout.tsx`, `src/router.tsx`
+- Composer runtime behavior: `src/features/messages/Composer.tsx`
+- Send intent routing: `src/stores/agentStore.ts::submit`
+- App/layout wiring: `src/features/shell/AppShell.tsx`, `src/router.tsx`
 
 ## App State Sync Checklist
 
@@ -112,9 +113,9 @@ When changing settings/persistence that affects both backend and frontend:
 
 ## Design System Rule (High-Level)
 
-Use existing design tokens (`src/styles/tokens.css` planned) for shared shell chrome. Do not reintroduce duplicated modal/toast/panel/popover shell styling in feature CSS.
+Use existing design tokens (`src/styles/tokens.css`, dark-first with light/system themes) and primitives (`src/features/design-system/primitives/*`) for shared shell chrome. Do not reintroduce duplicated modal/toast/panel/popover shell styling in feature CSS. All views consume `token` via CSS Modules (no inline style hardcoded colors).
 
-(See existing DS files and lint guardrails for implementation details.)
+(See existing DS files and `DesignSystemView` catalog for implementation details.)
 
 ## Safety and Git Behavior
 
@@ -176,9 +177,12 @@ Use extra care in high-churn/high-complexity files:
 - `src-tauri/src/state.rs` (AgentThread host; install timing matters)
 - `src-tauri/src/commands/mod.rs` (19 commands + session I/O)
 - `src-tauri/src/events.rs` (event forwarder, single channel)
-- `src/services/agent.ts` (frontend fanout + reducer)
-- `src/utils/tauri.ts` (the only file that touches `invoke` / `listen`)
+- `src/stores/agentStore.ts` (single source of truth for agent state + reducer)
+- `src/features/shell/AppShell.tsx` (IDE 5-pane layout; sidebar/inspector toggle, session routing)
+- `src/features/messages/MessageList.tsx` (chat rendering + Collapsible items)
+- `src/utils/tauri.ts` (barrel; the only file that re-exports `invoke` / `listen` from `commands/bridge`)
 - `src/router.tsx` (TanStack Router route table)
+- `src/styles/tokens.css` (design tokens; dark/light/system themes — single source of truth)
 - `scripts/vendor-sync.sh` (CRATES list controls which vendor crates sync)
 
 ## Canonical References
