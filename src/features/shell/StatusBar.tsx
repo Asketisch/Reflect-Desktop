@@ -4,6 +4,11 @@
  * 左：model @ provider · permission · effort · workspace。
  * 右：MCP/LSP 状态点 · 错误计数 · 主题切换。
  *
+ * **数据优先级**（避免「no model」误报）：
+ *   1. `useAgentStore.session` —— 由 `session_configured` 事件填充，最权威。
+ *   2. fallback 到 `reflect_agent_status` 查询结果（启动期 / 降级模式 / 事件未到时）。
+ *   3. 都没有时才显示「no model」。
+ *
  * 替代旧的 widgets/StatusBar（Topbar/BottomBar），移除所有 "M1.7 scaffold" 字样。
  */
 import { useState, useEffect } from 'react';
@@ -44,26 +49,46 @@ export function StatusBar() {
   const mcpFailed = mcpServers.filter((m) => m.status === 'failed').length;
   const lspFailed = lspServers.filter((l) => l.status === 'failed').length;
 
+  // 模型显示：优先 store.session（事件填充），fallback 到 status 查询。
+  // 三态：configured（绿）/ degraded 黄 / unknown 红。
+  const status = statusQ.data;
+  const modelLabel = session
+    ? `${session.model} @ ${session.provider}`
+    : status && status.has_model
+      ? status.model
+      : null;
+  const modelKind: 'ok' | 'warn' | 'error' = session
+    ? 'ok'
+    : status && status.has_model
+      ? 'ok'
+      : status && status.degraded_reason
+        ? 'warn'
+        : 'warn';
+  const modelTooltip = status?.degraded_reason ?? undefined;
+  const workspaceLabel = status?.workspace ? basename(status.workspace) : null;
+
   return (
     <footer className={s.bar}>
       <div className={s.group}>
-        {session ? (
-          <span className={s.item}>
-            <span className={s.dot} data-kind="ok" />
-            {session.model} @ {session.provider}
+        {modelLabel ? (
+          <span className={s.item} title={modelTooltip}>
+            <span className={s.dot} data-kind={modelKind} />
+            {modelLabel}
           </span>
         ) : (
-          <span className={s.item}>
-            <span className={s.dot} data-kind="warn" />
-            no model
-          </span>
+          <Tooltip label={modelTooltip ?? 'No model configured — open Settings to add an API key'} side="top">
+            <span className={s.item}>
+              <span className={s.dot} data-kind={modelKind} />
+              no model
+            </span>
+          </Tooltip>
         )}
         <button className={s.btn} onClick={() => cyclePermission()} title="Cycle permission mode">
           {permissionMode}
         </button>
-        {statusQ.data?.workspace && (
-          <span className={s.itemMuted} title={statusQ.data.workspace}>
-            {basename(statusQ.data.workspace)}
+        {workspaceLabel && (
+          <span className={s.itemMuted} title={status?.workspace}>
+            {workspaceLabel}
           </span>
         )}
       </div>

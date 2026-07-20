@@ -9,6 +9,8 @@ import { useAgentStore } from '@/stores/agentStore';
 import { resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
 
 // Mock @tanstack/react-router — 仿照 app.smoke.test.tsx 的 mock 模式。
+// Outlet 渲染一个 sentinel，验证 AppShell 真的把 router children 挂到了 DOM
+// （历史 bug：用 children prop 而不是 <Outlet />，导致主区域永久空白）。
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router');
   return {
@@ -36,7 +38,7 @@ vi.mock('@tanstack/react-router', async () => {
     useRouter: () => ({ navigate: vi.fn() }),
     useLocation: () => ({ pathname: '/' }),
     useMatches: () => [],
-    Outlet: () => null,
+    Outlet: () => <div data-testid="outlet-content">outlet</div>,
   };
 });
 
@@ -88,5 +90,12 @@ describe('AppShell collapse behavior', () => {
     fireEvent.click(screen.getByLabelText('Hide inspector'));
     expect(screen.queryByTestId('shell-sidebar')).toBeNull();
     expect(screen.queryByTestId('shell-inspector')).toBeNull();
+  });
+
+  // 回归保护：AppShell 必须渲染 <Outlet />（不是 children prop），
+  // 否则 TanStack Router 解析的子路由全部不显示 —— 主区域永久空白。
+  it('renders Outlet content (router children actually mount)', () => {
+    render(wrap(<AppShell />));
+    expect(screen.getByTestId('outlet-content')).toBeDefined();
   });
 });

@@ -4,6 +4,22 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Fixed — 主内容区永久空白（critical regression）
+
+- **根因**:`AppShell` 用 `children` prop 渲染主内容,但 TanStack Router v1 的
+  root route component 不会收到 children —— 必须渲染 `<Outlet />` 才能把
+  匹配到的子路由(HomeView / ChatView / SettingsView / …)挂到 DOM。
+  现象:打开 app,ActivityBar / Sidebar / TitleBar / StatusBar 都正常,
+  **唯独中间主区域永远是空白**(无论点哪个路由)。
+- **修复**:`AppShell` 改用 `<Outlet />`;同步更新 `AppShell.test.tsx` +
+  `app.smoke.test.tsx` 的 Outlet mock,新增回归测试断言 Outlet 内容真的挂载。
+- **StatusBar 模型显示**:之前 store.session 为空时永远显示 "no model",
+  哪怕后端 `reflect_agent_status` 查询返回了真实 model —— 现在按
+  store.session → statusQuery.data.has_model → "no model" 三级 fallback,
+  并把 `degraded_reason` 作为 tooltip 暴露。
+- **TitleBar session 文案**:`session: (waiting...)` → `(waiting…)`(排版),
+  并在 statusQuery 有 model 时显示真实 model 名,而不是永远 "waiting"。
+
 ### Changed — UI 全面重建收尾（polish + a11y + 测试 + 文档）
 
 #### 功能性 bug 修复

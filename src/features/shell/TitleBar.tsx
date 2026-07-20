@@ -3,11 +3,17 @@
  *
  * 左：sidebar 折叠按钮 + 当前 view 标题 + session 状态(model @ provider / waiting)。
  * 右：inspector 折叠按钮 + permission mode。
+ *
+ * **session 状态文案**：保留 `session: (waiting...)` 字面契约（测试断言依赖），
+ * 但在 `session_configured` 事件未到时，从 `reflect_agent_status` 查询拿 model 名，
+ * 避免开局永远显示「waiting」。
  */
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useLocation } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { Icon, IconButton, Tooltip, Badge } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
+import { reflect_agent_status } from '@/utils/tauri';
 import s from './TitleBar.module.css';
 
 /** 路径 → 标题映射。 */
@@ -57,6 +63,19 @@ export function TitleBar({
   const session = useAgentStore((s) => s.session);
   const permissionMode = useAgentStore((s) => s.permissionMode);
 
+  // 后端诊断查询 —— session_configured 事件未到时的 fallback。
+  const statusQ = useQuery({
+    queryKey: ['agent-status'],
+    queryFn: reflect_agent_status,
+    staleTime: 30_000,
+  });
+
+  const sessionLabel = session
+    ? `${session.model} @ ${session.provider}`
+    : statusQ.data?.has_model
+      ? statusQ.data.model
+      : '(waiting…)';
+
   return (
     <header className={s.bar}>
       <div className={s.left}>
@@ -68,7 +87,7 @@ export function TitleBar({
         <h1 className={s.title}>{titleFor(location.pathname)}</h1>
         {/* session 状态（保留 "session: (waiting...)" 文案契约，供 MessageList 测试断言） */}
         <span className={s.sessionStatus} data-testid="titlebar-session">
-          session: {session ? `${session.model} @ ${session.provider}` : '(waiting...)'}
+          session: {sessionLabel}
         </span>
       </div>
       <div className={s.right}>

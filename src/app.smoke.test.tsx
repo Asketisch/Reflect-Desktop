@@ -86,7 +86,7 @@ vi.mock('@tanstack/react-router', async () => {
     useParams: () => ({}),
     useLocation: () => ({ pathname: '/' }),
     useMatches: () => [],
-    Outlet: () => null,
+    Outlet: () => <div data-testid="outlet-content">outlet</div>,
   };
 });
 
