@@ -1,64 +1,243 @@
 /* ReflectDesktop design tokens — single source of truth.
  *
- * Mirror of docs/styles.css design tokens (用于 docs 网站)。
- * 整个 src/** 唯一允许 import 的样式入口。
+ * 深色优先：`:root` 即深色主题（默认），`[data-theme="light"]` 覆盖为浅色。
+ * `data-theme="system"`（或未设置）时，由 `prefers-color-scheme` 决定。
  *
- * CodexMonitor 参考: src/styles/tokens.css
+ * 整个 src/** 唯一允许 import 的全局样式入口（配合 base.css）。
+ * 组件样式请用 CSS Modules（*.module.css），消费这里的 token。
  */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* Spacing */
+  /* ===== Spacing (4pt grid) ===== */
+  --space-0: 0px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+  --space-9: 64px;
 
-  /* Typography */
-  --font-sans: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  /* ===== Typography ===== */
+  --font-sans: "Inter", "DM Sans", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas,
+    monospace;
+
   --fs-xs: 11px;
   --fs-sm: 12px;
-  --fs-md: 14px;
+  --fs-md: 13px;
+  --fs-base: 14px;
   --fs-lg: 16px;
-  --fs-xl: 22px;
-  --fs-2xl: 28px;
-  --fs-3xl: 36px;
+  --fs-xl: 18px;
+  --fs-2xl: 22px;
+  --fs-3xl: 28px;
+  --fs-4xl: 36px;
 
-  /* Light theme (default) */
-  --bg: #ffffff;
-  --bg-2: #f8fafc;
-  --ink: #1e293b;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --accent: #3b82f6;
-  --accent-2: #22c55e;
-  --danger: #ef4444;
-  --warning: #f59e0b;
+  --lh-tight: 1.2;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.7;
 
-  /* Radii */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  /* ===== Radii ===== */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ===== Z-index ===== */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-overlay: 1000;
+  --z-modal: 1100;
+  --z-toast: 1200;
+  --z-tooltip: 1300;
+
+  /* ===== Transition ===== */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 280ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ===== Dark theme (default) — IDE 深色优先 ===== */
+  --bg-app: #0b0e14;        /* 最底层（app body）*/
+  --bg-surface: #11151f;    /* 面板/卡片底色 */
+  --bg-elevated: #161b27;   /* 提升的面板（modal/popover/输入框聚焦）*/
+  --bg-input: #0d1119;      /* 输入控件底色 */
+  --bg-hover: #1c2333;      /* hover 态叠加色 */
+  --bg-active: #232b3d;     /* active/pressed 态叠加色 */
+
+  --text-primary: #e6e9ef;     /* 主文本 */
+  --text-secondary: #a4adbe;   /* 次要文本 */
+  --text-muted: #828c9f;       /* 弱化文本/占位（AA 对比度 ≥ 4.5:1 on bg-app）*/
+  --text-disabled: #3f4658;    /* 禁用文本 */
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Accent（品牌色：Reflect 青绿）*/
+  --accent: #5dd1c6;
+  --accent-hover: #79ddd4;
+  --accent-active: #4cb8ad;
+  --accent-subtle: rgba(93, 209, 198, 0.12);
+  --accent-border: rgba(93, 209, 198, 0.35);
+  --accent-fg: #07120f;     /* accent 背景上的文字 */
+
+  /* 语义色 —— 每个含 fg / bg / border 三态 */
+  --success: #4ade80;
+  --success-fg: #052e16;
+  --success-bg: rgba(74, 222, 128, 0.12);
+  --success-border: rgba(74, 222, 128, 0.3);
+
+  --warning: #fbbf24;
+  --warning-fg: #451a03;
+  --warning-bg: rgba(251, 191, 36, 0.12);
+  --warning-border: rgba(251, 191, 36, 0.3);
+
+  --danger: #f87171;
+  --danger-fg: #450a0a;
+  --danger-bg: rgba(248, 113, 113, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.3);
+
+  --info: #60a5fa;
+  --info-fg: #0c1f3d;
+  --info-bg: rgba(96, 165, 250, 0.12);
+  --info-border: rgba(96, 165, 250, 0.3);
+
+  /* 阴影（深色用柔和发光式 elevation）*/
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-focus: 0 0 0 3px var(--accent-subtle);
+
+  /* 滚动条（深色）*/
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+  --scrollbar-track: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #080b14;
-    --bg-2: #101629;
-    --ink: #e8edf5;
-    --muted: #b2bccf;
-    --line: rgba(255, 255, 255, 0.08);
-    --accent: #5dd1c6;
-    --accent-2: #f7b267;
-    --danger: #f87171;
-    --warning: #fbbf24;
+/* ===== Light theme ===== */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-app: #f7f8fa;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: #f1f3f7;
+  --bg-active: #e6e9f0;
+
+  --text-primary: #1a1f2c;
+  --text-secondary: #4d5666;
+  --text-muted: #6b7488;
+  --text-disabled: #c2c8d3;
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.18);
+
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-active: #115e54;
+  --accent-subtle: rgba(13, 148, 136, 0.1);
+  --accent-border: rgba(13, 148, 136, 0.35);
+  --accent-fg: #ffffff;
+
+  --success: #16a34a;
+  --success-fg: #ffffff;
+  --success-bg: rgba(22, 163, 74, 0.1);
+  --success-border: rgba(22, 163, 74, 0.3);
+
+  --warning: #d97706;
+  --warning-fg: #ffffff;
+  --warning-bg: rgba(217, 119, 6, 0.1);
+  --warning-border: rgba(217, 119, 6, 0.3);
+
+  --danger: #dc2626;
+  --danger-fg: #ffffff;
+  --danger-bg: rgba(220, 38, 38, 0.1);
+  --danger-border: rgba(220, 38, 38, 0.3);
+
+  --info: #2563eb;
+  --info-fg: #ffffff;
+  --info-bg: rgba(37, 99, 235, 0.1);
+  --info-border: rgba(37, 99, 235, 0.3);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --shadow-focus: 0 0 0 3px var(--accent-subtle);
+
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+  --scrollbar-track: transparent;
+}
+
+/* `system` 主题：未显式设置 data-theme 时，跟随系统。 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --bg-app: #f7f8fa;
+    --bg-surface: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-input: #ffffff;
+    --bg-hover: #f1f3f7;
+    --bg-active: #e6e9f0;
+
+    --text-primary: #1a1f2c;
+    --text-secondary: #4d5666;
+    --text-muted: #6b7488;
+    --text-disabled: #c2c8d3;
+
+    --border-subtle: rgba(0, 0, 0, 0.06);
+    --border-default: rgba(0, 0, 0, 0.1);
+    --border-strong: rgba(0, 0, 0, 0.18);
+
+    --accent: #0d9488;
+    --accent-hover: #0f766e;
+    --accent-active: #115e54;
+    --accent-subtle: rgba(13, 148, 136, 0.1);
+    --accent-border: rgba(13, 148, 136, 0.35);
+    --accent-fg: #ffffff;
+
+    --success: #16a34a;
+    --success-fg: #ffffff;
+    --success-bg: rgba(22, 163, 74, 0.1);
+    --success-border: rgba(22, 163, 74, 0.3);
+
+    --warning: #d97706;
+    --warning-fg: #ffffff;
+    --warning-bg: rgba(217, 119, 6, 0.1);
+    --warning-border: rgba(217, 119, 6, 0.3);
+
+    --danger: #dc2626;
+    --danger-fg: #ffffff;
+    --danger-bg: rgba(220, 38, 38, 0.1);
+    --danger-border: rgba(220, 38, 38, 0.3);
+
+    --info: #2563eb;
+    --info-fg: #ffffff;
+    --info-bg: rgba(37, 99, 235, 0.1);
+    --info-border: rgba(37, 99, 235, 0.3);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+    --shadow-focus: 0 0 0 3px var(--accent-subtle);
+
+    --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+    --scrollbar-track: transparent;
   }
 }

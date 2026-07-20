@@ -1,5 +1,5 @@
 /**
- * Vitest — Button primitive 测试。
+ * Vitest — Button primitive 测试（CSS Modules 版）。
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -29,19 +29,38 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalled();
   });
 
-  it('renders primary variant (background in style)', () => {
+  it('renders primary variant via data-variant attribute', () => {
     const { container } = render(<Button variant="primary">P</Button>);
     const btn = container.querySelector('button')!;
-    expect(btn.style.background).toContain('59, 130, 246'); // rgb form
+    expect(btn.getAttribute('data-variant')).toBe('primary');
   });
 
-  it('renders danger variant (background in style)', () => {
+  it('renders danger variant via data-variant attribute', () => {
     const { container } = render(<Button variant="danger">D</Button>);
     const btn = container.querySelector('button')!;
-    expect(btn.style.background).toContain('239, 68, 68');
+    expect(btn.getAttribute('data-variant')).toBe('danger');
   });
 
-  it('respects disabled', () => {
+  it('applies size via data-size attribute', () => {
+    const { container } = render(<Button size="lg">L</Button>);
+    const btn = container.querySelector('button')!;
+    expect(btn.getAttribute('data-size')).toBe('lg');
+  });
+
+  it('block flag sets data-block', () => {
+    const { container } = render(<Button block>x</Button>);
+    const btn = container.querySelector('button')!;
+    expect(btn.getAttribute('data-block')).toBe('true');
+  });
+
+  it('loading disables the button and shows aria-busy', () => {
+    const { container } = render(<Button loading>x</Button>);
+    const btn = container.querySelector('button') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.getAttribute('aria-busy')).toBe('true');
+  });
+
+  it('respects explicit disabled', () => {
     const { container } = render(<Button disabled>x</Button>);
     expect((container.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
   });

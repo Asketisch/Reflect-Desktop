@@ -1,0 +1,37 @@
+/* Card —— 通用内容卡片 */
+
+.card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.card[data-level='flat'] {
+  border: none;
+  background: var(--bg-surface);
+}
+
+.card[data-level='outlined'] {
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.card[data-level='elevated'] {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+/* padding 档位 */
+.card[data-padding='none'] {
+  padding: 0;
+}
+.card[data-padding='sm'] {
+  padding: var(--space-3);
+}
+.card[data-padding='md'] {
+  padding: var(--space-4);
+}
+.card[data-padding='lg'] {
+  padding: var(--space-5);
+}

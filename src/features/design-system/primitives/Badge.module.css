@@ -1,0 +1,78 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* 默认（subtle / 非 solid）—— 半透明 bg + 语义色文字 + 边框 */
+.badge[data-variant='neutral'] {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+.badge[data-variant='accent'] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+.badge[data-variant='success'] {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: var(--success-border);
+}
+.badge[data-variant='warning'] {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: var(--warning-border);
+}
+.badge[data-variant='danger'] {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+.badge[data-variant='info'] {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: var(--info-border);
+}
+
+/* solid —— 实心语义色背景 */
+.badge[data-solid][data-variant='neutral'] {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+.badge[data-solid][data-variant='accent'] {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.badge[data-solid][data-variant='success'] {
+  background: var(--success);
+  color: var(--success-fg);
+}
+.badge[data-solid][data-variant='warning'] {
+  background: var(--warning);
+  color: var(--warning-fg);
+}
+.badge[data-solid][data-variant='danger'] {
+  background: var(--danger);
+  color: var(--danger-fg);
+}
+.badge[data-solid][data-variant='info'] {
+  background: var(--info);
+  color: var(--info-fg);
+}

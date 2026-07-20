@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { AppLayout } from '@/features/app/AppLayout';
+import { AppShell } from '@/features/shell/AppShell';
 
 // Tiny typed wrappers around node:fs to avoid @types/node dep.
 declare const require: (id: string) => unknown;
@@ -82,8 +82,10 @@ vi.mock('@tanstack/react-router', async () => {
       </a>
     ),
     useNavigate: () => () => {},
-    useRouter: () => ({}),
+    useRouter: () => ({ navigate: () => {} }),
     useParams: () => ({}),
+    useLocation: () => ({ pathname: '/' }),
+    useMatches: () => [],
     Outlet: () => null,
   };
 });
@@ -119,15 +121,17 @@ describe('Router module structure', () => {
 // 2. AppLayout wiring
 // ===========================================================================
 
-describe('AppLayout (top-level shell)', () => {
+describe('AppShell (IDE-style top-level shell)', () => {
   beforeEach(() => resetMockInvoke());
 
-  it('mounts with Sidebar + ChatView child', () => {
-    render(wrap(<AppLayout />));
+  it('mounts with Sidebar + ActivityBar + StatusBar', () => {
+    render(wrap(<AppShell />));
     // Sidebar header
     expect(screen.getByText('Sessions')).toBeDefined();
-    // Right panel placeholder (always shown)
-    expect(screen.getByText(/Right panel/)).toBeDefined();
+    // ActivityBar nav label（IconButton aria-label）
+    expect(screen.getByLabelText('Chat')).toBeDefined();
+    // StatusBar（含 model 占位）
+    expect(screen.getByText(/no model|@/)).toBeDefined();
   });
 });
 
@@ -366,14 +370,14 @@ describe('DesignSystemView catalog', () => {
     }
   });
 
-  it('Button primitive renders primary/danger with correct colors', () => {
+  it('Button primitive renders primary/danger via data-variant', () => {
     const { container } = render(wrap(<DesignSystemView />));
     const buttons = container.querySelectorAll('button');
-    const primaryBtn = Array.from(buttons).find((b) => b.textContent === 'Primary');
+    const primaryBtn = Array.from(buttons).find((b) => b.textContent === 'Primary') as HTMLButtonElement | undefined;
     expect(primaryBtn).toBeDefined();
-    expect(primaryBtn!.style.background).toContain('59, 130, 246');
-    const dangerBtn = Array.from(buttons).find((b) => b.textContent === 'Danger');
-    expect(dangerBtn!.style.background).toContain('239, 68, 68');
+    expect(primaryBtn!.getAttribute('data-variant')).toBe('primary');
+    const dangerBtn = Array.from(buttons).find((b) => b.textContent === 'Danger') as HTMLButtonElement | undefined;
+    expect(dangerBtn!.getAttribute('data-variant')).toBe('danger');
   });
 
   it('ContextRing primitive renders SVG circles', () => {
@@ -407,7 +411,7 @@ describe('DesignSystemView catalog', () => {
 describe('Feature barrel exports', () => {
   it('sessions barrel exposes public API', async () => {
     const mod = await import('@/features/sessions');
-    expect(mod.SessionsView).toBeDefined();
+    // Sidebar 是主入口（AppShell 直接渲染）；SessionsView 薄包装已删除。
     expect(mod.Sidebar).toBeDefined();
     expect(mod.SessionItem).toBeDefined();
     expect(mod.BucketGroup).toBeDefined();
@@ -431,11 +435,18 @@ describe('Feature barrel exports', () => {
   it('design-system barrel exposes primitives + utils', async () => {
     const mod = await import('@/features/design-system');
     expect(mod.Button).toBeDefined();
+    expect(mod.IconButton).toBeDefined();
+    expect(mod.Icon).toBeDefined();
+    expect(mod.Input).toBeDefined();
+    expect(mod.Badge).toBeDefined();
+    expect(mod.Card).toBeDefined();
+    expect(mod.EmptyState).toBeDefined();
+    expect(mod.Spinner).toBeDefined();
+    expect(mod.Tooltip).toBeDefined();
     expect(mod.Toast).toBeDefined();
     expect(mod.ContextRing).toBeDefined();
     expect(mod.KeyHint).toBeDefined();
     expect(mod.DesignSystemView).toBeDefined();
-    expect(mod.buttonStyle).toBeDefined();
     expect(mod.ringGeometry).toBeDefined();
     expect(mod.segmentArc).toBeDefined();
     expect(mod.shortcutLabel).toBeDefined();
@@ -519,17 +530,18 @@ describe('Design tokens', () => {
     expect(nodeExists('src/styles/tokens.css')).toBe(true);
   });
 
-  it('tokens.css declares --accent, --bg, --ink variables', async () => {
+  it('tokens.css declares core variables (accent / bg-app / text / font)', async () => {
     const css = nodeRead('src/styles/tokens.css', 'utf8');
     expect(css).toContain('--accent:');
-    expect(css).toContain('--bg:');
-    expect(css).toContain('--ink:');
+    expect(css).toContain('--bg-app:');
+    expect(css).toContain('--text-primary:');
     expect(css).toContain('--font-sans:');
   });
 
-  it('main.tsx imports tokens.css', async () => {
+  it('main.tsx imports tokens.css + base.css', async () => {
     const main = nodeRead('src/main.tsx', 'utf8');
-    expect(main).toContain("./styles/tokens.css");
+    expect(main).toContain('./styles/tokens.css');
+    expect(main).toContain('./styles/base.css');
   });
 });
 

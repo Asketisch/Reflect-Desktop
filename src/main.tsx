@@ -2,7 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { AppProviders, router } from './router';
+import { initTheme } from './utils/theme';
 import './styles/tokens.css';
+import './styles/base.css';
+
+// 启动时把持久化的主题模式 apply 到 <html data-theme>。
+initTheme();
 
 const root = document.getElementById('root');
 if (!root) {

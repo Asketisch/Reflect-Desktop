@@ -1,0 +1,126 @@
+/* Button primitive —— CSS Modules。
+ * variant 通过 data-attribute 驱动，size 同理。
+ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.block {
+  display: flex;
+  width: 100%;
+}
+
+.spinner {
+  width: 1em;
+  height: 1em;
+}
+
+/* ===== Sizes ===== */
+.btn[data-size='sm'] {
+  padding: 5px 10px;
+  font-size: var(--fs-sm);
+  min-height: 26px;
+}
+.btn[data-size='md'] {
+  padding: 7px 14px;
+  font-size: var(--fs-md);
+  min-height: 32px;
+}
+.btn[data-size='lg'] {
+  padding: 10px 18px;
+  font-size: var(--fs-base);
+  min-height: 40px;
+}
+
+/* ===== Variants ===== */
+
+/* primary: 实心 accent */
+.btn[data-variant='primary'] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.btn[data-variant='primary']:not(:disabled):hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btn[data-variant='primary']:not(:disabled):active {
+  background: var(--accent-active);
+  border-color: var(--accent-active);
+}
+
+/* secondary: 描边表面色 */
+.btn[data-variant='secondary'] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+.btn[data-variant='secondary']:not(:disabled):hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.btn[data-variant='secondary']:not(:disabled):active {
+  background: var(--bg-active);
+}
+
+/* tertiary: 无边框透明（用于工具栏）*/
+.btn[data-variant='tertiary'] {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+.btn[data-variant='tertiary']:not(:disabled):hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.btn[data-variant='tertiary']:not(:disabled):active {
+  background: var(--bg-active);
+}
+
+/* danger: 实心红 */
+.btn[data-variant='danger'] {
+  background: var(--danger);
+  color: var(--danger-fg);
+  border-color: var(--danger);
+}
+.btn[data-variant='danger']:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+.btn[data-variant='danger']:not(:disabled):active {
+  filter: brightness(0.95);
+}
+
+/* ghost: 完全透明，仅 hover 显背景（列表项/菜单）*/
+.btn[data-variant='ghost'] {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+.btn[data-variant='ghost']:not(:disabled):hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

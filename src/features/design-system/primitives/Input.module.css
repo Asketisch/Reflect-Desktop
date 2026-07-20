@@ -1,0 +1,97 @@
+/* Input —— 单行文本输入 + 图标槽版本。 */
+
+.bare,
+.input {
+  width: 100%;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  line-height: var(--lh-normal);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.bare::placeholder,
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.bare:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-focus);
+}
+
+.bare:disabled,
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.bare[data-size='sm'],
+.wrap[data-size='sm'] .input {
+  padding: 4px 8px;
+  font-size: var(--fs-sm);
+  min-height: 26px;
+}
+.bare[data-size='md'],
+.wrap[data-size='md'] .input {
+  padding: 7px 10px;
+  font-size: var(--fs-md);
+  min-height: 32px;
+}
+
+/* invalid 态 */
+.bare.invalid,
+.wrap.invalid {
+  border-color: var(--danger);
+}
+.bare.invalid:focus,
+.wrap.invalid:focus-within {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-bg);
+}
+
+/* 图标槽包装 */
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-2);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+.wrap:focus-within {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-focus);
+}
+
+.input {
+  border: none;
+  background: transparent;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: 0;
+}
+.input:focus {
+  border: none;
+  box-shadow: none;
+}
+
+.leading,
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}

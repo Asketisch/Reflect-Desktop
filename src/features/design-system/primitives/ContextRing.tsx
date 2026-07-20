@@ -1,10 +1,11 @@
 /**
- * ContextRing —— 上下文用量圆环(SVG)。
+ * ContextRing —— 上下文用量圆环（CSS Modules 版）。
  *
  * 5 个分类 segment:tools / system / skills / messages / other
  */
 import { ringGeometry, segmentArc } from '../utils/ring';
 import type { RingSegment } from '../utils/ring';
+import s from './ContextRing.module.css';
 
 export interface ContextRingProps {
   segments: RingSegment[];
@@ -17,18 +18,16 @@ export function ContextRing({ segments, size = 40, strokeWidth = 4, label }: Con
   const geom = ringGeometry(size, strokeWidth);
   let cursor = 0;
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <span className={s.wrap}>
       <svg width={size} height={size} role="img" aria-label={label ?? 'context ring'}>
-        {/* Background track */}
         <circle
           cx={geom.cx}
           cy={geom.cy}
           r={geom.radius}
           fill="none"
-          stroke="#e2e8f0"
+          stroke="var(--border-default)"
           strokeWidth={strokeWidth}
         />
-        {/* Foreground segments */}
         {segments.map((seg, i) => {
           const arc = segmentArc(geom, cursor, Math.max(0, Math.min(1, seg.value)));
           cursor += seg.value;
@@ -48,7 +47,7 @@ export function ContextRing({ segments, size = 40, strokeWidth = 4, label }: Con
           );
         })}
       </svg>
-      {label && <span style={{ fontSize: 12, color: '#64748b' }}>{label}</span>}
-    </div>
+      {label && <span className={s.label}>{label}</span>}
+    </span>
   );
 }
