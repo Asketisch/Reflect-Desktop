@@ -1,11 +1,13 @@
 /**
- * Workspaces —— 阶段 5c:从真实 sessions(rollout)派生工作区列表。
- *
- * 每个 session 记录了它运行的 cwd;聚合去重得到"最近用过的 workspace"列表。
- * 不再是硬编码 STUB_WORKSPACES。
+ * Workspaces —— 从真实 sessions 派生的工作区列表（CSS Modules 版）。
  */
 import { useQuery } from '@tanstack/react-query';
+import { FolderOpen, CheckCircle2 } from 'lucide-react';
 import { reflect_agent_status, reflect_list_sessions } from '@/utils/tauri';
+import { PageShell } from '@/features/shell/PageShell';
+import { Card, Badge, Icon, Spinner, EmptyState } from '@/features/design-system';
+import { relativeTime } from '@/utils/time';
+import s from './WorkspacesView.module.css';
 
 interface WorkspaceEntry {
   path: string;
@@ -25,17 +27,16 @@ export function WorkspacesView() {
     staleTime: 60_000,
   });
 
-  // 聚合 sessions 按 cwd 去重。
   const workspaces: WorkspaceEntry[] = (() => {
     const map = new Map<string, WorkspaceEntry>();
-    for (const s of sessionsQ.data ?? []) {
-      const cwd = s.cwd || '(unknown)';
+    for (const sess of sessionsQ.data ?? []) {
+      const cwd = sess.cwd || '(unknown)';
       const existing = map.get(cwd);
       if (existing) {
         existing.sessionCount += 1;
-        if (s.started_at > existing.lastUsed) existing.lastUsed = s.started_at;
+        if (sess.started_at > existing.lastUsed) existing.lastUsed = sess.started_at;
       } else {
-        map.set(cwd, { path: cwd, sessionCount: 1, lastUsed: s.started_at });
+        map.set(cwd, { path: cwd, sessionCount: 1, lastUsed: sess.started_at });
       }
     }
     return Array.from(map.values()).sort((a, b) => b.lastUsed.localeCompare(a.lastUsed));
@@ -44,62 +45,64 @@ export function WorkspacesView() {
   const currentWs = statusQ.data?.workspace;
 
   return (
-    <div style={{ padding: 24, maxWidth: 640, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Workspaces</h1>
-
-      <div
-        style={{
-          padding: 12,
-          marginBottom: 16,
-          background: '#f0f9ff',
-          border: '1px solid #bae6fd',
-          borderRadius: 6,
-          fontSize: 13,
-        }}
-      >
-        <strong>当前 workspace:</strong> <code>{currentWs ?? '(loading…)'}</code>
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: '#666' }}>
-          切换 workspace 需在启动时设 cwd,或通过 agent 的 <code>EnterWorktree</code> /
-          <code>ExitWorktree</code> 工具(后续阶段接 UI 触发)。
+    <PageShell
+      icon={FolderOpen}
+      title="Workspaces"
+      subtitle="Recently used project directories, aggregated from sessions."
+      width="md"
+    >
+      <Card level="outlined" padding="md" className={s.currentCard}>
+        <div className={s.currentRow}>
+          <Icon icon={CheckCircle2} size={14} />
+          <span className={s.currentLabel}>Active workspace</span>
+          <code className={s.currentPath}>{currentWs ?? '(loading…)'}</code>
+        </div>
+        <p className={s.note}>
+          Switching workspaces requires setting <code className={s.codeInline}>cwd</code> at startup,
+          or via the agent's <code className={s.codeInline}>EnterWorktree</code> /{' '}
+          <code className={s.codeInline}>ExitWorktree</code> tools (UI triggers coming later).
         </p>
-      </div>
+      </Card>
 
-      <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>最近 workspace(按 session 聚合)</h2>
+      <h3 className={s.sectionTitle}>Recent workspaces</h3>
       {sessionsQ.isLoading ? (
-        <p style={{ color: '#888' }}>Loading…</p>
+        <div className={s.loading}><Spinner size={20} /></div>
       ) : workspaces.length === 0 ? (
-        <p style={{ color: '#888' }}>暂无 session 记录。开始一次对话即会记录 workspace。</p>
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={FolderOpen} />}
+            title="No sessions recorded yet"
+            description="Start a chat to record your first workspace."
+          />
+        </Card>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {workspaces.map((w) => (
-            <li
-              key={w.path}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '10px 12px',
-                borderBottom: '1px solid #f1f5f9',
-                background: w.path === currentWs ? '#f0f9ff' : 'transparent',
-                borderRadius: 6,
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: w.path === currentWs ? 600 : 400, fontSize: 14 }}>
-                  {basename(w.path)}
-                  {w.path === currentWs && (
-                    <span style={{ color: '#3b82f6', fontSize: 11, marginLeft: 8 }}>active</span>
-                  )}
+        <div className={s.list}>
+          {workspaces.map((w) => {
+            const isActive = w.path === currentWs;
+            return (
+              <Card key={w.path} level="outlined" padding="sm" className={s.wsCard} data-active={isActive || undefined}>
+                <div className={s.wsIcon}>
+                  <Icon icon={FolderOpen} size={16} />
                 </div>
-                <div style={{ fontSize: 12, color: '#888' }}>
-                  <code>{w.path}</code> · {w.sessionCount} session(s) · {new Date(w.lastUsed).toLocaleDateString()}
+                <div className={s.wsBody}>
+                  <div className={s.wsNameRow}>
+                    <span className={s.wsName}>{basename(w.path)}</span>
+                    {isActive && <Badge variant="success" dot>active</Badge>}
+                  </div>
+                  <div className={s.wsMeta}>
+                    <code className={s.wsPath}>{w.path}</code>
+                    <span className={s.wsSep}>·</span>
+                    <span>{w.sessionCount} session{w.sessionCount === 1 ? '' : 's'}</span>
+                    <span className={s.wsSep}>·</span>
+                    <span>{relativeTime(w.lastUsed)}</span>
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+              </Card>
+            );
+          })}
+        </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 

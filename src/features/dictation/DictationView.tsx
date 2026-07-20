@@ -1,19 +1,30 @@
 /**
- * M3.x Dictation —— 语音输入。
- *
- * M3.x 扩展:Web Speech API / macOS Speech Recognition。
+ * Dictation —— 语音输入（stub，EmptyState 占位）。
  */
+import { Mic } from 'lucide-react';
+import { PageShell } from '@/features/shell/PageShell';
+import { Card, Badge, Icon, EmptyState } from '@/features/design-system';
 
 export function DictationView() {
   return (
-    <div style={{ padding: 24, maxWidth: 640, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Dictation</h1>
-      <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
-        M3.x: voice input via Web Speech API or native speech recognition.
-      </p>
-      <div style={{ padding: 40, textAlign: 'center', color: '#aaa', border: '1px dashed #e2e8f0', borderRadius: 8 }}>
-        🎤 Voice input coming in M3.x
-      </div>
-    </div>
+    <PageShell
+      icon={Mic}
+      title="Dictation"
+      subtitle={
+        <>
+          Voice input via Web Speech API or native speech recognition. <Badge variant="info">coming soon</Badge>
+        </>
+      }
+      width="md"
+    >
+      <Card level="flat" padding="none">
+        <EmptyState
+          size="lg"
+          icon={<Icon icon={Mic} size={32} />}
+          title="Voice input coming soon"
+          description="We're integrating Web Speech API and native macOS Speech Recognition so you can dictate prompts hands-free."
+        />
+      </Card>
+    </PageShell>
   );
 }

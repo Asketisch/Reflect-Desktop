@@ -1,29 +1,39 @@
 /**
- * M3.x Threads —— 线程列表顶层视图。
- *
- * CodexMonitor 参考: `src/features/threads/components/ThreadsView.tsx`
+ * Threads —— 线程列表（CSS Modules 版）。
  */
 import { useSessions, useActiveSession } from '../sessions/hooks/useSessions';
 import { ThreadBucketGroup } from './components/ThreadBucketGroup';
+import { PageShell } from '@/features/shell/PageShell';
+import { Card, EmptyState, Icon } from '@/features/design-system';
+import { MessagesSquare } from 'lucide-react';
+import s from './ThreadsView.module.css';
 
 export function ThreadsView() {
   const { buckets } = useSessions();
   const { activeId, setActiveId } = useActiveSession();
 
   return (
-    <div style={{ padding: 24, maxWidth: 600, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Threads</h1>
-      {buckets.length === 0 && (
-        <p style={{ color: '#888' }}>No threads yet. Start a conversation in Chat.</p>
+    <PageShell icon={MessagesSquare} title="Threads" width="sm">
+      {buckets.length === 0 ? (
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={MessagesSquare} />}
+            title="No threads yet"
+            description="Start a conversation in Chat to create your first thread."
+          />
+        </Card>
+      ) : (
+        <div className={s.list}>
+          {buckets.map((b) => (
+            <ThreadBucketGroup
+              key={b.label}
+              bucket={b}
+              activeId={activeId}
+              onSelect={setActiveId}
+            />
+          ))}
+        </div>
       )}
-      {buckets.map((b) => (
-        <ThreadBucketGroup
-          key={b.label}
-          bucket={b}
-          activeId={activeId}
-          onSelect={setActiveId}
-        />
-      ))}
-    </div>
+    </PageShell>
   );
 }

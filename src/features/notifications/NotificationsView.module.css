@@ -1,0 +1,128 @@
+.root {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-5);
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.title {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.countBadges {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.filterBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.filterBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.filterBtn[data-active] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.count {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.dismissBtn {
+  margin-left: auto;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.notif {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.notif[data-level='error'] {
+  border-color: var(--danger-border);
+}
+.notif[data-level='warn'] {
+  border-color: var(--warning-border);
+}
+
+.notifIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+.notif[data-level='error'] .notifIcon {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.notif[data-level='warn'] .notifIcon {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.notif[data-level='info'] .notifIcon {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.notifBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.notifTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.notifBodyText {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+  word-break: break-word;
+}

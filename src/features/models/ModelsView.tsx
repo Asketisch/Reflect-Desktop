@@ -1,15 +1,23 @@
 /**
- * Models —— 阶段 4:从真实 config + agent status 读数据。
+ * Models —— 当前 model 卡片 + reasoning effort 分段控件（CSS Modules 版）。
  *
- * - 当前 model 来自 `reflect_agent_status`(后端 resolved_model_spec)。
- * - reasoning effort 经 `reflect_set_effort` 下发(后端期望 low/medium/high 小写)。
+ * 数据源:reflect_agent_status + reflect_set_effort。
  */
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { Cpu, Folder, AlertTriangle, CheckCircle2, Zap } from 'lucide-react';
 import { reflect_agent_status, reflect_set_effort } from '@/utils/tauri';
+import { Card, Badge, Button, Icon, SegmentedControl, EmptyState } from '@/features/design-system';
+import s from './ModelsView.module.css';
 
 const REASONING_EFFORTS = ['low', 'medium', 'high'] as const;
 type Effort = (typeof REASONING_EFFORTS)[number];
+
+const EFFORT_HINTS: Record<Effort, string> = {
+  low: 'Fastest · minimal reasoning',
+  medium: 'Balanced (recommended)',
+  high: 'Deep · slowest',
+};
 
 export function ModelsView() {
   const [effort, setEffort] = useState<Effort>('medium');
@@ -33,76 +41,85 @@ export function ModelsView() {
   const hasModel = Boolean(status?.has_model);
 
   return (
-    <div style={{ padding: 24, maxWidth: 640, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Models</h1>
+    <div className={s.root}>
+      <header className={s.header}>
+        <h1 className={s.title}>Models</h1>
+        <p className={s.subtitle}>Inspect the active model and tune reasoning effort.</p>
+      </header>
 
-      <section
-        style={{
-          marginBottom: 24,
-          padding: 12,
-          borderRadius: 6,
-          background: hasModel ? '#dcfce7' : '#fef3c7',
-          border: `1px solid ${hasModel ? '#22c55e' : '#f59e0b'}`,
-        }}
-      >
-        <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>Current model</h2>
+      {/* Current model */}
+      <section>
+        <h2 className={s.sectionTitle}>Current model</h2>
         {statusQuery.isLoading ? (
-          <p style={{ fontSize: 13 }}>Loading…</p>
+          <Card level="outlined" padding="md">
+            <p className={s.loading}>Loading…</p>
+          </Card>
+        ) : hasModel ? (
+          <Card level="outlined" padding="lg" className={s.modelCard}>
+            <div className={s.modelIcon}>
+              <Icon icon={Cpu} size={24} />
+            </div>
+            <div className={s.modelBody}>
+              <div className={s.modelNameRow}>
+                <code className={s.modelName}>{status?.model}</code>
+                <Badge variant="success" dot>ready</Badge>
+              </div>
+              {status?.workspace && (
+                <div className={s.workspaceRow}>
+                  <Icon icon={Folder} size={12} />
+                  <code className={s.workspace}>{status.workspace}</code>
+                </div>
+              )}
+            </div>
+          </Card>
         ) : (
-          <code style={{ fontSize: 14 }}>{status?.model ?? '(unknown)'}</code>
-        )}
-        {status?.workspace && (
-          <p style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
-            workspace: {status.workspace}
-          </p>
-        )}
-        {!hasModel && (
-          <p style={{ fontSize: 12, color: '#92400e', marginTop: 8 }}>
-            ⚠ No provider configured. Go to Settings to set an API key.
-          </p>
+          <Card level="outlined" padding="lg">
+            <EmptyState
+              icon={<Icon icon={AlertTriangle} />}
+              title="No provider configured"
+              description={
+                <>
+                  {status?.degraded_reason ?? 'Set an API key to enable a model.'} Configure one in
+                  Settings to get started.
+                </>
+              }
+              action={<Button variant="primary" size="sm" onClick={() => window.location.assign('#/settings')}>Open Settings</Button>}
+            />
+          </Card>
         )}
       </section>
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>Reasoning Effort</h2>
-        <p style={{ fontSize: 11, color: '#888', marginTop: 0, marginBottom: 8 }}>
-          切换会话内 reasoning 强度(经 Op::SetEffort)。model spec 在 Settings 页编辑。
-        </p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {REASONING_EFFORTS.map((e) => (
-            <button
-              key={e}
-              onClick={() => setEffort(e)}
-              style={{
-                padding: '6px 14px',
-                border: '1px solid',
-                borderColor: effort === e ? '#3b82f6' : '#e2e8f0',
-                background: effort === e ? '#dbeafe' : 'white',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
+      {/* Reasoning effort */}
+      <section>
+        <h2 className={s.sectionTitle}>Reasoning effort</h2>
+        <Card level="outlined" padding="lg">
+          <div className={s.effortHeader}>
+            <div className={s.effortLabel}>
+              <Icon icon={Zap} size={14} />
+              <span>Switch effort via Op::SetEffort for the active session.</span>
+            </div>
+            <SegmentedControl<Effort>
+              value={effort}
+              onChange={(v) => setEffort(v)}
+              options={REASONING_EFFORTS.map((e) => ({ value: e, label: e, hint: EFFORT_HINTS[e] }))}
+              stacked
+            />
+          </div>
+          <div className={s.effortApply}>
+            <Button
+              variant="primary"
+              onClick={() => effortMutation.mutate(effort)}
+              loading={effortMutation.isPending}
+              leftIcon={<Icon icon={CheckCircle2} size={14} />}
             >
-              {e}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => effortMutation.mutate(effort)}
-          disabled={effortMutation.isPending}
-          style={{
-            marginTop: 12,
-            padding: '8px 16px',
-            background: effortMutation.isPending ? '#93c5fd' : '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: 6,
-            cursor: effortMutation.isPending ? 'wait' : 'pointer',
-            fontSize: 13,
-          }}
-        >
-          {effortMutation.isPending ? 'Saving…' : saved ? 'Saved ✓' : 'Apply Effort'}
-        </button>
+              {saved ? 'Applied ✓' : 'Apply effort'}
+            </Button>
+            <span className={s.effortHint}>{EFFORT_HINTS[effort]}</span>
+          </div>
+          <p className={s.note}>
+            Model spec is edited in <code className={s.codeInline}>Settings → Provider</code>.
+          </p>
+        </Card>
       </section>
     </div>
   );

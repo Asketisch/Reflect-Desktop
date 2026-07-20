@@ -1,13 +1,10 @@
 /**
- * modals —— 阶段 3c:接通真实 reflect 事件。
+ * modals —— 接通真实 reflect 事件的 4 个 modal（CSS Modules 版）。
  *
- * 4 个 modal 从 useAgentStore 读 pending 队列,渲染真表单,提交调 store action。
- * ModalStack 聚合所有 modal,挂到 AppLayout(同一时刻可能多个 pending)。
- *
- * - ApprovalModal    ← pendingApprovals(tool/hook/plan 审批)
- * - QuestionModal    ← pendingQuestions(AskUserQuestion 结构化选项)
- * - AskUserModal     ← pendingAskUser(AskUserInput 自由文本)
- * - PlanReadyModal   ← pendingPlan(PlanReady 计划审批)
+ * - ApprovalModal    ← pendingApprovals
+ * - QuestionModal    ← pendingQuestions
+ * - AskUserModal     ← pendingAskUser
+ * - PlanReadyModal   ← pendingPlan
  */
 import { useState } from 'react';
 import { ModalShell } from './ModalShell';
@@ -18,13 +15,14 @@ import {
   type PendingAskUser,
   type PendingPlan,
 } from '@/stores/agentStore';
+import s from './index.module.css';
 
-/** 聚合所有 modal —— 挂到 AppLayout,根据 store 的 pending 队列决定渲染哪些。 */
+/** 聚合所有 modal。 */
 export function ModalStack() {
-  const approvals = useAgentStore((s) => s.pendingApprovals);
-  const questions = useAgentStore((s) => s.pendingQuestions);
-  const askUsers = useAgentStore((s) => s.pendingAskUser);
-  const plan = useAgentStore((s) => s.pendingPlan);
+  const approvals = useAgentStore((st) => st.pendingApprovals);
+  const questions = useAgentStore((st) => st.pendingQuestions);
+  const askUsers = useAgentStore((st) => st.pendingAskUser);
+  const plan = useAgentStore((st) => st.pendingPlan);
 
   return (
     <>
@@ -42,10 +40,8 @@ export function ModalStack() {
   );
 }
 
-// ====== Tool / Hook / Plan 审批 ======
-
 function ApprovalModal({ approval }: { approval: PendingApproval }) {
-  const approve = useAgentStore((s) => s.approve);
+  const approve = useAgentStore((st) => st.approve);
   const kindLabel = approval.kind === 'tool' ? 'Tool Approval' : approval.kind === 'hook' ? 'Hook Approval' : 'Plan Approval';
   return (
     <ModalShell
@@ -67,34 +63,17 @@ function ApprovalModal({ approval }: { approval: PendingApproval }) {
       }}
     >
       {approval.toolName && (
-        <p style={{ fontFamily: 'ui-monospace, monospace', background: '#f1f5f9', padding: 8, borderRadius: 6 }}>
-          {approval.toolName}
-        </p>
+        <div className={s.codeBlock}>{approval.toolName}</div>
       )}
       {approval.argsSummary && (
-        <pre
-          style={{
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            background: '#f8fafc',
-            padding: 8,
-            borderRadius: 6,
-            fontSize: 12,
-            maxHeight: 240,
-            overflow: 'auto',
-          }}
-        >
-          {approval.argsSummary}
-        </pre>
+        <pre className={s.argsBlock}>{approval.argsSummary}</pre>
       )}
-      <p style={{ color: '#666', fontSize: 12 }}>
-        Approve 运行此操作;Deny 拒绝;Approve for session 本会话内不再询问同类。
+      <p className={s.hint}>
+        Approve runs this action once. Approve for session skips future prompts of the same kind.
       </p>
     </ModalShell>
   );
 }
-
-// ====== AskUserQuestion(结构化选项) ======
 
 interface QuestionOption {
   label?: string;
@@ -108,10 +87,9 @@ interface QuestionItem {
 }
 
 function QuestionModal({ question }: { question: PendingQuestion }) {
-  const answerQuestion = useAgentStore((s) => s.answerQuestion);
+  const answerQuestion = useAgentStore((st) => st.answerQuestion);
   const payload = question.payload as { questions?: QuestionItem[] };
   const items = payload?.questions ?? [];
-  // 每个 question 的选中状态(index 数组)。
   const [selections, setSelections] = useState<Record<number, number[]>>({});
 
   const toggle = (qIdx: number, optIdx: number, multi: boolean) => {
@@ -125,9 +103,6 @@ function QuestionModal({ question }: { question: PendingQuestion }) {
   };
 
   const submit = () => {
-    // 构造 AskUserAnswer —— 简化:answers = 每个问题的选中 index 数组。
-    // 后端 Op::AskUserQuestionResponse 接受 AskUserAnswer 结构,这里传
-    // { answers: [{ indices: [...] }] } 形态(后端 serde 容错)。
     const answers = items.map((_, qIdx) => ({
       indices: selections[qIdx] ?? [],
     }));
@@ -145,26 +120,28 @@ function QuestionModal({ question }: { question: PendingQuestion }) {
       {items.map((item, qIdx) => {
         const multi = Boolean(item.multiSelect);
         return (
-          <div key={qIdx} style={{ marginBottom: 12 }}>
-            <p style={{ fontWeight: 600, margin: '4px 0' }}>{item.question ?? item.header ?? `Question ${qIdx + 1}`}</p>
-            {(item.options ?? []).map((opt, optIdx) => {
-              const checked = (selections[qIdx] ?? []).includes(optIdx);
-              return (
-                <label key={optIdx} style={{ display: 'block', padding: '4px 0', cursor: 'pointer' }}>
-                  <input
-                    type={multi ? 'checkbox' : 'radio'}
-                    name={`q-${question.id}-${qIdx}`}
-                    checked={checked}
-                    onChange={() => toggle(qIdx, optIdx, multi)}
-                    style={{ marginRight: 8 }}
-                  />
-                  <span>{opt.label ?? `Option ${optIdx + 1}`}</span>
-                  {opt.description && (
-                    <span style={{ color: '#888', fontSize: 12, marginLeft: 8 }}>— {opt.description}</span>
-                  )}
-                </label>
-              );
-            })}
+          <div key={qIdx} className={s.questionItem}>
+            <p className={s.questionText}>{item.question ?? item.header ?? `Question ${qIdx + 1}`}</p>
+            <div className={s.optionList}>
+              {(item.options ?? []).map((opt, optIdx) => {
+                const checked = (selections[qIdx] ?? []).includes(optIdx);
+                return (
+                  <label key={optIdx} className={s.option}>
+                    <input
+                      type={multi ? 'checkbox' : 'radio'}
+                      name={`q-${question.id}-${qIdx}`}
+                      checked={checked}
+                      onChange={() => toggle(qIdx, optIdx, multi)}
+                      className={s.optionInput}
+                    />
+                    <span className={s.optionLabel}>{opt.label ?? `Option ${optIdx + 1}`}</span>
+                    {opt.description && (
+                      <span className={s.optionDesc}>— {opt.description}</span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
           </div>
         );
       })}
@@ -172,10 +149,8 @@ function QuestionModal({ question }: { question: PendingQuestion }) {
   );
 }
 
-// ====== AskUserInput(自由文本) ======
-
 function AskUserModal({ askUser }: { askUser: PendingAskUser }) {
-  const answerInput = useAgentStore((s) => s.answerInput);
+  const answerInput = useAgentStore((st) => st.answerInput);
   const payload = askUser.payload as { prompt?: string; placeholder?: string };
   const [text, setText] = useState('');
   return (
@@ -185,22 +160,20 @@ function AskUserModal({ askUser }: { askUser: PendingAskUser }) {
       onClose={() => answerInput(askUser.id, '')}
       primaryAction={{ label: 'Submit', onClick: () => answerInput(askUser.id, text), autoFocus: false }}
     >
-      <p style={{ marginTop: 0 }}>{payload?.prompt ?? 'The agent needs your input:'}</p>
+      <p className={s.promptText}>{payload?.prompt ?? 'The agent needs your input:'}</p>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={payload?.placeholder ?? 'Type here...'}
-        style={{ width: '100%', minHeight: 80, padding: 8, borderRadius: 6, border: '1px solid #cbd5e1', fontFamily: 'inherit' }}
+        className={s.textarea}
         autoFocus
       />
     </ModalShell>
   );
 }
 
-// ====== PlanReady(计划审批) ======
-
 function PlanReadyModal({ plan }: { plan: PendingPlan }) {
-  const approve = useAgentStore((s) => s.approve);
+  const approve = useAgentStore((st) => st.approve);
   const payload = plan.payload as { plan?: string; summary?: string; steps?: unknown[] };
   const planText = payload?.summary ?? payload?.plan ?? JSON.stringify(plan.payload, null, 2);
   return (
@@ -218,29 +191,15 @@ function PlanReadyModal({ plan }: { plan: PendingPlan }) {
         autoFocus: true,
       }}
     >
-      <pre
-        style={{
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          background: '#f8fafc',
-          padding: 12,
-          borderRadius: 6,
-          fontSize: 12,
-          maxHeight: 320,
-          overflow: 'auto',
-        }}
-      >
-        {planText}
-      </pre>
-      <p style={{ color: '#666', fontSize: 12 }}>
-        Approve 让 agent 按计划执行;Reject 取消并退出 plan 模式。
+      <pre className={s.planBlock}>{planText}</pre>
+      <p className={s.hint}>
+        Approve lets the agent execute the plan; Reject cancels and exits plan mode.
       </p>
     </ModalShell>
   );
 }
 
-// ====== 向后兼容:旧 stub 名(若有遗留 import) ======
-
+// ====== 向后兼容：旧 stub 名 ======
 export { ApprovalModal as ApprovalModalStub };
 export { QuestionModal as QuestionModalStub };
 export { AskUserModal as AskUserModalStub };

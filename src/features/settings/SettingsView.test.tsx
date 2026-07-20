@@ -52,9 +52,10 @@ describe('SettingsView', () => {
   it('renders Provider / Permissions / Advanced sections', async () => {
     renderSettingsView();
     expect(screen.getByText('Settings')).toBeDefined();
-    expect(screen.getByText('Provider')).toBeDefined();
-    expect(screen.getByText('Permissions')).toBeDefined();
-    expect(screen.getByText(/Advanced/)).toBeDefined();
+    // nav + section 都有同名标题，用 getAllByText。
+    expect(screen.getAllByText('Provider').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Permissions').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Advanced/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows agent ready status badge when has_model', async () => {

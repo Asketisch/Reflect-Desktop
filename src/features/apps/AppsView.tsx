@@ -1,25 +1,25 @@
 /**
- * M3.x Apps —— App 集成。
- *
- * - 列出已连接的第三方应用
- * - 配置 app 级权限
- * - M3.x 扩展:VS Code / JetBrains / Cursor 集成
+ * Apps —— App 集成（stub，EmptyState 美化）。
  */
-
 import { useState } from 'react';
+import { AppWindow, Plug, Plug2 } from 'lucide-react';
+import type { ComponentType } from 'react';
+import { PageShell } from '@/features/shell/PageShell';
+import { Card, Badge, Button, Icon } from '@/features/design-system';
+import s from './AppsView.module.css';
 
 interface App {
   id: string;
   name: string;
-  icon: string;
+  icon: ComponentType;
   connected: boolean;
   permissions: string[];
 }
 
 const STUB_APPS: App[] = [
-  { id: 'vscode', name: 'VS Code', icon: '💻', connected: true, permissions: ['read_files', 'exec_command'] },
-  { id: 'jetbrains', name: 'JetBrains', icon: '🧠', connected: false, permissions: [] },
-  { id: 'cursor', name: 'Cursor', icon: '🎯', connected: false, permissions: [] },
+  { id: 'vscode', name: 'VS Code', icon: AppWindow, connected: true, permissions: ['read_files', 'exec_command'] },
+  { id: 'jetbrains', name: 'JetBrains', icon: AppWindow, connected: false, permissions: [] },
+  { id: 'cursor', name: 'Cursor', icon: AppWindow, connected: false, permissions: [] },
 ];
 
 export function AppsView() {
@@ -30,48 +30,48 @@ export function AppsView() {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 640, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Apps</h1>
-      <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
-        M3.x: 连接 IDE 和外部工具。当前为占位列表。
-      </p>
-
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+    <PageShell
+      icon={AppWindow}
+      title="Apps"
+      subtitle={
+        <>
+          Connect IDEs and external tools. <Badge variant="warning">sample data</Badge>
+        </>
+      }
+      width="md"
+    >
+      <div className={s.list}>
         {apps.map((a) => (
-          <li
-            key={a.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '12px 0',
-              borderBottom: '1px solid #f1f5f9',
-            }}
-          >
-            <span style={{ fontSize: 24 }}>{a.icon}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500, fontSize: 14 }}>{a.name}</div>
-              <div style={{ fontSize: 12, color: '#888' }}>
-                {a.connected ? 'Connected' : 'Not connected'}
-              </div>
+          <Card key={a.id} level="outlined" padding="md" className={s.appRow}>
+            <div className={s.appIcon}>
+              <Icon icon={a.icon} size={20} />
             </div>
-            <button
+            <div className={s.appBody}>
+              <div className={s.appNameRow}>
+                <span className={s.appName}>{a.name}</span>
+                {a.connected && <Badge variant="success" dot>connected</Badge>}
+              </div>
+              {a.permissions.length > 0 ? (
+                <div className={s.permList}>
+                  {a.permissions.map((p) => (
+                    <code key={p} className={s.perm}>{p}</code>
+                  ))}
+                </div>
+              ) : (
+                <div className={s.appDesc}>Not connected</div>
+              )}
+            </div>
+            <Button
+              variant={a.connected ? 'danger' : 'primary'}
+              size="sm"
               onClick={() => toggle(a.id)}
-              style={{
-                padding: '4px 12px',
-                border: '1px solid',
-                borderColor: a.connected ? '#ef4444' : '#22c55e',
-                background: a.connected ? '#fee2e2' : '#dcfce7',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontSize: 12,
-              }}
+              leftIcon={<Icon icon={a.connected ? Plug2 : Plug} size={13} />}
             >
               {a.connected ? 'Disconnect' : 'Connect'}
-            </button>
-          </li>
+            </Button>
+          </Card>
         ))}
-      </ul>
-    </div>
+      </div>
+    </PageShell>
   );
 }

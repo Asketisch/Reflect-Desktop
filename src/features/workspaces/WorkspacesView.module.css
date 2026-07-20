@@ -1,0 +1,123 @@
+.currentCard {
+  margin-bottom: var(--space-4);
+}
+
+.currentRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--success);
+}
+
+.currentLabel {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.currentPath {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
+.note {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  margin: 0;
+}
+
+.codeInline {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+}
+
+.sectionTitle {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.wsCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.wsCard[data-active] {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+.wsIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.wsCard[data-active] .wsIcon {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.wsBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.wsNameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wsName {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.wsMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.wsPath {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.wsSep {
+  opacity: 0.5;
+}

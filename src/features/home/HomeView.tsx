@@ -1,98 +1,141 @@
 /**
- * M3.x Home —— 欢迎仪表盘。
+ * Home —— 欢迎仪表盘（CSS Modules 版）。
  *
- * - 最近 session 快照 (useSessions hook)
- * - 快速操作: New Chat / Open Workspace / Settings
- * - 当前 model + provider 展示
+ * - 顶部欢迎区 + 当前 model/workspace 状态卡
+ * - 快速操作: 4 个大卡片（New Chat / Workspaces / Settings / Models）
+ * - Recent Sessions 卡片列表
  */
-
 import { useMemo } from 'react';
-import { Link } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
+import { MessageSquarePlus, FolderOpen, Settings as SettingsIcon, Cpu, MessageSquare, ArrowRight } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { useSessions } from '@/features/sessions/hooks/useSessions';
 import { useAgent } from '@/services/agent';
+import { Card, Badge, Icon, Button, EmptyState } from '@/features/design-system';
+import { relativeTime } from '@/utils/time';
+import s from './HomeView.module.css';
+
+interface QuickAction {
+  to: string;
+  label: string;
+  desc: string;
+  icon: ComponentType;
+}
+
+const ACTIONS: QuickAction[] = [
+  { to: '/chat', label: 'New chat', desc: 'Start a fresh conversation', icon: MessageSquarePlus },
+  { to: '/workspaces', label: 'Workspaces', desc: 'Recent project directories', icon: FolderOpen },
+  { to: '/models', label: 'Models', desc: 'Switch model or effort', icon: Cpu },
+  { to: '/settings', label: 'Settings', desc: 'Provider & permissions', icon: SettingsIcon },
+];
 
 export function HomeView() {
   const { buckets } = useSessions();
   const { session } = useAgent();
+  const navigate = useNavigate();
 
   const recent = useMemo(() => {
-    const all: Array<{ id: string; label: string; started_at: string }> = [];
+    const all: Array<{ id: string; label: string; started_at: string; tokens: number }> = [];
     for (const b of buckets) {
-      for (const s of b.sessions) {
-        all.push({ id: s.session_id, label: s.display_name || s.session_id, started_at: s.started_at });
+      for (const sess of b.sessions) {
+        all.push({
+          id: sess.session_id,
+          label: sess.display_name || sess.session_id,
+          started_at: sess.started_at,
+          tokens: sess.token_total,
+        });
       }
     }
     all.sort((a, b) => b.started_at.localeCompare(a.started_at));
-    return all.slice(0, 8);
+    return all.slice(0, 6);
   }, [buckets]);
 
   return (
-    <div style={{ padding: 32, maxWidth: 800, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 28, marginBottom: 4 }}>Welcome to Reflect</h1>
-      <p style={{ color: '#666', marginBottom: 24 }}>
-        AI coding agent — start a conversation or pick up where you left off.
-      </p>
-
-      {session && (
-        <div style={{ padding: 12, background: '#f0f9ff', borderRadius: 8, marginBottom: 24, fontSize: 13 }}>
-          <strong>Active:</strong> {session.model} @ {session.provider}
+    <div className={s.root}>
+      <header className={s.hero}>
+        <div className={s.brand}>
+          <div className={s.logo}>R</div>
+          <div>
+            <h1 className={s.title}>Welcome to Reflect</h1>
+            <p className={s.subtitle}>
+              AI coding agent — start a conversation or pick up where you left off.
+            </p>
+          </div>
         </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
-        <QuickLink to="/chat" label="New Chat" icon="+" />
-        <QuickLink to="/workspaces" label="Workspaces" icon="◫" />
-        <QuickLink to="/settings" label="Settings" icon="⚙" />
-        <QuickLink to="/models" label="Models" icon="◎" />
-      </div>
+        {session && (
+          <Card level="outlined" padding="sm" className={s.statusCard}>
+            <div className={s.statusRow}>
+              <Badge variant="success" dot>active</Badge>
+              <code className={s.statusModel}>{session.model}</code>
+              <span className={s.statusProvider}>@ {session.provider}</span>
+            </div>
+          </Card>
+        )}
+      </header>
 
       <section>
-        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Recent Sessions</h2>
-        {recent.length === 0 && (
-          <p style={{ color: '#888', fontSize: 13 }}>No sessions yet. Start chatting to create one.</p>
-        )}
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {recent.map((s) => (
-            <li key={s.id} style={{ marginBottom: 6 }}>
-              <Link
-                to="/chat/$sessionId"
-                params={{ sessionId: s.id }}
-                style={{ textDecoration: 'none', color: '#3b82f6', fontSize: 14 }}
-              >
-                {s.label}
-              </Link>
-              <span style={{ color: '#aaa', fontSize: 11, marginLeft: 8 }}>
-                {new Date(s.started_at).toLocaleString()}
-              </span>
-            </li>
+        <h2 className={s.sectionTitle}>Quick start</h2>
+        <div className={s.actionGrid}>
+          {ACTIONS.map((a) => (
+            <button
+              key={a.to}
+              className={s.actionCard}
+              onClick={() => navigate({ to: a.to })}
+            >
+              <div className={s.actionIcon}>
+                <Icon icon={a.icon} size={20} />
+              </div>
+              <div className={s.actionBody}>
+                <div className={s.actionLabel}>{a.label}</div>
+                <div className={s.actionDesc}>{a.desc}</div>
+              </div>
+              <Icon icon={ArrowRight} size={14} className={s.actionArrow} />
+            </button>
           ))}
-        </ul>
+        </div>
+      </section>
+
+      <section>
+        <div className={s.sectionHeader}>
+          <h2 className={s.sectionTitle}>Recent sessions</h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/sessions' })}>
+            View all
+          </Button>
+        </div>
+        {recent.length === 0 ? (
+          <Card level="flat" padding="none">
+            <EmptyState
+              icon={<Icon icon={MessageSquare} />}
+              title="No sessions yet"
+              description="Start a chat to create your first session."
+              action={
+                <Button variant="primary" size="sm" leftIcon={<Icon icon={MessageSquarePlus} size={14} />} onClick={() => navigate({ to: '/chat' })}>
+                  New chat
+                </Button>
+              }
+            />
+          </Card>
+        ) : (
+          <div className={s.recentList}>
+            {recent.map((sess) => (
+              <button
+                key={sess.id}
+                className={s.recentItem}
+                onClick={() => navigate({ to: '/chat/$sessionId', params: { sessionId: sess.id } })}
+              >
+                <Icon icon={MessageSquare} size={14} className={s.recentIcon} />
+                <div className={s.recentBody}>
+                  <div className={s.recentLabel}>{sess.label}</div>
+                  <div className={s.recentMeta}>
+                    {relativeTime(sess.started_at)} · {sess.tokens} tok
+                  </div>
+                </div>
+                <Icon icon={ArrowRight} size={12} className={s.actionArrow} />
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     </div>
-  );
-}
-
-function QuickLink({ to, label, icon }: { to: string; label: string; icon: string }) {
-  return (
-    <Link
-      to={to}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '10px 16px',
-        background: '#f8fafc',
-        border: '1px solid #e2e8f0',
-        borderRadius: 8,
-        textDecoration: 'none',
-        color: '#1e293b',
-        fontSize: 14,
-        fontWeight: 500,
-        transition: 'background 0.15s',
-      }}
-    >
-      <span style={{ fontSize: 18 }}>{icon}</span>
-      {label}
-    </Link>
   );
 }

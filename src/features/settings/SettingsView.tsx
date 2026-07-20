@@ -1,32 +1,38 @@
 /**
- * Settings —— 阶段 4:真实持久化到 ~/.reflect/config.toml。
+ * Settings —— IDE 式二级导航 + 卡片内容（CSS Modules 版）。
  *
- * 通过 `reflect_get_config` / `reflect_save_config` 读写后端 config。
- * - 结构化快捷编辑:active provider / anthropic+openai api_key / model / permission mode
- * - 高级:原始 TOML 编辑器(MCP / LSP / sanitize / routing 等段)
+ * 左侧二级 nav:Provider / Permissions / Advanced。
+ * 右侧内容区:对应 section 的卡片化表单。
  *
- * 保存时:把表单字段 merge 回原始 TOML(逐行替换已知字段),保留其它段不变,
- * 调 `reflect_save_config(toml)`。后端写盘前用 load_from_str 校验合法性。
+ * 契约（SettingsView.test.tsx）：
+ *   - 'Settings' / 'Provider' / 'Permissions' / 'Advanced' 文字
+ *   - 'Agent ready' 状态徽标
+ *   - permission 按钮 'plan' 触发 reflect_set_permission_mode
+ *   - 'Save to ~/.reflect/config.toml' 按钮触发 reflect_save_config
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import {
   reflect_get_config,
   reflect_save_config,
   reflect_agent_status,
   reflect_set_permission_mode,
 } from '@/utils/tauri';
+import { Button, Input, Textarea, Badge, Icon, IconButton } from '@/features/design-system';
+import s from './SettingsView.module.css';
 
 type PermissionMode = 'auto' | 'prompt' | 'deny' | 'plan';
+type Section = 'provider' | 'permissions' | 'advanced';
 
 export function SettingsView({ onClose }: { onClose?: () => void }) {
   const qc = useQueryClient();
+  const [section, setSection] = useState<Section>('provider');
   const [rawToml, setRawToml] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
 
-  // 加载真实 config。
   const configQuery = useQuery({
     queryKey: ['config'],
     queryFn: reflect_get_config,
@@ -38,12 +44,10 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
     staleTime: 30_000,
   });
 
-  // config 加载后初始化 rawToml + 解析字段。
   useEffect(() => {
     if (configQuery.data) setRawToml(configQuery.data);
   }, [configQuery.data]);
 
-  // 结构化字段(从 rawToml 解析)。
   const fields = useMemo(() => parseFields(rawToml), [rawToml]);
 
   const saveMutation = useMutation({
@@ -68,196 +72,252 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
     },
   });
 
-  /** 把结构化字段写回 rawToml(逐行替换),返回新 TOML。 */
   const buildToml = (next: Partial<Fields>): string => mergeFields(rawToml, { ...fields, ...next });
-
-  const onSaveProvider = () => {
-    saveMutation.mutate(buildToml({}));
-  };
-  const onPermission = (mode: PermissionMode) => {
-    permMutation.mutate(mode);
-  };
+  const onSave = () => saveMutation.mutate(buildToml({}));
+  const onPermission = (mode: PermissionMode) => permMutation.mutate(mode);
 
   const status = statusQuery.data;
+  const hasModel = Boolean(status?.has_model);
 
   return (
-    <div style={{ padding: 32, maxWidth: 680, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, margin: 0, flex: 1 }}>Settings</h1>
+    <div className={s.root}>
+      <aside className={s.nav}>
+        <h2 className={s.title}>Settings</h2>
+        <nav className={s.navList}>
+          <NavBtn active={section === 'provider'} onClick={() => setSection('provider')}>
+            Provider
+          </NavBtn>
+          <NavBtn active={section === 'permissions'} onClick={() => setSection('permissions')}>
+            Permissions
+          </NavBtn>
+          <NavBtn active={section === 'advanced'} onClick={() => setSection('advanced')}>
+            Advanced
+          </NavBtn>
+        </nav>
         {onClose && (
-          <button onClick={onClose} style={{ padding: '4px 12px', cursor: 'pointer' }}>
+          <Button variant="ghost" size="sm" onClick={onClose} className={s.closeBtn}>
             Close
-          </button>
+          </Button>
         )}
-      </div>
+      </aside>
 
-      {/* agent 状态徽标 */}
-      <div
-        style={{
-          padding: 10,
-          marginBottom: 16,
-          borderRadius: 6,
-          background: status?.has_model ? '#dcfce7' : '#fef3c7',
-          border: `1px solid ${status?.has_model ? '#22c55e' : '#f59e0b'}`,
-          fontSize: 12,
-        }}
-      >
-        {configQuery.isLoading || statusQuery.isLoading ? (
-          'Loading status…'
-        ) : status?.has_model ? (
-          <>✓ Agent ready — model <code>{status.model}</code></>
-        ) : (
-          <>
-            ⚠ Degraded — {status?.degraded_reason ?? 'no provider configured'}.
-            Set an API key below.
-          </>
+      <main className={s.content}>
+        {/* 状态徽标 —— 契约 'Agent ready' */}
+        <div className={s.statusBar} data-ok={hasModel || undefined}>
+          <Icon icon={hasModel ? CheckCircle2 : AlertTriangle} size={14} />
+          <span>
+            {configQuery.isLoading || statusQuery.isLoading
+              ? 'Loading status…'
+              : hasModel
+                ? <>Agent ready — model <code className={s.codeInline}>{status?.model}</code></>
+                : <>Degraded — {status?.degraded_reason ?? 'no provider configured'}. Set an API key below.</>}
+          </span>
+        </div>
+
+        {error && (
+          <div className={s.errorBar}>
+            <Icon icon={AlertTriangle} size={14} />
+            <span>{error}</span>
+          </div>
         )}
-      </div>
 
-      {error && (
-        <div
-          style={{
-            padding: 10,
-            marginBottom: 16,
-            borderRadius: 6,
-            background: '#fee2e2',
-            border: '1px solid #ef4444',
-            color: '#991b1b',
-            fontSize: 12,
-          }}
-        >
-          ⚠ {error}
+        {/* Permission mode 快捷控件（始终可见，高频操作）—— 4 个按钮文案 auto/prompt/deny/plan。 */}
+        <div className={s.quickPerm}>
+          <span className={s.quickPermLabel}>Permission mode:</span>
+          <div className={s.quickPermBtns}>
+            {(['auto', 'prompt', 'deny', 'plan'] as PermissionMode[]).map((m) => (
+              <button
+                key={m}
+                className={s.quickPermBtn}
+                onClick={() => onPermission(m)}
+                disabled={permMutation.isPending}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
 
-      <Section title="Provider">
-        <label style={{ display: 'block', marginBottom: 12 }}>
-          <span style={{ fontSize: 12, color: '#666' }}>Active provider</span>
-          <select
-            value={fields.activeProvider}
-            onChange={(e) => {
-              const next = buildToml({ activeProvider: e.target.value });
-              setRawToml(next);
-            }}
-            style={{ display: 'block', marginTop: 4, padding: 6, fontSize: 13, width: '100%' }}
-          >
-            <option value="anthropic">Anthropic</option>
-            <option value="openai">OpenAI</option>
-            <option value="ollama">Ollama (local)</option>
-          </select>
-        </label>
+        {section === 'provider' && (
+          <section>
+            <h3 className={s.sectionTitle}>Provider</h3>
+            <p className={s.sectionDesc}>
+              Configure the active provider and credentials. Settings persist to{' '}
+              <code className={s.codeInline}>~/.reflect/config.toml</code>.
+            </p>
 
-        <Field
-          label="Anthropic API key"
-          value={fields.anthropicKey}
-          placeholder="sk-ant-..."
-          onChange={(v) => setRawToml(buildToml({ anthropicKey: v }))}
-        />
-        <Field
-          label="Anthropic model"
-          value={fields.anthropicModel}
-          placeholder="claude-3-5-sonnet-latest"
-          onChange={(v) => setRawToml(buildToml({ anthropicModel: v }))}
-        />
+            <div className={s.fieldRow}>
+              <label className={s.fieldLabel}>Active provider</label>
+              <select
+                value={fields.activeProvider}
+                onChange={(e) => setRawToml(buildToml({ activeProvider: e.target.value }))}
+                className={s.nativeSelect}
+              >
+                <option value="anthropic">Anthropic</option>
+                <option value="openai">OpenAI</option>
+                <option value="ollama">Ollama (local)</option>
+              </select>
+            </div>
 
-        <Field
-          label="OpenAI API key"
-          value={fields.openaiKey}
-          placeholder="sk-..."
-          onChange={(v) => setRawToml(buildToml({ openaiKey: v }))}
-        />
-        <Field
-          label="OpenAI model"
-          value={fields.openaiModel}
-          placeholder="gpt-4o"
-          onChange={(v) => setRawToml(buildToml({ openaiModel: v }))}
-        />
+            <ProviderCard
+              name="Anthropic"
+              apiKey={fields.anthropicKey}
+              model={fields.anthropicModel}
+              apiKeyPlaceholder="sk-ant-..."
+              modelPlaceholder="claude-3-5-sonnet-latest"
+              showKey={showKeys['anthropic'] ?? false}
+              onToggleKey={() => setShowKeys((p) => ({ ...p, anthropic: !p.anthropic }))}
+              onApiKey={(v) => setRawToml(buildToml({ anthropicKey: v }))}
+              onModel={(v) => setRawToml(buildToml({ anthropicModel: v }))}
+            />
+            <ProviderCard
+              name="OpenAI"
+              apiKey={fields.openaiKey}
+              model={fields.openaiModel}
+              apiKeyPlaceholder="sk-..."
+              modelPlaceholder="gpt-4o"
+              showKey={showKeys['openai'] ?? false}
+              onToggleKey={() => setShowKeys((p) => ({ ...p, openai: !p.openai }))}
+              onApiKey={(v) => setRawToml(buildToml({ openaiKey: v }))}
+              onModel={(v) => setRawToml(buildToml({ openaiModel: v }))}
+            />
 
-        <p style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
-          也可设环境变量 <code>ANTHROPIC_API_KEY</code> / <code>OPENAI_API_KEY</code> /
-          <code>OLLAMA_HOST</code>,无需写进配置文件。
-        </p>
-      </Section>
+            <p className={s.hint}>
+              Env vars <code className={s.codeInline}>ANTHROPIC_API_KEY</code> /{' '}
+              <code className={s.codeInline}>OPENAI_API_KEY</code> /{' '}
+              <code className={s.codeInline}>OLLAMA_HOST</code> also work without writing to config.
+            </p>
+          </section>
+        )}
 
-      <Section title="Permissions">
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-          {(['auto', 'prompt', 'deny', 'plan'] as PermissionMode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => onPermission(m)}
-              style={{
-                padding: '6px 14px',
-                border: '1px solid #e2e8f0',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontSize: 13,
-                background: 'white',
-              }}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-        <p style={{ fontSize: 11, color: '#888' }}>
-          auto: 直接运行 · prompt: 需审批 · deny: 禁止 · plan: 只读规划
-        </p>
-      </Section>
+        {section === 'permissions' && (
+          <section>
+            <h3 className={s.sectionTitle}>Permissions</h3>
+            <p className={s.sectionDesc}>
+              Control how the agent asks before running tools. Use the quick switch above to change
+              mode for the current session.
+            </p>
+            <div className={s.permGrid}>
+              <PermCard mode="auto" onClick={() => onPermission('auto')} />
+              <PermCard mode="prompt" onClick={() => onPermission('prompt')} />
+              <PermCard mode="deny" onClick={() => onPermission('deny')} />
+              <PermCard mode="plan" onClick={() => onPermission('plan')} />
+            </div>
+          </section>
+        )}
 
-      <Section title="Advanced (raw TOML)">
-        <button
-          onClick={() => setShowAdvanced((s) => !s)}
-          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', marginBottom: 8 }}
-        >
-          {showAdvanced ? 'Hide' : 'Show'} raw config (MCP / LSP / sanitize / routing)
-        </button>
-        {showAdvanced && (
-          <>
-            <textarea
+        {section === 'advanced' && (
+          <section>
+            <h3 className={s.sectionTitle}>Advanced (raw TOML)</h3>
+            <p className={s.sectionDesc}>
+              Edit <code className={s.codeInline}>[mcp_servers.&lt;name&gt;]</code> /{' '}
+              <code className={s.codeInline}>[lsp_server.&lt;name&gt;]</code> sections. A restart is
+              required to spawn new MCP/LSP servers (hot-reload coming later).
+            </p>
+            <Textarea
               value={rawToml}
               onChange={(e) => setRawToml(e.target.value)}
-              style={{
-                width: '100%',
-                minHeight: 280,
-                padding: 10,
-                fontFamily: 'ui-monospace, monospace',
-                fontSize: 12,
-                borderRadius: 6,
-                border: '1px solid #cbd5e1',
-              }}
+              className={s.rawEditor}
               spellCheck={false}
             />
-            <p style={{ fontSize: 11, color: '#888' }}>
-              编辑 [mcp_servers.&lt;name&gt;] / [lsp_servers.&lt;name&gt;] 等段。保存后需
-              重启 app 拉起新的 MCP/LSP server(热重载在后续阶段接入)。
-            </p>
-          </>
+          </section>
         )}
-      </Section>
 
-      <button
-        onClick={onSaveProvider}
-        disabled={saveMutation.isPending || configQuery.isLoading}
-        style={{
-          padding: '10px 20px',
-          background: saveMutation.isPending ? '#93c5fd' : '#3b82f6',
-          color: 'white',
-          border: 'none',
-          borderRadius: 6,
-          cursor: saveMutation.isPending ? 'wait' : 'pointer',
-          fontSize: 14,
-        }}
-      >
-        {saveMutation.isPending
-          ? 'Saving…'
-          : saved
-            ? 'Saved ✓'
-            : 'Save to ~/.reflect/config.toml'}
-      </button>
+        <div className={s.saveBar}>
+          <Button
+            variant="primary"
+            onClick={onSave}
+            disabled={saveMutation.isPending || configQuery.isLoading}
+            loading={saveMutation.isPending}
+          >
+            {saved ? 'Saved ✓' : 'Save to ~/.reflect/config.toml'}
+          </Button>
+        </div>
+      </main>
     </div>
   );
 }
 
-// ====== TOML 字段解析 / 合并(轻量正则,避免引入 toml 库) ======
+// ====== 子组件 ======
+
+function NavBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button className={s.navBtn} data-active={active || undefined} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+function ProviderCard({
+  name,
+  apiKey,
+  model,
+  apiKeyPlaceholder,
+  modelPlaceholder,
+  showKey,
+  onToggleKey,
+  onApiKey,
+  onModel,
+}: {
+  name: string;
+  apiKey: string;
+  model: string;
+  apiKeyPlaceholder: string;
+  modelPlaceholder: string;
+  showKey: boolean;
+  onToggleKey: () => void;
+  onApiKey: (v: string) => void;
+  onModel: (v: string) => void;
+}) {
+  return (
+    <div className={s.providerCard}>
+      <div className={s.providerHeader}>
+        <span className={s.providerName}>{name}</span>
+        {apiKey && <Badge variant="success" dot>configured</Badge>}
+      </div>
+      <div className={s.providerFields}>
+        <div>
+          <label className={s.fieldLabel}>API key</label>
+          <Input
+            type={showKey ? 'text' : 'password'}
+            value={apiKey}
+            placeholder={apiKeyPlaceholder}
+            onChange={(e) => onApiKey(e.target.value)}
+            trailing={
+              <IconButton label={showKey ? 'Hide key' : 'Show key'} size="sm" onClick={onToggleKey}>
+                <Icon icon={showKey ? EyeOff : Eye} size={13} />
+              </IconButton>
+            }
+          />
+        </div>
+        <div>
+          <label className={s.fieldLabel}>Model</label>
+          <Input value={model} placeholder={modelPlaceholder} onChange={(e) => onModel(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PermCard({ mode, onClick }: { mode: PermissionMode; onClick: () => void }) {
+  const variant = mode === 'auto' ? 'success' : mode === 'deny' ? 'danger' : mode === 'plan' ? 'info' : 'warning';
+  const desc: Record<PermissionMode, string> = {
+    auto: 'Run tools without asking. Fastest, least safe.',
+    prompt: 'Ask before each tool call. Recommended.',
+    deny: 'Block all tool execution. Read-only chat.',
+    plan: 'Only plan, never execute. Explore safely.',
+  };
+  return (
+    <button className={s.permCard} data-variant={variant} onClick={onClick}>
+      <div className={s.permCardHeader}>
+        <Badge variant={variant} solid>{mode}</Badge>
+      </div>
+      <p className={s.permDesc}>{desc[mode]}</p>
+    </button>
+  );
+}
+
+// ====== TOML 字段解析 / 合并（保留原逻辑） ======
 
 interface Fields {
   activeProvider: string;
@@ -277,13 +337,9 @@ function parseFields(toml: string): Fields {
   };
 }
 
-/**
- * 读取 TOML 字段。section 不给时读顶层(如 [active] provider);
- * section 给定时读该 section 内(如 [anthropic] api_key)。
- */
 function readField(toml: string, key: string, fallback: string, section?: string): string {
   const lines = toml.split('\n');
-  let inSection = !section; // 无 section → 只读顶层(遇到 [x] 之前)。
+  let inSection = !section;
   for (const line of lines) {
     const trimmed = line.trim();
     const sectionMatch = /^\[([^\]]+)\]/.exec(trimmed);
@@ -295,7 +351,6 @@ function readField(toml: string, key: string, fallback: string, section?: string
     const m = new RegExp(`^${key}\\s*=\\s*(.+)$`).exec(trimmed);
     if (m) {
       let v = m[1].trim();
-      // 去引号。
       if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
         v = v.slice(1, -1);
       }
@@ -305,10 +360,6 @@ function readField(toml: string, key: string, fallback: string, section?: string
   return fallback;
 }
 
-/**
- * 把字段写回 TOML。对每个字段:找到对应 section + key 行替换;找不到则追加 section。
- * 这是最小破坏性合并 —— 保留其它所有段和注释。
- */
 function mergeFields(original: string, f: Fields): string {
   let out = original;
   out = ensureActiveProvider(out, f.activeProvider);
@@ -319,7 +370,6 @@ function mergeFields(original: string, f: Fields): string {
   return out;
 }
 
-/** 顶层 [active] provider = "..." */
 function ensureActiveProvider(toml: string, provider: string): string {
   const lines = toml.split('\n');
   let inActive = false;
@@ -338,7 +388,6 @@ function ensureActiveProvider(toml: string, provider: string): string {
     }
   }
   if (setAt === -1) {
-    // 没有 [active] 段或 provider 字段 —— 追加。
     lines.push('');
     lines.push('[active]');
     lines.push(`provider = "${provider}"`);
@@ -346,12 +395,9 @@ function ensureActiveProvider(toml: string, provider: string): string {
   return lines.join('\n');
 }
 
-/** 在指定 section 内设 key = "value";section 不存在则追加。 */
 function setInSection(toml: string, section: string, key: string, value: string): string {
   const lines = toml.split('\n');
-  // 空值时跳过(不写空 key)。
   if (value === '') {
-    // 但若原有该 key,保留原值(不删)。
     return lines.join('\n');
   }
   let sectionStart = -1;
@@ -370,13 +416,11 @@ function setInSection(toml: string, section: string, key: string, value: string)
     }
   }
   if (sectionStart === -1) {
-    // section 不存在 → 追加。
     lines.push('');
     lines.push(`[${section}]`);
     lines.push(`${key} = "${value}"`);
     return lines.join('\n');
   }
-  // section 存在 → 在 [sectionStart, sectionEnd) 内找 key。
   for (let i = sectionStart + 1; i < sectionEnd; i++) {
     if (new RegExp(`^${key}\\s*=`).test(lines[i].trim())) {
       lines[i] = `${key} = "${value}"`;
@@ -388,49 +432,4 @@ function setInSection(toml: string, section: string, key: string, value: string)
     lines.splice(sectionEnd, 0, `${key} = "${value}"`);
   }
   return lines.join('\n');
-}
-
-// ====== UI 子组件 ======
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section style={{ marginBottom: 24 }}>
-      <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  label,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label style={{ display: 'block', marginBottom: 10 }}>
-      <span style={{ fontSize: 12, color: '#666' }}>{label}</span>
-      <input
-        type="password"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          display: 'block',
-          marginTop: 4,
-          padding: 6,
-          fontSize: 13,
-          width: '100%',
-          fontFamily: 'ui-monospace, monospace',
-          border: '1px solid #cbd5e1',
-          borderRadius: 4,
-        }}
-      />
-    </label>
-  );
 }

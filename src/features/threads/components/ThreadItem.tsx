@@ -1,9 +1,11 @@
 /**
- * ThreadItem —— 单个 thread 行(带 router Link)。
+ * ThreadItem —— 单个 thread 行（CSS Modules 版）。
+ * 用 router Link，保留 data-active 契约。
  */
 import { Link } from '@tanstack/react-router';
 import type { ReflectSessionInfo } from '@/utils/tauri';
 import { chatLinkFor, shortTimestamp } from '../utils/threadLabels';
+import s from './ThreadItem.module.css';
 
 export interface ThreadItemProps {
   session: ReflectSessionInfo;
@@ -13,29 +15,19 @@ export interface ThreadItemProps {
 
 export function ThreadItem({ session, active, onClick }: ThreadItemProps) {
   return (
-    <li style={{ marginBottom: 4 }}>
+    <li className={s.row}>
       <Link
         to="/chat/$sessionId"
         params={{ sessionId: session.session_id }}
         onClick={onClick}
-        style={{
-          display: 'block',
-          padding: '10px 12px',
-          background: active ? '#dbeafe' : 'transparent',
-          border: '1px solid',
-          borderColor: active ? '#93c5fd' : '#e2e8f0',
-          borderRadius: 6,
-          textDecoration: 'none',
-          color: '#1e293b',
-          fontSize: 14,
-        }}
+        className={s.link}
         data-active={active ? 'true' : 'false'}
         data-href={chatLinkFor(session)}
       >
-        <div style={{ fontWeight: active ? 600 : 400 }}>
+        <div className={s.title}>
           {session.display_name || session.session_id}
         </div>
-        <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+        <div className={s.meta}>
           {shortTimestamp(session.started_at)} · {session.message_count} msgs
         </div>
       </Link>

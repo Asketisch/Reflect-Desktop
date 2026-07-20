@@ -1,8 +1,12 @@
 /**
- * About —— 阶段 5b:用真实命令(ping + agent_status)替换 phantom invoke。
+ * About —— 版本/状态信息（CSS Modules 版）。
  */
 import { useQuery } from '@tanstack/react-query';
+import { Info, Github, Heart } from 'lucide-react';
 import { ping, reflect_agent_status } from '@/utils/tauri';
+import { PageShell } from '@/features/shell/PageShell';
+import { Card, Badge, Icon } from '@/features/design-system';
+import s from './AboutView.module.css';
 
 export function AboutView() {
   const pingQ = useQuery({ queryKey: ['ping'], queryFn: ping, staleTime: Infinity });
@@ -16,46 +20,77 @@ export function AboutView() {
   const status = statusQ.data;
 
   return (
-    <div style={{ padding: 32, maxWidth: 640, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>About Reflect Desktop</h1>
+    <PageShell icon={Info} title="About Reflect Desktop" width="md">
+      {/* Brand */}
+      <Card level="outlined" padding="lg" className={s.brandCard}>
+        <div className={s.brandRow}>
+          <div className={s.logo}>R</div>
+          <div>
+            <div className={s.brandName}>Reflect Desktop</div>
+            <div className={s.brandTagline}>Standalone desktop GUI for the Reflect Agent.</div>
+          </div>
+        </div>
+      </Card>
 
-      <div style={{ marginBottom: 24 }}>
-        <Row label="Version" value={version} />
-        <Row label="Build" value={new Date().toLocaleDateString()} />
+      {/* Info rows */}
+      <Card level="outlined" padding="md" className={s.infoCard}>
+        <Row label="Version" value={<code className={s.mono}>{version}</code>} />
+        <Row label="Build date" value={new Date().toLocaleDateString()} />
         {status && (
           <>
-            <Row label="Model" value={status.model} />
-            <Row label="Workspace" value={status.workspace} />
+            <Row label="Model" value={<code className={s.mono}>{status.model}</code>} />
+            <Row label="Workspace" value={<code className={s.mono}>{status.workspace}</code>} />
             <Row
               label="Status"
-              value={status.has_model ? '✓ ready' : '⚠ degraded (set API key in Settings)'}
+              value={
+                status.has_model ? (
+                  <Badge variant="success" dot>ready</Badge>
+                ) : (
+                  <Badge variant="warning" dot>degraded</Badge>
+                )
+              }
             />
           </>
         )}
-      </div>
+      </Card>
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Reflect Agent</h2>
-        <p style={{ fontSize: 13, color: '#666' }}>
-          Standalone desktop GUI for Reflect Agent — an AI coding agent that helps you write,
-          review, and refactor code.
+      {/* Sections */}
+      <section className={s.section}>
+        <h3 className={s.sectionTitle}>Reflect Agent</h3>
+        <p className={s.sectionText}>
+          An AI coding agent that helps you write, review, and refactor code. Reflect Desktop is the
+          native GUI companion.
         </p>
       </section>
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Open Source</h2>
-        <p style={{ fontSize: 13, color: '#666' }}>
-          Built with Tauri 2, React 19, TanStack Router, and the Reflect Agent core.
+      <section className={s.section}>
+        <h3 className={s.sectionTitle}>Built with</h3>
+        <p className={s.sectionText}>
+          Tauri 2 · React 19 · TanStack Router/Query · Zustand · Vite. Reflect-Agent core provides the
+          protocol and tool runtime.
         </p>
       </section>
-    </div>
+
+      <section className={s.section}>
+        <h3 className={s.sectionTitle}>Links</h3>
+        <div className={s.linkRow}>
+          <span className={s.linkItem}>
+            <Icon icon={Github} size={14} /> Source &amp; issues
+          </span>
+          <span className={s.linkItem}>
+            <Icon icon={Heart} size={14} /> Open source
+          </span>
+        </div>
+      </section>
+    </PageShell>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <p style={{ margin: '4px 0', fontSize: 14 }}>
-      <strong>{label}:</strong> {value}
-    </p>
+    <div className={s.row}>
+      <span className={s.rowLabel}>{label}</span>
+      <span className={s.rowValue}>{value}</span>
+    </div>
   );
 }

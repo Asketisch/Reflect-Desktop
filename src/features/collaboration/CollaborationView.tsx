@@ -1,99 +1,104 @@
 /**
- * Collaboration —— 阶段 5c:展示 reflect-agent 多 agent / 扩展能力状态。
- *
- * reflect-agent 支持 subagent / discussion / task / pipeline / goal 等多 agent
- * 编排(见 vendor/reflect-{subagent,discussion,task,pipeline,goal})。
- * 首期 GUI 未触发这些编排;此处展示已接入的扩展点(MCP server = 外部工具协作)
- * + 说明未来方向。不再是硬编码 STUB_USERS。
+ * Collaboration & Extensions —— MCP/LSP server 状态展示（CSS Modules 版）。
  */
 import { useQuery } from '@tanstack/react-query';
+import { Network, Server, Cpu } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
 import { reflect_list_tools } from '@/utils/tauri';
+import { PageShell } from '@/features/shell/PageShell';
+import { Card, Badge, Icon, EmptyState } from '@/features/design-system';
+import s from './CollaborationView.module.css';
 
 export function CollaborationView() {
-  const mcpServers = useAgentStore((s) => s.mcpServers);
-  const lspServers = useAgentStore((s) => s.lspServers);
+  const mcpServers = useAgentStore((st) => st.mcpServers);
+  const lspServers = useAgentStore((st) => st.lspServers);
   const toolsQ = useQuery({ queryKey: ['tools'], queryFn: reflect_list_tools, staleTime: 30_000 });
 
   const mcpToolCount = (toolsQ.data ?? []).filter((t) => t.name.startsWith('mcp__')).length;
 
   return (
-    <div style={{ padding: 24, maxWidth: 640, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Collaboration & Extensions</h1>
-
-      <section style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>MCP servers (external tools)</h2>
+    <PageShell
+      icon={Network}
+      title="Collaboration & Extensions"
+      subtitle="External tools and language servers connected to the agent."
+      width="md"
+    >
+      {/* MCP servers */}
+      <section className={s.section}>
+        <div className={s.sectionHeader}>
+          <h3 className={s.sectionTitle}>
+            <Icon icon={Server} size={14} />
+            MCP servers
+          </h3>
+          {mcpServers.length > 0 && <Badge variant="neutral">{mcpServers.length}</Badge>}
+        </div>
         {mcpServers.length === 0 ? (
-          <p style={{ fontSize: 13, color: '#888' }}>
-            未配置 MCP server。在 Settings → Advanced 添加 <code>[mcp_servers.&lt;name&gt;]</code> 段。
-          </p>
+          <Card level="flat" padding="none">
+            <EmptyState
+              size="sm"
+              icon={<Icon icon={Server} />}
+              title="No MCP servers configured"
+              description={<>Add an <code className={s.codeInline}>[mcp_servers.&lt;name&gt;]</code> section in Settings → Advanced.</>}
+            />
+          </Card>
         ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <div className={s.serverList}>
             {mcpServers.map((m) => (
-              <li
-                key={m.name}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 6,
-                  marginBottom: 6,
-                  fontSize: 13,
-                }}
-              >
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: m.status === 'started' ? '#22c55e' : '#ef4444',
-                    marginRight: 8,
-                  }}
-                />
-                <strong>{m.name}</strong>{' '}
-                <span style={{ color: '#888' }}>
-                  ({m.status}
-                  {m.detail ? `: ${m.detail}` : ''})
-                </span>
-              </li>
+              <Card key={m.name} level="outlined" padding="sm" className={s.serverRow} data-status={m.status}>
+                <span className={s.statusDot} data-status={m.status} />
+                <div className={s.serverBody}>
+                  <div className={s.serverName}>{m.name}</div>
+                  {m.detail && <div className={s.serverDetail}>{m.detail}</div>}
+                </div>
+                <Badge variant={m.status === 'started' ? 'success' : 'danger'}>
+                  {m.status}
+                </Badge>
+              </Card>
             ))}
-          </ul>
+          </div>
         )}
         {mcpToolCount > 0 && (
-          <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>
-            {mcpToolCount} 个 MCP 工具已注册(前缀 <code>mcp__</code>)。
-          </p>
+          <p className={s.hint}>{mcpToolCount} MCP tools registered (prefix <code className={s.codeInline}>mcp__</code>).</p>
         )}
       </section>
 
-      <section style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 14, marginBottom: 8, color: '#666' }}>LSP servers</h2>
+      {/* LSP servers */}
+      <section className={s.section}>
+        <div className={s.sectionHeader}>
+          <h3 className={s.sectionTitle}>
+            <Icon icon={Cpu} size={14} />
+            LSP servers
+          </h3>
+          {lspServers.length > 0 && <Badge variant="neutral">{lspServers.length}</Badge>}
+        </div>
         {lspServers.length === 0 ? (
-          <p style={{ fontSize: 13, color: '#888' }}>未配置 LSP server。</p>
+          <Card level="flat" padding="none">
+            <EmptyState size="sm" icon={<Icon icon={Cpu} />} title="No LSP servers configured" />
+          </Card>
         ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <div className={s.serverList}>
             {lspServers.map((l) => (
-              <li key={l.name} style={{ fontSize: 13, marginBottom: 4 }}>
-                <strong>{l.name}</strong> — {l.status}
-              </li>
+              <Card key={l.name} level="outlined" padding="sm" className={s.serverRow} data-status={l.status}>
+                <span className={s.statusDot} data-status={l.status} />
+                <div className={s.serverBody}>
+                  <div className={s.serverName}>{l.name}</div>
+                  {l.detail && <div className={s.serverDetail}>{l.detail}</div>}
+                </div>
+                <Badge variant={l.status === 'started' ? 'success' : 'danger'}>{l.status}</Badge>
+              </Card>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
-      <section
-        style={{
-          padding: 12,
-          background: '#f8fafc',
-          borderRadius: 6,
-          fontSize: 12,
-          color: '#666',
-        }}
-      >
-        <strong>多 agent 编排</strong>(subagent / discussion / task / pipeline / goal)
-        是 reflect-agent 的核心能力,GUI 触发界面在后续阶段接入。当前可通过 Chat
-        让 agent 自主调用这些能力(如"用子 agent 并行处理")。
-      </section>
-    </div>
+      <Card level="outlined" padding="md" className={s.futureCard}>
+        <div className={s.futureTitle}>Multi-agent orchestration</div>
+        <p className={s.futureText}>
+          Subagent / discussion / task / pipeline / goal orchestration is a core reflect-agent
+          capability. GUI triggers will arrive in a later phase — for now, ask the agent in Chat
+          (e.g. "use a subagent to parallelize").
+        </p>
+      </Card>
+    </PageShell>
   );
 }

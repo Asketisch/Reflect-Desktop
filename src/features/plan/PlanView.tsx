@@ -1,14 +1,13 @@
 /**
- * M3.x Plan —— Plan mode viewer + approval workflow。
- *
- * - 显示 plan request / plan ready 事件
- * - Approve / Reject 按钮
- * - M3.x 扩展:plan diff viewer + edit plan + re-run
+ * Plan —— Plan mode viewer + approval workflow（CSS Modules 版）。
  */
-
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ClipboardList, Check, X } from 'lucide-react';
 import { reflect_plan_approval } from '@/utils/tauri';
+import { PageShell } from '@/features/shell/PageShell';
+import { Card, Badge, Button, Icon, EmptyState } from '@/features/design-system';
+import s from './PlanView.module.css';
 
 interface PlanEvent {
   id: string;
@@ -49,97 +48,74 @@ export function PlanView() {
   });
 
   return (
-    <div style={{ padding: 24, maxWidth: 640, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Plan Mode</h1>
-
-      {plans.length === 0 && (
-        <p style={{ color: '#888' }}>No plans pending. Use `/plan` in chat to create one.</p>
-      )}
-
-      {plans.map((plan) => (
-        <div
-          key={plan.id}
-          style={{
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            padding: 16,
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: 4,
-                fontSize: 11,
-                background: statusBg(plan.status),
-                color: statusFg(plan.status),
-              }}
-            >
-              {plan.status}
-            </span>
-            <strong style={{ fontSize: 14 }}>{plan.task}</strong>
-          </div>
-
-          <ol style={{ paddingLeft: 20, margin: '0 0 16px', fontSize: 13 }}>
-            {plan.steps.map((step, i) => (
-              <li key={i} style={{ marginBottom: 4 }}>{step}</li>
-            ))}
-          </ol>
-
-          {plan.status === 'pending' && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => approveMutation.mutate(plan.id)}
-                disabled={approveMutation.isPending}
-                style={{
-                  padding: '6px 16px',
-                  background: '#22c55e',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => rejectMutation.mutate(plan.id)}
-                disabled={rejectMutation.isPending}
-                style={{
-                  padding: '6px 16px',
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
-              >
-                Reject
-              </button>
-            </div>
-          )}
+    <PageShell
+      icon={ClipboardList}
+      title="Plan Mode"
+      subtitle={
+        <>
+          Review and approve plans submitted by the agent. <Badge variant="warning">sample data</Badge>
+        </>
+      }
+      width="md"
+    >
+      {plans.length === 0 ? (
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={ClipboardList} />}
+            title="No plans pending"
+            description="Use /plan in chat to create one."
+          />
+        </Card>
+      ) : (
+        <div className={s.list}>
+          {plans.map((plan) => (
+            <Card key={plan.id} level="outlined" padding="lg" className={s.planCard} data-status={plan.status}>
+              <div className={s.header}>
+                <div className={s.titleRow}>
+                  <PlanStatusBadge status={plan.status} />
+                  <span className={s.task}>{plan.task}</span>
+                </div>
+              </div>
+              <ol className={s.steps}>
+                {plan.steps.map((step, i) => (
+                  <li key={i} className={s.step}>
+                    <span className={s.stepNum}>{i + 1}</span>
+                    <span className={s.stepText}>{step}</span>
+                  </li>
+                ))}
+              </ol>
+              {plan.status === 'pending' && (
+                <div className={s.actions}>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => rejectMutation.mutate(plan.id)}
+                    loading={rejectMutation.isPending}
+                    leftIcon={<Icon icon={X} size={14} />}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => approveMutation.mutate(plan.id)}
+                    loading={approveMutation.isPending}
+                    leftIcon={<Icon icon={Check} size={14} />}
+                  >
+                    Approve
+                  </Button>
+                </div>
+              )}
+            </Card>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+    </PageShell>
   );
 }
 
-function statusBg(s: string): string {
-  switch (s) {
-    case 'pending': return '#fef3c7';
-    case 'approved': return '#dcfce7';
-    case 'rejected': return '#fee2e2';
-    default: return '#f1f5f9';
-  }
-}
-function statusFg(s: string): string {
-  switch (s) {
-    case 'pending': return '#92400e';
-    case 'approved': return '#166534';
-    case 'rejected': return '#991b1b';
-    default: return '#666';
-  }
+function PlanStatusBadge({ status }: { status: PlanEvent['status'] }) {
+  if (status === 'approved') return <Badge variant="success" solid>approved</Badge>;
+  if (status === 'rejected') return <Badge variant="danger" solid>rejected</Badge>;
+  return <Badge variant="warning" solid>pending</Badge>;
 }

@@ -1,9 +1,17 @@
 /**
- * M1.6 ModalShell —— 全屏遮罩 + 居中卡片 + Esc 关闭 + Enter 主操作。
+ * ModalShell —— 全屏遮罩 + 居中卡片（CSS Modules 版 + 焦点陷阱）。
  *
- * M1.x 接受原生 dialog 形态(M2.x 再升级 @radix-ui/react-dialog 增加焦点陷阱)。
+ * 阶段 A5 修复：
+ *   - aria-modal="true" + role="dialog"。
+ *   - 焦点陷阱：Tab/Shift+Tab 在 dialog 内循环；打开时聚焦 primary；关闭时还原焦点。
+ *   - Enter 仅在 dialog 本身（非表单控件）聚焦时触发 primary，避免误提交。
+ *   - Esc 关闭。
+ *   - 点击遮罩关闭。
  */
 import { useEffect, useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { Icon, IconButton } from '@/features/design-system';
+import s from './ModalShell.module.css';
 
 interface Props {
   title: string;
@@ -15,6 +23,8 @@ interface Props {
   children: ReactNode;
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function ModalShell({
   title,
   open,
@@ -24,84 +34,119 @@ export function ModalShell({
   tertiaryAction,
   children,
 }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    primaryRef.current?.focus();
+    // 记录当前焦点，关闭时还原。
+    restoreFocusRef.current = (document.activeElement as HTMLElement) ?? null;
+
+    const dialog = dialogRef.current;
+    // 初始聚焦 primary 按钮（或 dialog 本身）。
+    const target = primaryRef.current ?? dialog;
+    target?.focus();
+
+    const getFocusable = (): HTMLElement[] => {
+      if (!dialog) return [];
+      return Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null || el === document.activeElement,
+      );
+    };
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'Enter' && primaryAction && document.activeElement?.tagName !== 'TEXTAREA') {
-        primaryAction.onClick();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        // 焦点陷阱：在 dialog 内循环。
+        const focusable = getFocusable();
+        if (focusable.length === 0) {
+          e.preventDefault();
+          dialog?.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement as HTMLElement;
+        if (e.shiftKey) {
+          if (active === first || !dialog?.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last || !dialog?.contains(active)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+        return;
+      }
+      if (e.key === 'Enter' && primaryAction) {
+        const active = document.activeElement;
+        const tag = active?.tagName;
+        // 仅当焦点在 dialog 容器本身（非表单控件）时触发 primary。
+        if (active === dialog || (tag !== 'TEXTAREA' && tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'BUTTON' && active && dialog?.contains(active) === false)) {
+          e.preventDefault();
+          primaryAction.onClick();
+        }
       }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      // 还原焦点。
+      restoreFocusRef.current?.focus?.();
+    };
   }, [open, onClose, primaryAction]);
 
   if (!open) return null;
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <div className={s.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
+        ref={dialogRef}
         role="dialog"
+        aria-modal="true"
         aria-label={title}
-        style={{
-          background: 'white',
-          padding: 20,
-          borderRadius: 8,
-          minWidth: 420,
-          maxWidth: 560,
-          maxHeight: '80vh',
-          overflow: 'auto',
-          boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
-        }}
+        tabIndex={-1}
+        className={s.dialog}
       >
-        <h2 style={{ marginTop: 0 }}>{title}</h2>
-        <div>{children}</div>
-        <div
-          style={{
-            marginTop: 16,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 8,
-          }}
-        >
-          {tertiaryAction && (
-            <button onClick={tertiaryAction.onClick}>{tertiaryAction.label}</button>
-          )}
-          {secondaryAction && (
-            <button onClick={secondaryAction.onClick}>{secondaryAction.label}</button>
-          )}
-          {primaryAction && (
-            <button
-              ref={primaryRef}
-              onClick={primaryAction.onClick}
-              autoFocus={primaryAction.autoFocus}
-              style={{
-                background: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                padding: '6px 14px',
-                borderRadius: 4,
-              }}
-            >
-              {primaryAction.label}
-            </button>
-          )}
-        </div>
+        <header className={s.header}>
+          <h2 className={s.title}>{title}</h2>
+          <IconButton label="Close" size="sm" onClick={onClose}>
+            <Icon icon={X} size={14} />
+          </IconButton>
+        </header>
+        <div className={s.body}>{children}</div>
+        {(tertiaryAction || secondaryAction || primaryAction) && (
+          <footer className={s.footer}>
+            {tertiaryAction && (
+              <button className={s.btnGhost} onClick={tertiaryAction.onClick}>
+                {tertiaryAction.label}
+              </button>
+            )}
+            <div className={s.footerRight}>
+              {secondaryAction && (
+                <button className={s.btnSecondary} onClick={secondaryAction.onClick}>
+                  {secondaryAction.label}
+                </button>
+              )}
+              {primaryAction && (
+                <button
+                  ref={primaryRef}
+                  className={s.btnPrimary}
+                  onClick={primaryAction.onClick}
+                  autoFocus={primaryAction.autoFocus}
+                >
+                  {primaryAction.label}
+                </button>
+              )}
+            </div>
+          </footer>
+        )}
       </div>
     </div>
   );

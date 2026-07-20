@@ -1,13 +1,12 @@
 /**
- * M3.x Debug —— 调试面板 (dev only)。
- *
- * - 显示 backend state (AgentThread 状态)
- * - 显示 IPC 事件日志
- * - M3.x 扩展:webview inspector + network log
+ * Debug —— 调试面板（dev only，CSS Modules 版）。
  */
-
 import { useState, useEffect } from 'react';
+import { Bug, Activity, Database } from 'lucide-react';
 import { useAgent } from '@/services/agent';
+import { PageShell } from '@/features/shell/PageShell';
+import { Badge, Icon } from '@/features/design-system';
+import s from './DebugView.module.css';
 
 export function DebugView() {
   const { turns, session } = useAgent();
@@ -18,25 +17,37 @@ export function DebugView() {
   }, [turns.length, session]);
 
   return (
-    <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 16 }}>Debug</h1>
-      <p style={{ color: '#888', fontSize: 12 }}>Dev only — remove in production.</p>
-
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, marginBottom: 8 }}>Agent State</h2>
-        <pre style={{ background: '#f8fafc', padding: 12, borderRadius: 6, fontSize: 12, overflow: 'auto' }}>
+    <PageShell
+      icon={Bug}
+      title="Debug"
+      subtitle={
+        <>
+          Dev-only diagnostic panel. <Badge variant="warning">remove in production</Badge>
+        </>
+      }
+      width="lg"
+    >
+      <section className={s.section}>
+        <h3 className={s.sectionTitle}>
+          <Icon icon={Database} size={14} />
+          Agent state
+        </h3>
+        <pre className={s.jsonBlock}>
           {JSON.stringify({ session, turns_count: turns.length }, null, 2)}
         </pre>
       </section>
 
-      <section>
-        <h2 style={{ fontSize: 14, marginBottom: 8 }}>Event Log</h2>
-        <div style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 12, borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto' }}>
+      <section className={s.section}>
+        <h3 className={s.sectionTitle}>
+          <Icon icon={Activity} size={14} />
+          Event log
+        </h3>
+        <div className={s.eventLog}>
           {events.map((e, i) => (
-            <div key={i}>{e}</div>
+            <div key={i} className={s.eventLine}>{e}</div>
           ))}
         </div>
       </section>
-    </div>
+    </PageShell>
   );
 }

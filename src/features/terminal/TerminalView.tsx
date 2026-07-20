@@ -1,11 +1,13 @@
 /**
- * Terminal —— 阶段 5b:移除 phantom invoke(reflect_exec_command 不存在)。
+ * Terminal —— 命令经 agent bash 工具执行（CSS Modules 版）。
  *
- * 保留终端 UI,但命令经 agent 的 bash 工具执行(在 Chat 看输出)。
- * 真实 PTY 需要 Rust sidecar,首期不引入(避免与 agent bash 工具重复)。
+ * 真实 PTY 需要 Rust sidecar，首期不引入。
  */
 import { useState, useRef, useEffect } from 'react';
+import { Terminal as TerminalIcon, CornerDownLeft } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
+import { Icon } from '@/features/design-system';
+import s from './TerminalView.module.css';
 
 interface TerminalLine {
   type: 'input' | 'info';
@@ -13,14 +15,15 @@ interface TerminalLine {
 }
 
 export function TerminalView() {
-  const submit = useAgentStore((s) => s.submit);
+  const submit = useAgentStore((st) => st.submit);
   const [lines, setLines] = useState<TerminalLine[]>([
     {
       type: 'info',
-      text: '命令通过 agent 的 bash 工具执行,输出在 Chat 面板查看。\n',
+      text: 'Commands are executed via the agent bash tool. Output appears in Chat.\n',
     },
   ]);
   const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,74 +33,48 @@ export function TerminalView() {
   const run = async () => {
     const cmd = input.trim();
     if (!cmd) return;
+    setBusy(true);
     setLines((prev) => [...prev, { type: 'input', text: `$ ${cmd}\n` }]);
     setInput('');
-    // 发到 agent —— agent 会用 bash 工具执行并在 Chat 输出结果。
-    await submit(`请用 bash 工具运行以下命令并展示输出:\n\n\`\`\`\n${cmd}\n\`\`\``);
-    setLines((prev) => [...prev, { type: 'info', text: '→ 已发送,切换到 Chat 查看输出\n' }]);
+    try {
+      await submit(`请用 bash 工具运行以下命令并展示输出:\n\n\`\`\`\n${cmd}\n\`\`\``);
+      setLines((prev) => [...prev, { type: 'info', text: '→ sent to agent. Switch to Chat for output.\n' }]);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: '#1e1e1e',
-        color: '#d4d4d4',
-      }}
-    >
-      <div
-        style={{
-          padding: '4px 12px',
-          background: '#2d2d2d',
-          fontSize: 12,
-          borderBottom: '1px solid #3e3e3e',
-        }}
-      >
-        Terminal (via agent bash)
+    <div className={s.root}>
+      <div className={s.header}>
+        <Icon icon={TerminalIcon} size={14} />
+        <span>Terminal (via agent bash)</span>
       </div>
-      <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: 12,
-          fontFamily: 'monospace',
-          fontSize: 13,
-        }}
-      >
+      <div className={s.screen}>
         {lines.map((l, i) => (
-          <div
-            key={i}
-            style={{ color: l.type === 'input' ? '#3b82f6' : '#888' }}
-          >
+          <div key={i} className={s.line} data-type={l.type}>
             {l.text}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
       <form
+        className={s.form}
         onSubmit={(e) => {
           e.preventDefault();
-          run();
+          if (!busy) void run();
         }}
-        style={{ display: 'flex', padding: 8, borderTop: '1px solid #3e3e3e' }}
       >
-        <span style={{ fontFamily: 'monospace', color: '#3b82f6', marginRight: 8 }}>$</span>
+        <span className={s.prompt}>$</span>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          style={{
-            flex: 1,
-            background: 'transparent',
-            border: 'none',
-            color: '#d4d4d4',
-            fontFamily: 'monospace',
-            fontSize: 13,
-            outline: 'none',
-          }}
+          className={s.input}
           placeholder="Enter command (executed via agent bash tool)..."
+          autoFocus
+          disabled={busy}
         />
+        <Icon icon={CornerDownLeft} size={12} className={s.enterHint} />
       </form>
     </div>
   );
