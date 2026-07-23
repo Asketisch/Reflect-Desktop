@@ -4,6 +4,61 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Added — Batch 1 (协议层 + app-core 基础) 对齐 zcode/Codex Desktop
+
+- **协议类型生成 (B1-01)**:给 `vendor/reflect-protocol` 的 `EventMsg` / `Op` /
+  `Submission` / `UserInputItem` / `ContentBlock` / `Question` 等所有
+  协议类型加上 `schemars::JsonSchema` derive。重写 `dump_schema` example
+  真正从 Rust 导出 2944 行 JSON Schema(33 EventMsg + 15 Op variants +
+  所有嵌套 payload)。新增 `scripts/dump-ts-types.sh` + `pnpm run types:gen`。
+
+- **ReflectEvent union 类型 (B1-02)**:用 `EventMsgByType` discriminated
+  union 重写 `src/types/protocol.ts`,使 `event.msg.type` 收窄 payload 形状。
+  涵盖全部 33 个 EventMsg variant + 15 个 Op variant + 完整
+  `UserInputItem` / `ContentBlock` / `ReviewDecision` / `AskUserAnswer` 等。
+
+- **Submission 构造器 (B1-03)**:新建 `src/protocol/submissions.ts`,
+  导出 `userInputText` / `userInputImage` / `userInputSkill` / `compact` /
+  `rewind` / `shutdown` / `toolApproval` / `hookApproval` / `planApproval` /
+  `enterPlanMode` / `exitPlanMode` / `setEffort` / `setPermissionMode` /
+  `cyclePermissionMode` / `askUserQuestionResponse` / `askUserInputResponse`
+  等 16 个 Submission 构造器,统一 id 生成。
+
+- **reducer 覆盖全部 33 variant (B1-04)**:重写 `agentStore.ts::reduceEvent`
+  处理 `turn_rewound` / `shutdown_complete` / `token_count` / `config_reloaded` /
+  `routing` / `collab_started` / `collab_message` / `collab_finished` /
+  `mcp_tool_invoked` / `lsp_server_started` / `lsp_server_failed` /
+  `plan_request` / `plan_ready` / `plan_approved` / `plan_rejected` /
+  `permission_mode_changed` 等之前被静默丢弃的事件。新增 store 字段:
+  `tokens` / `collabSessions` / `mcpInvocations` / `lastRouting` /
+  `configReloadedAt`。
+
+- **reducer 单元测试 (B1-05)**:新增 `src/stores/agentStore.test.ts` 38 个
+  单元测试覆盖所有 33 个 EventMsg variant。
+
+- **agentEventBus fan-out 服务 (B1-06)**:新建 `src/services/agentEventBus.ts`
+  —— 单 Tauri `reflect_event` 订阅 + 引用计数 + 消费者错误隔离。`agentStore`
+  改用 bus 而非自开 listener;Inspector / Notifications / DevTools 可
+  各自订阅同一事件流。7 个单元测试。
+
+- **后端域管理命令 (B1-07)**:新增 12 个 Tauri 命令 + 状态方法:
+  - `reflect_list_workspaces` / `reflect_set_workspace` / `reflect_current_workspace`(B9-06)
+  - `reflect_list_skills`(B11-06)— 扫描 `~/.reflect/skills/**/SKILL.md` + `<cwd>/.reflect/skills/**/SKILL.md`
+  - `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory`(B11-01)
+  - `reflect_list_hooks` / `reflect_toggle_hook`(B11-02)
+  全部 12 个命令注册到 `src-tauri/src/lib.rs::invoke_handler`;TS 包装
+  在 `src/utils/commands.ts`。
+
+### 验证
+
+- `cargo check -p reflect-protocol` ✓(76 单元测试通过)
+- `cargo check src-tauri` ✓
+- `cargo test -p reflect-desktop` ✓(5/5)
+- `pnpm typecheck` ✓(0 errors)
+- `pnpm test` ✓(257/257 通过)
+
+
+
 ### Fixed — 顶栏贯通 + 红绿灯避让 + drag region（对齐 ZCode/Codex）
 
 - **根因**:`tauri.conf.json` 已设 `titleBarStyle: "Overlay"`(红绿灯按钮浮在
