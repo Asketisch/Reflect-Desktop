@@ -6,22 +6,28 @@
  * 2. 显示 agent 状态徽标(从 reflect_agent_status)
  * 3. permission 按钮点击调 reflect_set_permission_mode
  * 4. Save 按钮调 reflect_save_config
+ * 5. 全量结构化表单为所有 ReflectConfig 段提供直接输入框
+ * 6. Ollama / Anthropic / OpenAI provider 都有显式输入
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SettingsView } from '@/features/settings/SettingsView';
+import { I18nProvider } from '@/utils/i18n';
 import {
   mockInvoke,
   resetMockInvoke,
   createTestQueryClient,
 } from '@/test/setup.tsx';
+import { readField, applyField } from '@/features/settings/configSchema';
 
 function renderSettingsView() {
   return render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <SettingsView />
-    </QueryClientProvider>,
+    <I18nProvider>
+      <QueryClientProvider client={createTestQueryClient()}>
+        <SettingsView />
+      </QueryClientProvider>
+    </I18nProvider>,
   );
 }
 
@@ -31,6 +37,21 @@ provider = "anthropic"
 [anthropic]
 api_key = "sk-ant-existing"
 model = "claude-3-5-sonnet-latest"
+
+[openai]
+api_key = "sk-existing"
+model = "gpt-4o"
+
+[ollama]
+base_url = "http://127.0.0.1:11434"
+model = "llama3.2"
+
+[mcp_servers.filesystem]
+type = "stdio"
+command = "npx"
+
+[hooks.search_budget]
+max_calls = 25
 `;
 
 describe('SettingsView', () => {
@@ -102,5 +123,90 @@ describe('SettingsView', () => {
     expect(savedToml).toContain('provider = "anthropic"');
     expect(savedToml).toContain('[anthropic]');
     expect(savedToml).toContain('sk-ant-existing');
+  });
+
+  it('renders direct structured inputs for every ReflectConfig section', async () => {
+    renderSettingsView();
+    // Anthropic
+    expect(screen.getByLabelText(/Anthropic API key/)).toBeDefined();
+    expect(screen.getByLabelText(/Anthropic model/)).toBeDefined();
+    // OpenAI
+    expect(screen.getByLabelText(/OpenAI API key/)).toBeDefined();
+    expect(screen.getByLabelText(/OpenAI model/)).toBeDefined();
+    // Ollama (newly added structured inputs)
+    expect(screen.getByLabelText(/Ollama base URL/)).toBeDefined();
+    expect(screen.getByLabelText(/Ollama model/)).toBeDefined();
+    // Active provider select (rendered inside structured form)
+    const providerSelects = screen.getAllByLabelText(/^Active provider$/);
+    expect(providerSelects.length).toBeGreaterThanOrEqual(1);
+    // Compact / token_budget
+    expect(screen.getByLabelText(/Compact trigger tokens/)).toBeDefined();
+    expect(screen.getByLabelText(/Session total token budget/)).toBeDefined();
+    // Sandbox
+    expect(screen.getByLabelText(/Sandbox: OS-level/)).toBeDefined();
+    // Routing
+    expect(screen.getByLabelText(/Routing: main primary/)).toBeDefined();
+    // Coordinator
+    expect(screen.getByLabelText(/Coordinator enabled/)).toBeDefined();
+    // AskUserQuestion
+    expect(screen.getByLabelText(/AskUserQuestion max questions/)).toBeDefined();
+    // Model
+    expect(screen.getByLabelText(/Default model context window/)).toBeDefined();
+    // Analytics / Notifications / Postgres / SSE / Bridge / Voice / DAP / ACP
+    expect(screen.getByLabelText(/Analytics OTLP endpoint/)).toBeDefined();
+    expect(screen.getByLabelText(/Notifications webhook URL/)).toBeDefined();
+    expect(screen.getByLabelText(/Postgres session database URL/)).toBeDefined();
+    expect(screen.getByLabelText(/SSE Redis URL/)).toBeDefined();
+    expect(screen.getByLabelText(/Bridge endpoint/)).toBeDefined();
+    expect(screen.getByLabelText(/^Voice enabled$/)).toBeDefined();
+    expect(screen.getByLabelText(/DAP adapter/)).toBeDefined();
+    expect(screen.getByLabelText(/ACP bind address/)).toBeDefined();
+    // Sanitize
+    expect(screen.getByLabelText(/Sanitize enabled/)).toBeDefined();
+    // Plugins (textarea)
+    expect(screen.getByLabelText(/Enabled plugins/)).toBeDefined();
+  });
+
+  it('preserves preloaded values for structured fields', async () => {
+    renderSettingsView();
+    await waitFor(() => {
+      const input = screen.getByLabelText(/Anthropic API key/) as HTMLInputElement;
+      expect(input.value).toBe('sk-ant-existing');
+    });
+    const ollamaBase = screen.getByLabelText(/Ollama base URL/) as HTMLInputElement;
+    expect(ollamaBase.value).toBe('http://127.0.0.1:11434');
+  });
+});
+
+describe('configSchema helpers', () => {
+  it('readField returns existing scalar values', () => {
+    expect(readField(SAMPLE_TOML, 'anthropic', 'api_key')).toBe('sk-ant-existing');
+    expect(readField(SAMPLE_TOML, 'ollama', 'base_url')).toBe('http://127.0.0.1:11434');
+    expect(readField(SAMPLE_TOML, 'hooks.search_budget', 'max_calls')).toBe('25');
+  });
+
+  it('applyField writes scalar text into existing sections', () => {
+    const next = applyField(SAMPLE_TOML, 'anthropic', 'api_key', 'sk-new', 'text');
+    expect(next).toContain('api_key = "sk-new"');
+    expect(next).toContain('[ollama]');
+    expect(next).toContain('[mcp_servers.filesystem]');
+  });
+
+  it('applyField creates new sections when missing', () => {
+    const next = applyField('', 'anthropic', 'api_key', 'sk-new', 'text');
+    expect(next).toContain('[anthropic]');
+    expect(next).toContain('api_key = "sk-new"');
+  });
+
+  it('applyField removes empty values from existing sections', () => {
+    const next = applyField(SAMPLE_TOML, 'anthropic', 'api_key', '', 'text');
+    expect(next).not.toContain('api_key = "sk-ant-existing"');
+    expect(next).toContain('[anthropic]');
+  });
+
+  it('applyField encodes boolean and integer values without quotes', () => {
+    expect(applyField(SAMPLE_TOML, 'compact', 'trigger_tokens', '1024', 'integer')).toContain('trigger_tokens = 1024');
+    const sandboxOn = applyField(SAMPLE_TOML, 'sandbox', 'os_level', 'true', 'boolean');
+    expect(sandboxOn).toContain('os_level = true');
   });
 });

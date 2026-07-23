@@ -4,6 +4,18 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Fixed — Core UX
+
+- Added persisted English/Simplified Chinese localization with a Settings language selector for core shell, chat, session, and settings UI.
+- Replaced the narrow provider-only settings form with a fully structured form that renders a direct input for every supported section in `vendor/reflect-config/src/schema.rs`: `active`, `anthropic`, `openai`, `ollama`, `compact`, `token_budget`, `sandbox`, `routing.{main,compact,subagent}`, `coordinator`, `ask_user_question`, `model`, `analytics`, `notifications`, `postgres_session`, `sse_redis`, `bridge`, `voice`, `dap`, `acp`, `sanitize`, `plugins`, `feature_flags`, `mcp_servers`, `lsp_servers`, `hooks`, `subagent_providers`, `config_version`. Each input edits and serializes TOML in-place; the Advanced raw TOML editor remains the release valve.
+- Session selection now replays the selected rollout, replaces stale chat turns, and displays localized loading, empty, retry, and error states. Race-protected via a request id ref.
+
+### Added
+
+- `ConfigForm` component (`src/features/settings/ConfigForm.tsx`) and `configSchema` helpers (`src/features/settings/configSchema.tsx`).
+- `src/features/messages/ChatView.test.tsx` covering loading, empty, error, retry, locale switching, and session-clearing flows (5 cases).
+- Extended `SettingsView.test.tsx` covering all 25+ structured inputs and `configSchema` helpers (5 new cases).
+
 ### Added — Batch 12 (Native menu wiring + docs polish)
 
 - **Native menu infrastructure**: `src-tauri/src/menu.rs` already provides 5 submenus

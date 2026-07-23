@@ -52,6 +52,8 @@ import {
 import { subscribeAgentEvent } from '@/services/agentEventBus';
 import type { ReflectEvent, ReflectSubmission, UserInputItem } from '@/types/protocol';
 import type { ReviewDecision } from '@/utils/types';
+import type { ReflectRolloutRecord } from '@/utils/types';
+import { turnsFromRollout } from './replay';
 
 // ====== 常量 ======
 
@@ -213,6 +215,9 @@ export interface AgentState {
   lastError: string | null;
   /** 事件订阅是否已建立(防止重复订阅)。 */
   subscribed: boolean;
+  loadedSessionId?: string | null;
+  hydrateSession?: (id: string, records: ReflectRolloutRecord[]) => void;
+  clearSession?: () => void;
 
   // ── B1-04 新增:协议全量消费补齐 ──
   /** 最近 token 用量(token_count event)。 */
@@ -703,6 +708,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   lspServers: [],
   lastError: null,
   subscribed: false,
+  loadedSessionId: null,
+  hydrateSession: (id, records) => set({ turns: turnsFromRollout(records), loadedSessionId: id, lastError: null }),
+  clearSession: () => set({ turns: [], loadedSessionId: null, pendingApprovals: [], pendingQuestions: [], pendingAskUser: [], pendingPlan: null }),
   // B1-04 新增字段
   tokens: null,
   collabSessions: [],
@@ -847,6 +855,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     set({
       turns: [],
       session: null,
+      loadedSessionId: null,
       permissionMode: 'auto',
       pendingApprovals: [],
       pendingQuestions: [],

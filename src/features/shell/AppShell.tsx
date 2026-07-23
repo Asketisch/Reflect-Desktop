@@ -34,6 +34,7 @@ import { ModalStack } from '@/features/modals';
 import { CommandPalette } from '@/features/command-palette/CommandPalette';
 import { getTheme, getResolvedTheme, setTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
 import { useAgentStore } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
 import { reflect_export_session, reflect_save_config } from '@/utils/commands';
 import { useQueryClient } from '@tanstack/react-query';
 import { reflect_list_sessions, reflect_delete_session } from '@/utils/commands';
@@ -46,6 +47,7 @@ export function AppShell() {
   const qc = useQueryClient();
   const submit = useAgentStore((st) => st.submit);
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { t } = useI18n();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -76,8 +78,6 @@ export function AppShell() {
 
   const handleSelect = (id: string) => {
     setActiveId(id);
-    // 同步 URL —— 让 ChatView 能感知 session 切换。
-    void router.navigate({ to: '/chat/$sessionId', params: { sessionId: id } });
   };
 
   const handleNewChat = () => {
@@ -154,8 +154,8 @@ export function AppShell() {
       <div className={s.body}>
         <ActivityBar />
         {sidebarOpen && (
-          <aside className={s.sidebar} aria-label="Sessions" data-testid="shell-sidebar">
-            <Sidebar
+          <aside className={s.sidebar} aria-label={t('sidebar.sessions')} data-testid="shell-sidebar">
+              <Sidebar
               buckets={sessions.buckets}
               loading={sessions.loading}
               error={sessions.error}

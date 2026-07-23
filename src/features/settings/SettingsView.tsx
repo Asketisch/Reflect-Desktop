@@ -9,17 +9,23 @@
  *   - 'Agent ready' 状态徽标
  *   - permission 按钮 'plan' 触发 reflect_set_permission_mode
  *   - 'Save to ~/.reflect/config.toml' 按钮触发 reflect_save_config
+ *
+ * 实际渲染使用 ConfigForm —— 它覆盖了 ReflectConfig 的 25+ 配置段,
+ * 见 vendor/reflect-config/src/schema.rs。Advanced TOML 编辑器仍然是
+ * 逃生口,所有未知字段都会保留。
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import {
   reflect_get_config,
   reflect_save_config,
   reflect_agent_status,
   reflect_set_permission_mode,
 } from '@/utils/tauri';
-import { Button, Input, Textarea, Badge, Icon, IconButton } from '@/features/design-system';
+import { Button, Textarea, Badge, Icon, Select } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
+import { ConfigForm } from './ConfigForm';
 import s from './SettingsView.module.css';
 
 type PermissionMode = 'auto' | 'prompt' | 'deny' | 'plan';
@@ -31,7 +37,8 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   const [rawToml, setRawToml] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const { t, locale, setLocale } = useI18n();
 
   const configQuery = useQuery({
     queryKey: ['config'],
@@ -47,8 +54,6 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     if (configQuery.data) setRawToml(configQuery.data);
   }, [configQuery.data]);
-
-  const fields = useMemo(() => parseFields(rawToml), [rawToml]);
 
   const saveMutation = useMutation({
     mutationFn: async (toml: string) => reflect_save_config(toml),
@@ -72,31 +77,32 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
     },
   });
 
-  const buildToml = (next: Partial<Fields>): string => mergeFields(rawToml, { ...fields, ...next });
-  const onSave = () => saveMutation.mutate(buildToml({}));
+  const onSave = () => saveMutation.mutate(rawToml);
   const onPermission = (mode: PermissionMode) => permMutation.mutate(mode);
 
   const status = statusQuery.data;
   const hasModel = Boolean(status?.has_model);
 
+  const toggleSecret = (key: string) => setShowSecrets((p) => ({ ...p, [key]: !p[key] }));
+
   return (
     <div className={s.root}>
       <aside className={s.nav}>
-        <h2 className={s.title}>Settings</h2>
+        <h2 className={s.title}>{t('settings.title')}</h2>
         <nav className={s.navList}>
           <NavBtn active={section === 'provider'} onClick={() => setSection('provider')}>
-            Provider
+            {t('settings.provider')}
           </NavBtn>
           <NavBtn active={section === 'permissions'} onClick={() => setSection('permissions')}>
-            Permissions
+            {t('settings.permissions')}
           </NavBtn>
           <NavBtn active={section === 'advanced'} onClick={() => setSection('advanced')}>
-            Advanced
+            {t('settings.advanced')}
           </NavBtn>
         </nav>
         {onClose && (
           <Button variant="ghost" size="sm" onClick={onClose} className={s.closeBtn}>
-            Close
+            {t('common.close')}
           </Button>
         )}
       </aside>
@@ -107,7 +113,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           <Icon icon={hasModel ? CheckCircle2 : AlertTriangle} size={14} />
           <span>
             {configQuery.isLoading || statusQuery.isLoading
-              ? 'Loading status…'
+              ? t('settings.loading')
               : hasModel
                 ? <>Agent ready — model <code className={s.codeInline}>{status?.model}</code></>
                 : <>Degraded — {status?.degraded_reason ?? 'no provider configured'}. Set an API key below.</>}
@@ -140,59 +146,34 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
 
         {section === 'provider' && (
           <section>
-            <h3 className={s.sectionTitle}>Provider</h3>
+            <h3 className={s.sectionTitle}>{t('settings.provider')}</h3>
             <p className={s.sectionDesc}>
               Configure the active provider and credentials. Settings persist to{' '}
               <code className={s.codeInline}>~/.reflect/config.toml</code>.
             </p>
 
             <div className={s.fieldRow}>
-              <label className={s.fieldLabel}>Active provider</label>
-              <select
-                value={fields.activeProvider}
-                onChange={(e) => setRawToml(buildToml({ activeProvider: e.target.value }))}
-                className={s.nativeSelect}
-              >
-                <option value="anthropic">Anthropic</option>
-                <option value="openai">OpenAI</option>
-                <option value="ollama">Ollama (local)</option>
-              </select>
+              <label className={s.fieldLabel}>{t('settings.language')}</label>
+              <Select value={locale} onChange={(e) => setLocale(e.target.value as 'en' | 'zh-CN')}>
+                <option value="en">{t('settings.english')}</option>
+                <option value="zh-CN">{t('settings.chinese')}</option>
+              </Select>
             </div>
 
-            <ProviderCard
-              name="Anthropic"
-              apiKey={fields.anthropicKey}
-              model={fields.anthropicModel}
-              apiKeyPlaceholder="sk-ant-..."
-              modelPlaceholder="claude-3-5-sonnet-latest"
-              showKey={showKeys['anthropic'] ?? false}
-              onToggleKey={() => setShowKeys((p) => ({ ...p, anthropic: !p.anthropic }))}
-              onApiKey={(v) => setRawToml(buildToml({ anthropicKey: v }))}
-              onModel={(v) => setRawToml(buildToml({ anthropicModel: v }))}
+            <h4 className={s.sectionTitle}>{t('settings.configFields')}</h4>
+            <p className={s.sectionDesc}>{t('settings.configHelp')}</p>
+            <ConfigForm
+              rawToml={rawToml}
+              onChange={setRawToml}
+              showSecrets={showSecrets}
+              onToggleSecret={toggleSecret}
             />
-            <ProviderCard
-              name="OpenAI"
-              apiKey={fields.openaiKey}
-              model={fields.openaiModel}
-              apiKeyPlaceholder="sk-..."
-              modelPlaceholder="gpt-4o"
-              showKey={showKeys['openai'] ?? false}
-              onToggleKey={() => setShowKeys((p) => ({ ...p, openai: !p.openai }))}
-              onApiKey={(v) => setRawToml(buildToml({ openaiKey: v }))}
-              onModel={(v) => setRawToml(buildToml({ openaiModel: v }))}
-            />
-
-            <p className={s.hint}>
-              Env vars <code className={s.codeInline}>ANTHROPIC_API_KEY</code> /{' '}
-              <code className={s.codeInline}>OPENAI_API_KEY</code> /{' '}
-              <code className={s.codeInline}>OLLAMA_HOST</code> also work without writing to config.
-            </p>
           </section>
         )}
 
         {section === 'permissions' && (
           <section>
-            <h3 className={s.sectionTitle}>Permissions</h3>
+            <h3 className={s.sectionTitle}>{t('settings.permissions')}</h3>
             <p className={s.sectionDesc}>
               Control how the agent asks before running tools. Use the quick switch above to change
               mode for the current session.
@@ -208,11 +189,10 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
 
         {section === 'advanced' && (
           <section>
-            <h3 className={s.sectionTitle}>Advanced (raw TOML)</h3>
+            <h3 className={s.sectionTitle}>{t('settings.advanced')} (raw TOML)</h3>
             <p className={s.sectionDesc}>
-              Edit <code className={s.codeInline}>[mcp_servers.&lt;name&gt;]</code> /{' '}
-              <code className={s.codeInline}>[lsp_server.&lt;name&gt;]</code> sections. A restart is
-              required to spawn new MCP/LSP servers (hot-reload coming later).
+              Edit any section, including ones without a structured form above.
+              Validation runs server-side via <code className={s.codeInline}>ReflectConfig::load_from_str</code>.
             </p>
             <Textarea
               value={rawToml}
@@ -230,7 +210,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             disabled={saveMutation.isPending || configQuery.isLoading}
             loading={saveMutation.isPending}
           >
-            {saved ? 'Saved ✓' : 'Save to ~/.reflect/config.toml'}
+            {saved ? t('settings.saved') : t('settings.save')}
           </Button>
         </div>
       </main>
@@ -245,57 +225,6 @@ function NavBtn({ active, onClick, children }: { active: boolean; onClick: () =>
     <button className={s.navBtn} data-active={active || undefined} onClick={onClick}>
       {children}
     </button>
-  );
-}
-
-function ProviderCard({
-  name,
-  apiKey,
-  model,
-  apiKeyPlaceholder,
-  modelPlaceholder,
-  showKey,
-  onToggleKey,
-  onApiKey,
-  onModel,
-}: {
-  name: string;
-  apiKey: string;
-  model: string;
-  apiKeyPlaceholder: string;
-  modelPlaceholder: string;
-  showKey: boolean;
-  onToggleKey: () => void;
-  onApiKey: (v: string) => void;
-  onModel: (v: string) => void;
-}) {
-  return (
-    <div className={s.providerCard}>
-      <div className={s.providerHeader}>
-        <span className={s.providerName}>{name}</span>
-        {apiKey && <Badge variant="success" dot>configured</Badge>}
-      </div>
-      <div className={s.providerFields}>
-        <div>
-          <label className={s.fieldLabel}>API key</label>
-          <Input
-            type={showKey ? 'text' : 'password'}
-            value={apiKey}
-            placeholder={apiKeyPlaceholder}
-            onChange={(e) => onApiKey(e.target.value)}
-            trailing={
-              <IconButton label={showKey ? 'Hide key' : 'Show key'} size="sm" onClick={onToggleKey}>
-                <Icon icon={showKey ? EyeOff : Eye} size={13} />
-              </IconButton>
-            }
-          />
-        </div>
-        <div>
-          <label className={s.fieldLabel}>Model</label>
-          <Input value={model} placeholder={modelPlaceholder} onChange={(e) => onModel(e.target.value)} />
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -315,121 +244,4 @@ function PermCard({ mode, onClick }: { mode: PermissionMode; onClick: () => void
       <p className={s.permDesc}>{desc[mode]}</p>
     </button>
   );
-}
-
-// ====== TOML 字段解析 / 合并（保留原逻辑） ======
-
-interface Fields {
-  activeProvider: string;
-  anthropicKey: string;
-  anthropicModel: string;
-  openaiKey: string;
-  openaiModel: string;
-}
-
-function parseFields(toml: string): Fields {
-  return {
-    activeProvider: readField(toml, 'provider', 'anthropic') || 'anthropic',
-    anthropicKey: readField(toml, 'api_key', '', 'anthropic'),
-    anthropicModel: readField(toml, 'model', '', 'anthropic'),
-    openaiKey: readField(toml, 'api_key', '', 'openai'),
-    openaiModel: readField(toml, 'model', '', 'openai'),
-  };
-}
-
-function readField(toml: string, key: string, fallback: string, section?: string): string {
-  const lines = toml.split('\n');
-  let inSection = !section;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const sectionMatch = /^\[([^\]]+)\]/.exec(trimmed);
-    if (sectionMatch) {
-      inSection = section ? sectionMatch[1].trim() === section : false;
-      continue;
-    }
-    if (!inSection) continue;
-    const m = new RegExp(`^${key}\\s*=\\s*(.+)$`).exec(trimmed);
-    if (m) {
-      let v = m[1].trim();
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-        v = v.slice(1, -1);
-      }
-      return v;
-    }
-  }
-  return fallback;
-}
-
-function mergeFields(original: string, f: Fields): string {
-  let out = original;
-  out = ensureActiveProvider(out, f.activeProvider);
-  out = setInSection(out, 'anthropic', 'api_key', f.anthropicKey);
-  out = setInSection(out, 'anthropic', 'model', f.anthropicModel);
-  out = setInSection(out, 'openai', 'api_key', f.openaiKey);
-  out = setInSection(out, 'openai', 'model', f.openaiModel);
-  return out;
-}
-
-function ensureActiveProvider(toml: string, provider: string): string {
-  const lines = toml.split('\n');
-  let inActive = false;
-  let setAt = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    const sec = /^\[([^\]]+)\]/.exec(trimmed);
-    if (sec) {
-      inActive = sec[1].trim() === 'active';
-      continue;
-    }
-    if (inActive && /^provider\s*=/.test(trimmed)) {
-      lines[i] = `provider = "${provider}"`;
-      setAt = i;
-      break;
-    }
-  }
-  if (setAt === -1) {
-    lines.push('');
-    lines.push('[active]');
-    lines.push(`provider = "${provider}"`);
-  }
-  return lines.join('\n');
-}
-
-function setInSection(toml: string, section: string, key: string, value: string): string {
-  const lines = toml.split('\n');
-  if (value === '') {
-    return lines.join('\n');
-  }
-  let sectionStart = -1;
-  let sectionEnd = lines.length;
-  let found = false;
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    const sec = /^\[([^\]]+)\]/.exec(trimmed);
-    if (sec) {
-      if (sectionStart !== -1 && sectionEnd === lines.length) {
-        sectionEnd = i;
-      }
-      if (sec[1].trim() === section && sectionStart === -1) {
-        sectionStart = i;
-      }
-    }
-  }
-  if (sectionStart === -1) {
-    lines.push('');
-    lines.push(`[${section}]`);
-    lines.push(`${key} = "${value}"`);
-    return lines.join('\n');
-  }
-  for (let i = sectionStart + 1; i < sectionEnd; i++) {
-    if (new RegExp(`^${key}\\s*=`).test(lines[i].trim())) {
-      lines[i] = `${key} = "${value}"`;
-      found = true;
-      break;
-    }
-  }
-  if (!found) {
-    lines.splice(sectionEnd, 0, `${key} = "${value}"`);
-  }
-  return lines.join('\n');
 }

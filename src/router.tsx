@@ -10,6 +10,7 @@ import React, { useEffect } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { ModalStack } from '@/features/modals';
 import { AppShell } from '@/features/shell/AppShell';
+import { I18nProvider } from '@/utils/i18n';
 
 // ====== Route components ======
 import { ChatView } from '@/features/messages/ChatView';
@@ -119,7 +120,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     const unsubscribe = useAgentStore.getState().subscribe();
     return unsubscribe;
   }, []);
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return <I18nProvider><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></I18nProvider>;
 }
 
 // re-export ModalStack for backward compat（旧 import 路径）
