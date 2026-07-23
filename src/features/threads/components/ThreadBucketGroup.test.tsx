@@ -53,21 +53,51 @@ function bucket(): SessionBucket {
 }
 
 describe('ThreadBucketGroup', () => {
+  const noop = () => Promise.resolve();
+  const noopExport = () => Promise.resolve(null);
+
   it('renders bucket label and session', () => {
-    render(<ThreadBucketGroup bucket={bucket()} activeId={null} onSelect={vi.fn()} />);
+    render(
+      <ThreadBucketGroup
+        bucket={bucket()}
+        activeId={null}
+        onSelect={vi.fn()}
+        onRename={noop}
+        onDelete={noop}
+        onExport={noopExport}
+      />,
+    );
     expect(screen.getByText('Now')).toBeDefined();
     expect(screen.getByText('Recent chat')).toBeDefined();
     expect(screen.getByText(/2 msgs/)).toBeDefined();
   });
 
   it('marks active item', () => {
-    const { container } = render(<ThreadBucketGroup bucket={bucket()} activeId="s1" onSelect={vi.fn()} />);
+    const { container } = render(
+      <ThreadBucketGroup
+        bucket={bucket()}
+        activeId="s1"
+        onSelect={vi.fn()}
+        onRename={noop}
+        onDelete={noop}
+        onExport={noopExport}
+      />,
+    );
     const link = container.querySelector('a[data-active="true"]');
     expect(link).not.toBeNull();
   });
 
   it('renders bucket label and session content', () => {
-    const { container } = render(<ThreadBucketGroup bucket={bucket()} activeId={null} onSelect={vi.fn()} />);
+    const { container } = render(
+      <ThreadBucketGroup
+        bucket={bucket()}
+        activeId={null}
+        onSelect={vi.fn()}
+        onRename={noop}
+        onDelete={noop}
+        onExport={noopExport}
+      />,
+    );
     expect(container.querySelector('[data-bucket="Now"]')).not.toBeNull();
     expect(container.textContent).toContain('Recent chat');
     expect(container.textContent).toContain('2 msgs');
@@ -75,7 +105,16 @@ describe('ThreadBucketGroup', () => {
 
   it('calls onSelect when clicked', () => {
     const onSelect = vi.fn();
-    const { container } = render(<ThreadBucketGroup bucket={bucket()} activeId={null} onSelect={onSelect} />);
+    const { container } = render(
+      <ThreadBucketGroup
+        bucket={bucket()}
+        activeId={null}
+        onSelect={onSelect}
+        onRename={noop}
+        onDelete={noop}
+        onExport={noopExport}
+      />,
+    );
     const link = container.querySelector('a')!;
     link.click();
     expect(onSelect).toHaveBeenCalledWith('s1');
@@ -89,7 +128,16 @@ describe('ThreadBucketGroup', () => {
         { ...bucket().sessions[0], session_id: 's2', display_name: 'Chat B' },
       ],
     };
-    render(<ThreadBucketGroup bucket={b} activeId={null} onSelect={vi.fn()} />);
+    render(
+      <ThreadBucketGroup
+        bucket={b}
+        activeId={null}
+        onSelect={vi.fn()}
+        onRename={noop}
+        onDelete={noop}
+        onExport={noopExport}
+      />,
+    );
     expect(screen.getByText('Chat A')).toBeDefined();
     expect(screen.getByText('Chat B')).toBeDefined();
   });

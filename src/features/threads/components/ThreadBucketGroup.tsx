@@ -1,5 +1,7 @@
 /**
  * ThreadBucketGroup —— 单个时间分桶（CSS Modules 版）。
+ *
+ * B3-03: 透传 rename / delete / export handlers 到 ThreadItem。
  */
 import type { SessionBucket } from '@/features/sessions';
 import { ThreadItem } from './ThreadItem';
@@ -9,9 +11,19 @@ export interface ThreadBucketGroupProps {
   bucket: SessionBucket;
   activeId: string | null;
   onSelect: (id: string) => void;
+  onRename: (id: string, newName: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onExport: (id: string) => Promise<string | null>;
 }
 
-export function ThreadBucketGroup({ bucket, activeId, onSelect }: ThreadBucketGroupProps) {
+export function ThreadBucketGroup({
+  bucket,
+  activeId,
+  onSelect,
+  onRename,
+  onDelete,
+  onExport,
+}: ThreadBucketGroupProps) {
   return (
     <section className={s.group} data-bucket={bucket.label}>
       <h3 className={s.label}>{bucket.label}</h3>
@@ -22,6 +34,9 @@ export function ThreadBucketGroup({ bucket, activeId, onSelect }: ThreadBucketGr
             session={sess}
             active={activeId === sess.session_id}
             onClick={() => onSelect(sess.session_id)}
+            onRename={onRename}
+            onDelete={onDelete}
+            onExport={onExport}
           />
         ))}
       </ul>

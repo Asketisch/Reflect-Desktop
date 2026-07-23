@@ -1,5 +1,8 @@
 /**
  * Threads —— 线程列表（CSS Modules 版）。
+ *
+ * B3-03: ThreadsView 注入 rename / delete / export handlers 到 ThreadBucketGroup。
+ *        所有 mutation 通过 useSessions → invalidate → 自动重刷。
  */
 import { useSessions, useActiveSession } from '../sessions/hooks/useSessions';
 import { ThreadBucketGroup } from './components/ThreadBucketGroup';
@@ -9,7 +12,7 @@ import { MessagesSquare } from 'lucide-react';
 import s from './ThreadsView.module.css';
 
 export function ThreadsView() {
-  const { buckets } = useSessions();
+  const { buckets, rename, remove, export: exportSession } = useSessions();
   const { activeId, setActiveId } = useActiveSession();
 
   return (
@@ -30,6 +33,9 @@ export function ThreadsView() {
               bucket={b}
               activeId={activeId}
               onSelect={setActiveId}
+              onRename={rename}
+              onDelete={remove}
+              onExport={exportSession}
             />
           ))}
         </div>
