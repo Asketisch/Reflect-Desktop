@@ -1,0 +1,187 @@
+/**
+ * Vitest — slash engine 解析 + 分发测试。
+ */
+import { describe, it, expect } from 'vitest';
+import {
+  parseSlash,
+  executeSlash,
+  dispatch,
+  resolveCommand,
+  type ParsedSlash,
+} from './slashEngine';
+import { SLASH_COMMANDS } from './slashCommands';
+
+const CTX = { activeSessionId: 's-active', now: () => new Date('2026-01-01T00:00:00Z') };
+
+describe('parseSlash', () => {
+  it('returns isSlash=false for plain text', () => {
+    const p = parseSlash('hello world');
+    expect(p.isSlash).toBe(false);
+    if (!p.isSlash) expect(p.raw).toBe('hello world');
+  });
+
+  it('parses /command', () => {
+    const p = parseSlash('/compact');
+    expect(p.isSlash).toBe(true);
+    if (p.isSlash) {
+      expect(p.command).toBe('compact');
+      expect(p.args).toEqual([]);
+    }
+  });
+
+  it('parses /command args', () => {
+    const p = parseSlash('/effort high');
+    expect(p.isSlash).toBe(true);
+    if (p.isSlash) {
+      expect(p.command).toBe('effort');
+      expect(p.args).toEqual(['high']);
+    }
+  });
+
+  it('parses /command with multi-word args', () => {
+    const p = parseSlash('/rename My Cool Session');
+    expect(p.isSlash).toBe(true);
+    if (p.isSlash) {
+      expect(p.command).toBe('rename');
+      expect(p.args).toEqual(['My', 'Cool', 'Session']);
+    }
+  });
+
+  it('lowercases command', () => {
+    const p = parseSlash('/COMPACT');
+    expect(p.isSlash).toBe(true);
+    if (p.isSlash) expect(p.command).toBe('compact');
+  });
+});
+
+describe('resolveCommand', () => {
+  it('finds by primary name', () => {
+    expect(resolveCommand('compact')?.name).toBe('compact');
+  });
+  it('finds by alias', () => {
+    expect(resolveCommand('?')?.name).toBe('help');
+    expect(resolveCommand('exitplan')?.name).toBe('exit-plan');
+  });
+  it('returns null on unknown', () => {
+    expect(resolveCommand('nope')).toBeNull();
+  });
+});
+
+describe('executeSlash — Tier A real dispatch', () => {
+  it('/compact → submit_with_submission:compact', () => {
+    const p = parseSlash('/compact');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('submit_with_submission');
+    expect(r.submission).toBe('compact');
+  });
+
+  it('/plan → enter_plan_mode', () => {
+    const p = parseSlash('/plan refactor');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('submit_with_submission');
+    expect(r.submission).toBe('enter_plan_mode');
+    expect(r.message).toContain('refactor');
+  });
+
+  it('/exit-plan → exit_plan_mode', () => {
+    const p = parseSlash('/exit-plan');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.submission).toBe('exit_plan_mode');
+  });
+
+  it('/effort low|medium|high ok', () => {
+    for (const level of ['low', 'medium', 'high']) {
+      const p = parseSlash(`/effort ${level}`);
+      if (!p.isSlash) throw new Error('not slash');
+      const r = executeSlash(p as ParsedSlash, CTX);
+      expect(r.submission).toBe('set_effort');
+      expect(r.message).toContain(level);
+    }
+  });
+
+  it('/effort (no arg) → reject', () => {
+    const p = parseSlash('/effort');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('reject');
+  });
+
+  it('/effort bogus → reject', () => {
+    const p = parseSlash('/effort bogus');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('reject');
+  });
+
+  it('/mode auto → set_permission_mode', () => {
+    const p = parseSlash('/mode auto');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.submission).toBe('set_permission_mode');
+  });
+
+  it('/mode (no arg) → reject', () => {
+    const p = parseSlash('/mode');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('reject');
+  });
+
+  it('/help → no-op with count', () => {
+    const p = parseSlash('/help');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('no-op');
+    expect(r.message).toContain(String(SLASH_COMMANDS.length));
+  });
+});
+
+describe('executeSlash — session-bound commands', () => {
+  it('/rename without active session → reject', () => {
+    const p = parseSlash('/rename Foo');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, { ...CTX, activeSessionId: null });
+    expect(r.kind).toBe('reject');
+  });
+
+  it('/rename with active session → submit_with_submission', () => {
+    const p = parseSlash('/rename Foo');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.submission).toBe('rename_session');
+  });
+
+  it('/export with active session → submit_with_submission', () => {
+    const p = parseSlash('/export');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.submission).toBe('export_session');
+  });
+});
+
+describe('dispatch', () => {
+  it('non-slash returns plain text payload', () => {
+    const r = dispatch('hi there', CTX);
+    if ('isSlash' in r) {
+      expect(r.isSlash).toBe(false);
+    } else {
+      throw new Error('expected SlashInput');
+    }
+  });
+
+  it('slash routes through executeSlash', () => {
+    const r = dispatch('/interrupt', CTX);
+    if (!('kind' in r)) throw new Error('expected SlashResult');
+    expect(r.kind).toBe('submit_with_submission');
+    expect(r.submission).toBe('interrupt');
+  });
+
+  it('unknown slash → reject', () => {
+    const r = dispatch('/nonexistent', CTX);
+    if (!('kind' in r)) throw new Error('expected SlashResult');
+    expect(r.kind).toBe('reject');
+  });
+});

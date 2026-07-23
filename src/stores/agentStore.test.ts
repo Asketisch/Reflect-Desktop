@@ -31,6 +31,7 @@ const emptyState = (): AgentState => ({
   mcpInvocations: [],
   lastRouting: null,
   configReloadedAt: null,
+  toasts: [],
   // Actions (unused in reducer tests; the strict AgentState type requires them).
   subscribe: () => () => {},
   submit: async () => {},
@@ -47,6 +48,8 @@ const emptyState = (): AgentState => ({
   answerQuestion: async () => {},
   answerInput: async () => {},
   clearError: () => {},
+  pushToast: () => '',
+  dismissToast: () => {},
   reset: () => {},
 });
 

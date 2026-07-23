@@ -25,6 +25,7 @@ export const SLASH_COMMANDS: SlashCmd[] = [
 
   { name: 'init', category: 'system', summary: '初始化当前目录' },
   { name: 'clear', category: 'session', summary: '清屏(对话继续)' },
+  { name: 'interrupt', category: 'session', summary: '中断当前 turn' },
   { name: 'resume', category: 'session', summary: '恢复上一会话' },
   { name: 'rename', category: 'session', summary: '重命名当前会话' },
   { name: 'export', category: 'session', summary: '导出当前会话 (markdown/jsonl)' },

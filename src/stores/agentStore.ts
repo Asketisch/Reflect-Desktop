@@ -160,6 +160,19 @@ export interface RoutingSnapshot {
   reason: string;
 }
 
+// ====== Toast (B4:slash engine feedback) ======
+
+export type ToastKind = 'info' | 'warn' | 'error' | 'success';
+
+export interface Toast {
+  id: string;
+  kind: ToastKind;
+  message: string;
+  /** Auto-dismiss after this many ms (0 = sticky). */
+  ttlMs: number;
+  createdAt: number;
+}
+
 // ====== MCP / LSP server 状态 ======
 
 export interface McpServerEntry {
@@ -212,6 +225,8 @@ export interface AgentState {
   lastRouting: RoutingSnapshot | null;
   /** 配置重载时间戳(config_reloaded event)。 */
   configReloadedAt: number | null;
+  /** Toast 队列(B4:slash engine 反馈 / B1-06 status info)。 */
+  toasts: Toast[];
 
   // ====== Actions ======
   /** 建立 reflect_event 订阅(幂等,AppProviders mount 时调一次)。 */
@@ -241,6 +256,9 @@ export interface AgentState {
   answerInput: (id: string, text: string) => Promise<void>;
   /** 清除错误。 */
   clearError: () => void;
+  /** B4:把一条 toast push 到队列。B10 后续会做 UI;此处只管状态。 */
+  pushToast: (t: { kind: ToastKind; message: string; ttlMs?: number }) => string;
+  dismissToast: (id: string) => void;
   /** 测试/重置用:清空所有 turns + pending。 */
   reset: () => void;
 }
@@ -689,6 +707,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   mcpInvocations: [],
   lastRouting: null,
   configReloadedAt: null,
+  toasts: [],
 
   subscribe: () => {
     if (get().subscribed) {
@@ -777,6 +796,25 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   },
 
   clearError: () => set({ lastError: null }),
+  pushToast: (t) => {
+    const id = uuid();
+    const toast: Toast = {
+      id,
+      kind: t.kind,
+      message: t.message,
+      ttlMs: t.ttlMs ?? 4000,
+      createdAt: Date.now(),
+    };
+    set((s) => ({ toasts: [...s.toasts, toast] }));
+    if (toast.ttlMs > 0 && typeof setTimeout !== 'undefined') {
+      setTimeout(() => {
+        set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) }));
+      }, toast.ttlMs);
+    }
+    return id;
+  },
+  dismissToast: (id) =>
+    set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
 
   reset: () =>
     set({
@@ -796,6 +834,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       mcpInvocations: [],
       lastRouting: null,
       configReloadedAt: null,
+      toasts: [],
     }),
 }));
 

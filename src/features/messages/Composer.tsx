@@ -5,6 +5,8 @@
  *   - Tier A toolbar: 9 个常用 slash 命令
  *   - Cmd/Ctrl+Enter 提交（IME 安全）
  *   - 卡片容器 + 底部工具栏 + Send IconButton（ArrowUp 图标）
+ *   - B4: 提交时通过 slashEngine 解析 → 路由到对应 Submission
+ *     (compact / enter_plan_mode / exit_plan_mode / set_effort / set_permission_mode / interrupt / export_session / rename_session)
  */
 import {
   useState,
@@ -17,11 +19,26 @@ import { ArrowUp, SlashSquare } from 'lucide-react';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { SlashPopup } from '@/features/composer/SlashPopup';
 import { TIER_A_TOOLBAR } from '@/features/composer/slashCommands';
+import { dispatch } from '@/features/composer/slashEngine';
 import { useAgent } from '@/services/agent';
+import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
+import {
+  reflect_compact,
+  reflect_interrupt,
+  reflect_enter_plan_mode,
+  reflect_exit_plan_mode,
+  reflect_set_effort,
+  reflect_set_permission_mode,
+  reflect_export_session,
+} from '@/utils/tauri';
+import { useAgentStore } from '@/stores/agentStore';
 import s from './Composer.module.css';
 
 export function Composer() {
   const { submit } = useAgent();
+  const { activeId } = useActiveSession();
+  const { rename } = useSessions();
+  const pushToast = useAgentStore((s) => s.pushToast);
   const [text, setText] = useState('');
   const [slashVisible, setSlashVisible] = useState(false);
   const [slashQuery, setSlashQuery] = useState('');
@@ -58,6 +75,51 @@ export function Composer() {
     [text, slashVisible],
   );
 
+  /** Dispatch a Submission by its string kind (B4: slash engine output). */
+  const dispatchSubmission = useCallback(
+    async (kind: string, args: string[]): Promise<void> => {
+      switch (kind) {
+        case 'compact':
+          await reflect_compact();
+          pushToast({ kind: 'info', message: 'Compact requested.' });
+          break;
+        case 'enter_plan_mode':
+          await reflect_enter_plan_mode(args.join(' ') || 'unspecified');
+          break;
+        case 'exit_plan_mode':
+          await reflect_exit_plan_mode();
+          break;
+        case 'set_effort': {
+          const level = (args[0] ?? '').toLowerCase();
+          await reflect_set_effort(level);
+          break;
+        }
+        case 'set_permission_mode': {
+          const m = (args[0] ?? '').toLowerCase();
+          await reflect_set_permission_mode(m);
+          break;
+        }
+        case 'interrupt':
+          await reflect_interrupt();
+          break;
+        case 'export_session':
+          if (activeId) {
+            const path = await reflect_export_session(activeId);
+            pushToast({ kind: 'info', message: `Exported → ${path ?? '(no path)'}` });
+          }
+          break;
+        case 'rename_session': {
+          const name = args.join(' ').trim();
+          if (activeId && name) await rename(activeId, name);
+          break;
+        }
+        default:
+          pushToast({ kind: 'warn', message: `Unhandled slash submission: ${kind}` });
+      }
+    },
+    [activeId, rename, pushToast],
+  );
+
   const doSubmit = useCallback(async () => {
     const value = text.trim();
     if (!value) return;
@@ -65,14 +127,27 @@ export function Composer() {
     setText('');
     setSlashVisible(false);
     try {
-      await submit(value);
+      const result = dispatch(value, { activeSessionId: activeId, now: () => new Date() });
+      if ('kind' in result) {
+        if (result.kind === 'submit_with_submission' && result.submission) {
+          await dispatchSubmission(result.submission, ('args' in result ? (result as { args?: string[] }).args ?? [] : []));
+        } else if (result.kind === 'reject') {
+          pushToast({ kind: 'error', message: result.message ?? 'Command rejected.' });
+        } else if (result.kind === 'no-op') {
+          pushToast({ kind: 'info', message: result.message ?? 'Command handled.' });
+        }
+      } else {
+        // Plain text — submit to agent.
+        await submit(value);
+      }
     } catch (e) {
       console.error(e);
+      pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
     } finally {
       setBusy(false);
       ref.current?.focus();
     }
-  }, [text, submit]);
+  }, [text, activeId, submit, dispatchSubmission, pushToast]);
 
   const onSlashSelect = useCallback((cmd: string) => {
     setText((prev) => {
