@@ -40,7 +40,7 @@ export function useSessions(): UseSessionsResult {
   const qc = useQueryClient();
   const { data: all = [], isLoading, error, refetch } = useQuery({
     queryKey: SESSIONS_QUERY_KEY,
-    queryFn: reflect_list_sessions,
+    queryFn: () => reflect_list_sessions(),
     staleTime: SESSIONS_STALE_MS,
   });
 

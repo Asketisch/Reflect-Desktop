@@ -23,7 +23,7 @@ export function WorkspacesView() {
   });
   const sessionsQ = useQuery({
     queryKey: ['sessions'],
-    queryFn: reflect_list_sessions,
+    queryFn: () => reflect_list_sessions(),
     staleTime: 60_000,
   });
 

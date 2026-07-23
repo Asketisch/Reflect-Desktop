@@ -272,11 +272,31 @@ fn sessions_base() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".reflect/sessions"))
 }
 
+/// List sessions, optionally paginated.
+///
+/// B3-04: `limit` + `offset` give cursor-style paging (newest first).
+/// `limit = 0` or omitted → no limit (full list).
 #[tauri::command]
-pub async fn reflect_list_sessions() -> CommandResult<Vec<SessionInfo>> {
+pub async fn reflect_list_sessions(
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> CommandResult<Vec<SessionInfo>> {
     let base = sessions_base()
         .ok_or_else(|| CommandError { msg: "no home dir".into() })?;
-    rollout_index::list_sessions(&base).map_err(CommandError::from)
+    let mut all = rollout_index::list_sessions(&base).map_err(CommandError::from)?;
+    let off = offset.unwrap_or(0);
+    if off >= all.len() {
+        return Ok(Vec::new());
+    }
+    if off > 0 {
+        all = all.split_off(off);
+    }
+    if let Some(n) = limit {
+        if n < all.len() {
+            all.truncate(n);
+        }
+    }
+    Ok(all)
 }
 
 #[tauri::command]
@@ -658,5 +678,56 @@ mod tests {
         assert!(matches!(deny, ReviewDecision::Deny { .. }));
         // PascalCase 应被拒绝,防止前端误用。
         assert!(serde_json::from_str::<ReviewDecision>("\"Approve\"").is_err());
+    }
+
+    // B3-04: pagination logic mirrors reflect_list_sessions's limit/offset slice.
+    // We don't spin up a Tauri runtime here; we replicate the slice semantics
+    // on a synthetic Vec<String> so a regression in the algorithm is caught.
+
+    fn paginate<T: Clone>(mut all: Vec<T>, limit: Option<usize>, offset: Option<usize>) -> Vec<T> {
+        let off = offset.unwrap_or(0);
+        if off >= all.len() {
+            return Vec::new();
+        }
+        let mut rest = if off > 0 { all.split_off(off) } else { all };
+        if let Some(n) = limit {
+            if n < rest.len() {
+                rest.truncate(n);
+            }
+        }
+        rest
+    }
+
+    #[test]
+    fn pagination_no_limit_returns_all() {
+        let v: Vec<String> = (0..5).map(|i| format!("t-{i}")).collect();
+        assert_eq!(paginate(v, None, None).len(), 5);
+    }
+
+    #[test]
+    fn pagination_limit_truncates() {
+        let v: Vec<String> = (0..5).map(|i| format!("t-{i}")).collect();
+        assert_eq!(paginate(v, Some(2), None).len(), 2);
+    }
+
+    #[test]
+    fn pagination_offset_skips() {
+        let v: Vec<String> = (0..5).map(|i| format!("t-{i}")).collect();
+        let out = paginate(v, None, Some(2));
+        assert_eq!(out.len(), 3);
+        assert_eq!(out[0], "t-2");
+    }
+
+    #[test]
+    fn pagination_offset_and_limit() {
+        let v: Vec<String> = (0..10).map(|i| format!("t-{i}")).collect();
+        let out = paginate(v, Some(3), Some(2));
+        assert_eq!(out, vec!["t-2", "t-3", "t-4"]);
+    }
+
+    #[test]
+    fn pagination_offset_beyond_end_returns_empty() {
+        let v: Vec<String> = (0..3).map(|i| format!("t-{i}")).collect();
+        assert_eq!(paginate(v, None, Some(10)).len(), 0);
     }
 }

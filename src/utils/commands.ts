@@ -109,8 +109,13 @@ export async function reflect_list_tools(): Promise<ReflectToolInfo[]> {
 }
 
 /** Session I/O. */
-export async function reflect_list_sessions(): Promise<ReflectSessionInfo[]> {
-  return invoke<ReflectSessionInfo[]>('reflect_list_sessions');
+export async function reflect_list_sessions(
+  opts: { limit?: number; offset?: number } = {},
+): Promise<ReflectSessionInfo[]> {
+  return invoke<ReflectSessionInfo[]>('reflect_list_sessions', {
+    limit: opts.limit ?? null,
+    offset: opts.offset ?? null,
+  });
 }
 export async function reflect_rename_session(id: string, new_name: string): Promise<void> {
   return invoke<void>('reflect_rename_session', { id, newName: new_name });
