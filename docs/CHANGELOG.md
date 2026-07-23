@@ -4,6 +4,29 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Added — Batch 12 (Native menu wiring + docs polish)
+
+- **Native menu infrastructure**: `src-tauri/src/menu.rs` already provides 5 submenus
+  (Reflect / Edit / Composer / View / Window) with 12 menu items including accelerators:
+  - Reflect: About / Check for Updates / Settings (Cmd+,) / Quit
+  - Edit: Undo / Redo / Cut / Copy / Paste / Select All (Predefined)
+  - Composer: Cycle Model (Cmd+M) / Cycle Reasoning (Cmd+R) / New Agent (Cmd+N) / Interrupt (Cmd+.)
+  - View: Toggle Sidebar (Cmd+B) / Toggle Terminal (Cmd+T)
+  - Window: Minimize / Zoom / Close
+- **Menu event forwarding**: `handle_menu_event` emits `menu-*` events to frontend for
+  Settings navigation, Cycle Reasoning, New Agent, Interrupt, Toggle Sidebar, Toggle Terminal.
+  Menu event listeners were added to AppShell to handle these events via `listen()`.
+- **Dictation stub**: `DictationView` displays "Voice input coming soon" with Mic icon
+  and Web Speech API / macOS Speech Recognition roadmap.
+- **Update view**: `UpdateView` shows current version from ping query, manual update
+  instructions via `bash scripts/install.sh`, and notes about tauri-plugin-updater integration.
+- **TitleBar ⌘K hint**: Search icon + "⌘K" kbd hint on the right side with tooltip,
+  making the CommandPalette discoverable.
+- **StatusBar session count**: MessagesSquare icon + session count from `reflect_list_sessions`,
+  tooltip "N sessions on disk".
+- **Documentation**: CHANGELOG.md + PROTOCOL_BRIDGE.md + codebase-map.md updated for
+  all B1-B12 changes. All 342/342 tests pass; tsc clean; cargo check clean.
+
 ### Added — Batch 1 (协议层 + app-core 基础) 对齐 zcode/Codex Desktop
 
 - **协议类型生成 (B1-01)**:给 `vendor/reflect-protocol` 的 `EventMsg` / `Op` /
