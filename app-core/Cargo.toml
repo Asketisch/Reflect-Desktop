@@ -29,3 +29,4 @@ tokio       = { workspace = true, features = ["sync", "rt", "macros"] }
 parking_lot = { workspace = true }
 tracing     = { workspace = true }
 tempfile    = "3"
+uuid        = { workspace = true }

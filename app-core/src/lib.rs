@@ -16,6 +16,8 @@
 #![warn(unused_extern_crates)]
 
 pub mod state;
+pub mod reducer;
+pub mod protocol;
 
 /// 语义版本号（与 workspace 同步）。
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
