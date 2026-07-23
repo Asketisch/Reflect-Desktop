@@ -68,10 +68,13 @@ describe('ThreadsView', () => {
       refetch: vi.fn(),
       refresh: vi.fn(),
       rename: vi.fn(),
+      remove: vi.fn(),
+      export: vi.fn(),
     });
     vi.mocked(useActiveSession).mockReturnValue({
       activeId: null,
       setActiveId: vi.fn(),
+      clear: vi.fn(),
     });
 
     render(
@@ -95,10 +98,13 @@ describe('ThreadsView', () => {
       refetch: vi.fn(),
       refresh: vi.fn(),
       rename: vi.fn(),
+      remove: vi.fn(),
+      export: vi.fn(),
     });
     vi.mocked(useActiveSession).mockReturnValue({
       activeId: null,
       setActiveId: vi.fn(),
+      clear: vi.fn(),
     });
 
     render(
@@ -138,10 +144,13 @@ describe('ThreadsView', () => {
       refetch: vi.fn(),
       refresh: vi.fn(),
       rename: vi.fn(),
+      remove: vi.fn(),
+      export: vi.fn(),
     });
     vi.mocked(useActiveSession).mockReturnValue({
       activeId: 's1',
       setActiveId: vi.fn(),
+      clear: vi.fn(),
     });
 
     render(

@@ -7,11 +7,14 @@
  *
  * CodexMonitor 同名: `src/features/threads/hooks/useThreads.ts`
  */
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useLocation } from '@tanstack/react-router';
 import {
   reflect_list_sessions,
   reflect_rename_session,
+  reflect_delete_session,
+  reflect_export_session,
   type ReflectSessionInfo,
 } from '@/utils/tauri';
 import { bucketSessions, type SessionBucket } from '../utils/buckets';
@@ -29,6 +32,8 @@ export interface UseSessionsResult {
   refetch: () => void;
   refresh: () => void;
   rename: (id: string, newName: string) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  export: (id: string) => Promise<string | null>;
 }
 
 export function useSessions(): UseSessionsResult {
@@ -49,9 +54,24 @@ export function useSessions(): UseSessionsResult {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => reflect_delete_session(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+    },
+  });
+
   const rename = useCallback(async (id: string, newName: string) => {
     await renameMutation.mutateAsync({ id, newName });
   }, [renameMutation]);
+
+  const remove = useCallback(async (id: string) => {
+    await deleteMutation.mutateAsync(id);
+  }, [deleteMutation]);
+
+  const exportSession = useCallback(async (id: string) => {
+    return reflect_export_session(id);
+  }, []);
 
   return {
     buckets,
@@ -65,15 +85,49 @@ export function useSessions(): UseSessionsResult {
       void refetch();
     },
     rename,
+    remove,
+    export: exportSession,
   };
 }
 
 /**
- * 维护当前活动 session id(local state,non-persisted)。
+ * 路由驱动的活动 session id —— 与 ChatView / Sidebar 的 URL 同步。
+ *
+ * 读源: `/chat/$sessionId` 路由参数；fallback 到 `/chat`（无 id,新对话）。
+ * 写入: `setActiveId(id)` 导航到 `/chat/$sessionId`,`setActiveId(null)` 导航到 `/chat`。
+ *        `clear()` 显式清除(等价 null)。
  *
  * CodexMonitor 同名: `src/features/threads/hooks/useActiveThread.ts`
  */
-export function useActiveSession() {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  return { activeId, setActiveId };
+export interface UseActiveSessionResult {
+  activeId: string | null;
+  setActiveId: (id: string | null) => void;
+  clear: () => void;
+}
+
+export function useActiveSession(): UseActiveSessionResult {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Derive sessionId from pathname: matches /chat/:sessionId but not /chat.
+  const activeId = (() => {
+    const m = location.pathname.match(/^\/chat\/([^/]+)$/);
+    return m ? decodeURIComponent(m[1]) : null;
+  })();
+
+  const setActiveId = useCallback((id: string | null) => {
+    if (id) {
+      void navigate({ to: '/chat/$sessionId', params: { sessionId: id } });
+    } else if (location.pathname.startsWith('/chat')) {
+      void navigate({ to: '/chat' });
+    }
+  }, [navigate, location.pathname]);
+
+  const clear = useCallback(() => {
+    if (location.pathname.startsWith('/chat')) {
+      void navigate({ to: '/chat' });
+    }
+  }, [navigate, location.pathname]);
+
+  return { activeId, setActiveId, clear };
 }

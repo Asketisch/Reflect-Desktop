@@ -121,6 +121,10 @@ export async function reflect_delete_session(id: string): Promise<void> {
 export async function reflect_replay_session(id: string): Promise<ReflectRolloutRecord[]> {
   return invoke<ReflectRolloutRecord[]>('reflect_replay_session', { id });
 }
+/** Export session to JSON, return absolute path. */
+export async function reflect_export_session(id: string): Promise<string | null> {
+  return invoke<string | null>('reflect_export_session', { id });
+}
 
 /** 订阅 reflect_event 通道（payload = ReflectEvent）。 */
 export async function onReflectEvent(handler: (event: ReflectEvent) => void) {

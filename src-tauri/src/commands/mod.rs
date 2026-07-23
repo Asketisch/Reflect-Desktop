@@ -311,6 +311,27 @@ pub async fn reflect_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRe
         .map_err(CommandError::from)
 }
 
+/// Export session to JSON in `~/.reflect/exports/<id>.json` and return path.
+/// Used by B3-02 export menu (ThreadsView, CommandPalette).
+#[tauri::command]
+pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| CommandError { msg: "no home dir".into() })?;
+    let export_dir = home.join(".reflect/exports");
+    std::fs::create_dir_all(&export_dir).map_err(CommandError::from)?;
+    let dest = export_dir.join(format!("{}.json", id));
+    let records = {
+        let base = home.join(".reflect/sessions");
+        rollout_reader::replay(&base, id)
+            .await
+            .map_err(CommandError::from)?
+    };
+    let json = serde_json::to_string_pretty(&records)
+        .map_err(|e| CommandError { msg: format!("json: {e}") })?;
+    std::fs::write(&dest, json).map_err(CommandError::from)?;
+    Ok(dest.to_string_lossy().into_owned())
+}
+
 // ====== Workspace (B1-07 / B9-06) ======
 
 #[derive(Debug, Serialize, Deserialize)]

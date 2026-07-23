@@ -406,7 +406,6 @@ pub fn default_keymap() -> std::collections::BTreeMap<String, String> {
 
 /// Re-export of the protocol types we depend on.
 pub use reflect_protocol::{Event, EventMsg as ProtocolEventMsg, Submission};
-use reflect_protocol::Op;
 
 /// Single record stored in the rollout (one per submission or event).
 pub type RolloutEntry = RolloutRecord;

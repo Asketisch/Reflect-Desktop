@@ -9,11 +9,25 @@
  * 5. 错误处理 (invoke reject)
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { mockInvoke, resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
+
+// Module-level mocks for router hooks used by useActiveSession.
+// The pathname can be flipped per-test via `__mockPathname`.
+const __mockPathname: { current: string } = { current: '/chat' };
+const __mockNavigate = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('@tanstack/react-router', async () => {
+  const actual = await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router');
+  return {
+    ...actual,
+    useNavigate: () => __mockNavigate,
+    useLocation: () => ({ pathname: __mockPathname.current }),
+  };
+});
 
 function hookWrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -152,12 +166,32 @@ describe('useSessions', () => {
 });
 
 describe('useActiveSession', () => {
-  it('starts with null and accepts setActiveId', async () => {
-    const { useActiveSession } = await import('@/features/sessions/hooks/useSessions');
+  beforeEach(() => {
+    __mockPathname.current = '/chat';
+    __mockNavigate.mockClear();
+  });
+
+  it('reads null when on /chat', () => {
+    __mockPathname.current = '/chat';
     const { result } = renderHook(() => useActiveSession(), { wrapper: hookWrapper });
 
     expect(result.current.activeId).toBeNull();
-    act(() => result.current.setActiveId('s1'));
-    expect(result.current.activeId).toBe('s1');
+  });
+
+  it('reads sessionId from /chat/:id pathname', () => {
+    __mockPathname.current = '/chat/s-abc';
+    const { result } = renderHook(() => useActiveSession(), { wrapper: hookWrapper });
+
+    expect(result.current.activeId).toBe('s-abc');
+  });
+
+  it('exposes clear() that navigates to /chat', async () => {
+    __mockPathname.current = '/chat/s-abc';
+    const { result } = renderHook(() => useActiveSession(), { wrapper: hookWrapper });
+
+    await act(async () => {
+      result.current.clear();
+    });
+    expect(__mockNavigate).toHaveBeenCalledWith({ to: '/chat' });
   });
 });
