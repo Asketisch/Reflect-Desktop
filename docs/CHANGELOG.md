@@ -174,6 +174,21 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 - **jsdom polyfill**:`Element.prototype.scrollIntoView = noop`，
   让 autoscroll 组件在测试环境不报错。
 
+### Added — Batch 11 (Memory management view)
+
+- **MemoryView (B11-01)**: 新 `src/features/memory/MemoryView.tsx`,
+  通过 `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory`
+  与后端同步持久记忆。
+  - Scope filter: All / Global / Project / Session 四个 tab,
+    实时计数;`filterBar` + `addBtn` 一行完成。
+  - 新增表单: scope select + key + value input + Save button,
+    点击 Add 展开,Cancel 收起。
+  - 内联编辑: 点击 edit → textarea + Save/Cancel; delete → Trash2。
+  - Empty state: "Add a key above or let the agent learn your preferences."
+- **router**: 新增 `/memory` → `MemoryView` 路由。
+- **测试**: MemoryView 5 个 vitest (title/filters/add toggle/form/empty state)。
+  342/342 tests pass; tsc clean; cargo check clean。
+
 ### Added — Batch 10 (CommandPalette + ⌘K Keymap + StatusBar session count)
 
 - **CommandPalette (B10-01)**:新 `src/features/command-palette/` 目录

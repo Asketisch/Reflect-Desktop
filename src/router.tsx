@@ -33,6 +33,7 @@ import { DesignSystemView } from '@/features/design-system/DesignSystemView';
 import { DictationView } from '@/features/dictation/DictationView';
 import { MobileView } from '@/features/mobile/MobileView';
 import { UpdateView } from '@/features/update/UpdateView';
+import { MemoryView } from '@/features/memory/MemoryView';
 
 // ====== Route tree (TanStack Router v1 API) ======
 
@@ -63,6 +64,7 @@ const collaborationRoute = new Route({ getParentRoute: () => rootRoute, path: 'c
 const mobileRoute = new Route({ getParentRoute: () => rootRoute, path: 'mobile', component: MobileView });
 const dictationRoute = new Route({ getParentRoute: () => rootRoute, path: 'dictation', component: DictationView });
 const designSystemRoute = new Route({ getParentRoute: () => rootRoute, path: 'design-system', component: DesignSystemView });
+const memoryRoute = new Route({ getParentRoute: () => rootRoute, path: 'memory', component: MemoryView });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -87,6 +89,7 @@ const routeTree = rootRoute.addChildren([
   mobileRoute,
   dictationRoute,
   designSystemRoute,
+  memoryRoute,
 ]);
 
 // ====== Router instance ======
