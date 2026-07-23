@@ -50,7 +50,7 @@ import {
   reflect_ask_user_input_response,
 } from '@/utils/tauri';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
-import type { ReflectEvent, ReflectSubmission } from '@/types/protocol';
+import type { ReflectEvent, ReflectSubmission, UserInputItem } from '@/types/protocol';
 import type { ReviewDecision } from '@/utils/types';
 
 // ====== 常量 ======
@@ -233,6 +233,8 @@ export interface AgentState {
   subscribe: () => () => void;
   /** 提交用户文本输入。 */
   submit: (text: string) => Promise<void>;
+  /** B5: 提交富文本 payload(text + image / skill / file items)。 */
+  submitItems: (items: UserInputItem[]) => Promise<void>;
   /** 中断当前 turn。 */
   interrupt: () => Promise<void>;
   /** 紧凑化上下文。 */
@@ -737,6 +739,31 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     // 乐观:立即加一个带 user_text 的 turn。
     set((s) => ({
       turns: [...s.turns, { id, items: [{ kind: 'user_text', text }], status: 'streaming' }],
+    }));
+    await reflect_submit(submission);
+  },
+  /** B5: submit rich payload (text + image / skill / file items). */
+  submitItems: async (items: UserInputItem[]) => {
+    const id = uuid();
+    const submission: ReflectSubmission = {
+      id,
+      op: { type: 'user_input', items },
+    };
+    const firstText = items.find((x): x is { type: 'text'; text: string } => x.type === 'text');
+    // Optimistic: only the text turn is rendered as a TurnItem; images/skills
+    // ride along in the submission but render lazily when the agent echoes
+    // them back as content blocks.
+    set((s) => ({
+      turns: [
+        ...s.turns,
+        {
+          id,
+          items: firstText
+            ? [{ kind: 'user_text' as const, text: firstText.text }]
+            : [{ kind: 'user_text' as const, text: `(${items.length} attachment${items.length === 1 ? '' : 's'})` }],
+          status: 'streaming' as const,
+        },
+      ],
     }));
     await reflect_submit(submission);
   },

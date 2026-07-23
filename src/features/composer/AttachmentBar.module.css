@@ -1,0 +1,41 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-elev-2, rgba(255, 255, 255, 0.03));
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--accent-subtle, rgba(94, 175, 230, 0.15));
+  border: 1px solid var(--accent-border, rgba(94, 175, 230, 0.4));
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.label {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+}
+
+.remove:hover {
+  color: var(--text-primary);
+}

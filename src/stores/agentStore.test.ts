@@ -35,6 +35,7 @@ const emptyState = (): AgentState => ({
   // Actions (unused in reducer tests; the strict AgentState type requires them).
   subscribe: () => () => {},
   submit: async () => {},
+  submitItems: async () => {},
   interrupt: async () => {},
   compact: async () => {},
   rewind: async () => {},

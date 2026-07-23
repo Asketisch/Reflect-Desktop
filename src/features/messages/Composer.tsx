@@ -12,14 +12,18 @@ import {
   useState,
   useRef,
   useCallback,
+  useMemo,
   type KeyboardEvent,
   type ChangeEvent,
 } from 'react';
-import { ArrowUp, SlashSquare } from 'lucide-react';
+import { ArrowUp, SlashSquare, Image as ImageIcon, FileText, AtSign } from 'lucide-react';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { SlashPopup } from '@/features/composer/SlashPopup';
 import { TIER_A_TOOLBAR } from '@/features/composer/slashCommands';
 import { dispatch } from '@/features/composer/slashEngine';
+import { AttachmentBar } from '@/features/composer/AttachmentBar';
+import { useAttachments } from '@/features/composer/useAttachments';
+import { MentionPicker } from '@/features/composer/MentionPicker';
 import { useAgent } from '@/services/agent';
 import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 import {
@@ -43,7 +47,11 @@ export function Composer() {
   const [slashVisible, setSlashVisible] = useState(false);
   const [slashQuery, setSlashQuery] = useState('');
   const [busy, setBusy] = useState(false);
+  const [mentionOpen, setMentionOpen] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const att = useAttachments();
 
   const onChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
@@ -122,24 +130,36 @@ export function Composer() {
 
   const doSubmit = useCallback(async () => {
     const value = text.trim();
-    if (!value) return;
+    if (!value && att.attachments.length === 0) return;
     setBusy(true);
     setText('');
     setSlashVisible(false);
     try {
-      const result = dispatch(value, { activeSessionId: activeId, now: () => new Date() });
-      if ('kind' in result) {
-        if (result.kind === 'submit_with_submission' && result.submission) {
-          await dispatchSubmission(result.submission, ('args' in result ? (result as { args?: string[] }).args ?? [] : []));
-        } else if (result.kind === 'reject') {
-          pushToast({ kind: 'error', message: result.message ?? 'Command rejected.' });
-        } else if (result.kind === 'no-op') {
-          pushToast({ kind: 'info', message: result.message ?? 'Command handled.' });
+      const parsed = dispatch(value, { activeSessionId: activeId, now: () => new Date() });
+      if ('kind' in parsed) {
+        if (parsed.kind === 'submit_with_submission' && parsed.submission) {
+          const re = /^(\/\S+)(?:\s+(.*))?$/;
+          const m = re.exec(value.trim());
+          const args = m && m[2] ? m[2].split(/\s+/) : [];
+          await dispatchSubmission(parsed.submission, args);
+        } else if (parsed.kind === 'reject') {
+          pushToast({ kind: 'error', message: parsed.message ?? 'Command rejected.' });
+        } else if (parsed.kind === 'no-op') {
+          pushToast({ kind: 'info', message: parsed.message ?? 'Command handled.' });
         }
       } else {
-        // Plain text — submit to agent.
-        await submit(value);
+        // Plain text — submit to agent (B5: with attachments).
+        if (att.attachments.length > 0) {
+          const items = att.toUserInputItems();
+          await useAgentStore.getState().submitItems([
+            ...(value ? [{ type: 'text' as const, text: value }] : []),
+            ...items,
+          ]);
+        } else {
+          await submit(value);
+        }
       }
+      att.clear();
     } catch (e) {
       console.error(e);
       pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
@@ -147,7 +167,7 @@ export function Composer() {
       setBusy(false);
       ref.current?.focus();
     }
-  }, [text, activeId, submit, dispatchSubmission, pushToast]);
+  }, [text, activeId, submit, dispatchSubmission, pushToast, att]);
 
   const onSlashSelect = useCallback((cmd: string) => {
     setText((prev) => {
@@ -170,13 +190,78 @@ export function Composer() {
     ref.current?.focus();
   };
 
-  const canSend = !busy && !!text.trim();
+  const canSend = !busy && (!!text.trim() || att.attachments.length > 0);
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
   const sendHint = isMac ? 'Send (⌘↵)' : 'Send (Ctrl+↵)';
+
+  // B5: @mention query — extract "@xxx" prefix at cursor.
+  const mentionQuery = useMemo(() => {
+    const m = text.match(/(?:^|\s)@(\w*)$/);
+    return m ? m[1] : '';
+  }, [text]);
+
+  // Hidden file inputs for inline image / file picking (Tauri webview).
+  const onPickImage = useCallback(
+    (files: FileList | null) => {
+      if (!files) return;
+      Array.from(files).forEach((file) => {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            att.addInlineImage(reader.result, file.type);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    [att],
+  );
+
+  const onPickFile = useCallback(
+    (files: FileList | null) => {
+      if (!files) return;
+      // For now store the file name as a placeholder path; real workspace-relative
+      // paths require tauri-plugin-dialog (deferred). We still surface the
+      // attachment to the user.
+      Array.from(files).forEach((file) => {
+        att.addLocalImage(`(file) ${file.name}`);
+      });
+    },
+    [att],
+  );
 
   return (
     <div className={s.wrap}>
       <SlashPopup query={slashQuery} visible={slashVisible} onSelect={onSlashSelect} />
+      <MentionPicker
+        visible={mentionOpen && mentionQuery !== undefined}
+        query={mentionQuery}
+        onPick={(name) => {
+          att.addSkillMention(name);
+          setMentionOpen(false);
+        }}
+        onClose={() => setMentionOpen(false)}
+      />
+
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        style={{ display: 'none' }}
+        data-testid="composer-file-input"
+        onChange={(e) => onPickFile(e.target.files)}
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        style={{ display: 'none' }}
+        data-testid="composer-image-input"
+        onChange={(e) => onPickImage(e.target.files)}
+      />
 
       <div className={s.toolbar}>
         {TIER_A_TOOLBAR.map((c) => (
@@ -193,6 +278,7 @@ export function Composer() {
       </div>
 
       <div className={s.card}>
+        <AttachmentBar attachments={att.attachments} onRemove={att.remove} />
         <textarea
           ref={ref}
           rows={1}
@@ -217,6 +303,40 @@ export function Composer() {
                 }}
               >
                 <Icon icon={SlashSquare} size={14} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip label="Attach file" side="top">
+              <IconButton
+                label="Attach file"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="composer-attach-file"
+              >
+                <Icon icon={FileText} size={14} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip label="Attach image" side="top">
+              <IconButton
+                label="Attach image"
+                size="sm"
+                onClick={() => imageInputRef.current?.click()}
+                data-testid="composer-attach-image"
+              >
+                <Icon icon={ImageIcon} size={14} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip label="Mention skill" side="top">
+              <IconButton
+                label="Mention skill"
+                size="sm"
+                onClick={() => {
+                  setText((v) => `${v} @`);
+                  setMentionOpen(true);
+                  ref.current?.focus();
+                }}
+                data-testid="composer-attach-mention"
+              >
+                <Icon icon={AtSign} size={14} />
               </IconButton>
             </Tooltip>
           </div>
