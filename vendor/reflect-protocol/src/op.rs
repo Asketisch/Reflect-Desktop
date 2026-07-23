@@ -1,5 +1,6 @@
 //! Op — operations a client can submit to the core.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::item::{ReasoningEffortMirror, ReviewDecision, ThreadSettingsOverrides, UserInputItem};
@@ -10,7 +11,7 @@ use crate::question::AskUserAnswer;
 /// v0 有 6 个 variant;v1.x 加 `EnterPlanMode` / `ExitPlanMode` 两个
 /// 共 8 个;v1.x S4 加 `SetEffort` 共 9 个。按协议 §7,新增 variant
 /// 是 non-breaking addition。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Op {
     /// 用户文本/图像输入,驱动新一轮对话。

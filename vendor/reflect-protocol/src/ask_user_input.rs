@@ -4,10 +4,11 @@
 //! 用户在 TUI 单行 modal 输入自由文本,通过 `Op::AskUserInputResponse`
 //! 回执给 `ApprovalGate::ask_user`。
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// LLM 通过 `ask_user` 工具向用户发起的自由文本询问。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct AskUserInputEvent {
     pub request_id: String,
     pub prompt: String,

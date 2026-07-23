@@ -22,6 +22,7 @@
 //!
 //! 所有新类型都是 additive addition,不影响 v1.0 消费者。
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// 单个选项的最大字符数(用于 TUI 渲染前的截断)。
@@ -50,7 +51,7 @@ pub const MAX_OPTIONS: usize = 4;
 ///   "multi_select": false
 /// }
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct Question {
     /// 简短标签,≤12 字符,TUI 用作 chip 标签。
     pub header: String,
@@ -105,7 +106,7 @@ impl Question {
 }
 
 /// 单个候选选项:标签 + 描述 + 可选预览。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct QuestionOption {
     /// 简短标签(在 TUI 中作为可选项文字,1-5 词)。
     pub label: String,
@@ -121,7 +122,7 @@ pub struct QuestionOption {
 /// - `multi_select=false`:`selected.len() == 1`,`custom` 可选。
 /// - `multi_select=true`:`selected.len() >= 1`,`custom` 可选。
 /// - 用户取消时:`selected.is_empty() && custom.is_none()`(整个 `AskUserAnswer.answers` 用空 `Answer` 填充)。
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct Answer {
     /// 选中的 option 在 `Question.options` 里的下标列表(空 = 未选)。
     #[serde(default)]
@@ -161,7 +162,7 @@ impl Answer {
 }
 
 /// 多题答案集合,`answers.len() == AskUserQuestionEvent.questions.len()`。
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct AskUserAnswer {
     pub answers: Vec<Answer>,
 }
@@ -179,7 +180,7 @@ impl AskUserAnswer {
 ///
 /// 由 `AskUserQuestionTool::execute` 调 `ApprovalGate::ask_question` 时 emit;
 /// TUI 收到后弹 modal,用户按键 → 回执 `Op::AskUserQuestionResponse { id, answers }`。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct AskUserQuestionEvent {
     /// 配对 id:与 `Op::AskUserQuestionResponse.id` 一致。
     pub request_id: String,

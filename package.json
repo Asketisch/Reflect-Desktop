@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "types:gen": "bash scripts/dump-ts-types.sh",
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",

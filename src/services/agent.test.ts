@@ -94,39 +94,69 @@ describe('reduceEvent', () => {
 
   it('error on turn appends error item; session-level error sets lastError', () => {
     let s = stateWithTurn('t1');
-    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'error', message: 'boom' })) };
-    expect(s.turns[0].items.some((i) => i.kind === 'error' && i.text === 'boom')).toBe(true);
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'error', code: 'E_BOOM', message: 'boom' })) };
+    // B1-04: error text now formatted as "code: message".
+    expect(s.turns[0].items.some((i) => i.kind === 'error' && i.text === 'E_BOOM: boom')).toBe(true);
 
     // session-level (id='') 不挂 turn,设 lastError。
     const base = emptyState();
-    const patch = reduceEvent(base, ev('', { type: 'error', message: 'session boom' }));
-    expect(patch.lastError).toBe('session boom');
+    const patch = reduceEvent(base, ev('', { type: 'error', code: 'E_SESSION', message: 'session boom' }));
+    expect(patch.lastError).toBe('E_SESSION: session boom');
   });
 
-  it('approval_request enqueues pending approval', () => {
+  it('approval_request enqueues pending approval (tool kind with tool_name + args)', () => {
     const s = emptyState();
-    const patch = reduceEvent(s, ev('t1', { type: 'approval_request', id: 'a1', kind: 'tool', tool_name: 'bash' }));
+    // B1-04: schema is now strict — kind is a discriminated union { type, tool_name, args }.
+    const patch = reduceEvent(
+      s,
+      ev('t1', {
+        type: 'approval_request',
+        request_id: 'a1',
+        kind: { type: 'tool', tool_name: 'bash', args: { cmd: 'ls' } },
+      }),
+    );
     expect(patch.pendingApprovals).toBeDefined();
     expect(patch.pendingApprovals![0]).toMatchObject({ id: 'a1', kind: 'tool', toolName: 'bash' });
   });
 
-  it('mcp_server_started upserts mcpServers', () => {
+  it('mcp_server_started/failed upserts mcpServers by server field', () => {
     let s = emptyState();
-    s = { ...s, ...reduceEvent(s, ev('', { type: 'mcp_server_started', name: 'fs' })) };
-    s = { ...s, ...reduceEvent(s, ev('', { type: 'mcp_server_failed', name: 'fs', error: 'died' })) };
+    // B1-04: schema field renamed `name` → `server`.
+    s = { ...s, ...reduceEvent(s, ev('', { type: 'mcp_server_started', server: 'fs', tool_count: 3, transport: 'stdio' })) };
+    s = { ...s, ...reduceEvent(s, ev('', { type: 'mcp_server_failed', server: 'fs', error: 'died', will_retry: false })) };
     expect(s.mcpServers.find((m) => m.name === 'fs')?.status).toBe('failed');
   });
 
-  it('permission_mode_changed updates permissionMode', () => {
+  it('permission_mode_changed updates permissionMode (uses `to` field)', () => {
     const s = emptyState();
-    const patch = reduceEvent(s, ev('', { type: 'permission_mode_changed', mode: 'plan' }));
+    // B1-04: schema field renamed `mode` → `from` + `to`.
+    const patch = reduceEvent(
+      s,
+      ev('', { type: 'permission_mode_changed', from: 'auto', to: 'plan' }),
+    );
     expect(patch.permissionMode).toBe('plan');
   });
 
-  it('unknown event returns empty patch (no state change)', () => {
+  it('token_count updates tokens snapshot (B1-04: now handled, not unknown)', () => {
     const s = stateWithTurn('t1');
-    const patch = reduceEvent(s, ev('t1', { type: 'token_count' }));
-    expect(Object.keys(patch).length).toBe(0);
+    const patch = reduceEvent(
+      s,
+      ev('t1', {
+        type: 'token_count',
+        input_tokens: 100,
+        output_tokens: 50,
+        cached_tokens: 0,
+        cache_write_tokens: 0,
+        total_tokens: 150,
+      }),
+    );
+    expect(patch.tokens).toEqual({
+      input: 100,
+      output: 50,
+      cached: 0,
+      total: 150,
+      cost: null,
+    });
   });
 });
 

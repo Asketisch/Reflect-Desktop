@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -66,7 +67,7 @@ impl std::fmt::Display for TurnId {
 /// v1.1.0 P1 #14 新增 `QuestionAnswer` —— 允许用户通过标准 `Op::UserInput`
 /// 流回答 `EventMsg::AskUserQuestion`(与 `Op::AskUserQuestionResponse` 平行,
 /// 适合 TUI 在 question modal 之外用 input bar 自由输入答案的场景)。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum UserInputItem {
     Text {
@@ -98,7 +99,7 @@ pub enum UserInputItem {
 /// 放在 `reflect-protocol` 中,用于打破 `reflect-tools` (需要在 `ToolSpec::required_permission` 里使用)
 /// 与 `reflect-hooks` (需要在 `HookDecision::PermissionOverride` 里使用) 之间的循环依赖。
 /// `reflect-hooks` 重新导出此类型。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PermissionMode {
     /// 工具直接运行,无需提示(只读工具的默认值)。
@@ -205,7 +206,7 @@ impl std::str::FromStr for PlanId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewDecision {
     Approve,
@@ -213,7 +214,7 @@ pub enum ReviewDecision {
     ApproveForSession,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct ThreadSettingsOverrides {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -225,7 +226,7 @@ pub struct ThreadSettingsOverrides {
     pub max_tool_concurrency: Option<usize>,
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ApprovalPolicy {
     #[default]
@@ -234,7 +235,7 @@ pub enum ApprovalPolicy {
     Deny,
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SandboxPolicy {
     #[default]
@@ -245,7 +246,7 @@ pub enum SandboxPolicy {
     FullAccess,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RiskLevel {
     #[default]
@@ -264,7 +265,7 @@ pub enum RiskLevel {
 ///
 /// `Default = Low` 与 Anthropic / OpenAI 默认 reasoning 强度一致;`/effort`
 /// 不带参数时也按 Low 处理,避免 "未设置 = 不思考" 的歧义。
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningEffortMirror {
     #[default]
@@ -273,7 +274,7 @@ pub enum ReasoningEffortMirror {
     High,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SessionConfiguredEvent {
     pub session_id: ThreadId,
     pub model: String,
@@ -288,7 +289,7 @@ pub struct SessionConfiguredEvent {
 }
 
 /// Output content produced by a tool.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolOutput {
     pub content: Vec<ContentBlock>,
     pub is_error: bool,
@@ -299,7 +300,7 @@ pub struct ToolOutput {
 /// Tool execution error. Lives in protocol (not `reflect-tools`) so that
 /// `reflect-hooks` can carry one in `HookEvent::PostToolUseFailure`
 /// without creating a `tools ↔ hooks` cycle.
-#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize)]
+#[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ToolError {
     #[error("invalid arguments: {message}")]
@@ -326,7 +327,7 @@ impl From<std::io::Error> for ToolError {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
     Text {
@@ -358,6 +359,50 @@ impl ContentBlock {
     /// Convenience constructor for the most common variant.
     pub fn text(s: impl Into<String>) -> Self {
         ContentBlock::Text { text: s.into() }
+    }
+}
+
+// ── JsonSchema impls for non-derivable types ────────────────────────────────
+//
+// schemars 0.8 doesn't impl JsonSchema for `uuid::Uuid`, but the protocol
+// uses transparent UUID newtypes (ThreadId / TurnId / PlanId). Implement
+// them as string subschemas so they emit `{"type": "string", "format": "uuid"}`.
+// The serde-transparent encoding is the same string form, so roundtrip
+// stays intact across the JSON Schema → json2ts → TypeScript pipeline.
+
+impl JsonSchema for ThreadId {
+    fn schema_name() -> String {
+        "ThreadId".to_string()
+    }
+    fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+        let mut obj = schemars::schema::SchemaObject::default();
+        obj.instance_type = Some(schemars::schema::InstanceType::String.into());
+        obj.format = Some("uuid".to_string());
+        schemars::schema::Schema::Object(obj)
+    }
+}
+
+impl JsonSchema for TurnId {
+    fn schema_name() -> String {
+        "TurnId".to_string()
+    }
+    fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+        let mut obj = schemars::schema::SchemaObject::default();
+        obj.instance_type = Some(schemars::schema::InstanceType::String.into());
+        obj.format = Some("uuid".to_string());
+        schemars::schema::Schema::Object(obj)
+    }
+}
+
+impl JsonSchema for PlanId {
+    fn schema_name() -> String {
+        "PlanId".to_string()
+    }
+    fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+        let mut obj = schemars::schema::SchemaObject::default();
+        obj.instance_type = Some(schemars::schema::InstanceType::String.into());
+        obj.format = Some("uuid".to_string());
+        schemars::schema::Schema::Object(obj)
     }
 }
 

@@ -10,6 +10,7 @@
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use crate::ask_user_input::AskUserInputEvent;
@@ -22,7 +23,7 @@ pub use crate::question::AskUserQuestionEvent;
 /// Stable string discriminator for logs.
 pub type EventMsgDiscriminant = &'static str;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EventMsg {
     // Lifecycle (5)
@@ -147,22 +148,22 @@ pub enum EventMsg {
 
 // ── Payload structs ─────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentMessage {
     pub text: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentMessageDelta {
     pub delta: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ThinkingDelta {
     pub delta: String,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TokenCountEvent {
     pub input_tokens: u32,
     pub output_tokens: u32,
@@ -189,21 +190,21 @@ pub struct TokenCountEvent {
     pub credential_label: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TurnStartedEvent {
     pub turn_id: TurnId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_message_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TurnCompleteEvent {
     pub turn_id: TurnId,
     pub usage: TokenUsage,
     pub status: TurnStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TurnAbortedEvent {
     pub turn_id: TurnId,
     pub reason: AbortReason,
@@ -211,7 +212,7 @@ pub struct TurnAbortedEvent {
 
 /// 批次十九:`Op::Rewind` 成功后发出,让 TUI 裁剪显示到回退点。
 /// `truncated_after` = 被丢弃的 turn 数(0 = 已是最近一条,无可回退)。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TurnRewoundEvent {
     /// 回退到的 turn(`None` = 回退到 session 起 / 最近 user turn)。
     pub to_turn_id: Option<String>,
@@ -219,14 +220,14 @@ pub struct TurnRewoundEvent {
     pub truncated_after: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolCallBeginEvent {
     pub call_id: String,
     pub tool_name: String,
     pub args: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolCallEndEvent {
     pub call_id: String,
     pub output: ToolOutput,
@@ -234,7 +235,7 @@ pub struct ToolCallEndEvent {
     pub elapsed_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ApprovalRequestEvent {
     /// Unique id; the client echoes it back in `Op::ToolApproval` / `Op::HookApproval`.
     pub request_id: String,
@@ -245,7 +246,7 @@ pub struct ApprovalRequestEvent {
     pub risk: RiskLevel,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContextCompactedEvent {
     pub strategy: ContextCompactedStrategy,
     pub removed_messages: usize,
@@ -253,7 +254,7 @@ pub struct ContextCompactedEvent {
     pub after_tokens: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ErrorEvent {
     pub code: String,
     pub message: String,
@@ -261,7 +262,7 @@ pub struct ErrorEvent {
     pub details: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StreamErrorEvent {
     pub code: String,
     pub message: String,
@@ -281,7 +282,7 @@ pub struct StreamErrorEvent {
 }
 
 /// v1.0 多 Provider 路由:单个 credential 失败时记录在 `StreamError.tried`。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct TriedCredential {
     pub label: String,
     /// 失败原因码(同 `LlmError` 变体名):
@@ -292,7 +293,7 @@ pub struct TriedCredential {
 
 /// v1.0 多 Provider 路由:failover / cooldown 状态变化事件。TUI
 /// 收到后画一行 status(`↻ main switched work → personal (rate_limited)`)。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct RoutingEvent {
     pub kind: RoutingEventKind,
     /// `"main"` / `"compact"` / `"subagent:researcher"`。
@@ -308,7 +309,7 @@ pub struct RoutingEvent {
     pub cooldown_until_ms: Option<u64>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RoutingEventKind {
     /// 切到了下一个可用 credential。
@@ -324,17 +325,18 @@ pub enum RoutingEventKind {
 /// M7: 配置文件热重载事件。`path` 是触发变更的文件;`sections_changed` 是
 /// 受影响段名列表(例如 `["anthropic", "compact"]`),便于 UI 只在关键段变更
 /// 时提示。`at` 用 `SystemTime` 而非 `Instant`,因为事件可能跨进程持久化。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConfigReloadedEvent {
     pub path: PathBuf,
     pub sections_changed: Vec<String>,
     #[serde(with = "systemtime_serde")]
+    #[schemars(with = "u64")]
     pub at: SystemTime,
 }
 
 /// M10/v0.2.4: 讨论启动事件。`id` 是 `DiscussionId` UUID 的字符串形式;
 /// `participants` 与 `mode` 直接镜像 orchestrator 启动时的配置。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct CollabStartedEvent {
     pub id: String,
     pub participants: Vec<String>,
@@ -345,7 +347,7 @@ pub struct CollabStartedEvent {
 /// orchestrator 会发出一次。`token_usage` 仅在 LLM 路径
 ///(`collect_result_with_usage` 提供 usage)非空时填入;老 caller 与
 /// `run_noop` 路径发出的消息为 `None`。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct CollabMessageEvent {
     pub id: String,
     pub from: String,
@@ -361,7 +363,7 @@ pub struct CollabMessageEvent {
 /// M10/v0.2.4: 讨论结束事件。`outcome` 序列化形式
 /// `consensus` | `no_consensus` | `finished`;`rounds` 是实际跑过的轮数
 ///(可能小于 `max_rounds`)。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct CollabFinishedEvent {
     pub id: String,
     pub outcome: String,
@@ -376,7 +378,7 @@ pub struct CollabFinishedEvent {
 /// `│ mcp: N servers / M tools` 用。`transport` 是镜像 enum,
 /// 因为 `reflect-protocol` 不能依赖 `reflect-config` (反向依赖风险),
 /// `reflect-mcp::config` 提供 `From<McpTransportMirror> for McpTransport`。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct McpServerStartedEvent {
     pub server: String,
     pub tool_count: usize,
@@ -390,7 +392,7 @@ pub struct McpServerStartedEvent {
 ///
 /// `will_retry` 为 `true` 表示 HTTP 重连循环还会继续尝试;
 /// stdio 路径永远为 `false`(不重连,配置错就让用户修)。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct McpServerFailedEvent {
     pub server: String,
     pub error: String,
@@ -401,7 +403,7 @@ pub struct McpServerFailedEvent {
 ///
 /// `server.tool` 拼接字符串直接给 TUI 在 status_bar 高亮调用链。
 /// `call_id` 与 `EventMsg::ToolCallEnd.call_id` 一致,便于前端配对渲染。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct McpToolInvokedEvent {
     pub server: String,
     pub tool: String,
@@ -411,7 +413,7 @@ pub struct McpToolInvokedEvent {
 /// v0.3 M6: `reflect_config::McpTransport` 的镜像,避免 protocol → config 反向依赖。
 ///
 /// 用 `lowercase` 序列化(`"stdio"` / `"http"`),与 config schema 端一致。
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum McpTransportMirror {
     Stdio,
@@ -447,7 +449,7 @@ impl std::fmt::Display for McpTransportMirror {
 /// 或多者),`language_ids` 是该 server 接管的 LSP languageId 集合
 ///(去重)。TUI status_bar 可显示 `│ lsp: N servers` + 每个 server
 /// 拥有的 method 数。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct LspServerStartedEvent {
     pub server: String,
     pub methods: Vec<String>,
@@ -457,7 +459,7 @@ pub struct LspServerStartedEvent {
 /// v0.5: 一个 LSP server 启动失败(`spawn` / `initialize` 任一阶段)。
 ///
 /// `will_retry` 永远为 `false`(LSP 不自动重连,配置错就让用户修)。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct LspServerFailedEvent {
     pub server: String,
     pub error: String,
@@ -471,7 +473,7 @@ pub struct LspServerFailedEvent {
 ///
 /// `task` 是用户/agent 描述的规划目标(如 `"refactor auth module"`),
 /// TUI 弹窗和 approval reason 都会展示。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct PlanRequestEvent {
     pub task: String,
 }
@@ -482,14 +484,14 @@ pub struct PlanRequestEvent {
 /// `markdown` 是 plan 的完整内容,通常由 agent 把最近的 tool 调研
 /// 结果汇总成 markdown。`plan_id` 用于前后端配对 `PlanApproved` /
 /// `PlanRejected`。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct PlanReadyEvent {
     pub plan_id: PlanId,
     pub markdown: String,
 }
 
 /// v1.x Plan mode: 用户在 approval modal 上 approve plan。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct PlanApprovedEvent {
     pub plan_id: PlanId,
 }
@@ -497,7 +499,7 @@ pub struct PlanApprovedEvent {
 /// v1.x Plan mode: 用户在 approval modal 上 reject plan。`reason` 是
 /// 可选的用户反馈文本(v1.x 暂未在 TUI 收集,留 `None`;后续 v1.x+1
 /// 加 review comment 时填具体原因)。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct PlanRejectedEvent {
     pub plan_id: PlanId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -509,14 +511,14 @@ pub struct PlanRejectedEvent {
 /// `from` / `to` 都填便于客户端追溯;通常 `to` 是 `Plan`(进入)
 /// 或 `Prompt`(退出批准后回到 Prompt)。任何订阅方(hook 引擎、
 /// tool queue、TUI status bar)都根据这个事件更新本地视图。
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct PermissionModeChangedEvent {
     pub from: PermissionMode,
     pub to: PermissionMode,
 }
 
 /// Bubble 权限模式下的非阻塞工具执行通知。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct PermissionBubbleEvent {
     pub tool_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -541,7 +543,7 @@ pub struct PermissionBubbleEvent {
 /// `total_tokens = input_tokens + output_tokens` reflects the on-the-wire
 /// billable count and is **deliberately unchanged from M7**; do not add
 /// `cache_write_tokens` or `cached_tokens` to it (that would double-count).
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct TokenUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
@@ -566,7 +568,7 @@ impl TokenUsage {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnStatus {
     Success,
@@ -578,7 +580,7 @@ pub enum TurnStatus {
     TokenBudgetExceeded,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AbortReason {
     UserInterrupt,
@@ -588,7 +590,7 @@ pub enum AbortReason {
 
 /// What is being approved. Tool calls carry the tool name + args; hook approvals
 /// carry the hook name + a short human-readable preview of the decision payload.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ApprovalKind {
     Tool {
@@ -606,7 +608,7 @@ pub enum ApprovalKind {
     Plan { plan_id: PlanId, summary: String },
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ContextCompactedStrategy {
     /// No-op used for M1 stub.

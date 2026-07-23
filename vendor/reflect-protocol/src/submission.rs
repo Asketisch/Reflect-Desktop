@@ -1,5 +1,6 @@
 //! Submission — client → core command unit.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -9,7 +10,7 @@ use crate::op::Op;
 ///
 /// The `id` correlates the resulting events (which all carry the same `id`)
 /// back to the originating submission.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Submission {
     pub id: String,
     pub op: Op,
@@ -44,7 +45,7 @@ impl Submission {
 }
 
 /// W3C trace context (subset of W3C Trace Context spec).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct W3cTraceContext {
     pub trace_id: String,
     pub span_id: String,

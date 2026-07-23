@@ -112,6 +112,54 @@ export interface PendingPlan {
   turnId: string;
 }
 
+// ====== 新增状态(B1-04 协议全量消费) ======
+
+/** 最新 token 用量快照(每轮结束更新)。 */
+export interface TokenSnapshot {
+  input: number;
+  output: number;
+  cached: number;
+  total: number;
+  cost: number | null;
+}
+
+/** 单次 MCP 工具调用记录(保留最近 50 条)。 */
+export interface McpInvocation {
+  server: string;
+  tool: string;
+  callId: string;
+  at: number;
+}
+
+/** 协作/subagent 会话(M10 Collab 事件)。 */
+export interface CollabSession {
+  id: string;
+  participants: string[];
+  mode: string;
+  startedAt: number;
+  status: 'running' | 'done';
+  outcome?: string;
+  rounds?: number;
+  messages: CollabMessage[];
+}
+
+export interface CollabMessage {
+  from: string;
+  kind: string;
+  content: string;
+  round: number;
+  at: number;
+}
+
+/** 最近一次 routing 决策(给 status bar 显示)。 */
+export interface RoutingSnapshot {
+  kind: 'switched' | 'failed_over' | 'cooldown_started' | 'cooldown_cleared';
+  role: string;
+  from?: string;
+  to?: string;
+  reason: string;
+}
+
 // ====== MCP / LSP server 状态 ======
 
 export interface McpServerEntry {
@@ -152,6 +200,18 @@ export interface AgentState {
   lastError: string | null;
   /** 事件订阅是否已建立(防止重复订阅)。 */
   subscribed: boolean;
+
+  // ── B1-04 新增:协议全量消费补齐 ──
+  /** 最近 token 用量(token_count event)。 */
+  tokens: TokenSnapshot | null;
+  /** 协作/subagent 会话(collab_* events)。 */
+  collabSessions: CollabSession[];
+  /** 最近 MCP 工具调用记录(最多 50 条)。 */
+  mcpInvocations: McpInvocation[];
+  /** 最近一次 routing 决策(routing event)。 */
+  lastRouting: RoutingSnapshot | null;
+  /** 配置重载时间戳(config_reloaded event)。 */
+  configReloadedAt: number | null;
 
   // ====== Actions ======
   /** 建立 reflect_event 订阅(幂等,AppProviders mount 时调一次)。 */
@@ -198,6 +258,11 @@ const uuid = () =>
  * 纯函数 —— 根据 event 更新 state。导出供测试。
  *
  * 不直接 mutate;返回新数组/对象。Zustand 的 set((s) => ...) 会用返回值。
+ *
+ * **B1-04 alignment**: covers all 33 `EventMsgType` variants. Previously
+ * 6+ variants (`turn_rewound` / `shutdown_complete` / `token_count` /
+ * `config_reloaded` / `routing` / `collab_*` / `mcp_tool_invoked`) were
+ * silently dropped; now each has a real branch.
  */
 export function reduceEvent(state: AgentState, e: ReflectEvent): Partial<AgentState> {
   const { msg } = e;
@@ -205,10 +270,9 @@ export function reduceEvent(state: AgentState, e: ReflectEvent): Partial<AgentSt
   const isSessionEvent = turnId === EVENT_ID_NONE;
 
   switch (msg.type) {
+    // ── Lifecycle (6) ────────────────────────────────────────────────
     case 'session_configured': {
-      const model = String(msg.model ?? '');
-      const provider = String(msg.provider ?? '');
-      if (model) return { session: { model, provider } };
+      if (msg.model) return { session: { model: msg.model, provider: msg.provider } };
       return {};
     }
 
@@ -221,73 +285,6 @@ export function reduceEvent(state: AgentState, e: ReflectEvent): Partial<AgentSt
       };
     }
 
-    case 'agent_message_delta': {
-      const delta = String(msg.delta ?? '');
-      if (!delta) return {};
-      return { turns: upsertDelta(state.turns, turnId, delta) };
-    }
-
-    case 'agent_message': {
-      const text = String(msg.text ?? '');
-      return { turns: finalizeAssistantText(state.turns, turnId, text) };
-    }
-
-    case 'thinking_delta': {
-      const delta = String(msg.delta ?? '');
-      if (!delta) return {};
-      return { turns: upsertThinking(state.turns, turnId, delta) };
-    }
-
-    case 'tool_call_begin': {
-      const toolName = String(msg.tool_name ?? msg.name ?? '');
-      const callId = String(msg.call_id ?? msg.id ?? '');
-      const argsSummary = summarizeArgs(msg.args);
-      return {
-        turns: appendItem(state.turns, turnId, {
-          kind: 'tool_call',
-          toolName,
-          callId,
-          argsSummary,
-          status: 'running',
-        }),
-      };
-    }
-
-    case 'tool_call_end': {
-      const callId = String(msg.call_id ?? msg.id ?? '');
-      const outputText = summarizeToolOutput(msg.output ?? msg.result);
-      const isError = Boolean(msg.is_error ?? msg.error);
-      return {
-        turns: appendItem(state.turns, turnId, {
-          kind: 'tool_output',
-          callId,
-          text: outputText,
-          isError,
-        }).map((t) => ({
-          ...t,
-          items: t.items.map((it) =>
-            it.kind === 'tool_call' && it.callId === callId
-              ? { ...it, status: isError ? ('error' as const) : ('done' as const) }
-              : it,
-          ),
-        })),
-      };
-    }
-
-    case 'error':
-    case 'stream_error': {
-      const text = String(msg.message ?? msg.text ?? msg.error ?? 'unknown error');
-      if (isSessionEvent) {
-        return { lastError: text };
-      }
-      return { turns: appendItem(state.turns, turnId, { kind: 'error', text }) };
-    }
-
-    case 'context_compacted': {
-      const summary = String(msg.summary ?? 'context compacted');
-      return { turns: appendItem(state.turns, turnId, { kind: 'compacted', summary }) };
-    }
-
     case 'turn_complete': {
       return { turns: markTurn(state.turns, turnId, 'done') };
     }
@@ -296,48 +293,257 @@ export function reduceEvent(state: AgentState, e: ReflectEvent): Partial<AgentSt
       return { turns: markTurn(state.turns, turnId, 'aborted') };
     }
 
-    case 'approval_request': {
-      const id = String(msg.id ?? msg.call_id ?? '');
-      const kind = (String(msg.kind ?? 'tool') as 'tool' | 'hook' | 'plan');
-      const approval: PendingApproval = {
-        id,
-        kind,
-        toolName: msg.tool_name ? String(msg.tool_name) : undefined,
-        argsSummary: msg.args ? summarizeArgs(msg.args) : undefined,
-        turnId,
-      };
-      return { pendingApprovals: [...state.pendingApprovals, approval] };
+    case 'turn_rewound': {
+      // 截断 turns 到 to_turn_id 之后;若 to_turn_id 缺失则保留全部。
+      const cutoff = msg.to_turn_id;
+      if (!cutoff) return {};
+      return { turns: state.turns.filter((t) => t.id <= cutoff) };
     }
 
-    case 'permission_bubble': {
-      // permission_bubble 与 approval_request 类似,统一进 approvals 队列。
-      const id = String(msg.id ?? 'permission');
-      const approval: PendingApproval = {
-        id,
-        kind: 'tool',
-        turnId,
-      };
-      return { pendingApprovals: [...state.pendingApprovals, approval] };
+    case 'shutdown_complete': {
+      return { lastError: 'agent shut down' };
     }
 
-    case 'ask_user_question': {
-      const id = String(msg.id ?? msg.request_id ?? '');
+    // ── LLM output (4) ──────────────────────────────────────────────
+    case 'agent_message_delta': {
+      if (!msg.delta) return {};
+      return { turns: upsertDelta(state.turns, turnId, msg.delta) };
+    }
+
+    case 'agent_message': {
+      return { turns: finalizeAssistantText(state.turns, turnId, msg.text) };
+    }
+
+    case 'thinking_delta': {
+      if (!msg.delta) return {};
+      return { turns: upsertThinking(state.turns, turnId, msg.delta) };
+    }
+
+    case 'token_count': {
+      // Store latest token usage snapshot for status bar / ring UI.
       return {
-        pendingQuestions: [...state.pendingQuestions, { id, payload: msg, turnId }],
+        tokens: {
+          input: msg.input_tokens,
+          output: msg.output_tokens,
+          cached: msg.cached_tokens,
+          total: msg.total_tokens,
+          cost: msg.cost_usd ?? null,
+        },
+      };
+    }
+
+    // ── Tool (2) ────────────────────────────────────────────────────
+    case 'tool_call_begin': {
+      const argsSummary = summarizeArgs(msg.args);
+      return {
+        turns: appendItem(state.turns, turnId, {
+          kind: 'tool_call',
+          toolName: msg.tool_name,
+          callId: msg.call_id,
+          argsSummary,
+          status: 'running',
+        }),
+      };
+    }
+
+    case 'tool_call_end': {
+      const outputText = summarizeToolOutput(msg.output);
+      return {
+        turns: appendItem(state.turns, turnId, {
+          kind: 'tool_output',
+          callId: msg.call_id,
+          text: outputText,
+          isError: msg.is_error,
+        }).map((t) => ({
+          ...t,
+          items: t.items.map((it) =>
+            it.kind === 'tool_call' && it.callId === msg.call_id
+              ? { ...it, status: msg.is_error ? ('error' as const) : ('done' as const) }
+              : it,
+          ),
+        })),
+      };
+    }
+
+    // ── Approval (1) ────────────────────────────────────────────────
+    case 'approval_request': {
+      const kind = msg.kind.type; // 'tool' | 'hook' | 'plan'
+      const toolName = msg.kind.type === 'tool' ? msg.kind.tool_name : undefined;
+      const argsSummary =
+        msg.kind.type === 'tool' ? summarizeArgs(msg.kind.args) : undefined;
+      const approval: PendingApproval = {
+        id: msg.request_id,
+        kind,
+        toolName,
+        argsSummary,
+        turnId,
+      };
+      return { pendingApprovals: [...state.pendingApprovals, approval] };
+    }
+
+    // ── AskUser (2) ─────────────────────────────────────────────────
+    case 'ask_user_question': {
+      return {
+        pendingQuestions: [
+          ...state.pendingQuestions,
+          { id: msg.request_id, payload: msg, turnId },
+        ],
       };
     }
 
     case 'ask_user_input': {
-      const id = String(msg.id ?? msg.request_id ?? '');
       return {
-        pendingAskUser: [...state.pendingAskUser, { id, payload: msg, turnId }],
+        pendingAskUser: [
+          ...state.pendingAskUser,
+          { id: msg.request_id, payload: msg, turnId },
+        ],
       };
     }
 
-    case 'plan_request':
+    // ── Permission bubble (1) ──────────────────────────────────────
+    case 'permission_bubble': {
+      // 非阻塞通知,落到 pendingApprovals 列表(以 tool kind),Inspector 可见。
+      const id = `bubble-${msg.tool_name}-${turnId}`;
+      return {
+        pendingApprovals: [
+          ...state.pendingApprovals,
+          { id, kind: 'tool', toolName: msg.tool_name, turnId },
+        ],
+      };
+    }
+
+    // ── Compaction (1) ─────────────────────────────────────────────
+    case 'context_compacted': {
+      const summary = `${msg.strategy}: ${msg.removed_messages} msgs (${msg.before_tokens} → ${msg.after_tokens} tokens)`;
+      return { turns: appendItem(state.turns, turnId, { kind: 'compacted', summary }) };
+    }
+
+    // ── Error (2) ───────────────────────────────────────────────────
+    case 'error': {
+      if (isSessionEvent) {
+        return { lastError: `${msg.code}: ${msg.message}` };
+      }
+      return {
+        turns: appendItem(state.turns, turnId, { kind: 'error', text: `${msg.code}: ${msg.message}` }),
+      };
+    }
+
+    case 'stream_error': {
+      const text = msg.message || `stream error ${msg.code} (retry in ${msg.retry_in_ms}ms)`;
+      if (isSessionEvent) {
+        return { lastError: text };
+      }
+      return { turns: appendItem(state.turns, turnId, { kind: 'error', text }) };
+    }
+
+    // ── Config / routing (2) ────────────────────────────────────────
+    case 'config_reloaded': {
+      return { configReloadedAt: Date.now() };
+    }
+
+    case 'routing': {
+      return {
+        lastRouting: {
+          kind: msg.kind,
+          role: msg.role,
+          from: msg.from_credential,
+          to: msg.to_credential,
+          reason: msg.reason,
+        },
+      };
+    }
+
+    // ── Collab (3) ──────────────────────────────────────────────────
+    case 'collab_started': {
+      return {
+        collabSessions: [
+          ...state.collabSessions,
+          {
+            id: msg.id,
+            participants: msg.participants,
+            mode: msg.mode,
+            startedAt: Date.now(),
+            status: 'running',
+            messages: [],
+          },
+        ],
+      };
+    }
+
+    case 'collab_message': {
+      return {
+        collabSessions: state.collabSessions.map((c) =>
+          c.id === msg.id
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  {
+                    from: msg.from,
+                    kind: msg.kind,
+                    content: msg.content,
+                    round: msg.round,
+                    at: Date.now(),
+                  },
+                ],
+              }
+            : c,
+        ),
+      };
+    }
+
+    case 'collab_finished': {
+      return {
+        collabSessions: state.collabSessions.map((c) =>
+          c.id === msg.id
+            ? { ...c, status: 'done' as const, outcome: msg.outcome, rounds: msg.rounds }
+            : c,
+        ),
+      };
+    }
+
+    // ── MCP (3) ─────────────────────────────────────────────────────
+    case 'mcp_server_started': {
+      return {
+        mcpServers: upsertServer(state.mcpServers, msg.server, 'started', `${msg.tool_count} tools`),
+      };
+    }
+
+    case 'mcp_server_failed': {
+      return {
+        mcpServers: upsertServer(state.mcpServers, msg.server, 'failed', msg.error),
+      };
+    }
+
+    case 'mcp_tool_invoked': {
+      return {
+        mcpInvocations: [
+          ...state.mcpInvocations,
+          { server: msg.server, tool: msg.tool, callId: msg.call_id, at: Date.now() },
+        ].slice(-50), // keep last 50
+      };
+    }
+
+    // ── LSP (2) ─────────────────────────────────────────────────────
+    case 'lsp_server_started': {
+      return {
+        lspServers: upsertServer(state.lspServers, msg.server, 'started', `${msg.methods.length} methods`),
+      };
+    }
+
+    case 'lsp_server_failed': {
+      return {
+        lspServers: upsertServer(state.lspServers, msg.server, 'failed', msg.error),
+      };
+    }
+
+    // ── Plan mode (5) ───────────────────────────────────────────────
+    case 'plan_request': {
+      return { pendingPlan: { id: msg.task, payload: msg, turnId } };
+    }
+
     case 'plan_ready': {
-      const id = String(msg.id ?? msg.plan_id ?? '');
-      return { pendingPlan: { id, payload: msg, turnId } };
+      return { pendingPlan: { id: msg.plan_id, payload: msg, turnId } };
     }
 
     case 'plan_approved':
@@ -346,43 +552,8 @@ export function reduceEvent(state: AgentState, e: ReflectEvent): Partial<AgentSt
     }
 
     case 'permission_mode_changed': {
-      const mode = String(msg.mode ?? '');
-      return { permissionMode: mode || state.permissionMode };
+      return { permissionMode: msg.to };
     }
-
-    case 'mcp_server_started': {
-      const name = String(msg.name ?? msg.server ?? '');
-      if (!name) return {};
-      return { mcpServers: upsertServer(state.mcpServers, name, 'started') };
-    }
-
-    case 'mcp_server_failed': {
-      const name = String(msg.name ?? msg.server ?? '');
-      if (!name) return {};
-      return {
-        mcpServers: upsertServer(state.mcpServers, name, 'failed', msg.error ? String(msg.error) : undefined),
-      };
-    }
-
-    case 'lsp_server_started': {
-      const name = String(msg.name ?? msg.server ?? '');
-      if (!name) return {};
-      return { lspServers: upsertServer(state.lspServers, name, 'started') };
-    }
-
-    case 'lsp_server_failed': {
-      const name = String(msg.name ?? msg.server ?? '');
-      if (!name) return {};
-      return {
-        lspServers: upsertServer(state.lspServers, name, 'failed', msg.error ? String(msg.error) : undefined),
-      };
-    }
-
-    default:
-      // 未处理的事件类型(turn_rewound / shutdown_complete / token_count /
-      // config_reloaded / routing / collab_* / mcp_tool_invoked / plan_step /
-      // plugin_loaded / quota_exhausted)—— 静默,后续按需补。
-      return {};
   }
 }
 
@@ -512,6 +683,12 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   lspServers: [],
   lastError: null,
   subscribed: false,
+  // B1-04 新增字段
+  tokens: null,
+  collabSessions: [],
+  mcpInvocations: [],
+  lastRouting: null,
+  configReloadedAt: null,
 
   subscribe: () => {
     if (get().subscribed) {
@@ -622,6 +799,12 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       mcpServers: [],
       lspServers: [],
       lastError: null,
+      // B1-04 新增字段
+      tokens: null,
+      collabSessions: [],
+      mcpInvocations: [],
+      lastRouting: null,
+      configReloadedAt: null,
     }),
 }));
 
