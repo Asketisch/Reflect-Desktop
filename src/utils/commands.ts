@@ -202,3 +202,39 @@ export async function reflect_list_hooks(): Promise<ReflectHookInfo[]> {
 export async function reflect_toggle_hook(name: string, enabled: boolean): Promise<void> {
   return invoke<void>('reflect_toggle_hook', { name, enabled });
 }
+
+// ====== B6: Git integration ======
+
+export interface ReflectGitStatusEntry {
+  path: string;
+  status: string;
+  old_path: string | null;
+}
+
+export interface ReflectGitStatus {
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  entries: ReflectGitStatusEntry[];
+  raw: string;
+  is_repo: boolean;
+}
+
+export interface ReflectGitLogEntry {
+  hash: string;
+  short_hash: string;
+  author: string;
+  timestamp: number;
+  subject: string;
+}
+
+export async function reflect_git_status(): Promise<ReflectGitStatus> {
+  return invoke<ReflectGitStatus>('reflect_git_status');
+}
+export async function reflect_git_diff(staged = false): Promise<string> {
+  return invoke<string>('reflect_git_diff', { staged });
+}
+export async function reflect_git_log(limit = 20): Promise<ReflectGitLogEntry[]> {
+  return invoke<ReflectGitLogEntry[]>('reflect_git_log', { limit });
+}
