@@ -11,7 +11,7 @@
  * 但在 `session_configured` 事件未到时，从 `reflect_agent_status` 查询拿 model 名，
  * 避免开局永远显示「waiting」。
  */
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search } from 'lucide-react';
 import { useLocation } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Icon, IconButton, Tooltip, Badge } from '@/features/design-system';
@@ -97,6 +97,11 @@ export function TitleBar({
         </span>
       </div>
       <div className={s.right}>
+        <Tooltip label="Command Palette (⌘K)" side="bottom">
+          <kbd className={s.kbdHint}>
+            <Icon icon={Search} size={11} /> ⌘K
+          </kbd>
+        </Tooltip>
         {permissionMode && (
           <Badge variant={permissionMode === 'auto' ? 'success' : permissionMode === 'plan' ? 'info' : 'warning'}>
             {permissionMode}

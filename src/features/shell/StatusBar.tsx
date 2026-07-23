@@ -12,11 +12,11 @@
  * 替代旧的 widgets/StatusBar（Topbar/BottomBar），移除所有 "M1.7 scaffold" 字样。
  */
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, AlertCircle } from 'lucide-react';
+import { Sun, Moon, Monitor, AlertCircle, MessagesSquare } from 'lucide-react';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useQuery } from '@tanstack/react-query';
-import { reflect_agent_status } from '@/utils/tauri';
+import { reflect_agent_status, reflect_list_sessions } from '@/utils/tauri';
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
 import s from './StatusBar.module.css';
 
@@ -34,6 +34,12 @@ export function StatusBar() {
     queryFn: reflect_agent_status,
     staleTime: 30_000,
   });
+  const sessionsQ = useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => reflect_list_sessions(),
+    staleTime: 60_000,
+  });
+  const sessionCount = sessionsQ.data?.length ?? 0;
 
   // 主题：resolved 态驱动图标，mode 驱动循环。
   const [resolved, setResolved] = useState<'light' | 'dark'>(() => getResolvedTheme());
@@ -114,6 +120,11 @@ export function StatusBar() {
             MCP {mcpServers.length}
           </span>
         )}
+        <Tooltip label={`${sessionCount} session${sessionCount === 1 ? '' : 's'} on disk`} side="top">
+          <span className={s.itemMuted} data-testid="statusbar-session-count">
+            <Icon icon={MessagesSquare} size={11} /> {sessionCount}
+          </span>
+        </Tooltip>
         <Tooltip label={`Theme: ${mode}`} side="top">
           <IconButton
             label={`Theme: ${mode}`}

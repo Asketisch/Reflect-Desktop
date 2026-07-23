@@ -174,6 +174,29 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 - **jsdom polyfill**:`Element.prototype.scrollIntoView = noop`，
   让 autoscroll 组件在测试环境不报错。
 
+### Added — Batch 10 (CommandPalette + ⌘K Keymap + StatusBar session count)
+
+- **CommandPalette (B10-01)**:新 `src/features/command-palette/` 目录
+  - `CommandPalette.tsx`: 模态浮层 + 输入框 + 模糊匹配列表; ↑↓ 选择,
+    Enter 触发,Esc 关闭; backdrop blur + 最大 30 条可见;
+    支持 `to`(路由导航) / `slash`(/compact /interrupt 等) / `run`(回调)。
+  - `registry.ts`: 45+ 条命令覆盖全部导航(Home/Chat/Sessions/Settings/Files/
+    Models/Skills/Workspaces/Git/Terminal/Plan/Prompts/About/Update/
+    Notifications/Debug/Apps/Collaboration/Dictation/Mobile/Design-system),
+    Session actions(New/Clear all/Export/Save config),
+    Slash actions(/compact /interrupt /clear /help /rename /export),
+    Theme(cycle/dark/light/system + current)。
+  - `fuzzy.ts`: 轻量模糊匹配(子序列 + 开头加权 + 连续匹配加分 + keywords);
+    7 个单元测试覆盖。
+- **AppShell ⌘K 集成**: `AppShell.tsx` 添加全局 keydown listener(⌘K / Ctrl+K
+  toggle palette, Esc close); `CommandPalette` 挂载在 AppShell 底部。
+- **TitleBar**: 右侧新增 `Search ⌘K` 键盘快捷提示(kbd hint + tooltip)。
+- **StatusBar session count**: 新增 `reflect_list_sessions` 查询,
+  在状态栏右侧显示 MessagesSquare 图标 + session 总数,
+  带 tooltip(「N sessions on disk」)。
+- **测试**: fuzzy 7 + CommandPalette 6 = 13 个新 vitest。337/337 tests pass;
+  tsc clean; cargo check clean(无 Rust 变更)。
+
 ### Added — Batch 9 (File tree + Code editor + workspace switcher)
 
 - **Backend (B9-01)**:新 `reflect_list_dir(path?, maxDepth=4)` 返回
