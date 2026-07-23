@@ -19,13 +19,15 @@ pub mod state;
 pub mod tray;
 
 use commands::{
-    reflect_agent_status, reflect_ask_user_input_response, reflect_ask_user_question_response,
-    reflect_compact, reflect_cycle_permission_mode, reflect_delete_session,
-    reflect_enter_plan_mode, reflect_exit_plan_mode, reflect_get_config, reflect_hook_approval,
-    reflect_interrupt, reflect_list_sessions, reflect_list_tools, reflect_plan_approval,
+    reflect_add_memory, reflect_agent_status, reflect_ask_user_input_response,
+    reflect_ask_user_question_response, reflect_compact, reflect_current_workspace,
+    reflect_cycle_permission_mode, reflect_delete_session, reflect_enter_plan_mode,
+    reflect_exit_plan_mode, reflect_get_config, reflect_hook_approval, reflect_interrupt,
+    reflect_list_hooks, reflect_list_memory, reflect_list_sessions, reflect_list_skills,
+    reflect_list_tools, reflect_list_workspaces, reflect_plan_approval, reflect_remove_memory,
     reflect_rename_session, reflect_replay_session, reflect_rewind, reflect_save_config,
-    reflect_set_effort, reflect_set_permission_mode, reflect_shutdown, reflect_submit,
-    reflect_tool_approval,
+    reflect_set_effort, reflect_set_permission_mode, reflect_set_workspace, reflect_shutdown,
+    reflect_submit, reflect_toggle_hook, reflect_tool_approval,
 };
 use serde::Serialize;
 use state::MinimalAgent;
@@ -86,6 +88,16 @@ pub fn run() {
             reflect_get_config,
             reflect_save_config,
             reflect_list_tools,
+            // B1-07: domain management (B9-06 / B11-*)
+            reflect_list_workspaces,
+            reflect_set_workspace,
+            reflect_current_workspace,
+            reflect_list_skills,
+            reflect_list_memory,
+            reflect_add_memory,
+            reflect_remove_memory,
+            reflect_list_hooks,
+            reflect_toggle_hook,
             dock::reflect_set_dock_badge,
         ])
         // ====== Window 事件:macOS close-to-tray ======

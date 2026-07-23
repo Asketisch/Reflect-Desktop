@@ -4,7 +4,7 @@
 //! 12 个 Op 命令(compact / rewind / approval / plan / effort / permission / ask_user)
 //! 不再是空 `Ok(())`,而是构造 `Op` 经 `MinimalAgent::submit_op` 真正驱动 AgentThread。
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use reflect_config::{default_config_path, load_from_str};
@@ -309,6 +309,262 @@ pub async fn reflect_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRe
     rollout_reader::replay(&base, id)
         .await
         .map_err(CommandError::from)
+}
+
+// ====== Workspace (B1-07 / B9-06) ======
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceInfo {
+    pub path: String,
+    pub label: String,
+    pub last_used: u64,
+    pub session_count: usize,
+}
+
+/// List known workspaces (from `~/.reflect/workspaces.json`).
+#[tauri::command]
+pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
+    // Phase 1: read from `~/.reflect/workspaces.json` if present, else
+    // return the current workspace only. The file is a small JSON
+    // `[{ path, label, last_used, session_count }]` array.
+    let path = dirs::home_dir()
+        .map(|h| h.join(".reflect/workspaces.json"))
+        .ok_or_else(|| CommandError { msg: "no HOME dir".into() })?;
+    if !path.exists() {
+        let cur = dirs::home_dir()
+            .map(|h| h.join(".").display().to_string())
+            .unwrap_or_else(|| ".".to_string());
+        return Ok(vec![WorkspaceInfo {
+            path: cur,
+            label: "default".to_string(),
+            last_used: 0,
+            session_count: 0,
+        }]);
+    }
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|e| CommandError { msg: format!("read workspaces.json: {e}") })?;
+    let parsed: Vec<WorkspaceInfo> = serde_json::from_str(&raw)
+        .map_err(|e| CommandError { msg: format!("parse workspaces.json: {e}") })?;
+    Ok(parsed)
+}
+
+#[tauri::command]
+pub async fn reflect_set_workspace(
+    agent: State<'_, MinimalAgent>,
+    path: String,
+) -> CommandResult<()> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err(CommandError {
+            msg: format!("workspace path does not exist: {path}"),
+        });
+    }
+    if !p.is_dir() {
+        return Err(CommandError {
+            msg: format!("workspace path is not a directory: {path}"),
+        });
+    }
+    agent.set_workspace(p);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reflect_current_workspace(
+    agent: State<'_, MinimalAgent>,
+) -> CommandResult<String> {
+    Ok(agent.workspace().display().to_string())
+}
+
+// ====== Skills (B1-07 / B11-06) ======
+
+#[derive(Debug, Serialize)]
+pub struct SkillInfo {
+    pub name: String,
+    pub description: String,
+    pub path: String,
+    pub tools: Vec<String>,
+    pub triggers: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn reflect_list_skills() -> CommandResult<Vec<SkillInfo>> {
+    // Phase 1: scan `~/.reflect/skills/**/SKILL.md` and `<cwd>/.reflect/skills/**/SKILL.md`.
+    let mut out = Vec::new();
+    let search_dirs: Vec<PathBuf> = [
+        dirs::home_dir().map(|h| h.join(".reflect/skills")),
+        std::env::current_dir().ok().map(|c| c.join(".reflect/skills")),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    for dir in search_dirs {
+        if !dir.exists() {
+            continue;
+        }
+        collect_skills_in(&dir, &mut out)?;
+    }
+    Ok(out)
+}
+
+fn collect_skills_in(dir: &PathBuf, out: &mut Vec<SkillInfo>) -> CommandResult<()> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(it) => it,
+        Err(_) => return Ok(()),
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_skills_in(&path, out)?;
+        } else if path.file_name().and_then(|s| s.to_str()) == Some("SKILL.md") {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Some(info) = parse_skill_frontmatter(&content, &path) {
+                    out.push(info);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn parse_skill_frontmatter(content: &str, path: &PathBuf) -> Option<SkillInfo> {
+    // Minimal YAML-frontmatter parser: extract the first `---\n...\n---` block.
+    let stripped = content.strip_prefix("---")?;
+    let rest = stripped.trim_start_matches('\n');
+    let end = rest.find("\n---")?;
+    let yaml = &rest[..end];
+    let body = rest[end + 4..].trim();
+
+    let name = extract_yaml_field(yaml, "name").unwrap_or_else(|| {
+        path.parent()
+            .and_then(|p| p.file_name())
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string()
+    });
+    let description = extract_yaml_field(yaml, "description").unwrap_or_default();
+    let tools = extract_yaml_list(yaml, "tools");
+    let triggers = extract_yaml_list(yamml_safe(yaml), "triggers");
+
+    let _ = body; // body unused in summary; surfaced in future `/skills/<name>` detail.
+
+    Some(SkillInfo {
+        name,
+        description,
+        path: path.display().to_string(),
+        tools,
+        triggers,
+    })
+}
+
+fn yamml_safe(s: &str) -> &str {
+    s
+}
+
+fn extract_yaml_field(yaml: &str, key: &str) -> Option<String> {
+    for line in yaml.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix(&format!("{key}:")) {
+            let v = rest.trim().trim_matches('"').trim_matches('\'');
+            if !v.is_empty() {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn extract_yaml_list(yaml: &str, key: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut in_list = false;
+    for line in yaml.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix(&format!("{key}:")) {
+            // inline [a, b, c]
+            if rest.trim_start().starts_with('[') {
+                let inside = rest.trim_start().trim_start_matches('[').trim_end_matches(']');
+                for item in inside.split(',') {
+                    let s = item.trim().trim_matches('"').trim_matches('\'');
+                    if !s.is_empty() {
+                        out.push(s.to_string());
+                    }
+                }
+                in_list = false;
+            } else if rest.trim().is_empty() {
+                in_list = true;
+            } else {
+                return out; // single value, not a list
+            }
+            continue;
+        }
+        if in_list {
+            if let Some(item) = trimmed.strip_prefix("- ") {
+                let s = item.trim().trim_matches('"').trim_matches('\'');
+                if !s.is_empty() {
+                    out.push(s.to_string());
+                }
+            } else if !trimmed.is_empty() {
+                in_list = false;
+            }
+        }
+    }
+    out
+}
+
+// ====== Memory (B1-07 / B11-01) ======
+
+#[derive(Debug, Serialize)]
+pub struct MemoryEntry {
+    pub scope: String, // "project" | "user" | "session"
+    pub key: String,
+    pub value: String,
+}
+
+#[tauri::command]
+pub async fn reflect_list_memory(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<MemoryEntry>> {
+    agent.list_memory().map_err(CommandError::from)
+}
+
+#[tauri::command]
+pub async fn reflect_add_memory(
+    agent: State<'_, MinimalAgent>,
+    scope: String,
+    key: String,
+    value: String,
+) -> CommandResult<()> {
+    agent.add_memory(scope, key, value).map_err(CommandError::from)
+}
+
+#[tauri::command]
+pub async fn reflect_remove_memory(
+    agent: State<'_, MinimalAgent>,
+    scope: String,
+    key: String,
+) -> CommandResult<()> {
+    agent.remove_memory(scope, key).map_err(CommandError::from)
+}
+
+// ====== Hooks (B1-07 / B11-02) ======
+
+#[derive(Debug, Serialize)]
+pub struct HookInfo {
+    pub name: String,
+    pub kind: String, // "read_before_edit" | "plan_mode_gate" | "custom"
+    pub enabled: bool,
+    pub config_summary: String,
+}
+
+#[tauri::command]
+pub async fn reflect_list_hooks(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<HookInfo>> {
+    agent.list_hooks().map_err(CommandError::from)
+}
+
+#[tauri::command]
+pub async fn reflect_toggle_hook(
+    agent: State<'_, MinimalAgent>,
+    name: String,
+    enabled: bool,
+) -> CommandResult<()> {
+    agent.toggle_hook(name, enabled).map_err(CommandError::from)
 }
 
 // ====== 辅助:字符串 → 强类型 ======

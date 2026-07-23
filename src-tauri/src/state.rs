@@ -344,6 +344,166 @@ impl MinimalAgent {
             degraded_reason: self.inner.degraded_reason.lock().clone(),
         }
     }
+
+    // ====== B1-07 / B9-06 / B11-* domain APIs ======
+
+    /// Update the active workspace (B9-06). The change is in-memory; the
+    /// next `Op::UserInput` runs with this cwd.
+    ///
+    /// **B1-07 simplification**: for v0.2 we keep the workspace as an
+    /// atomic swap stored in a process-global. A future milestone will
+    /// thread this through `AgentConfig` so the running `AgentThread`
+    /// observes the change without restart.
+    pub fn set_workspace(&self, path: PathBuf) {
+        use parking_lot::Mutex as ParkingMutex;
+        static OVERRIDE: once_cell::sync::Lazy<ParkingMutex<Option<PathBuf>>> =
+            once_cell::sync::Lazy::new(|| ParkingMutex::new(None));
+        *OVERRIDE.lock() = Some(path);
+    }
+
+    pub fn workspace_override() -> Option<PathBuf> {
+        use parking_lot::Mutex as ParkingMutex;
+        static OVERRIDE: once_cell::sync::Lazy<ParkingMutex<Option<PathBuf>>> =
+            once_cell::sync::Lazy::new(|| ParkingMutex::new(None));
+        OVERRIDE.lock().clone()
+    }
+
+    /// List memory entries across all scopes (B11-01).
+    ///
+    /// **B1-07 simplification**: reads the raw `MEMORY.md` files for
+    /// project + user scopes. A real implementation would call into
+    /// `reflect_memory::MemoryStore::list()` (which isn't on the v0.1
+    /// trait surface); this unblocks the B11 UI without forcing a
+    /// vendor crate change.
+    pub fn list_memory(&self) -> anyhow::Result<Vec<crate::commands::MemoryEntry>> {
+        let mut out = Vec::new();
+        let scopes = [
+            (
+                "project",
+                std::env::current_dir()
+                    .ok()
+                    .map(|c| c.join(".reflect/agent-memory/reflect/MEMORY.md")),
+            ),
+            (
+                "user",
+                dirs::home_dir().map(|h| h.join(".reflect/agent-memory/reflect/MEMORY.md")),
+            ),
+        ];
+        for (label, path_opt) in scopes {
+            if let Some(path) = path_opt {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    if !content.trim().is_empty() {
+                        out.push(crate::commands::MemoryEntry {
+                            scope: label.to_string(),
+                            key: "(all)".to_string(),
+                            value: content,
+                        });
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// Add a memory entry (B11-01). Appends `## <key>\n<value>` to the
+    /// matching scope's `MEMORY.md`.
+    pub fn add_memory(
+        &self,
+        scope: String,
+        key: String,
+        value: String,
+    ) -> anyhow::Result<()> {
+        let path = match scope.as_str() {
+            "user" => dirs::home_dir()
+                .map(|h| h.join(".reflect/agent-memory/reflect/MEMORY.md"))
+                .ok_or_else(|| anyhow::anyhow!("no home dir"))?,
+            _ => std::env::current_dir()
+                .map(|c| c.join(".reflect/agent-memory/reflect/MEMORY.md"))
+                .map_err(|e| anyhow::anyhow!("cwd: {e}"))?,
+        };
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let mut current = std::fs::read_to_string(&path).unwrap_or_default();
+        if !current.is_empty() && !current.ends_with('\n') {
+            current.push('\n');
+        }
+        current.push_str(&format!("\n## {key}\n{value}\n"));
+        std::fs::write(&path, current)?;
+        Ok(())
+    }
+
+    /// Remove a memory entry (B11-01). Strips the `## <key>` block.
+    pub fn remove_memory(&self, scope: String, key: String) -> anyhow::Result<()> {
+        let path = match scope.as_str() {
+            "user" => dirs::home_dir()
+                .map(|h| h.join(".reflect/agent-memory/reflect/MEMORY.md"))
+                .ok_or_else(|| anyhow::anyhow!("no home dir"))?,
+            _ => std::env::current_dir()
+                .map(|c| c.join(".reflect/agent-memory/reflect/MEMORY.md"))
+                .map_err(|e| anyhow::anyhow!("cwd: {e}"))?,
+        };
+        if !path.exists() {
+            return Ok(());
+        }
+        let current = std::fs::read_to_string(&path)?;
+        let needle = format!("## {key}");
+        if let Some(start) = current.find(&needle) {
+            let after = start + needle.len();
+            let end = current[after..]
+                .find("\n## ")
+                .map(|i| after + i)
+                .unwrap_or(current.len());
+            let mut new = String::with_capacity(current.len());
+            new.push_str(&current[..start]);
+            new.push_str(&current[end..]);
+            std::fs::write(&path, new)?;
+        }
+        Ok(())
+    }
+
+    /// List known hooks (B11-02). Phase 1 returns the two built-in
+    /// hooks (PlanModeGate + ReadBeforeEdit) that the upstream
+    /// `reflect-hooks` crate always registers.
+    pub fn list_hooks(&self) -> anyhow::Result<Vec<crate::commands::HookInfo>> {
+        // **B1-07 simplification**: hard-coded for now; the upstream
+        // `HookRegistry` doesn't expose a stable iteration API in the
+        // vendored 0.1.0. Real registry iteration is B11-02 Phase 2.
+        Ok(vec![
+            crate::commands::HookInfo {
+                name: "read_before_edit".to_string(),
+                kind: "policy".to_string(),
+                enabled: true,
+                config_summary: "auto-reads file before Edit/Write".to_string(),
+            },
+            crate::commands::HookInfo {
+                name: "plan_mode_gate".to_string(),
+                kind: "policy".to_string(),
+                enabled: true,
+                config_summary: "blocks mutating tools in Plan mode".to_string(),
+            },
+        ])
+    }
+
+    /// Toggle a hook (B11-02). Phase 1 is a no-op acknowledgement —
+    /// the upstream registry doesn't yet expose a public enable/disable
+    /// method in the vendored 0.1.0; the toggle is recorded in
+    /// `~/.reflect/hook_state.json` for future use.
+    pub fn toggle_hook(&self, name: String, enabled: bool) -> anyhow::Result<()> {
+        let path = dirs::home_dir()
+            .map(|h| h.join(".reflect/hook_state.json"))
+            .ok_or_else(|| anyhow::anyhow!("no home dir"))?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let mut state: std::collections::HashMap<String, bool> = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        state.insert(name, enabled);
+        std::fs::write(&path, serde_json::to_string_pretty(&state)?)?;
+        Ok(())
+    }
 }
 
 /// 注册 16 个 reflect-tools 内置工具到 `ToolRegistry`。

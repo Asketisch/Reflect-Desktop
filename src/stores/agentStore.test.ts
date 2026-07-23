@@ -31,6 +31,23 @@ const emptyState = (): AgentState => ({
   mcpInvocations: [],
   lastRouting: null,
   configReloadedAt: null,
+  // Actions (unused in reducer tests; the strict AgentState type requires them).
+  subscribe: () => () => {},
+  submit: async () => {},
+  interrupt: async () => {},
+  compact: async () => {},
+  rewind: async () => {},
+  shutdown: async () => {},
+  approve: async () => {},
+  enterPlanMode: async () => {},
+  exitPlanMode: async () => {},
+  setEffort: async () => {},
+  setPermissionMode: async () => {},
+  cyclePermissionMode: async () => {},
+  answerQuestion: async () => {},
+  answerInput: async () => {},
+  clearError: () => {},
+  reset: () => {},
 });
 
 const ev = (id: string, msg: ReflectEventMsg): ReflectEvent => ({ id, msg });
@@ -112,7 +129,8 @@ describe('reduceEvent — lifecycle', () => {
   });
 
   it('shutdown_complete sets lastError', () => {
-    const patch = reduceEvent(emptyState(), ev('', { type: 'shutdown_complete' }));
+    // shutdown_complete is a unit variant (no payload fields).
+    const patch = reduceEvent(emptyState(), ev('', { type: 'shutdown_complete' } as never));
     expect(patch.lastError).toBe('agent shut down');
   });
 });

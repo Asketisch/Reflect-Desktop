@@ -48,8 +48,8 @@ import {
   reflect_cycle_permission_mode,
   reflect_ask_user_question_response,
   reflect_ask_user_input_response,
-  onReflectEvent,
 } from '@/utils/tauri';
+import { subscribeAgentEvent } from '@/services/agentEventBus';
 import type { ReflectEvent, ReflectSubmission } from '@/types/protocol';
 import type { ReviewDecision } from '@/utils/types';
 
@@ -696,24 +696,15 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       return () => {};
     }
     set({ subscribed: true });
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    void (async () => {
-      const fn = await onReflectEvent((e: ReflectEvent) => {
-        const patch = reduceEvent(get(), e);
-        if (Object.keys(patch).length > 0) {
-          set(patch);
-        }
-      });
-      if (cancelled) {
-        fn?.();
-      } else {
-        unlisten = fn;
+    // B1-06: route through the shared agentEventBus (refcounted fan-out).
+    const unlisten = subscribeAgentEvent((e: ReflectEvent) => {
+      const patch = reduceEvent(get(), e);
+      if (Object.keys(patch).length > 0) {
+        set(patch);
       }
-    })();
+    });
     return () => {
-      cancelled = true;
-      unlisten?.();
+      unlisten();
       set({ subscribed: false });
     };
   },

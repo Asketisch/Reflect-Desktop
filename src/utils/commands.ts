@@ -126,3 +126,70 @@ export async function reflect_replay_session(id: string): Promise<ReflectRollout
 export async function onReflectEvent(handler: (event: ReflectEvent) => void) {
   return listen<ReflectEvent>('reflect_event', (e) => handler(e.payload));
 }
+
+// ====== B1-07 / B9-06: Workspace management ======
+
+export interface ReflectWorkspaceInfo {
+  path: string;
+  label: string;
+  last_used: number;
+  session_count: number;
+}
+
+export async function reflect_list_workspaces(): Promise<ReflectWorkspaceInfo[]> {
+  return invoke<ReflectWorkspaceInfo[]>('reflect_list_workspaces');
+}
+export async function reflect_set_workspace(path: string): Promise<void> {
+  return invoke<void>('reflect_set_workspace', { path });
+}
+export async function reflect_current_workspace(): Promise<string> {
+  return invoke<string>('reflect_current_workspace');
+}
+
+// ====== B1-07 / B11-06: Skills ======
+
+export interface ReflectSkillInfo {
+  name: string;
+  description: string;
+  path: string;
+  tools: string[];
+  triggers: string[];
+}
+
+export async function reflect_list_skills(): Promise<ReflectSkillInfo[]> {
+  return invoke<ReflectSkillInfo[]>('reflect_list_skills');
+}
+
+// ====== B1-07 / B11-01: Memory ======
+
+export interface ReflectMemoryEntry {
+  scope: string;
+  key: string;
+  value: string;
+}
+
+export async function reflect_list_memory(): Promise<ReflectMemoryEntry[]> {
+  return invoke<ReflectMemoryEntry[]>('reflect_list_memory');
+}
+export async function reflect_add_memory(scope: string, key: string, value: string): Promise<void> {
+  return invoke<void>('reflect_add_memory', { scope, key, value });
+}
+export async function reflect_remove_memory(scope: string, key: string): Promise<void> {
+  return invoke<void>('reflect_remove_memory', { scope, key });
+}
+
+// ====== B1-07 / B11-02: Hooks ======
+
+export interface ReflectHookInfo {
+  name: string;
+  kind: string;
+  enabled: boolean;
+  config_summary: string;
+}
+
+export async function reflect_list_hooks(): Promise<ReflectHookInfo[]> {
+  return invoke<ReflectHookInfo[]>('reflect_list_hooks');
+}
+export async function reflect_toggle_hook(name: string, enabled: boolean): Promise<void> {
+  return invoke<void>('reflect_toggle_hook', { name, enabled });
+}
