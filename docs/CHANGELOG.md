@@ -154,6 +154,45 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 **全套 210 测试绿,生产 build 成功(CSS 76KB / JS 627KB)。**
 
+### Added — Batch 7 (per-tool ToolCells + Approval history)
+
+- **ToolCells (B7-05)**:新增 `src/features/messages/ToolCells.tsx`,
+  per-tool 渲染 `tool_call` TurnItem。`ICON_MAP` 把
+  `shell`/`bash`/`read_file`/`write_file`/`create_file`/`web_fetch`/`web_search`
+  映射到专属 lucide 图标(Terminal / FileText / FileEdit / FilePlus /
+  Globe / Search),未知 tool fallback `Wrench`。`summarize(name, args)`
+  给出短摘要(`$ command` for shell,path for read_file 等)。
+  `StatusIcon`(running=Loader2 spin / done=CheckCircle2 / error=XCircle)。
+  折叠 header + 原始 args 详情。
+- **MessageList 集成**:`tool_call` case 改用 `<ToolCell />` 替代通用
+  `Collapsible`;删掉本地 statusIcon 计算。
+- **ApprovalHistory (B7-03)**:新增 `src/features/modals/ApprovalHistory.tsx`,
+  按 `decidedAt` 倒序展示历史 approval 决策(approve / approve_for_session /
+  deny),带专属图标(CheckCircle2 / ShieldOff / XCircle)和 time 戳;
+  可配置 `limit`、空态文案。
+- **vitest setup**:`afterEach(cleanup)` 加入,避免 testid 跨测试泄漏。
+- **jsdom polyfill**:`Element.prototype.scrollIntoView = noop`，
+  让 autoscroll 组件在测试环境不报错。
+
+### Added — Batch 8 (Terminal: real shell exec + streaming)
+
+- **Backend (B8-01)**:`reflect_run_shell(cmd) -> ShellSession { id, command, cwd }`
+  用 `tokio::process::Command` 启动 `/bin/zsh -lc` (macOS) / `/bin/sh -lc`。
+  stdout/stderr 各起一个 `BufReader::lines()` 后台任务,通过
+  `app.emit("reflect_terminal_output", ShellOutputChunk)` 流式推给前端;
+  主任务 `wait()` 后再 emit 一条 `stream="exit"` 携带退出码。
+  进程在 `MinimalAgent` 的 `shell_sessions: HashMap<id, Arc<Mutex<Child>>>`
+  中保留 kill handle。`reflect_kill_shell(id)` 幂等,`start_kill + wait`;
+  `reflect_list_shell_sessions()` 诊断。
+- **Frontend**:新增 `ReflectShellSession` / `ReflectShellOutputChunk` 类型
+  + `reflect_run_shell` / `reflect_kill_shell` / `reflect_list_shell_sessions` /
+  `onTerminalOutput` 四个 IPC wrapper。
+- **TerminalView 重写**:多 session tab 流(可点击切换)+ 行级流式渲染
+  (`stdout`/`stderr`/`exit`/`error`/`info`/`input` 不同色)+ Kill 按钮
+  + Clear 按钮 + 5K 行滚动裁剪 + autoscroll + 命令历史 input。
+- **测试**:TerminalView 4 个 presentational tests;`scripts/dump-ts-types.sh`
+  重新生成。
+
 ### Changed — UI/UX 全面重建（阶段 4：剩余视图统一外壳 + stub 美化）
 - **新增 `shell/PageShell`**:非 Chat 视图统一外壳(图标 + 标题 + 副标题 + 右侧操作 +
   滚动内容容器,sm/md/lg 三档宽度)。

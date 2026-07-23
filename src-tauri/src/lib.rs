@@ -24,11 +24,13 @@ use commands::{
     reflect_cycle_permission_mode, reflect_delete_session, reflect_enter_plan_mode,
     reflect_exit_plan_mode, reflect_export_session, reflect_get_config, reflect_git_diff,
     reflect_git_log, reflect_git_status, reflect_hook_approval, reflect_interrupt,
-    reflect_list_hooks, reflect_list_memory, reflect_list_sessions, reflect_list_skills,
-    reflect_list_tools, reflect_list_workspaces, reflect_plan_approval, reflect_remove_memory,
-    reflect_rename_session, reflect_replay_session, reflect_rewind, reflect_save_config,
-    reflect_set_effort, reflect_set_permission_mode, reflect_set_workspace, reflect_shutdown,
-    reflect_submit, reflect_toggle_hook, reflect_tool_approval,
+    reflect_kill_shell, reflect_list_hooks, reflect_list_memory, reflect_list_sessions,
+    reflect_list_shell_sessions, reflect_list_skills, reflect_list_tools,
+    reflect_list_workspaces, reflect_plan_approval, reflect_remove_memory,
+    reflect_rename_session, reflect_replay_session, reflect_run_shell, reflect_rewind,
+    reflect_save_config, reflect_set_effort, reflect_set_permission_mode,
+    reflect_set_workspace, reflect_shutdown, reflect_submit, reflect_toggle_hook,
+    reflect_tool_approval,
 };
 use serde::Serialize;
 use state::MinimalAgent;
@@ -100,10 +102,14 @@ pub fn run() {
             reflect_remove_memory,
             reflect_list_hooks,
             reflect_toggle_hook,
-            reflect_git_status,
-            reflect_git_diff,
-            reflect_git_log,
-            dock::reflect_set_dock_badge,
+reflect_git_status,
+    reflect_git_diff,
+    reflect_git_log,
+    // B8-01: terminal shell exec + streaming
+    reflect_run_shell,
+    reflect_kill_shell,
+    reflect_list_shell_sessions,
+    dock::reflect_set_dock_badge,
         ])
         // ====== Window 事件:macOS close-to-tray ======
         .on_window_event(|window, event| {

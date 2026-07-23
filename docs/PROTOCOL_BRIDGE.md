@@ -63,6 +63,22 @@ Two channels:
 | `reflect_save_config` | `{ toml: string }` | `null` | 写回(写盘前 `load_from_str` 校验,热更新共享 cfg) |
 | `reflect_list_tools` | `null` | `Vec<{ name, description }>` | 当前 ToolRegistry 注册的工具 |
 | `reflect_list_sessions` / `reflect_rename_session` / `reflect_delete_session` / `reflect_replay_session` | — | — | session I/O(rollout) |
+| `reflect_export_session` | `{ id }` | `string` (path) | 写 `~/.reflect/exports/<id>.json` |
+| `reflect_git_status` / `reflect_git_diff` / `reflect_git_log` | — | `GitStatus` / `string` / `Vec<GitLogEntry>` | 包装 git CLI;`reflect_git_diff(false)` = unstaged |
+| `reflect_run_shell` | `{ cmd: string }` | `ShellSession { id, command, cwd }` | 启动 shell;输出通过 `reflect_terminal_output` 事件流式推回 |
+| `reflect_kill_shell` | `{ session_id }` | `null` | 终止 shell 会话;幂等 |
+| `reflect_list_shell_sessions` | `null` | `string[]` | 诊断:活跃 session id 列表 |
+
+**`reflect_terminal_output` event** (B8-01):
+
+```ts
+interface ReflectShellOutputChunk {
+  session_id: string;
+  stream: 'stdout' | 'stderr' | 'exit' | 'error';
+  data: string;     // 文本行(exit 时为退出码字符串)
+  seq: number;      // 同一 session 内的单调递增序号
+}
+```
 
 `Submission` wraps the op:
 

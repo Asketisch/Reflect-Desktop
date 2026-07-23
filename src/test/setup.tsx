@@ -136,6 +136,13 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+// jsdom doesn't implement scrollIntoView; stub it for components that autoscroll.
+if (typeof window !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function () {
+    /* noop for jsdom */
+  };
+}
+
 // ====== Test utilities ======
 
 /**

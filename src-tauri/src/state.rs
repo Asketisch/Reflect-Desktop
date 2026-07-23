@@ -90,6 +90,9 @@ struct MinimalAgentInner {
     workspace: PathBuf,
     /// 降级原因(无 API key 等);None 表示正常就绪。
     degraded_reason: ParkingMutex<Option<String>>,
+    /// B8-01: terminal shell sessions — key = session_id (UUID),
+    /// value = child process kill handle (Option<tokio::process::Child> wrapped).
+    shell_sessions: parking_lot::Mutex<std::collections::HashMap<String, Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>>>,
 }
 
 impl MinimalAgent {
@@ -109,6 +112,7 @@ impl MinimalAgent {
                 model_spec: RwLock::new("stub/test".to_string()),
                 workspace,
                 degraded_reason: ParkingMutex::new(None),
+                shell_sessions: parking_lot::Mutex::new(std::collections::HashMap::new()),
             }),
         }
     }
@@ -329,6 +333,28 @@ impl MinimalAgent {
     /// 共享 ToolRegistry(MCP/LSP 后续 register_plugin_tool、tool 列表命令用)。
     pub fn tools(&self) -> Arc<ToolRegistry> {
         Arc::clone(&self.inner.tools)
+    }
+
+    /// B8-01: register a shell session; returns the kill handle to put in the map.
+    pub fn register_shell_session(
+        &self,
+        id: String,
+        child: Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
+    ) {
+        self.inner.shell_sessions.lock().insert(id, child);
+    }
+
+    /// B8-01: remove + return the kill handle for a shell session.
+    pub fn take_shell_session(
+        &self,
+        id: &str,
+    ) -> Option<Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>> {
+        self.inner.shell_sessions.lock().remove(id)
+    }
+
+    /// B8-01: list active shell session ids.
+    pub fn list_shell_sessions(&self) -> Vec<String> {
+        self.inner.shell_sessions.lock().keys().cloned().collect()
     }
 
     /// 诊断快照:供前端显示状态徽标。
