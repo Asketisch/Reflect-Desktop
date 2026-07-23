@@ -77,8 +77,10 @@ describe('MessageList', () => {
       ],
     });
     render(wrap(<MessageList />));
-    // tool_call 标签含 tool name + 状态徽标。
-    expect(screen.getByText(/bash\(ls\)/)).toBeDefined();
+    // tool_call row uses <ToolCell> which renders tool name + summary in separate spans.
+    const cell = document.querySelector('[data-tool="bash"]');
+    expect(cell).not.toBeNull();
+    expect(cell!.getAttribute('data-status')).toBe('done');
   });
 
   it('renders error item as red banner', () => {

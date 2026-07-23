@@ -1,0 +1,71 @@
+.cell {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-elev-1, #14161a);
+  margin: 0.3rem 0;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, #e4e6ea);
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.header:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.03));
+}
+
+.caret {
+  color: var(--text-muted, #888);
+}
+
+.accent_default { color: var(--text-primary, #e4e6ea); }
+.accent_warning { color: #f0b860; }
+.accent_success { color: #6cc070; }
+.accent_danger  { color: #f87171; }
+
+.name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--accent, #5eafe6);
+}
+
+.summary {
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--text-muted, #888);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.args {
+  margin: 0;
+  padding: 0.5rem 0.8rem;
+  background: var(--bg-base, #0c0e11);
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

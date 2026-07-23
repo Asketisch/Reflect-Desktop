@@ -1,0 +1,58 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  font-size: 0.78rem;
+}
+
+.accent_approve            { color: #6cc070; }
+.accent_approve_for_session { color: #5eafe6; }
+.accent_deny               { color: #f87171; }
+
+.tool {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text-primary, #e4e6ea);
+  font-size: 0.78rem;
+}
+
+.decision {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.reason {
+  color: var(--text-muted, #888);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  color: var(--text-muted, #888);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  padding: 0.8rem;
+  color: var(--text-muted, #888);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+}

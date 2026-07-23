@@ -9,8 +9,8 @@
  */
 
 import { afterEach, beforeEach, vi } from 'vitest';
+import { cleanup, render as rtlRender, type RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render as rtlRender, type RenderOptions } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 // ====== Tauri invoke mock ======
@@ -131,6 +131,7 @@ vi.mock('@tauri-apps/api/event', () => {
 });
 
 afterEach(() => {
+  cleanup();
   resetMockEvents();
   vi.clearAllMocks();
 });

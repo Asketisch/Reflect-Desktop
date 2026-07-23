@@ -16,9 +16,6 @@ import { useEffect, useRef } from 'react';
 import {
   Brain,
   Wrench,
-  CheckCircle2,
-  XCircle,
-  Loader2,
   Zap,
   AlertTriangle,
   MessageSquare,
@@ -27,6 +24,7 @@ import { Icon } from '@/features/design-system';
 import { Markdown } from '@/components/Markdown';
 import { useAgentStore, type Turn, type TurnItem } from '@/stores/agentStore';
 import { Collapsible } from './Collapsible';
+import { ToolCell } from './ToolCells';
 import s from './MessageList.module.css';
 
 const NEAR_BOTTOM_PX = 64;
@@ -96,16 +94,13 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
       );
 
     case 'tool_call': {
-      const statusIcon =
-        item.status === 'running' ? <Icon icon={Loader2} size={13} /> :
-        item.status === 'done' ? <Icon icon={CheckCircle2} size={13} /> :
-        <Icon icon={XCircle} size={13} />;
-      const accent = item.status === 'error' ? 'danger' : item.status === 'done' ? 'success' : 'warning';
-      const label = `${item.toolName}(${item.argsSummary || ''})`;
+      // B7-05: per-tool rendering (icon, arg summary, collapsible raw args).
       return (
-        <Collapsible icon={statusIcon} accent={accent} label={label}>
-          <pre className={s.monoText}>{item.argsSummary || '(no args)'}</pre>
-        </Collapsible>
+        <ToolCell
+          toolName={item.toolName}
+          argsSummary={item.argsSummary}
+          status={item.status}
+        />
       );
     }
 
