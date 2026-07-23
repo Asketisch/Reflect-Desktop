@@ -174,6 +174,33 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 - **jsdom polyfill**:`Element.prototype.scrollIntoView = noop`，
   让 autoscroll 组件在测试环境不报错。
 
+### Added — Batch 9 (File tree + Code editor + workspace switcher)
+
+- **Backend (B9-01)**:新 `reflect_list_dir(path?, maxDepth=4)` 返回
+  `DirListing { root, entries, truncated }`,跳过 dotfile + node_modules /
+  target / dist 等;封顶 2000 entries,按 dir→file,名称排序。`DirEntry`
+  含 name/path/kind/size/mtime/depth。
+- **Backend (B9-01)**:新 `reflect_read_file(path)` 返回
+  `FileReadResult { path, content, size, binary, truncated }`,1 MiB 上限,
+  NUL byte 判 binary(返回空 content),`canonicalize` 后必须仍在 workspace
+  下(防 `..` 逃逸)。
+- **Frontend FileTree (B9-01)**:新 `src/features/files/FileTree.tsx`,
+  flat 列表按 parent path 构造折叠树,默认打开 depth-0 目录;按扩展名
+  分文件图标 (Code/Text/Generic),size 显示(B/K/M)。5 个测试覆盖。
+- **Frontend CodeEditor (B9-01)**:新 `src/features/files/CodeEditor.tsx`,
+  只读代码预览,左 gutter 行号 + prismjs 高亮(13 种语言:
+  rust/typescript/javascript/jsx/tsx/bash/json/yaml/toml/python/go/
+  markdown/css/markup);不支持的扩展回退 plaintext;binary 文件显示提示;
+  >1 MiB 标 "clipped to 1 MiB"。5 个测试覆盖。
+- **FilesView 重写**:左 FileTree + 右 CodeEditor split 布局;顶 path bar
+  + 刷新按钮;empty / error / loading 三态;`width="lg"`。
+- **WorkspacesView 升级 (B9-04)**:每个非 active workspace 卡片右侧加
+  "Use" 按钮(ghost sm size + ArrowRight 图标),点击调
+  `reflect_set_workspace` 后 invalidate `agent-status` 缓存 + toast 反馈
+  (success / error)。
+- **测试**:FileTree 5 + CodeEditor 5 = 10 个新 vitest。324/324 tests pass;
+  tsc clean;cargo check clean。
+
 ### Added — Batch 8 (Terminal: real shell exec + streaming)
 
 - **Backend (B8-01)**:`reflect_run_shell(cmd) -> ShellSession { id, command, cwd }`

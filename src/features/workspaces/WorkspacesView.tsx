@@ -1,12 +1,20 @@
 /**
- * Workspaces —— 从真实 sessions 派生的工作区列表（CSS Modules 版）。
+ * Workspaces —— 从真实 sessions 派生的工作区列表 (B9-04 升级)。
+ *
+ * 顶部 active workspace + 切换按钮(bottom-right Cards 有 "Use" action);
+ * 列表按 lastUsed 倒序;active 用 success badge 标出。
  */
-import { useQuery } from '@tanstack/react-query';
-import { FolderOpen, CheckCircle2 } from 'lucide-react';
-import { reflect_agent_status, reflect_list_sessions } from '@/utils/tauri';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FolderOpen, CheckCircle2, ArrowRight } from 'lucide-react';
+import {
+  reflect_agent_status,
+  reflect_list_sessions,
+  reflect_set_workspace,
+} from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
-import { Card, Badge, Icon, Spinner, EmptyState } from '@/features/design-system';
+import { Card, Badge, Icon, Spinner, EmptyState, Button } from '@/features/design-system';
 import { relativeTime } from '@/utils/time';
+import { useAgentStore } from '@/stores/agentStore';
 import s from './WorkspacesView.module.css';
 
 interface WorkspaceEntry {
@@ -16,6 +24,8 @@ interface WorkspaceEntry {
 }
 
 export function WorkspacesView() {
+  const qc = useQueryClient();
+  const pushToast = useAgentStore((st) => st.pushToast);
   const statusQ = useQuery({
     queryKey: ['agent-status'],
     queryFn: reflect_agent_status,
@@ -44,6 +54,19 @@ export function WorkspacesView() {
 
   const currentWs = statusQ.data?.workspace;
 
+  const onUse = async (path: string) => {
+    try {
+      await reflect_set_workspace(path);
+      pushToast({ kind: 'success', message: `Workspace set to ${basename(path)}` });
+      await qc.invalidateQueries({ queryKey: ['agent-status'] });
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        message: `Failed to switch workspace: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    }
+  };
+
   return (
     <PageShell
       icon={FolderOpen}
@@ -55,12 +78,13 @@ export function WorkspacesView() {
         <div className={s.currentRow}>
           <Icon icon={CheckCircle2} size={14} />
           <span className={s.currentLabel}>Active workspace</span>
-          <code className={s.currentPath}>{currentWs ?? '(loading…)'}</code>
+          <code className={s.currentPath} data-testid="workspaces-current">
+            {currentWs ?? '(loading…)'}
+          </code>
         </div>
         <p className={s.note}>
-          Switching workspaces requires setting <code className={s.codeInline}>cwd</code> at startup,
-          or via the agent's <code className={s.codeInline}>EnterWorktree</code> /{' '}
-          <code className={s.codeInline}>ExitWorktree</code> tools (UI triggers coming later).
+          Switching workspaces here sets the active path for new sessions.{' '}
+          Sessions already in flight remain on their original path.
         </p>
       </Card>
 
@@ -76,11 +100,18 @@ export function WorkspacesView() {
           />
         </Card>
       ) : (
-        <div className={s.list}>
+        <div className={s.list} data-testid="workspaces-list">
           {workspaces.map((w) => {
             const isActive = w.path === currentWs;
             return (
-              <Card key={w.path} level="outlined" padding="sm" className={s.wsCard} data-active={isActive || undefined}>
+              <Card
+                key={w.path}
+                level="outlined"
+                padding="sm"
+                className={s.wsCard}
+                data-active={isActive || undefined}
+                data-testid={`workspace-card-${basename(w.path)}`}
+              >
                 <div className={s.wsIcon}>
                   <Icon icon={FolderOpen} size={16} />
                 </div>
@@ -92,11 +123,23 @@ export function WorkspacesView() {
                   <div className={s.wsMeta}>
                     <code className={s.wsPath}>{w.path}</code>
                     <span className={s.wsSep}>·</span>
-                    <span>{w.sessionCount} session{w.sessionCount === 1 ? '' : 's'}</span>
+                    <span>
+                      {w.sessionCount} session{w.sessionCount === 1 ? '' : 's'}
+                    </span>
                     <span className={s.wsSep}>·</span>
                     <span>{relativeTime(w.lastUsed)}</span>
                   </div>
                 </div>
+                {!isActive && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onUse(w.path)}
+                    data-testid={`workspace-use-${basename(w.path)}`}
+                  >
+                    Use <Icon icon={ArrowRight} size={12} />
+                  </Button>
+                )}
               </Card>
             );
           })}

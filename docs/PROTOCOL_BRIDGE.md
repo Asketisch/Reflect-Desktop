@@ -66,6 +66,8 @@ Two channels:
 | `reflect_export_session` | `{ id }` | `string` (path) | 写 `~/.reflect/exports/<id>.json` |
 | `reflect_git_status` / `reflect_git_diff` / `reflect_git_log` | — | `GitStatus` / `string` / `Vec<GitLogEntry>` | 包装 git CLI;`reflect_git_diff(false)` = unstaged |
 | `reflect_run_shell` | `{ cmd: string }` | `ShellSession { id, command, cwd }` | 启动 shell;输出通过 `reflect_terminal_output` 事件流式推回 |
+| `reflect_list_dir` | `{ path?: string, maxDepth?: number }` | `DirListing { root, entries: DirEntry[], truncated }` | 列出目录;跳过 dotfile + node_modules/target/dist;depth 默认 4,封顶 2000 entries |
+| `reflect_read_file` | `{ path: string }` | `FileReadResult { path, content, size, binary, truncated }` | 读文本文件;1 MiB 上限;按 NUL byte 判 binary;`canonicalize` 后必须仍在 workspace 下(防 `..` 逃逸) |
 | `reflect_kill_shell` | `{ session_id }` | `null` | 终止 shell 会话;幂等 |
 | `reflect_list_shell_sessions` | `null` | `string[]` | 诊断:活跃 session id 列表 |
 
