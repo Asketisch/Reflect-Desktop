@@ -120,6 +120,28 @@
 
 .actions { display: flex; gap: var(--space-1, 4px); }
 
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px var(--space-1, 4px);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  color: var(--text-secondary, #c9d1e0);
+}
+.actionBtn:hover { border-color: var(--accent, #5eafe6); color: var(--accent, #5eafe6); }
+
+/* Danger variant — uses the existing --danger token instead of inline hex. */
+.actionBtnDanger {
+  color: var(--danger);
+}
+.actionBtnDanger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 .editRow {
   display: flex;
   flex-direction: column;
