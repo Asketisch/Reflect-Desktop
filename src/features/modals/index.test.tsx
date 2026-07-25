@@ -13,9 +13,14 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ModalStack } from '@/features/modals';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
 import { useAgentStore } from '@/stores/agentStore';
+import { I18nProvider } from '@/utils/i18n';
 
 function wrap(node: React.ReactNode) {
-  return <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>;
+  return (
+    <I18nProvider>
+      <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>
+    </I18nProvider>
+  );
 }
 
 describe('ModalStack', () => {

@@ -1,5 +1,5 @@
 import type { ReflectRolloutRecord } from '@/utils/types';
-import type { Turn, TurnItem } from './agentStore';
+import type { Turn, TurnItem } from './agent/types';
 
 export function turnsFromRollout(records: ReflectRolloutRecord[]): Turn[] {
   const turns: Turn[] = [];

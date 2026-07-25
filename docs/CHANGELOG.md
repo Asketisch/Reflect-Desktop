@@ -4,7 +4,119 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Changed — Structural refactor (canonical live state docs)
+
+Canonical-live-state documentation pass after the structural refactor. No code or
+runtime behaviour changes; only docs are updated. Module layout is rewritten to
+match the post-refactor file tree. Stale hardcoded counts (number of Tauri
+commands, namespace count, etc.) are removed in favour of "domain-split" wording.
+
+- **Backend `src-tauri/src/commands/`**: each `#[tauri::command]` body now lives
+  in a per-domain module under `src-tauri/src/commands/<domain>.rs`; the thin
+  `src-tauri/src/commands/mod.rs` re-exports them. Shared error helpers live in
+  `src-tauri/src/commands/error.rs` (`CommandError` / `CommandResult`). Domain
+  modules cover agent / allowlist / config / export / files / git / hooks /
+  memory / search / sessions / shell / skills / update / workspaces. The full
+  command list is enumerated in `docs/PROTOCOL_BRIDGE.md` §2.0 and registered in
+  `src-tauri/src/lib.rs::invoke_handler`.
+
+- **Backend `src-tauri/src/` support modules**: private helpers split off from
+  `state.rs` now live alongside it as `hook_store.rs`, `memory_store.rs`,
+  `shell_sessions.rs`, and `workspace_state.rs`. Public modules remain
+  `state.rs`, `events.rs`, `dock.rs`, `menu.rs`, `shortcut.rs`, `tray.rs`, and
+  `mcp.rs`.
+
+- **Frontend agent store**: the Zustand store implementation is now a module at
+  `src/stores/agent/` (`store.ts`, `reducer.ts`, `turns.ts`, `toast.ts`,
+  `servers.ts`, `types.ts`, `useAgent.ts`, `index.ts`). `src/stores/agentStore.ts`
+  is retained as a thin compatibility facade that re-exports `useAgentStore`,
+  `reduceEvent`, `useAgent`, and the type union from `./agent`. New code should
+  import directly from `@/stores/agentStore` (or from `./agent` for finer
+  granularity); the legacy `src/services/agent.ts` re-export continues to work.
+
+- **Composer ownership**: `Composer` is now owned by `src/features/composer/`
+  (`Composer.tsx`, `SlashPopup.tsx`, `MentionPicker.tsx`, `AttachmentBar.tsx`,
+  `slashCommands.ts`, `slashEngine.ts`, `useComposerInput.ts`,
+  `useComposerSubmission.ts`, `useAttachments.ts`, `usePromptHistory.ts`). The
+  previous `src/features/messages/Composer.tsx` is now a thin re-export shim —
+  `export { Composer } from '@/features/composer/Composer'` — so existing
+  imports continue to work.
+
+- **Settings decomposition**: `src/features/settings/` is split into:
+  - top-level shell — `SettingsView.tsx`, `ConfigForm.tsx`, `configSchema.tsx`
+  - `sections/` — `DisplaySection.tsx`, `NotificationsSection.tsx`,
+    `UpdatesSection.tsx` (each with its own `.ssr.test.tsx` where applicable)
+  - `components/` — `StructuredField.tsx`, `ComplexEditors.tsx`, `index.ts`
+    (shared form atoms + complex-section editors)
+  - `config/` — `schema.ts` (FieldSpec catalogue per `ReflectConfig` section),
+    `toml.ts` (pure read/edit helpers keeping unknown keys intact), `index.ts`
+    (barrel), `toml.test.ts`
+
+- **Frontend IPC wrappers**: per-domain wrappers now live under
+  `src/utils/commands/<domain>.ts` and are aggregated by
+  `src/utils/commands/index.ts`. `src/utils/tauri.ts` and `src/utils/commands.ts`
+  remain as compatibility barrels that re-export from `./bridge` + `./commands`
+  + `./types`. `src/utils/bridge.ts` is the low-level `invoke` / `listen` + Tauri
+  context-fallback layer with `isMissingTauriInvokeError` guard.
+
+- **i18n decomposition**: runtime split into
+  `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}`;
+  the `STRINGS` dict is composed in `src/utils/i18n/strings/index.ts` by
+  merging per-namespace catalog modules under `src/utils/i18n/strings/`
+  (about / app / apps / chat / collaboration / common / composer / debug /
+  design / dictation / files / git / home / inspector / memory / mobile /
+  modal / models / notifications / palette / permissionMode / plan / prompts /
+  settings / shell / sidebar / skills / slash / terminal / threads / toast /
+  update / workspaces). `src/utils/i18n.ts` is the compatibility barrel that
+  re-exports the runtime API plus the merged `STRINGS` / `ALL_KEYS`.
+
+- **Modal decomposition**: `src/features/modals/` now contains one `.tsx` per
+  modal body — `ApprovalModal.tsx`, `QuestionModal.tsx`, `AskUserModal.tsx`,
+  `PlanReadyModal.tsx`, `ApprovalHistory.tsx` — plus the shared `ModalShell.tsx`
+  and the `index.tsx` `ModalStack` orchestrator.
+
+- **Terminal / memory / shell decomposition**: stateful orchestration extracted
+  into co-located controllers:
+  - `src/features/terminal/TerminalView.tsx` (presentational) +
+    `src/features/terminal/useTerminalController.ts` (sessions / lines /
+    run / kill / clear)
+  - `src/features/memory/MemoryView.tsx` (presentational, with `MemoryRow.tsx`
+    and `MemoryAddForm.tsx`) + `src/features/memory/useMemoryController.ts`
+    (TanStack query + mutations + filter/edit/new-form state)
+  - `src/features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts`
+    for shell-level interactions.
+
+- **Docs updates**: `AGENTS.md`, `README.md`, `docs/codebase-map.md`,
+  `docs/ARCHITECTURE.md`, `docs/PROTOCOL_BRIDGE.md`, and `docs/CHANGELOG.md` are
+  rewritten to describe the post-refactor layout as canonical live state. No
+  past commentary appears outside the changelog. All referenced paths exist.
+
 ### Fixed — Core UX
+
+- **Window drag region**: TitleBar `-webkit-app-region: drag` now actually fires. Hardened
+  `[data-tauri-drag-region]` in `src/styles/base.css` with `position: relative; z-index: 1;
+  user-select: none` so flex/transform ancestors don't trap the drag. Explicitly declared
+  `-webkit-app-region: drag` on `.bar` / `.left` / `.right` / `.title` / `.sessionStatus`
+  in `src/features/shell/TitleBar.module.css` as belt-and-suspenders. Loosened
+  `AppShell.module.css` `.shell { overflow: clip }` (was `hidden`) so the drag element
+  actually receives mousedown. Added `onMouseDown` guard on TitleBar to prevent webview
+  focus stealing from breaking native drag.
+
+- **Full project i18n (English + Simplified Chinese)**: Expanded `src/utils/i18n.ts` from
+  32 keys to **280+ keys** across 24 namespaces (`common`, `app`, `shell`, `sidebar`,
+  `threads`, `composer`, `chat`, `settings`, `palette`, `modal`, `home`, `files`, `git`,
+  `terminal`, `skills`, `workspaces`, `models`, `plan`, `prompts`, `notifications`,
+  `about`, `apps`, `collaboration`, `debug`, `mobile`, `update`, `memory`, `dictation`,
+  `design`, `toast`, `slash`, `permissionMode`, `inspector`). All 43 components previously
+  with hardcoded English strings now render via `useI18n()`. Titles, aria-labels,
+  toasts, command palette entries, slash commands, dictation language (`zh-CN` /
+  `en-US`), permission mode descriptions, configuration schema field labels and
+  placeholders, all four modals (Approval / Question / AskUser / PlanReady), every
+  ConfigForm section, every route view (Home / Files / Search / Git / Terminal / Skills
+  / Workspaces / Models / Plan / Prompts / Notifications / About / Apps / Collaboration
+  / Debug / Mobile / Update / Memory / Dictation / DesignSystem) all localize. Catalog
+  parity enforced by `src/utils/i18n.test.ts` (parity + interpolation + plural +
+  fallback). Persisted to `localStorage` and synced to `<html lang>` on switch.
 
 - Added persisted English/Simplified Chinese localization with a Settings language selector for core shell, chat, session, and settings UI.
 - Replaced the narrow provider-only settings form with a fully structured form that renders a direct input for every supported section in `vendor/reflect-config/src/schema.rs`: `active`, `anthropic`, `openai`, `ollama`, `compact`, `token_budget`, `sandbox`, `routing.{main,compact,subagent}`, `coordinator`, `ask_user_question`, `model`, `analytics`, `notifications`, `postgres_session`, `sse_redis`, `bridge`, `voice`, `dap`, `acp`, `sanitize`, `plugins`, `feature_flags`, `mcp_servers`, `lsp_servers`, `hooks`, `subagent_providers`, `config_version`. Each input edits and serializes TOML in-place; the Advanced raw TOML editor remains the release valve.
@@ -12,6 +124,7 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ### Added
 
+- **Appearance customization**: Settings → Display now exposes system/dark/light themes, custom accent colors, adjustable surface transparency, persistent local or URL background images, and background image strength. Appearance preferences are safely migrated from existing `reflect.uiprefs.v1` data and applied through shared design tokens; Reduce Transparency now forces opaque surfaces and hides the wallpaper.
 - `ConfigForm` component (`src/features/settings/ConfigForm.tsx`) and `configSchema` helpers (`src/features/settings/configSchema.tsx`).
 - `src/features/messages/ChatView.test.tsx` covering loading, empty, error, retry, locale switching, and session-clearing flows (5 cases).
 - Extended `SettingsView.test.tsx` covering all 25+ structured inputs and `configSchema` helpers (5 new cases).

@@ -1,0 +1,36 @@
+/**
+ * i18n namespace —— dictation.*
+ *
+ * 由 strings/index.ts merge 进 STRINGS dict；不要直接 import 此模块 ——
+ * 走 `@/utils/i18n` 的统一入口。
+ */
+import type { StringEntry } from '../types';
+
+const dictation: Record<string, StringEntry> = {
+  'dictation.title':              { en: 'Dictation',                                                                                                                                                                                                                        'zh-CN': '语音输入' },
+  'dictation.subtitle':           { en: 'Voice input via Web Speech API.',                                                                                                                                                                                                  'zh-CN': '通过 Web Speech API 进行语音输入。' },
+  'dictation.unavailable':        { en: 'Speech recognition unavailable',                                                                                                                                                                                                   'zh-CN': '语音识别不可用' },
+  'dictation.unavailableDesc':    { en: 'The current WebView does not expose {code}. Voice input works in Chrome, Edge, and Safari. If you are on Linux Tauri WebKit, you can enable speech-dispatcher or compile WebKit with the recognition patch for similar results.',  'zh-CN': '当前 WebView 不暴露 {code}。语音输入在 Chrome、Edge、Safari 中可用。如果你使用 Linux Tauri WebKit,可以启用 speech-dispatcher 或使用带识别补丁的 WebKit 编译。' },
+  'dictation.unavailableBadge':   { en: 'fallback only',                                                                                                                                                                                                                    'zh-CN': '仅降级' },
+  'dictation.start':              { en: 'Start',                                                                                                                                                                                                                            'zh-CN': '开始' },
+  'dictation.stop':               { en: 'Stop',                                                                                                                                                                                                                             'zh-CN': '停止' },
+  'dictation.startAria':          { en: 'Start dictation',                                                                                                                                                                                                                  'zh-CN': '开始语音输入' },
+  'dictation.stopAria':           { en: 'Stop dictation',                                                                                                                                                                                                                   'zh-CN': '停止语音输入' },
+  'dictation.holdLabel':          { en: 'Hold to talk (press mouse to start, release to stop)',                                                                                                                                                                             'zh-CN': '按住说话 (按下开始,松开停止)' },
+  'dictation.holdAria':           { en: 'Hold to dictate',                                                                                                                                                                                                                  'zh-CN': '按住说话' },
+  'dictation.holdActive':         { en: 'Listening… release to stop',                                                                                                                                                                                                       'zh-CN': '正在聆听…松开停止' },
+  'dictation.holdIdle':           { en: 'Press and hold to talk',                                                                                                                                                                                                           'zh-CN': '按住说话' },
+  'dictation.placeholderActive':  { en: 'Listening…',                                                                                                                                                                                                                       'zh-CN': '正在聆听…' },
+  'dictation.placeholderIdle':    { en: 'Your transcript will appear here.',                                                                                                                                                                                                'zh-CN': '转写文本将显示在这里。' },
+  'dictation.transcriptAria':     { en: 'Dictation transcript',                                                                                                                                                                                                             'zh-CN': '语音转写' },
+  'dictation.clear':              { en: 'Clear',                                                                                                                                                                                                                            'zh-CN': '清空' },
+  'dictation.clearAria':          { en: 'Clear transcript',                                                                                                                                                                                                                 'zh-CN': '清空转写' },
+  'dictation.copy':               { en: 'Copy',                                                                                                                                                                                                                             'zh-CN': '复制' },
+  'dictation.copyAria':           { en: 'Copy transcript',                                                                                                                                                                                                                  'zh-CN': '复制转写' },
+  'dictation.copied':             { en: 'Copied',                                                                                                                                                                                                                           'zh-CN': '已复制' },
+  'dictation.insert':             { en: 'Insert into composer',                                                                                                                                                                                                             'zh-CN': '插入到输入框' },
+  'dictation.errorUnavailable':   { en: 'SpeechRecognition API is not available in this environment.',                                                                                                                                                                      'zh-CN': '当前环境不支持 SpeechRecognition API。' },
+  'dictation.live':               { en: 'live',                                                                                                                                                                                                                             'zh-CN': '实时' },
+};
+
+export default dictation;

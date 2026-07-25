@@ -21,8 +21,15 @@
  * 阶段 A2 历史：
  *   - Sidebar onSelect 同步 URL（navigate 到 /chat/$sessionId）+ 本地高亮。
  *   - onNewChat 导航到 /chat（新对话视图）。
+ *
+ * 结构化重构（A11+）：
+ *   - 主题切换状态机 → `./hooks/useThemeCycle`。
+ *   - 全局快捷键（⌘K / Esc）→ `./hooks/useCommandPaletteShortcut`。
+ *   - 命令面板动作（newSession / clearAllSessions / exportActive / saveConfig / runSlash）
+ *     → `./hooks/usePaletteActions`。
+ *   - AppShell 本身只负责布局与 DOM 拼装。
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter, Outlet } from '@tanstack/react-router';
 import { ActivityBar } from './ActivityBar';
 import { TitleBar } from './TitleBar';
@@ -32,49 +39,29 @@ import { Sidebar } from '@/features/sessions/components/Sidebar';
 import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { ModalStack } from '@/features/modals';
 import { CommandPalette } from '@/features/command-palette/CommandPalette';
-import { getTheme, getResolvedTheme, setTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
-import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { reflect_export_session, reflect_save_config } from '@/utils/commands';
-import { useQueryClient } from '@tanstack/react-query';
-import { reflect_list_sessions, reflect_delete_session } from '@/utils/commands';
+import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
+import { useThemeCycle } from './hooks/useThemeCycle';
+import { useCommandPaletteShortcut } from './hooks/useCommandPaletteShortcut';
+import { usePaletteActions } from './hooks/usePaletteActions';
 import s from './AppShell.module.css';
 
 export function AppShell() {
   const sessions = useSessions();
   const { activeId, setActiveId } = useActiveSession();
   const router = useRouter();
-  const qc = useQueryClient();
-  const submit = useAgentStore((st) => st.submit);
-  const pushToast = useAgentStore((st) => st.pushToast);
-  const { t } = useI18n();
+  const { t, tp } = useI18n();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // B13-B15: agent 完成时给 chime + 系统通知 + dock badge。
+  useAgentNotifications(loadNotifyOptions());
 
   // theme state for palette
-  const [mode, setMode] = useState<ThemeMode>(() => getTheme());
-  const [resolved, setResolved] = useState<'light' | 'dark'>(() => getResolvedTheme());
-  useEffect(() => subscribeTheme(setResolved), []);
-  const cycleTheme = useCallback(() => {
-    const next: ThemeMode = mode === 'dark' ? 'light' : mode === 'light' ? 'system' : 'dark';
-    setTheme(next);
-    setMode(next);
-  }, [mode]);
+  const { resolved, cycleTheme, setThemeMode } = useThemeCycle();
 
-  // ⌘K / Ctrl+K global shortcut
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      } else if (e.key === 'Escape' && paletteOpen) {
-        setPaletteOpen(false);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [paletteOpen]);
+  // ⌘K / Ctrl+K global shortcut + Esc close
+  const { paletteOpen, setPaletteOpen } = useCommandPaletteShortcut();
 
   const handleSelect = (id: string) => {
     setActiveId(id);
@@ -85,59 +72,23 @@ export function AppShell() {
     void router.navigate({ to: '/chat' });
   };
 
-  // palette action handlers
-  const newSession = useCallback(() => {
-    handleNewChat();
-    pushToast({ kind: 'info', message: 'New session started.' });
-  }, [pushToast]);
-
-  const clearAllSessions = useCallback(async () => {
-    const list = await qc.fetchQuery({ queryKey: ['sessions'], queryFn: () => reflect_list_sessions() });
-    if (!Array.isArray(list) || list.length === 0) {
-      pushToast({ kind: 'info', message: 'No sessions to clear.' });
-      return;
-    }
-    for (const s of list) {
-      try {
-        await reflect_delete_session(s.session_id);
-      } catch (e) {
-        pushToast({ kind: 'error', message: `Delete failed: ${(e as Error).message}` });
-      }
-    }
-    await qc.invalidateQueries({ queryKey: ['sessions'] });
-    pushToast({ kind: 'success', message: `Cleared ${list.length} session(s).` });
-  }, [qc, pushToast]);
-
-  const exportActive = useCallback(async () => {
-    if (!activeId) {
-      pushToast({ kind: 'warn', message: 'No active session to export.' });
-      return;
-    }
-    try {
-      const path = await reflect_export_session(activeId);
-      pushToast({ kind: 'success', message: `Exported → ${path ?? '(no path)'}` });
-    } catch (e) {
-      pushToast({ kind: 'error', message: `Export failed: ${(e as Error).message}` });
-    }
-  }, [activeId, pushToast]);
-
-  const saveConfig = useCallback(async () => {
-    try {
-      await reflect_save_config('');
-      pushToast({ kind: 'success', message: 'Config reloaded.' });
-    } catch (e) {
-      pushToast({ kind: 'error', message: `Save failed: ${(e as Error).message}` });
-    }
-  }, [pushToast]);
-
-  const runSlash = useCallback(
-    (slash: string) => {
-      // palette triggers fire-and-forget via submit; this lets e.g. /compact work
-      // without forcing the user to type into the composer.
-      void submit(slash);
+  // palette action handlers (集中到 hook)
+  const { newSession, clearAllSessions, exportActive, saveConfig, runSlash } = usePaletteActions({
+    activeId,
+    onNewChat: handleNewChat,
+    toasts: {
+      newSession: t('toast.newSession'),
+      noSessionsToClear: t('toast.noSessionsToClear'),
+      deleteFailed: (msg) => t('toast.deleteFailed', { msg }),
+      clearedSessions: (count) => tp('toast.clearedSessions', count, { count }),
+      noActiveToExport: t('toast.noActiveToExport'),
+      exported: (path) => t('composer.exported', { path }),
+      exportedNoPath: t('composer.exportedNoPath'),
+      exportFailed: (msg) => t('toast.exportFailed', { msg }),
+      configReloaded: t('toast.configReloaded'),
+      saveFailed: (msg) => t('toast.saveFailed', { msg }),
     },
-    [submit],
-  );
+  });
 
   return (
     <div className={s.shell}>
@@ -173,7 +124,7 @@ export function AppShell() {
           </div>
         </main>
         {inspectorOpen && (
-          <aside className={s.inspector} aria-label="Inspector" data-testid="shell-inspector">
+          <aside className={s.inspector} aria-label={t('shell.inspector')} data-testid="shell-inspector">
             <Inspector />
           </aside>
         )}
@@ -185,7 +136,7 @@ export function AppShell() {
         onClose={() => setPaletteOpen(false)}
         navigate={(to) => void router.navigate({ to })}
         cycleTheme={cycleTheme}
-        setTheme={(m) => { setTheme(m); setMode(m); }}
+        setTheme={setThemeMode}
         resolvedTheme={resolved}
         newSession={newSession}
         clearAllSessions={() => void clearAllSessions()}

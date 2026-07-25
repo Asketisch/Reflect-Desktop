@@ -27,7 +27,7 @@ ReflectDesktop is a Tauri 2 + React 19 desktop GUI for the Reflect Agent.
 2. The Tauri app is a thin adapter around `reflect_core::AgentThread`.
 3. Do not duplicate logic between TUI and GUI; both consume the same `reflect-protocol` envelope.
 4. Keep Tauri command names and payload shapes stable unless intentionally changing contracts.
-5. Keep frontend IPC contracts in sync with backend command surfaces (`src/utils/tauri.ts` ↔ `src-tauri/src/commands/mod.rs`).
+5. Keep frontend IPC contracts in sync with backend command surfaces (`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`).
 
 ## Backend Routing Rules
 
@@ -35,17 +35,17 @@ For backend behavior changes, follow this order:
 
 1. Vendor crates (`vendor/reflect-*`) — preferred for cross-runtime logic. If the change belongs upstream, sync via `scripts/vendor-sync.sh` first.
 2. App adapter and Tauri command surface (`src-tauri/src/lib.rs` + `commands/mod.rs`).
-3. Frontend IPC wrapper (`src/utils/tauri.ts`).
+3. Frontend IPC wrapper (`src/utils/commands/{domain}.ts`).
 4. If you add a backend command, update all relevant layers + tests + `docs/PROTOCOL_BRIDGE.md` + `docs/CHANGELOG.md`.
 
 ## Frontend Routing Rules
 
-- Keep `src/App.tsx` as composition/wiring root.
+- Keep `src/main.tsx` as the composition root.
 - Keep `src/router.tsx` as the route table.
-- Move stateful orchestration into `src/features/<slice>/hooks/*`.
+- Move stateful orchestration into `src/features/<slice>/hooks/*` or `<slice>/use*Controller.ts` files co-located with the view.
 - Keep presentational UI in feature components (`src/features/<slice>/<View>.tsx`).
-- Keep Tauri calls in `src/utils/tauri.ts` only.
-- Keep event subscription fanout in `src/services/agent.ts`.
+- Keep Tauri calls in `src/utils/commands/` only (per-domain files); `src/utils/tauri.ts` and `src/utils/commands.ts` are compatibility barrels — do not add new wrappers there.
+- Keep event subscription fanout in `src/services/agent.ts` and `src/services/agentEventBus.ts`.
 
 ## Import Aliases
 
@@ -58,13 +58,15 @@ Use project aliases for frontend imports (defined in `tsconfig.json` + `vite.con
 - Frontend composition root: `src/main.tsx`
 - Frontend router: `src/router.tsx`
 - IDE app shell: `src/features/shell/AppShell.tsx`
-- Frontend IPC wrapper: `src/utils/tauri.ts`
-- Frontend agent store: `src/stores/agentStore.ts`
-- Frontend agent hook (re-export): `src/services/agent.ts`
+- Frontend IPC barrel (compat): `src/utils/tauri.ts` / `src/utils/commands.ts`
+- Frontend IPC low-level bridge: `src/utils/bridge.ts` (`invoke` / `listen` with fallback)
+- Frontend IPC wrappers (per-domain): `src/utils/commands/{domain}.ts` (e.g. `agent`, `sessions`, `memory`, `terminal`, `git`, `files`, `skills`, `hooks`, `workspaces`, `config`, `permissions`, `approvals`, `questions`, `plan`, `events`, `health`, `updates`, `allowlist`, `search`)
+- Frontend agent store: `src/stores/agentStore.ts` (compat facade) → `src/stores/agent/` (implementation: `store.ts`, `reducer.ts`, `turns.ts`, `toast.ts`, `servers.ts`, `types.ts`, `useAgent.ts`, `index.ts`)
+- Frontend agent hook (legacy re-export): `src/services/agent.ts`
 - App command registry: `src-tauri/src/lib.rs`
 - App state (AgentThread host): `src-tauri/src/state.rs`
-- Event forwarder: `src-tauri/src/events.rs`
-- Tauri commands: `src-tauri/src/commands/mod.rs`
+- App state support modules (kept under `src-tauri/src/`): `state.rs`, `dock.rs`, `events.rs`, `mcp.rs`, `menu.rs`, `tray.rs`, `shortcut.rs`, plus private helpers `hook_store.rs`, `memory_store.rs`, `shell_sessions.rs`, `workspace_state.rs`.
+- Tauri command surface: `src-tauri/src/commands/mod.rs` — thin barrel that re-exports the per-domain modules under `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` and the shared `error.rs` (defines `CommandError` / `CommandResult`).
 - Cargo workspace: `Cargo.toml` (root) + `src-tauri/Cargo.toml`
 - Vendor mirror: `vendor/reflect-*/` (mirror, do not edit directly)
 
@@ -95,18 +97,18 @@ For broader path maps, use `docs/codebase-map.md`.
 
 For Queue vs Steer follow-up behavior, start here:
 
-- Settings model + defaults: `src/features/settings/SettingsView.tsx`
-- Composer runtime behavior: `src/features/messages/Composer.tsx`
-- Send intent routing: `src/stores/agentStore.ts::submit`
+- Settings model + defaults: `src/features/settings/SettingsView.tsx` (uses `ConfigForm` + per-section components)
+- Composer runtime behavior: `src/features/composer/Composer.tsx` (the canonical location); `src/features/messages/Composer.tsx` is now a thin re-export shim that re-exports from `features/composer/Composer`.
+- Send intent routing: `src/stores/agent/index.ts::useAgentStore` (canonical) — `src/stores/agentStore.ts` is a compatibility facade.
 - App/layout wiring: `src/features/shell/AppShell.tsx`, `src/router.tsx`
 
 ## App State Sync Checklist
 
 When changing settings/persistence that affects both backend and frontend:
 
-1. Backend (`src-tauri/src/state.rs` + `commands/mod.rs`) updated.
-2. Frontend IPC (`src/utils/tauri.ts`) updated.
-3. Feature settings UI (`src/features/settings/SettingsView.tsx`) updated.
+1. Backend (`src-tauri/src/state.rs` + the relevant `commands/<domain>.rs` / `commands/mod.rs`) updated.
+2. Frontend IPC (`src/utils/commands/{domain}.ts`) updated.
+3. Feature settings UI (`src/features/settings/SettingsView.tsx`, `ConfigForm.tsx`, `sections/DisplaySection.tsx`, `sections/NotificationsSection.tsx`, `sections/UpdatesSection.tsx`, `components/StructuredField.tsx`, `components/ComplexEditors.tsx`, `config/schema.ts`) updated.
 4. Test coverage added.
 5. `docs/PROTOCOL_BRIDGE.md` updated if wire format changed.
 6. `docs/CHANGELOG.md` entry added.
@@ -173,17 +175,29 @@ pnpm test -- src/features/settings/SettingsView.test.tsx
 
 Use extra care in high-churn/high-complexity files:
 
-- `src-tauri/src/lib.rs` (Tauri builder + 20 commands registration)
-- `src-tauri/src/state.rs` (AgentThread host; install timing matters)
-- `src-tauri/src/commands/mod.rs` (19 commands + session I/O)
-- `src-tauri/src/events.rs` (event forwarder, single channel)
-- `src/stores/agentStore.ts` (single source of truth for agent state + reducer)
-- `src/features/shell/AppShell.tsx` (IDE 5-pane layout; sidebar/inspector toggle, session routing)
-- `src/features/messages/MessageList.tsx` (chat rendering + Collapsible items)
-- `src/utils/tauri.ts` (barrel; the only file that re-exports `invoke` / `listen` from `commands/bridge`)
-- `src/router.tsx` (TanStack Router route table)
-- `src/styles/tokens.css` (design tokens; dark/light/system themes — single source of truth)
-- `scripts/vendor-sync.sh` (CRATES list controls which vendor crates sync)
+- `src-tauri/src/lib.rs` — Tauri builder + command handler registration (`invoke_handler` lists every public `reflect_*` command exported from `src-tauri/src/commands/mod.rs`).
+- `src-tauri/src/state.rs` — AgentThread host; install timing matters.
+
+## Oversized File Exceptions (>=500 LoC rationale)
+
+The structural-refactor target is `<= 500 LoC` for first-party production files. The following files intentionally exceed that threshold and are kept large on purpose:
+
+- `src-tauri/src/state.rs` (~602 LoC) — `MinimalAgent` is the single Tauri `manage()`-d host for the embedded `reflect_core::AgentThread` plus session broadcast, install lifecycle, and the `Inner` Arc state. The lifecycle body is intentionally one cohesive sequence (cfg snapshot → registry build → `AgentThread` install → forwarder start → MCP/LSP bootstrap spawn). Further mechanical splitting would split install-time invariants across files; the AgentThread bootstrap is the single most timing-sensitive path in the Tauri adapter, and AGENTS.md's AgentThread Host State Invariants cover it as one atomic story.
+- `app-core/src/reducer/mod.rs` (~592 LoC) — pure `apply_event(state, Event) -> state`; one consolidated `match` over every `EventMsg` variant. Splitting by sub-domain would require duplicating cross-cutting state plumbing or extracting a generated-style router; for this crate, the single switch is the diagnostic value: protocol changes are immediately visible as one delocalized diff in one file.
+- `src/types/protocol.ts` (~530 LoC) — manually maintained TS mirror of `vendor/reflect-protocol`. It is data-only (types + match helpers), not behavioral code. The header notes it must stay in sync with the upstream schema; if the team adopts generation, this file becomes the generated artifact and remains an explicit exception.
+
+If a future task reduces these further, prefer moving logic across crates (e.g. lifting reducer into `app-core::reducer::*`, lifting host into `app-core::host`) over mechanical slices inside the same file.
+- `src-tauri/src/commands/mod.rs` — thin barrel that re-exports per-domain command bodies in `commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` (the actual command bodies live here; the sub-`mod.rs` keeps module wiring only).
+- `src-tauri/src/events.rs` — event forwarder, single channel.
+- `src/stores/agent/store.ts` — the live Zustand store; `src/stores/agent/index.ts` re-exports `useAgentStore` / `reduceEvent` / `useAgent` and the type union; the user-facing compat entry is `src/stores/agentStore.ts`, which re-exports from `./agent`.
+- `src/features/shell/AppShell.tsx` — IDE 5-pane layout; sidebar/inspector toggle, session routing. Stateful shell interactions are extracted into `src/features/shell/hooks/useCommandPaletteShortcut.ts`, `usePaletteActions.ts`, `useThemeCycle.ts`.
+- `src/features/messages/MessageList.tsx` — chat rendering + Collapsible items (Composer now lives at `src/features/composer/Composer.tsx`; `src/features/messages/Composer.tsx` is a thin re-export shim).
+- `src/utils/bridge.ts` — low-level `invoke` / `listen` with fallback. `src/utils/tauri.ts` and `src/utils/commands.ts` are compatibility barrels; new wrappers go into `src/utils/commands/{domain}.ts`.
+- `src/utils/i18n.ts` — compatibility barrel; runtime split into `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` and `src/utils/i18n/strings/index.ts` merging domain catalogs under `src/utils/i18n/strings/{about,app,apps,chat,collaboration,common,composer,debug,design,dictation,files,git,home,inspector,memory,mobile,modal,models,notifications,palette,permissionMode,plan,prompts,settings,shell,sidebar,skills,slash,terminal,threads,toast,update,workspaces}.ts`.
+- `src/router.tsx` — TanStack Router route table.
+- `src/styles/tokens.css` — design tokens; dark/light/system themes — single source of truth.
+- `scripts/vendor-sync.sh` — CRATES list controls which vendor crates sync.
+- View/controller split: `src/features/terminal/TerminalView.tsx` reads from `src/features/terminal/useTerminalController.ts`; `src/features/memory/MemoryView.tsx` reads from `src/features/memory/useMemoryController.ts`; `src/features/modals/index.tsx` orchestrates `ApprovalModal` / `QuestionModal` / `AskUserModal` / `PlanReadyModal` whose bodies live alongside it.
 
 ## Canonical References
 

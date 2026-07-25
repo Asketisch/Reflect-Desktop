@@ -27,49 +27,37 @@ Two channels:
 
 ## 2. Submission (UI → Backend)
 
-`Op` has 14 variants in `vendor/reflect-protocol/src/op.rs`:
+`Op` variants are listed in `vendor/reflect-protocol/src/op.rs`; each maps 1:1 to a Tauri command whose body lives in `src-tauri/src/commands/<domain>.rs` (re-exported by `src-tauri/src/commands/mod.rs`). The full set is enumerated in the §2.0 table below; the canonical Op→command mapping is the single source of truth and should be regenerated whenever `vendor/reflect-protocol/src/op.rs` changes.
 
-| # | Op variant | Tauri command | Payload |
+> **注**:除 `UserInput` 经 `reflect_submit` 接受完整 `Submission` 外,其余 Op 命令
+> 后端在 `commands/<domain>.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递。
+> 所有 Op 命令返回 `string`(submission id,供前端 pairing/调试)。
+
+### 2.0 Commands outside Op (diagnostic / config / domain I/O)
+
+These commands do not correspond to an `Op` variant; they live alongside Op-derived commands in the same per-domain modules:
+
+| Command | Payload | Returns | Where (Rust) / Where (TS) |
 |---|---|---|---|
-| 1 | `UserInput` | `reflect_submit` | `{ items: UserInputItem[], thread_settings? }` |
-| 2 | `Rewind { to_turn_id? }` | `reflect_rewind` | `to_turn_id?: string` |
-| 3 | `Compact` | `reflect_compact` | `null` |
-| 4 | `Interrupt` | `reflect_interrupt` | `null` |
-| 5 | `Shutdown` | `reflect_shutdown` | `null` |
-| 6 | `ToolApproval { id, decision }` | `reflect_tool_approval` | `{ id: string, decision: ReviewDecision }` |
-| 7 | `HookApproval { id, decision }` | `reflect_hook_approval` | `{ id: string, decision: ReviewDecision }` |
-| 8 | `EnterPlanMode { task }` | `reflect_enter_plan_mode` | `{ task: string }` |
-| 9 | `ExitPlanMode` | `reflect_exit_plan_mode` | `null` |
-| 10 | `PlanApproval { id, decision }` | `reflect_plan_approval` | `{ id: string, decision: ReviewDecision }` |
-| 11 | `SetEffort { effort }` | `reflect_set_effort` | `{ effort: ReasoningEffortMirror }` |
-| 12 | `AskUserQuestionResponse { id, answers }` | `reflect_ask_user_question_response` | `{ id: string, answers: AskUserAnswer }` |
-| 13 | `AskUserInputResponse { id, text }` | `reflect_ask_user_input_response` | `{ id: string, text: string }` |
-| 14 | `SetPermissionMode { mode }` | `reflect_set_permission_mode` | `{ mode: PermissionMode }` |
-| 15 | `CyclePermissionMode` | `reflect_cycle_permission_mode` | `null` |
-
-> **注**:除 `UserInput` 经 `reflect_submit` 接受完整 `Submission` 外,其余 14 个命令
-> 后端在 `commands/mod.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递(阶段 2 实装,
-> 不再是空 `Ok(())`)。所有 Op 命令返回 `string`(submission id,供前端 pairing/调试)。
-
-### 2.0 非 Op 命令(诊断 / 配置 / 工具列表)
-
-这些命令不对应 `Op` 变体,是 ReflectDesktop 自己的诊断/配置面:
-
-| Command | Payload | Returns | 用途 |
-|---|---|---|---|
-| `ping` | `null` | `{ msg, version }` | IPC 通路健康检查 |
-| `reflect_agent_status` | `null` | `{ ready, has_model, model, workspace, degraded_reason }` | 前端状态徽标 + 降级引导 |
-| `reflect_get_config` | `null` | `string`(TOML) | 读 `~/.reflect/config.toml` |
-| `reflect_save_config` | `{ toml: string }` | `null` | 写回(写盘前 `load_from_str` 校验,热更新共享 cfg) |
-| `reflect_list_tools` | `null` | `Vec<{ name, description }>` | 当前 ToolRegistry 注册的工具 |
-| `reflect_list_sessions` / `reflect_rename_session` / `reflect_delete_session` / `reflect_replay_session` | — | — | session I/O(rollout) |
-| `reflect_export_session` | `{ id }` | `string` (path) | 写 `~/.reflect/exports/<id>.json` |
-| `reflect_git_status` / `reflect_git_diff` / `reflect_git_log` | — | `GitStatus` / `string` / `Vec<GitLogEntry>` | 包装 git CLI;`reflect_git_diff(false)` = unstaged |
-| `reflect_run_shell` | `{ cmd: string }` | `ShellSession { id, command, cwd }` | 启动 shell;输出通过 `reflect_terminal_output` 事件流式推回 |
-| `reflect_list_dir` | `{ path?: string, maxDepth?: number }` | `DirListing { root, entries: DirEntry[], truncated }` | 列出目录;跳过 dotfile + node_modules/target/dist;depth 默认 4,封顶 2000 entries |
-| `reflect_read_file` | `{ path: string }` | `FileReadResult { path, content, size, binary, truncated }` | 读文本文件;1 MiB 上限;按 NUL byte 判 binary;`canonicalize` 后必须仍在 workspace 下(防 `..` 逃逸) |
-| `reflect_kill_shell` | `{ session_id }` | `null` | 终止 shell 会话;幂等 |
-| `reflect_list_shell_sessions` | `null` | `string[]` | 诊断:活跃 session id 列表 |
+| `ping` | `null` | `{ msg, version }` | `src-tauri/src/commands/agent.rs` (barrel) / `src/utils/commands/health.ts` |
+| `reflect_agent_status` | `null` | `{ ready, has_model, model, workspace, degraded_reason }` | `commands/agent.rs` / `commands/agent.ts` |
+| `reflect_get_config` | `null` | `string` (TOML) | `commands/config.rs` / `commands/config.ts` |
+| `reflect_save_config` | `{ toml }` | `null` | `commands/config.rs` / `commands/config.ts` |
+| `reflect_list_tools` | `null` | `Vec<{ name, description }>` | `commands/agent.rs` / `commands/agent.ts` |
+| `reflect_list_sessions` / `reflect_rename_session` / `reflect_delete_session` / `reflect_replay_session` | — | — | `commands/sessions.rs` / `commands/sessions.ts` |
+| `reflect_export_session` / `reflect_export_session_markdown` | `{ id }` / `{ id }` | `string` (path) / `string` (markdown) | `commands/export.rs` / `commands/sessions.ts` |
+| `reflect_git_status` / `reflect_git_diff` / `reflect_git_log` | — | `GitStatus` / `string` / `Vec<GitLogEntry>` | `commands/git.rs` / `commands/git.ts` |
+| `reflect_run_shell` | `{ cmd }` | `ShellSession { id, command, cwd }` | `commands/shell.rs` / `commands/terminal.ts`; `reflect_terminal_output` event streams output |
+| `reflect_kill_shell` | `{ session_id }` | `null` | `commands/shell.rs` / `commands/terminal.ts` |
+| `reflect_list_shell_sessions` | `null` | `string[]` | `commands/shell.rs` / `commands/terminal.ts` |
+| `reflect_list_dir` / `reflect_read_file` / `reflect_search_files` | `{ path?, maxDepth? }` / `{ path }` / `{ query, ... }` | `DirListing` / `FileReadResult` / search results | `commands/files.rs` / `commands/files.ts`; `commands/search.rs` / `commands/search.ts` |
+| `reflect_load_allowlist` / `reflect_save_allowlist` / `reflect_check_allowlist` | — | allowlist payload | `commands/allowlist.rs` / `commands/allowlist.ts` |
+| `reflect_list_workspaces` / `reflect_set_workspace` / `reflect_current_workspace` | — | workspace payloads | `commands/workspaces.rs` / `commands/workspaces.ts` |
+| `reflect_list_skills` | `null` | `SkillEntry[]` | `commands/skills.rs` / `commands/skills.ts` |
+| `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory` | `{ scope?, key?, value? }` | memory payloads | `commands/memory.rs` / `commands/memory.ts` |
+| `reflect_list_hooks` / `reflect_toggle_hook` | — | hook payloads | `commands/hooks.rs` / `commands/hooks.ts` |
+| `reflect_check_update` | `null` | update info | `commands/update.rs` / `commands/updates.ts` |
+| `reflect_set_dock_badge` | `{ count? }` | `null` | `src-tauri/src/dock.rs` (macOS) / `src/utils/tauri.ts` (compat) |
 
 **`reflect_terminal_output` event** (B8-01):
 
@@ -114,7 +102,7 @@ pub struct Submission {
 
 ## 3. Event (Backend → UI)
 
-`EventMsg` is `#[serde(tag = "type", rename_all = "snake_case")]` (current = 32 variants in `vendor/reflect-protocol/src/event_msg.rs`).
+`EventMsg` is `#[serde(tag = "type", rename_all = "snake_case")]` (the variant list lives in `vendor/reflect-protocol/src/event_msg.rs`).
 
 > **Naming**: Rust `enum` uses **PascalCase struct variants** (e.g. `TurnStarted(TurnStartedEvent)`), but serde emits **snake_case** discriminators (`turn_started`) for the frontend. Frontend TypeScript uses the snake_case form.
 
@@ -267,18 +255,32 @@ export type ReflectEventMsg =
   | { type: 'session_configured'; /* ... */ }
   | { type: 'turn_started'; /* ... */ }
   | { type: 'turn_complete'; /* ... */ }
-  // ... 32 variants, snake_case discriminators
+  // ... variant union, snake_case discriminators
   | { type: 'permission_mode_changed'; from: PermissionMode; to: PermissionMode };
 ```
 
-### 6.1 Bridging pattern (one place)
+### 6.1 Bridging pattern
 
-`src/utils/tauri.ts` is the only file that touches `invoke` / `listen`. Features call typed wrappers (`reflect_submit`, `onReflectEvent`).
+The frontend IPC layer is split into three roles:
+
+1. **Low-level bridge** — `src/utils/bridge.ts` exports `invoke` / `listen` with Tauri-context fallback (mirrors CodexMonitor's `invoke` / `listen` and uses an `isMissingTauriInvokeError` guard).
+2. **Per-domain wrappers** — `src/utils/commands/{health,agent,approvals,plan,permissions,questions,config,sessions,events,workspaces,skills,memory,hooks,git,terminal,files,allowlist,updates,search}.ts` re-export typed wrappers. The `src/utils/commands/index.ts` barrel aggregates them.
+3. **Compatibility barrels** — `src/utils/tauri.ts` and `src/utils/commands.ts` re-export from `./bridge`, `./commands`, `./types` so existing `@/utils/tauri` and `@/utils/commands` imports continue to work. **New code should import directly from `@/utils/commands/{domain}` or from `@/utils/bridge` instead.**
 
 ```ts
-// src/utils/tauri.ts
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+// src/utils/bridge.ts (low-level)
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { listen as tauriListen, type UnlistenFn } from '@tauri-apps/api/event';
+
+function isMissingTauriInvokeError(e: unknown): boolean { /* ... */ }
+
+export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> { /* ... */ }
+export async function listen<T>(event: string, handler: (e: { payload: T }) => void): Promise<UnlistenFn> { /* ... */ }
+```
+
+```ts
+// src/utils/commands/agent.ts (per-domain wrapper)
+import { invoke } from '../bridge';
 
 export async function reflect_submit(s: ReflectSubmission): Promise<string> {
   return await invoke<string>('reflect_submit', { submission: s });
@@ -291,11 +293,11 @@ export async function onReflectEvent(handler: (e: ReflectEvent) => void) {
 
 ### 6.2 Reducer pattern
 
-`src/services/agent.ts::handle_event` is the single dispatch fan-out. New variants:
+`src/services/agentEventBus.ts` (refcounted bus) forwards into `src/stores/agent/reducer.ts` — the canonical reducer for `ReflectEventMsg`. `src/services/agent.ts` remains a compatibility re-export that forwards `useAgent` / `handle_event` to the store. `src/stores/agentStore.ts` is the user-facing compat facade that re-exports `useAgentStore` / `reduceEvent` / types from `./agent`. New variants:
 
 1. Add the `ReflectEventMsg` arm in `src/types/protocol.ts`.
-2. Add a `case 'new_variant':` in `handle_event`.
-3. Cover with a unit test in `src/services/agent.test.ts`.
+2. Add a `case 'new_variant':` in `src/stores/agent/reducer.ts`.
+3. Cover with a unit test in `src/stores/agentStore.test.ts` and / or the bus test.
 
 ---
 
@@ -304,10 +306,10 @@ export async function onReflectEvent(handler: (e: ReflectEvent) => void) {
 | Symptom | Cause | Fix |
 |---|---|---|
 | Frontend gets `unknown variant` | Protocol added but TS not regenerated | Re-run `dump_schema` + `json2ts` |
-| Submission silently dropped | Backend deserialization error | Check `tracing` log on `commands/mod.rs` |
+| Submission silently dropped | Backend deserialization error | Check `tracing` log in `src-tauri/src/commands/<domain>.rs` |
 | Event arrives with stale id | Submission id was overridden | Use `crypto.randomUUID()` only |
-| Approval modal won't close | Frontend forgot to dispatch `*_approval` Op | Check `ModalShell` `onSubmit` |
-| `EVENT_ID_NONE` paired as submission | Lifecycle event matched by id | Filter `e.id === ''` in reducer |
+| Approval modal won't close | Frontend forgot to dispatch `*_approval` Op | Check `src/features/modals/ModalShell.tsx` `onSubmit` |
+| `EVENT_ID_NONE` paired as submission | Lifecycle event matched by id | Filter `e.id === ''` in `src/stores/agent/reducer.ts` |
 
 ---
 
@@ -315,7 +317,10 @@ export async function onReflectEvent(handler: (e: ReflectEvent) => void) {
 
 - Rust source of truth: `vendor/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
 - TS mirror: `src/types/protocol.ts`
-- Tauri command registry: `src-tauri/src/lib.rs` + `src-tauri/src/commands/mod.rs`
+- Tauri command registry: `src-tauri/src/lib.rs` (handler list) + `src-tauri/src/commands/mod.rs` (barrel) + per-domain bodies in `src-tauri/src/commands/<domain>.rs`
 - Event forwarder: `src-tauri/src/events.rs::forward_agent_events`
-- Frontend fanout: `src/services/agent.ts::useAgent` / `handle_event`
-- IPC wrapper: `src/utils/tauri.ts`
+- Frontend event fanout: `src/services/agentEventBus.ts` → `src/stores/agent/reducer.ts`; compat re-export in `src/services/agent.ts`
+- IPC low-level bridge: `src/utils/bridge.ts`
+- IPC wrappers (canonical, per-domain): `src/utils/commands/<domain>.ts` aggregated by `src/utils/commands/index.ts`
+- IPC compat barrels: `src/utils/tauri.ts`, `src/utils/commands.ts`
+- Agent store: `src/stores/agent/` (canonical impl) with compat facade `src/stores/agentStore.ts`

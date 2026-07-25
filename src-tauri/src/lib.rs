@@ -12,25 +12,30 @@
 pub mod commands;
 pub mod dock;
 pub mod events;
-pub mod menu;
+mod hook_store;
 pub mod mcp;
+mod memory_store;
+pub mod menu;
+mod shell_sessions;
 pub mod shortcut;
 pub mod state;
 pub mod tray;
+mod workspace_state;
 
 use commands::{
     reflect_add_memory, reflect_agent_status, reflect_ask_user_input_response,
-    reflect_ask_user_question_response, reflect_compact, reflect_current_workspace,
-    reflect_cycle_permission_mode, reflect_delete_session, reflect_enter_plan_mode,
-    reflect_exit_plan_mode, reflect_export_session, reflect_get_config, reflect_git_diff,
+    reflect_ask_user_question_response, reflect_check_allowlist, reflect_check_update,
+    reflect_compact, reflect_current_workspace, reflect_cycle_permission_mode,
+    reflect_delete_session, reflect_enter_plan_mode, reflect_exit_plan_mode,
+    reflect_export_session, reflect_export_session_markdown, reflect_get_config, reflect_git_diff,
     reflect_git_log, reflect_git_status, reflect_hook_approval, reflect_interrupt,
-    reflect_kill_shell, reflect_list_hooks, reflect_list_memory, reflect_list_sessions,
-    reflect_list_shell_sessions, reflect_list_skills, reflect_list_tools,
-    reflect_list_workspaces, reflect_plan_approval, reflect_read_file, reflect_remove_memory,
-    reflect_rename_session, reflect_replay_session, reflect_run_shell, reflect_rewind,
-    reflect_save_config, reflect_set_effort, reflect_set_permission_mode,
-    reflect_set_workspace, reflect_shutdown, reflect_submit, reflect_toggle_hook,
-    reflect_tool_approval, reflect_list_dir,
+    reflect_kill_shell, reflect_list_dir, reflect_list_hooks, reflect_list_memory,
+    reflect_list_sessions, reflect_list_shell_sessions, reflect_list_skills, reflect_list_tools,
+    reflect_list_workspaces, reflect_load_allowlist, reflect_plan_approval, reflect_read_file,
+    reflect_remove_memory, reflect_rename_session, reflect_replay_session, reflect_rewind,
+    reflect_run_shell, reflect_save_allowlist, reflect_save_config, reflect_search_files,
+    reflect_set_effort, reflect_set_permission_mode, reflect_set_workspace, reflect_shutdown,
+    reflect_submit, reflect_toggle_hook, reflect_tool_approval,
 };
 use serde::Serialize;
 use state::MinimalAgent;
@@ -102,7 +107,7 @@ pub fn run() {
             reflect_remove_memory,
             reflect_list_hooks,
             reflect_toggle_hook,
-reflect_git_status,
+            reflect_git_status,
     reflect_git_diff,
     reflect_git_log,
             // B8-01: terminal shell exec + streaming
@@ -112,6 +117,13 @@ reflect_git_status,
             // B9-01: file tree + read_file
             reflect_list_dir,
             reflect_read_file,
+            // B13-B16: approval allowlist, markdown export, update check, file search
+            reflect_load_allowlist,
+            reflect_save_allowlist,
+            reflect_check_allowlist,
+            reflect_export_session_markdown,
+            reflect_check_update,
+            reflect_search_files,
             dock::reflect_set_dock_badge,
         ])
         // ====== Window 事件:macOS close-to-tray ======

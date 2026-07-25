@@ -26,10 +26,12 @@ Reflect Agent's terminal-mode frontend (`reflect tui`) and the headless exec pat
 ### Composer & Agent Controls
 
 - Auto-grow textarea, IME-safe.
-- `/` slash popup (47 commands from TUI), `@` file mention, drag/drop + paste images.
+- `/` slash popup driven by `src/features/composer/slashCommands.ts` (mirrors TUI slash commands).
+- `@` file mention, drag/drop + paste images.
 - Send: `Cmd+Enter` (macOS) / `Ctrl+Enter` (Linux/Windows).
 - Interrupt: `Cmd+.` / `Ctrl+.` → `reflect_interrupt`.
 - Model picker, effort toggle, permission mode cycle, approval rules.
+- Composer is owned by `src/features/composer/`; `src/features/messages/Composer.tsx` is a thin re-export shim.
 
 ### Chat Rendering
 
@@ -55,16 +57,16 @@ Reflect Agent's terminal-mode frontend (`reflect tui`) and the headless exec pat
 ### Backend Integration
 
 - **In-process** `Arc<AgentThread>` (no daemon) — same protocol envelope as TUI.
-- 19 `#[tauri::command]`s covering all 15 `Op` variants + session I/O.
+- Tauri command surface split by domain under `src-tauri/src/commands/<domain>.rs`, re-exported from a thin `src-tauri/src/commands/mod.rs`; command bodies wrap `reflect_protocol::Op` plus diagnostic / config / tool / session / file / git / shell / allowlist / workspace / skill / memory / hook / search commands.
 - Single push event `reflect_event` (payload = `reflect_protocol::Event`).
 - `tokio::sync::broadcast` for session fan-out to multiple subscribers.
 
 ### Settings
 
-- Display (theme: light / dark / system).
+- Display (theme: light / dark / system, accent colors, transparency, wallpaper).
 - Editor (vim / output-style toggles).
 - Provider (default provider + API key placeholders).
-- M2.x: Skills, Memory, Permissions, Tasks, Shortcuts (planned).
+- `ConfigForm` covers every section in `vendor/reflect-config/src/schema.rs`; advanced raw TOML editor remains the release valve.
 
 ---
 
@@ -143,32 +145,36 @@ ReflectDesktop/
 ├── vendor/         # git subtree mirror of reflect-* crates
 │                    # updated via bash scripts/vendor-sync.sh
 ├── app-core/       # shared UI-agnostic reducer & state (was reflect-app-core)
-├── src/            # React 19 + Vite + 24 feature-sliced components
+├── src/            # React 19 + Vite + feature-sliced components
+│   ├── features/   # per-slice folders (shell/messages/composer/...)
+│   ├── stores/     # agent store (Zustand) split into agent/ submodule
+│   ├── services/   # agent hook + agentEventBus (compat + ref-counted fan-out)
+│   ├── utils/      # bridge.ts (low-level invoke/listen) + commands/<domain>.ts
+│   │                # + tauri.ts / commands.ts compat barrels + i18n/<domain>/
+│   ├── styles/     # tokens.css + base.css + typography.module.css
+│   └── types/      # generated from reflect-protocol's schema dump
 ├── src-tauri/      # Tauri 2 Rust backend (binary name: reflect-desktop)
+│   └── src/
+│       ├── state.rs / events.rs / dock.rs / menu.rs / shortcut.rs
+│       │         / tray.rs / mcp.rs        # top-level integration modules
+│       ├── commands/mod.rs + commands/<domain>.rs + commands/error.rs
+│       └── hook_store.rs / memory_store.rs / shell_sessions.rs
+│                     / workspace_state.rs   # private state helpers
 ├── Cargo.toml      # workspace root for vendor + app-core + src-tauri
 ├── docs/           # CHANGELOG · PROTOCOL_BRIDGE · codebase-map · ARCHITECTURE
 │                    #   + USER_GUIDE · runbooks · gui/ (design history)
-└── scripts/        # install.sh · vendor-sync.sh
+└── scripts/        # install.sh · vendor-sync.sh · build.sh
 ```
 
 ---
 
 ## Tauri IPC Surface
 
-19 commands + `ping` + `reflect_set_dock_badge`, all wrapping `reflect_protocol::Op`:
+The command surface is defined per-domain in `src-tauri/src/commands/<domain>.rs`, re-exported through the thin `src-tauri/src/commands/mod.rs` and registered in `src-tauri/src/lib.rs` via `tauri::generate_handler!`. The full set spans `reflect_*` command families covering `Op` submission, session I/O, config persistence, tool/skill/memory/hook listings, file + git + shell + workspace + allowlist + search, plus `ping` and `reflect_set_dock_badge`.
 
-| Category | Commands |
-|---|---|
-| Health | `ping` |
-| Submission | `reflect_submit`, `reflect_interrupt`, `reflect_compact`, `reflect_rewind`, `reflect_shutdown` |
-| Approvals | `reflect_tool_approval`, `reflect_hook_approval`, `reflect_plan_approval` |
-| Plan mode | `reflect_enter_plan_mode`, `reflect_exit_plan_mode` |
-| Effort / Permission | `reflect_set_effort`, `reflect_set_permission_mode`, `reflect_cycle_permission_mode` |
-| Ask user | `reflect_ask_user_question_response`, `reflect_ask_user_input_response` |
-| Sessions | `reflect_list_sessions`, `reflect_rename_session`, `reflect_delete_session`, `reflect_replay_session` |
-| Dock (macOS) | `reflect_set_dock_badge` |
+Frontend wrappers live under `src/utils/commands/<domain>.ts` (new code) with `src/utils/tauri.ts` and `src/utils/commands.ts` retained as compatibility barrels. The low-level `invoke` / `listen` primitives live in `src/utils/bridge.ts`.
 
-Push events: single channel `reflect_event` carrying `reflect_protocol::Event` (32 variants, snake_case discriminator).
+Push events: single channel `reflect_event` carrying `reflect_protocol::Event` (snake_case JSON discriminators across the `EventMsg` variants).
 
 Full spec: [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md).
 

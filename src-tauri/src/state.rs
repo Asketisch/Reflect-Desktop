@@ -90,9 +90,9 @@ struct MinimalAgentInner {
     workspace: PathBuf,
     /// 降级原因(无 API key 等);None 表示正常就绪。
     degraded_reason: ParkingMutex<Option<String>>,
-    /// B8-01: terminal shell sessions — key = session_id (UUID),
-    /// value = child process kill handle (Option<tokio::process::Child> wrapped).
-    shell_sessions: parking_lot::Mutex<std::collections::HashMap<String, Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>>>,
+    shell_sessions: crate::shell_sessions::ShellSessions,
+    memory_store: crate::memory_store::MemoryStore,
+    hook_store: crate::hook_store::HookStore,
 }
 
 impl MinimalAgent {
@@ -112,7 +112,9 @@ impl MinimalAgent {
                 model_spec: RwLock::new("stub/test".to_string()),
                 workspace,
                 degraded_reason: ParkingMutex::new(None),
-                shell_sessions: parking_lot::Mutex::new(std::collections::HashMap::new()),
+                shell_sessions: crate::shell_sessions::ShellSessions::default(),
+                memory_store: crate::memory_store::MemoryStore,
+                hook_store: crate::hook_store::HookStore::default(),
             }),
         }
     }
@@ -169,7 +171,12 @@ impl MinimalAgent {
         // sanitizer 用默认 10 pattern;AgentThread 内部传 None 也会走 with_defaults,
         // 这里显式构造便于后续接 [sanitize] config 段。
         let sanitizer = Arc::new(Sanitizer::with_defaults());
-        let thread = Arc::new(AgentThread::new(cfg, registry, tools.clone(), Some(sanitizer)));
+        let thread = Arc::new(AgentThread::new(
+            cfg,
+            registry,
+            tools.clone(),
+            Some(sanitizer),
+        ));
 
         // 5. 写回 inner。
         *self.inner.thread.lock() = Some(thread.clone());
@@ -241,9 +248,9 @@ impl MinimalAgent {
         // 0. 必须先 install_agent_thread。
         let thread = {
             let guard = self.inner.thread.lock();
-            guard
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("agent thread not installed yet; setup not complete"))?
+            guard.clone().ok_or_else(|| {
+                anyhow::anyhow!("agent thread not installed yet; setup not complete")
+            })?
         };
 
         // 1. 拿 per-turn handle。
@@ -272,14 +279,12 @@ impl MinimalAgent {
     pub async fn submit_op(&self, op: reflect_protocol::Op) -> anyhow::Result<String> {
         let thread = {
             let guard = self.inner.thread.lock();
-            guard
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("agent thread not installed yet; setup not complete"))?
+            guard.clone().ok_or_else(|| {
+                anyhow::anyhow!("agent thread not installed yet; setup not complete")
+            })?
         };
-        let submission = reflect_protocol::Submission::with_id(
-            uuid::Uuid::new_v4().to_string(),
-            op,
-        );
+        let submission =
+            reflect_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
         let id = submission.id.clone();
         // 这类 op 通常无 per-turn 流式输出(审批/effort/permission 立即生效),
         // 但仍走 submit 以保持生命周期事件(SessionConfigured / PermissionModeChanged 等)
@@ -341,7 +346,7 @@ impl MinimalAgent {
         id: String,
         child: Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
     ) {
-        self.inner.shell_sessions.lock().insert(id, child);
+        self.inner.shell_sessions.register(id, child);
     }
 
     /// B8-01: remove + return the kill handle for a shell session.
@@ -349,12 +354,12 @@ impl MinimalAgent {
         &self,
         id: &str,
     ) -> Option<Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>> {
-        self.inner.shell_sessions.lock().remove(id)
+        self.inner.shell_sessions.take(id)
     }
 
     /// B8-01: list active shell session ids.
     pub fn list_shell_sessions(&self) -> Vec<String> {
-        self.inner.shell_sessions.lock().keys().cloned().collect()
+        self.inner.shell_sessions.list()
     }
 
     /// 诊断快照:供前端显示状态徽标。
@@ -381,17 +386,11 @@ impl MinimalAgent {
     /// thread this through `AgentConfig` so the running `AgentThread`
     /// observes the change without restart.
     pub fn set_workspace(&self, path: PathBuf) {
-        use parking_lot::Mutex as ParkingMutex;
-        static OVERRIDE: once_cell::sync::Lazy<ParkingMutex<Option<PathBuf>>> =
-            once_cell::sync::Lazy::new(|| ParkingMutex::new(None));
-        *OVERRIDE.lock() = Some(path);
+        crate::workspace_state::WorkspaceState::set(path);
     }
 
     pub fn workspace_override() -> Option<PathBuf> {
-        use parking_lot::Mutex as ParkingMutex;
-        static OVERRIDE: once_cell::sync::Lazy<ParkingMutex<Option<PathBuf>>> =
-            once_cell::sync::Lazy::new(|| ParkingMutex::new(None));
-        OVERRIDE.lock().clone()
+        crate::workspace_state::WorkspaceState::get()
     }
 
     /// List memory entries across all scopes (B11-01).
@@ -402,113 +401,25 @@ impl MinimalAgent {
     /// trait surface); this unblocks the B11 UI without forcing a
     /// vendor crate change.
     pub fn list_memory(&self) -> anyhow::Result<Vec<crate::commands::MemoryEntry>> {
-        let mut out = Vec::new();
-        let scopes = [
-            (
-                "project",
-                std::env::current_dir()
-                    .ok()
-                    .map(|c| c.join(".reflect/agent-memory/reflect/MEMORY.md")),
-            ),
-            (
-                "user",
-                dirs::home_dir().map(|h| h.join(".reflect/agent-memory/reflect/MEMORY.md")),
-            ),
-        ];
-        for (label, path_opt) in scopes {
-            if let Some(path) = path_opt {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    if !content.trim().is_empty() {
-                        out.push(crate::commands::MemoryEntry {
-                            scope: label.to_string(),
-                            key: "(all)".to_string(),
-                            value: content,
-                        });
-                    }
-                }
-            }
-        }
-        Ok(out)
+        self.inner.memory_store.list()
     }
 
     /// Add a memory entry (B11-01). Appends `## <key>\n<value>` to the
     /// matching scope's `MEMORY.md`.
-    pub fn add_memory(
-        &self,
-        scope: String,
-        key: String,
-        value: String,
-    ) -> anyhow::Result<()> {
-        let path = match scope.as_str() {
-            "user" => dirs::home_dir()
-                .map(|h| h.join(".reflect/agent-memory/reflect/MEMORY.md"))
-                .ok_or_else(|| anyhow::anyhow!("no home dir"))?,
-            _ => std::env::current_dir()
-                .map(|c| c.join(".reflect/agent-memory/reflect/MEMORY.md"))
-                .map_err(|e| anyhow::anyhow!("cwd: {e}"))?,
-        };
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut current = std::fs::read_to_string(&path).unwrap_or_default();
-        if !current.is_empty() && !current.ends_with('\n') {
-            current.push('\n');
-        }
-        current.push_str(&format!("\n## {key}\n{value}\n"));
-        std::fs::write(&path, current)?;
-        Ok(())
+    pub fn add_memory(&self, scope: String, key: String, value: String) -> anyhow::Result<()> {
+        self.inner.memory_store.add(&scope, &key, &value)
     }
 
     /// Remove a memory entry (B11-01). Strips the `## <key>` block.
     pub fn remove_memory(&self, scope: String, key: String) -> anyhow::Result<()> {
-        let path = match scope.as_str() {
-            "user" => dirs::home_dir()
-                .map(|h| h.join(".reflect/agent-memory/reflect/MEMORY.md"))
-                .ok_or_else(|| anyhow::anyhow!("no home dir"))?,
-            _ => std::env::current_dir()
-                .map(|c| c.join(".reflect/agent-memory/reflect/MEMORY.md"))
-                .map_err(|e| anyhow::anyhow!("cwd: {e}"))?,
-        };
-        if !path.exists() {
-            return Ok(());
-        }
-        let current = std::fs::read_to_string(&path)?;
-        let needle = format!("## {key}");
-        if let Some(start) = current.find(&needle) {
-            let after = start + needle.len();
-            let end = current[after..]
-                .find("\n## ")
-                .map(|i| after + i)
-                .unwrap_or(current.len());
-            let mut new = String::with_capacity(current.len());
-            new.push_str(&current[..start]);
-            new.push_str(&current[end..]);
-            std::fs::write(&path, new)?;
-        }
-        Ok(())
+        self.inner.memory_store.remove(&scope, &key)
     }
 
     /// List known hooks (B11-02). Phase 1 returns the two built-in
     /// hooks (PlanModeGate + ReadBeforeEdit) that the upstream
     /// `reflect-hooks` crate always registers.
     pub fn list_hooks(&self) -> anyhow::Result<Vec<crate::commands::HookInfo>> {
-        // **B1-07 simplification**: hard-coded for now; the upstream
-        // `HookRegistry` doesn't expose a stable iteration API in the
-        // vendored 0.1.0. Real registry iteration is B11-02 Phase 2.
-        Ok(vec![
-            crate::commands::HookInfo {
-                name: "read_before_edit".to_string(),
-                kind: "policy".to_string(),
-                enabled: true,
-                config_summary: "auto-reads file before Edit/Write".to_string(),
-            },
-            crate::commands::HookInfo {
-                name: "plan_mode_gate".to_string(),
-                kind: "policy".to_string(),
-                enabled: true,
-                config_summary: "blocks mutating tools in Plan mode".to_string(),
-            },
-        ])
+        self.inner.hook_store.list()
     }
 
     /// Toggle a hook (B11-02). Phase 1 is a no-op acknowledgement —
@@ -516,19 +427,7 @@ impl MinimalAgent {
     /// method in the vendored 0.1.0; the toggle is recorded in
     /// `~/.reflect/hook_state.json` for future use.
     pub fn toggle_hook(&self, name: String, enabled: bool) -> anyhow::Result<()> {
-        let path = dirs::home_dir()
-            .map(|h| h.join(".reflect/hook_state.json"))
-            .ok_or_else(|| anyhow::anyhow!("no home dir"))?;
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut state: std::collections::HashMap<String, bool> = std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default();
-        state.insert(name, enabled);
-        std::fs::write(&path, serde_json::to_string_pretty(&state)?)?;
-        Ok(())
+        self.inner.hook_store.toggle(name, enabled)
     }
 }
 
@@ -595,7 +494,10 @@ mod tests {
             "web_search",
             "tool_search",
         ] {
-            assert!(names.contains(&expected.to_string()), "missing tool: {expected}");
+            assert!(
+                names.contains(&expected.to_string()),
+                "missing tool: {expected}"
+            );
         }
     }
 
@@ -686,9 +588,7 @@ mod tests {
     #[tokio::test]
     async fn submit_op_returns_err_when_not_installed() {
         let agent = MinimalAgent::new_empty();
-        let result = agent
-            .submit_op(reflect_protocol::Op::Compact)
-            .await;
+        let result = agent.submit_op(reflect_protocol::Op::Compact).await;
         assert!(
             result.is_err(),
             "submit_op before install must error, got: {result:?}"

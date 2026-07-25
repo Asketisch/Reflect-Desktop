@@ -1,0 +1,20 @@
+/**
+ * i18n namespace —— toast.*
+ *
+ * 由 strings/index.ts merge 进 STRINGS dict；不要直接 import 此模块 ——
+ * 走 `@/utils/i18n` 的统一入口。
+ */
+import type { StringEntry } from '../types';
+
+const toast: Record<string, StringEntry> = {
+  'toast.newSession':         { en: 'New session started.',              'zh-CN': '已开启新会话。' },
+  'toast.noSessionsToClear':  { en: 'No sessions to clear.',             'zh-CN': '没有可清空的会话。' },
+  'toast.deleteFailed':       { en: 'Delete failed: {msg}',              'zh-CN': '删除失败: {msg}' },
+  'toast.clearedSessions':    { en: 'Cleared {count} session{plural}.',  'zh-CN': '已清除 {count} 个会话。' },
+  'toast.noActiveToExport':   { en: 'No active session to export.',      'zh-CN': '没有可导出的当前会话。' },
+  'toast.exportFailed':       { en: 'Export failed: {msg}',              'zh-CN': '导出失败: {msg}' },
+  'toast.configReloaded':     { en: 'Config reloaded.',                  'zh-CN': '配置已重载。' },
+  'toast.saveFailed':         { en: 'Save failed: {msg}',                'zh-CN': '保存失败: {msg}' },
+};
+
+export default toast;
