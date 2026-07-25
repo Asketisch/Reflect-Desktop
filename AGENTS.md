@@ -180,13 +180,11 @@ Use extra care in high-churn/high-complexity files:
 
 ## Oversized File Exceptions (>=500 LoC rationale)
 
-The structural-refactor target is `<= 500 LoC` for first-party production files. The following files intentionally exceed that threshold and are kept large on purpose:
+The structural-refactor target is `<= 500 LoC` for first-party production files. Currently no production entry file in the codebase exceeds this threshold.
 
-- `src-tauri/src/state.rs` (~602 LoC) — `MinimalAgent` is the single Tauri `manage()`-d host for the embedded `reflect_core::AgentThread` plus session broadcast, install lifecycle, and the `Inner` Arc state. The lifecycle body is intentionally one cohesive sequence (cfg snapshot → registry build → `AgentThread` install → forwarder start → MCP/LSP bootstrap spawn). Further mechanical splitting would split install-time invariants across files; the AgentThread bootstrap is the single most timing-sensitive path in the Tauri adapter, and AGENTS.md's AgentThread Host State Invariants cover it as one atomic story.
-- `app-core/src/reducer/mod.rs` (~592 LoC) — pure `apply_event(state, Event) -> state`; one consolidated `match` over every `EventMsg` variant. Splitting by sub-domain would require duplicating cross-cutting state plumbing or extracting a generated-style router; for this crate, the single switch is the diagnostic value: protocol changes are immediately visible as one delocalized diff in one file.
-- `src/types/protocol.ts` (~530 LoC) — manually maintained TS mirror of `vendor/reflect-protocol`. It is data-only (types + match helpers), not behavioral code. The header notes it must stay in sync with the upstream schema; if the team adopts generation, this file becomes the generated artifact and remains an explicit exception.
+Sub-modules of the structural split are intentionally allowed to be small without an exception clause here; the principal unit of size discipline is the public entry point per domain (`commands/<domain>.rs`, `stores/agent/index.ts`, etc.).
 
-If a future task reduces these further, prefer moving logic across crates (e.g. lifting reducer into `app-core::reducer::*`, lifting host into `app-core::host`) over mechanical slices inside the same file.
+If a future production entry needs to exceed 500 LoC, document the rationale here and prefer moving logic across crates (e.g. lifting reducer entries into `app-core::reducer::*`, lifting host logic into `app-core::host`) over mechanical slices inside the same file.
 - `src-tauri/src/commands/mod.rs` — thin barrel that re-exports per-domain command bodies in `commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` (the actual command bodies live here; the sub-`mod.rs` keeps module wiring only).
 - `src-tauri/src/events.rs` — event forwarder, single channel.
 - `src/stores/agent/store.ts` — the live Zustand store; `src/stores/agent/index.ts` re-exports `useAgentStore` / `reduceEvent` / `useAgent` and the type union; the user-facing compat entry is `src/stores/agentStore.ts`, which re-exports from `./agent`.
