@@ -3,8 +3,12 @@
   flex-direction: column;
   height: 100vh;
   width: 100%;
-  overflow: hidden;
-  background: var(--bg-app);
+  /* overflow: clip —— 保留裁剪但不会创建额外 scroll container,
+   * 让 -webkit-app-region: drag 嵌套元素在 macOS / Windows webview 上
+   * 真正接收 mousedown。`overflow: hidden` 在某些 Tauri 版本会创建
+   * scroll container,造成 drag region 失效。 */
+  overflow: clip;
+  background: var(--bg-app-alpha);
 }
 
 .body {
@@ -17,7 +21,7 @@
 .sidebar {
   flex-shrink: 0;
   border-right: 1px solid var(--border-default);
-  background: var(--bg-surface);
+  background: var(--bg-surface-alpha);
   overflow: hidden;
 }
 
@@ -26,7 +30,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--bg-app);
+  background: var(--bg-app-alpha);
 }
 
 .content {
@@ -42,7 +46,7 @@
   width: 320px;
   max-width: 420px;
   border-left: 1px solid var(--border-default);
-  background: var(--bg-surface);
+  background: var(--bg-surface-alpha);
   overflow: auto;
 }
 

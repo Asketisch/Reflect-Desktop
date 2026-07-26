@@ -6,7 +6,7 @@
   padding: var(--space-2) 0;
   width: 56px;
   flex-shrink: 0;
-  background: var(--bg-surface);
+  background: var(--bg-surface-alpha);
   border-right: 1px solid var(--border-default);
 }
 
