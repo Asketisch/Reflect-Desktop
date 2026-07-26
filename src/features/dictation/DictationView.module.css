@@ -1,0 +1,103 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3, 12px);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  color: var(--ds-text-muted, #888);
+}
+
+.empty h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--ds-text, #eee);
+}
+
+.empty p {
+  margin: 0;
+  max-width: 420px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.empty code {
+  background: var(--ds-surface-2, rgba(255, 255, 255, 0.06));
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ds-text-muted, #aaa);
+  cursor: pointer;
+}
+
+.holdArea {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  border-radius: 12px;
+  background: var(--ds-surface-2, rgba(255, 255, 255, 0.05));
+  border: 2px dashed var(--ds-border, rgba(255, 255, 255, 0.15));
+  font-size: 14px;
+  color: var(--ds-text, #eee);
+  user-select: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.holdArea:active,
+.holdArea:focus-visible {
+  background: var(--ds-surface-3, rgba(255, 255, 255, 0.08));
+  outline: none;
+}
+
+.transcript {
+  width: 100%;
+  font-family: var(--ds-font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--ds-border, rgba(255, 255, 255, 0.12));
+  background: var(--ds-surface-1, rgba(0, 0, 0, 0.2));
+  color: var(--ds-text, #eee);
+  resize: vertical;
+  min-height: 140px;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--ds-danger-bg, rgba(255, 80, 80, 0.1));
+  color: var(--ds-danger, #ff6b6b);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
