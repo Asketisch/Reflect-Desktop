@@ -82,6 +82,15 @@
   --bg-input: #0d1119;      /* 输入控件底色 */
   --bg-hover: #1c2333;      /* hover 态叠加色 */
   --bg-active: #232b3d;     /* active/pressed 态叠加色 */
+  --bg-app-rgb: 11, 14, 20;
+  --bg-surface-rgb: 17, 21, 31;
+  --bg-elevated-rgb: 22, 27, 39;
+  --surface-opacity: 1;
+  --background-image: none;
+  --background-image-opacity: 0.35;
+  --bg-app-alpha: rgba(var(--bg-app-rgb), var(--surface-opacity));
+  --bg-surface-alpha: rgba(var(--bg-surface-rgb), var(--surface-opacity));
+  --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
   --text-primary: #e6e9ef;     /* 主文本 */
   --text-secondary: #a4adbe;   /* 次要文本 */
@@ -143,6 +152,9 @@
   --bg-input: #ffffff;
   --bg-hover: #f1f3f7;
   --bg-active: #e6e9f0;
+  --bg-app-rgb: 247, 248, 250;
+  --bg-surface-rgb: 255, 255, 255;
+  --bg-elevated-rgb: 255, 255, 255;
 
   --text-primary: #1a1f2c;
   --text-secondary: #4d5666;
