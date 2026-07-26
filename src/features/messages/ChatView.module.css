@@ -25,3 +25,44 @@
   padding: 1px 4px;
   border-radius: var(--radius-xs);
 }
+
+/* B13: chat-diff split panel — only active when prefs.chatDiffSplit === true */
+.root[data-split="on"] {
+  display: grid;
+  grid-template-rows: 1fr minmax(140px, 38%);
+  gap: 0;
+}
+
+.diffPanel {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: var(--bg-inset);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.diffHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.diffPre {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 8px var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  color: var(--text-primary);
+  background: transparent;
+}

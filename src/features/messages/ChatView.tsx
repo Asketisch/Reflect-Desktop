@@ -10,10 +10,11 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_replay_session } from '@/utils/tauri';
+import { reflect_replay_session, reflect_git_diff } from '@/utils/commands';
+import { useUiPrefs } from '@/utils/uiPrefs';
 import type { ReflectRolloutRecord } from '@/utils/types';
 import { useI18n } from '@/utils/i18n';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, GitBranch } from 'lucide-react';
 import { Button, Icon, Spinner } from '@/features/design-system';
 import s from './ChatView.module.css';
 
@@ -56,8 +57,25 @@ export function ChatView() {
   }, [sessionId, loadedSessionId, hydrateSession, clearSession]);
 
   const isLoaded = !sessionId || loadedSessionId === sessionId;
+
+  // B13: chat + diff split view. Toggled in Settings → Display.
+  const [prefs] = useUiPrefs();
+  const [diffText, setDiffText] = useState<string | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  useEffect(() => {
+    if (!prefs.chatDiffSplit) {
+      setDiffText(null);
+      return;
+    }
+    setDiffLoading(true);
+    reflect_git_diff(false)
+      .then((d) => setDiffText(d))
+      .catch(() => setDiffText(''))
+      .finally(() => setDiffLoading(false));
+  }, [prefs.chatDiffSplit]);
+
   return (
-    <div className={s.root}>
+    <div className={s.root} data-split={prefs.chatDiffSplit ? 'on' : 'off'}>
       {sessionId && loading && (
         <div className={s.sessionBanner} role="status" aria-live="polite">
           <Spinner size={14} />
@@ -66,7 +84,7 @@ export function ChatView() {
       )}
       {sessionId && error && (
         <div className={s.sessionBanner} role="alert">
-          <span>{t('chat.loadError')} {error}</span>
+          <span>{t('chat.loadErrorWithMsg', { msg: error })}</span>
           <Button
             size="sm"
             variant="ghost"
@@ -100,6 +118,17 @@ export function ChatView() {
         </div>
       )}
       {!loading && !error && <><MessageList /><Composer /></>}
+      {prefs.chatDiffSplit && (
+        <aside className={s.diffPanel} aria-label={t('chat.diffPanel')}>
+          <header className={s.diffHeader}>
+            <Icon icon={GitBranch} size={14} />
+            <span>{t('chat.diffHeader')}</span>
+          </header>
+          <pre className={s.diffPre}>
+            {diffLoading ? t('chat.diffLoading') : (diffText && diffText.length > 0 ? diffText : t('chat.diffEmpty'))}
+          </pre>
+        </aside>
+      )}
     </div>
   );
 }
