@@ -20,6 +20,8 @@ import {
   createTestQueryClient,
 } from '@/test/setup.tsx';
 import { readField, applyField } from '@/features/settings/configSchema';
+import { getUiPrefs, resetUiPrefsForTests } from '@/utils/uiPrefs';
+import { getTheme } from '@/utils/theme';
 
 function renderSettingsView() {
   return render(
@@ -56,6 +58,9 @@ max_calls = 25
 
 describe('SettingsView', () => {
   beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('reflect.locale', 'en');
+    resetUiPrefsForTests();
     resetMockInvoke();
     mockInvoke('reflect_set_permission_mode', async () => {});
     mockInvoke('reflect_save_config', async () => {});
@@ -167,6 +172,29 @@ describe('SettingsView', () => {
     expect(screen.getByLabelText(/Enabled plugins/)).toBeDefined();
   });
 
+  it('updates theme and appearance preferences from Display settings', async () => {
+    renderSettingsView();
+    fireEvent.click(screen.getByRole('button', { name: 'Display' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Dark/ }));
+    expect(getTheme()).toBe('dark');
+
+    fireEvent.change(screen.getByLabelText('Custom accent color'), {
+      target: { value: '#60a5fa' },
+    });
+    expect(getUiPrefs().accentColor).toBe('#60a5fa');
+
+    fireEvent.change(screen.getByRole('slider', { name: /Surface opacity/ }), {
+      target: { value: '70' },
+    });
+    expect(getUiPrefs().surfaceOpacity).toBe(0.7);
+
+    const url = screen.getByLabelText('Background image URL');
+    fireEvent.change(url, { target: { value: 'https://example.com/wallpaper.jpg' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(getUiPrefs().backgroundImage).toBe('https://example.com/wallpaper.jpg');
+  });
+
   it('preserves preloaded values for structured fields', async () => {
     renderSettingsView();
     await waitFor(() => {
@@ -175,6 +203,28 @@ describe('SettingsView', () => {
     });
     const ollamaBase = screen.getByLabelText(/Ollama base URL/) as HTMLInputElement;
     expect(ollamaBase.value).toBe('http://127.0.0.1:11434');
+  });
+
+  it('renders the Display screen with all four primary cards (theme / accent / transparency / background)', () => {
+    const { container } = renderSettingsView();
+    fireEvent.click(screen.getByRole('button', { name: 'Display' }));
+    const headings = Array.from(container.querySelectorAll('h3')).map((h) => h.textContent ?? '');
+    expect(headings.some((t) => t.includes('Theme'))).toBe(true);
+    expect(headings.some((t) => t.includes('Accent color'))).toBe(true);
+    expect(headings.some((t) => t.includes('Transparency'))).toBe(true);
+    expect(headings.some((t) => t.includes('Background image'))).toBe(true);
+    // Three theme mode buttons present
+    const themeButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
+      ['System', 'Dark', 'Light'].some((label) => (b.textContent ?? '').includes(label)),
+    );
+    expect(themeButtons).toHaveLength(3);
+    // 6+ accent presets + color input + at least two range inputs + URL textbox + file input
+    const swatches = container.querySelectorAll('button[aria-label^="#"]');
+    expect(swatches.length).toBeGreaterThanOrEqual(6);
+    expect(container.querySelector('input[type="color"]')).toBeTruthy();
+    expect(container.querySelectorAll('input[type="range"]').length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelector('input[type="url"]')).toBeTruthy();
+    expect(container.querySelector('input[type="file"]')).toBeTruthy();
   });
 });
 
