@@ -22,14 +22,17 @@ import {
   reflect_save_config,
   reflect_agent_status,
   reflect_set_permission_mode,
-} from '@/utils/tauri';
+} from '@/utils/commands';
 import { Button, Textarea, Badge, Icon, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { ConfigForm } from './ConfigForm';
+import { DisplaySection } from './sections/DisplaySection';
+import { NotificationsSection } from './sections/NotificationsSection';
+import { UpdatesSection } from './sections/UpdatesSection';
 import s from './SettingsView.module.css';
 
 type PermissionMode = 'auto' | 'prompt' | 'deny' | 'plan';
-type Section = 'provider' | 'permissions' | 'advanced';
+type Section = 'provider' | 'permissions' | 'display' | 'notifications' | 'updates' | 'advanced';
 
 export function SettingsView({ onClose }: { onClose?: () => void }) {
   const qc = useQueryClient();
@@ -96,6 +99,15 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           <NavBtn active={section === 'permissions'} onClick={() => setSection('permissions')}>
             {t('settings.permissions')}
           </NavBtn>
+          <NavBtn active={section === 'display'} onClick={() => setSection('display')}>
+            {t('settings.nav.display')}
+          </NavBtn>
+          <NavBtn active={section === 'notifications'} onClick={() => setSection('notifications')}>
+            {t('settings.nav.notifications')}
+          </NavBtn>
+          <NavBtn active={section === 'updates'} onClick={() => setSection('updates')}>
+            {t('settings.nav.updates')}
+          </NavBtn>
           <NavBtn active={section === 'advanced'} onClick={() => setSection('advanced')}>
             {t('settings.advanced')}
           </NavBtn>
@@ -115,8 +127,8 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             {configQuery.isLoading || statusQuery.isLoading
               ? t('settings.loading')
               : hasModel
-                ? <>Agent ready — model <code className={s.codeInline}>{status?.model}</code></>
-                : <>Degraded — {status?.degraded_reason ?? 'no provider configured'}. Set an API key below.</>}
+                ? <>{t('settings.status.ready', { model: status?.model ?? '' })} <code className={s.codeInline}>{status?.model}</code></>
+                : <>{t('settings.status.degraded', { reason: status?.degraded_reason ?? t('settings.status.noProvider') })} {t('settings.status.noProviderHint')}</>}
           </span>
         </div>
 
@@ -129,7 +141,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
 
         {/* Permission mode 快捷控件（始终可见，高频操作）—— 4 个按钮文案 auto/prompt/deny/plan。 */}
         <div className={s.quickPerm}>
-          <span className={s.quickPermLabel}>Permission mode:</span>
+          <span className={s.quickPermLabel}>{t('settings.permissionMode')}</span>
           <div className={s.quickPermBtns}>
             {(['auto', 'prompt', 'deny', 'plan'] as PermissionMode[]).map((m) => (
               <button
@@ -148,8 +160,8 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           <section>
             <h3 className={s.sectionTitle}>{t('settings.provider')}</h3>
             <p className={s.sectionDesc}>
-              Configure the active provider and credentials. Settings persist to{' '}
-              <code className={s.codeInline}>~/.reflect/config.toml</code>.
+              {t('settings.providerDescription', { path: t('settings.providerPath') })}{' '}
+              <code className={s.codeInline}>{t('settings.providerPath')}</code>.
             </p>
 
             <div className={s.fieldRow}>
@@ -175,8 +187,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           <section>
             <h3 className={s.sectionTitle}>{t('settings.permissions')}</h3>
             <p className={s.sectionDesc}>
-              Control how the agent asks before running tools. Use the quick switch above to change
-              mode for the current session.
+              {t('settings.permissionsDescription')}
             </p>
             <div className={s.permGrid}>
               <PermCard mode="auto" onClick={() => onPermission('auto')} />
@@ -187,12 +198,18 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           </section>
         )}
 
+        {section === 'display' && <DisplaySection />}
+
+        {section === 'notifications' && <NotificationsSection />}
+
+        {section === 'updates' && <UpdatesSection />}
+
         {section === 'advanced' && (
           <section>
-            <h3 className={s.sectionTitle}>{t('settings.advanced')} (raw TOML)</h3>
+            <h3 className={s.sectionTitle}>{t('settings.advancedRawToml', { title: t('settings.advanced') })}</h3>
             <p className={s.sectionDesc}>
-              Edit any section, including ones without a structured form above.
-              Validation runs server-side via <code className={s.codeInline}>ReflectConfig::load_from_str</code>.
+              {t('settings.advancedDescription', { fn: t('settings.advancedValidationFn') })}{' '}
+              <code className={s.codeInline}>{t('settings.advancedValidationFn')}</code>.
             </p>
             <Textarea
               value={rawToml}
@@ -229,19 +246,14 @@ function NavBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 }
 
 function PermCard({ mode, onClick }: { mode: PermissionMode; onClick: () => void }) {
+  const { t } = useI18n();
   const variant = mode === 'auto' ? 'success' : mode === 'deny' ? 'danger' : mode === 'plan' ? 'info' : 'warning';
-  const desc: Record<PermissionMode, string> = {
-    auto: 'Run tools without asking. Fastest, least safe.',
-    prompt: 'Ask before each tool call. Recommended.',
-    deny: 'Block all tool execution. Read-only chat.',
-    plan: 'Only plan, never execute. Explore safely.',
-  };
   return (
     <button className={s.permCard} data-variant={variant} onClick={onClick}>
       <div className={s.permCardHeader}>
         <Badge variant={variant} solid>{mode}</Badge>
       </div>
-      <p className={s.permDesc}>{desc[mode]}</p>
+      <p className={s.permDesc}>{t(`permissionMode.${mode}.desc`)}</p>
     </button>
   );
 }
