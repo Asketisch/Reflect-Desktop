@@ -23,6 +23,7 @@ import {
 import { Icon } from '@/features/design-system';
 import { Markdown } from '@/components/Markdown';
 import { useAgentStore, type Turn, type TurnItem } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
 import { Collapsible } from './Collapsible';
 import { ToolCell } from './ToolCells';
 import s from './MessageList.module.css';
@@ -32,6 +33,7 @@ const NEAR_BOTTOM_PX = 64;
 export function MessageList() {
   const turns = useAgentStore((st) => st.turns);
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     const el = ref.current;
@@ -43,15 +45,13 @@ export function MessageList() {
   }, [turns]);
 
   return (
-    <div className={s.scroll} ref={ref} role="log" aria-label="Conversation" aria-live="polite" aria-atomic="false">
+    <div className={s.scroll} ref={ref} role="log" aria-label={t('chat.ariaLabel')} aria-live="polite" aria-atomic="false">
       <div className={s.inner}>
         {turns.length === 0 && (
           <div className={s.emptyWrap}>
             <Icon icon={MessageSquare} size={32} className={s.emptyIcon} />
-            <p className={s.emptyTitle}>Start a conversation</p>
-            <p className={s.emptyHint}>
-              Type below or use a slash command. Press <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.
-            </p>
+            <p className={s.emptyTitle}>{t('chat.empty.title')}</p>
+            <p className={s.emptyHint}>{t('chat.empty.hint')}</p>
           </div>
         )}
         {turns.map((t) => (
@@ -73,6 +73,7 @@ function TurnView({ turn }: { turn: Turn }) {
 }
 
 function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['status'] }) {
+  const { t } = useI18n();
   switch (item.kind) {
     case 'user_text':
       return <UserBubble text={item.text} />;
@@ -87,7 +88,7 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
         <Collapsible
           icon={<Icon icon={Brain} size={13} />}
           accent="info"
-          label={item.text.length > 60 ? `thinking: ${item.text.slice(0, 60)}…` : 'thinking'}
+          label={item.text.length > 60 ? t('chat.thinkingWith', { snippet: item.text.slice(0, 60) }) : t('chat.thinking')}
         >
           <pre className={s.monoText}>{item.text}</pre>
         </Collapsible>
@@ -109,7 +110,7 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
         <Collapsible
           icon={<Icon icon={Wrench} size={13} />}
           accent={item.isError ? 'danger' : 'default'}
-          label={item.isError ? 'output (error)' : 'output'}
+          label={item.isError ? t('chat.outputError') : t('chat.output')}
         >
           <pre className={`${s.monoText} ${item.isError ? s.monoTextError : ''}`}>{item.text}</pre>
         </Collapsible>

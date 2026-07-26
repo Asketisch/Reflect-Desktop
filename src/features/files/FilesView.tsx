@@ -10,12 +10,14 @@ import { useQuery } from '@tanstack/react-query';
 import { FolderOpen, RefreshCcw, ChevronRight } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Icon, Spinner, EmptyState } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { reflect_agent_status, reflect_list_dir, reflect_read_file } from '@/utils/commands';
 import { FileTree } from './FileTree';
 import { CodeEditor } from './CodeEditor';
 import s from './FilesView.module.css';
 
 export function FilesView() {
+  const { t } = useI18n();
   const statusQ = useQuery({
     queryKey: ['agent-status'],
     queryFn: reflect_agent_status,
@@ -39,23 +41,23 @@ export function FilesView() {
   return (
     <PageShell
       icon={FolderOpen}
-      title="Files"
-      subtitle="Browse the workspace. Click any file to preview with line numbers + syntax highlighting."
+      title={t('files.title')}
+      subtitle={t('files.subtitle')}
       width="lg"
     >
       <div className={s.pathBar}>
         <Icon icon={FolderOpen} size={14} />
         <code className={s.workspacePath} data-testid="files-workspace-path">
-          {workspace ?? '(loading…)'}
+          {workspace ?? t('common.loading')}
         </code>
         <button
           type="button"
           className={s.refresh}
           onClick={() => treeQ.refetch()}
-          aria-label="Refresh file tree"
+          aria-label={t('files.refresh')}
           data-testid="files-refresh"
         >
-          <Icon icon={RefreshCcw} size={12} /> Refresh
+          <Icon icon={RefreshCcw} size={12} /> {t('files.refresh')}
         </button>
       </div>
 
@@ -69,7 +71,7 @@ export function FilesView() {
               <span>{(treeQ.error as Error).message}</span>
             </div>
           ) : treeQ.data && treeQ.data.entries.length === 0 ? (
-            <div className={s.loading}><em>empty</em></div>
+            <div className={s.loading}><em>{t('files.empty')}</em></div>
           ) : (
             <FileTree
               entries={treeQ.data?.entries ?? []}
@@ -83,11 +85,11 @@ export function FilesView() {
           {!selected ? (
             <EmptyState
               icon={<Icon icon={FolderOpen} />}
-              title="No file selected"
-              description="Pick a file from the tree on the left to preview its contents."
+              title={t('files.noFile')}
+              description={t('files.noFileDesc')}
             />
           ) : fileQ.isLoading ? (
-            <div className={s.loading}><Spinner size={18} /> <span>Loading {basename(selected)}…</span></div>
+            <div className={s.loading}><Spinner size={18} /> <span>{t('files.loadingFile', { name: basename(selected) })}</span></div>
           ) : fileQ.error ? (
             <div className={s.error}>
               <Icon icon={ChevronRight} size={14} />{' '}

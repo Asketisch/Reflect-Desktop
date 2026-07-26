@@ -7,6 +7,7 @@
 import { Server, Cpu, AlertTriangle, MessageCircleQuestion } from 'lucide-react';
 import { Icon, Badge } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
 import s from './Inspector.module.css';
 
 export function Inspector() {
@@ -17,6 +18,7 @@ export function Inspector() {
   const pendingAskUser = useAgentStore((st) => st.pendingAskUser);
   const lastError = useAgentStore((st) => st.lastError);
   const clearError = useAgentStore((st) => st.clearError);
+  const { t } = useI18n();
 
   const pendingTotal = pendingApprovals.length + pendingQuestions.length + pendingAskUser.length;
 
@@ -25,28 +27,28 @@ export function Inspector() {
       <section className={s.section}>
         <h3 className={s.sectionTitle}>
           <Icon icon={MessageCircleQuestion} size={14} />
-          Pending
+          {t('inspector.pending')}
           {pendingTotal > 0 && <Badge variant="warning" solid>{pendingTotal}</Badge>}
         </h3>
         {pendingTotal === 0 ? (
-          <p className={s.empty}>No pending interactions.</p>
+          <p className={s.empty}>{t('inspector.pendingEmpty')}</p>
         ) : (
           <ul className={s.list}>
             {pendingApprovals.length > 0 && (
               <li className={s.row}>
-                <span>Approvals</span>
+                <span>{t('inspector.pendingApprovals')}</span>
                 <Badge variant="warning">{pendingApprovals.length}</Badge>
               </li>
             )}
             {pendingQuestions.length > 0 && (
               <li className={s.row}>
-                <span>Questions</span>
+                <span>{t('inspector.pendingQuestions')}</span>
                 <Badge variant="warning">{pendingQuestions.length}</Badge>
               </li>
             )}
             {pendingAskUser.length > 0 && (
               <li className={s.row}>
-                <span>Inputs</span>
+                <span>{t('inspector.pendingInputs')}</span>
                 <Badge variant="warning">{pendingAskUser.length}</Badge>
               </li>
             )}
@@ -57,11 +59,11 @@ export function Inspector() {
       <section className={s.section}>
         <h3 className={s.sectionTitle}>
           <Icon icon={Server} size={14} />
-          MCP servers
+          {t('inspector.mcpServers')}
           {mcpServers.length > 0 && <Badge variant="neutral">{mcpServers.length}</Badge>}
         </h3>
         {mcpServers.length === 0 ? (
-          <p className={s.empty}>No MCP servers configured.</p>
+          <p className={s.empty}>{t('inspector.mcpEmpty')}</p>
         ) : (
           <ul className={s.list}>
             {mcpServers.map((m) => (
@@ -77,11 +79,11 @@ export function Inspector() {
       <section className={s.section}>
         <h3 className={s.sectionTitle}>
           <Icon icon={Cpu} size={14} />
-          LSP servers
+          {t('inspector.lspServers')}
           {lspServers.length > 0 && <Badge variant="neutral">{lspServers.length}</Badge>}
         </h3>
         {lspServers.length === 0 ? (
-          <p className={s.empty}>No LSP servers configured.</p>
+          <p className={s.empty}>{t('inspector.lspEmpty')}</p>
         ) : (
           <ul className={s.list}>
             {lspServers.map((l) => (
@@ -98,12 +100,12 @@ export function Inspector() {
         <section className={s.section}>
           <h3 className={s.sectionTitle}>
             <Icon icon={AlertTriangle} size={14} />
-            Last error
+            {t('inspector.lastError')}
           </h3>
           <div className={s.errorBox}>
             <pre className={s.errorText}>{lastError}</pre>
             <button className={s.dismiss} onClick={clearError}>
-              Dismiss
+              {t('inspector.dismiss')}
             </button>
           </div>
         </section>

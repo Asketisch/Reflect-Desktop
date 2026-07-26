@@ -13,6 +13,7 @@ import {
 } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, Spinner, EmptyState, Button } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { relativeTime } from '@/utils/time';
 import { useAgentStore } from '@/stores/agentStore';
 import s from './WorkspacesView.module.css';
@@ -24,6 +25,7 @@ interface WorkspaceEntry {
 }
 
 export function WorkspacesView() {
+  const { t, tp } = useI18n();
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
   const statusQ = useQuery({
@@ -57,12 +59,12 @@ export function WorkspacesView() {
   const onUse = async (path: string) => {
     try {
       await reflect_set_workspace(path);
-      pushToast({ kind: 'success', message: `Workspace set to ${basename(path)}` });
+      pushToast({ kind: 'success', message: t('workspaces.setTo', { name: basename(path) }) });
       await qc.invalidateQueries({ queryKey: ['agent-status'] });
     } catch (e) {
       pushToast({
         kind: 'error',
-        message: `Failed to switch workspace: ${e instanceof Error ? e.message : String(e)}`,
+        message: t('workspaces.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
       });
     }
   };
@@ -70,33 +72,32 @@ export function WorkspacesView() {
   return (
     <PageShell
       icon={FolderOpen}
-      title="Workspaces"
-      subtitle="Recently used project directories, aggregated from sessions."
+      title={t('workspaces.title')}
+      subtitle={t('workspaces.subtitle')}
       width="md"
     >
       <Card level="outlined" padding="md" className={s.currentCard}>
         <div className={s.currentRow}>
           <Icon icon={CheckCircle2} size={14} />
-          <span className={s.currentLabel}>Active workspace</span>
+          <span className={s.currentLabel}>{t('workspaces.current')}</span>
           <code className={s.currentPath} data-testid="workspaces-current">
-            {currentWs ?? '(loading…)'}
+            {currentWs ?? t('common.loading')}
           </code>
         </div>
         <p className={s.note}>
-          Switching workspaces here sets the active path for new sessions.{' '}
-          Sessions already in flight remain on their original path.
+          {t('workspaces.note')}
         </p>
       </Card>
 
-      <h3 className={s.sectionTitle}>Recent workspaces</h3>
+      <h3 className={s.sectionTitle}>{t('workspaces.recent')}</h3>
       {sessionsQ.isLoading ? (
         <div className={s.loading}><Spinner size={20} /></div>
       ) : workspaces.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={FolderOpen} />}
-            title="No sessions recorded yet"
-            description="Start a chat to record your first workspace."
+            title={t('workspaces.empty')}
+            description={t('workspaces.emptyDesc')}
           />
         </Card>
       ) : (
@@ -118,13 +119,13 @@ export function WorkspacesView() {
                 <div className={s.wsBody}>
                   <div className={s.wsNameRow}>
                     <span className={s.wsName}>{basename(w.path)}</span>
-                    {isActive && <Badge variant="success" dot>active</Badge>}
+                    {isActive && <Badge variant="success" dot>{t('home.active')}</Badge>}
                   </div>
                   <div className={s.wsMeta}>
                     <code className={s.wsPath}>{w.path}</code>
                     <span className={s.wsSep}>·</span>
                     <span>
-                      {w.sessionCount} session{w.sessionCount === 1 ? '' : 's'}
+                      {tp('workspaces.sessionCount', w.sessionCount, { count: w.sessionCount })}
                     </span>
                     <span className={s.wsSep}>·</span>
                     <span>{relativeTime(w.lastUsed)}</span>
@@ -137,7 +138,7 @@ export function WorkspacesView() {
                     onClick={() => onUse(w.path)}
                     data-testid={`workspace-use-${basename(w.path)}`}
                   >
-                    Use <Icon icon={ArrowRight} size={12} />
+                    {t('workspaces.use')} <Icon icon={ArrowRight} size={12} />
                   </Button>
                 )}
               </Card>

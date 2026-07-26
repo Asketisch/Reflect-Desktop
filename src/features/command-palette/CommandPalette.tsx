@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, CornerDownLeft, ArrowUp, ArrowDown } from 'lucide-react';
 import { Icon } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { buildPaletteItems, type PaletteItem } from './registry';
 import { fuzzy } from './fuzzy';
 import s from './CommandPalette.module.css';
@@ -33,6 +34,7 @@ export function CommandPalette(props: CommandPaletteProps) {
     open, onClose, navigate, cycleTheme, setTheme, resolvedTheme,
     newSession, clearAllSessions, exportActive, saveConfig, runSlash,
   } = props;
+  const { t } = useI18n();
 
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -56,9 +58,13 @@ export function CommandPalette(props: CommandPaletteProps) {
   );
 
   const hits = useMemo(() => {
-    const r = fuzzy(query, items);
+    const r = fuzzy(query, items, {
+      getLabel: (item) => (item.labelKey === 'palette.item.themeCurrent' ? t(item.labelKey, { theme: resolvedTheme }) : t(item.labelKey)),
+      getHint: (item) => (item.hintKey ? t(item.hintKey) : undefined),
+      getKeywords: (item) => item.keywords,
+    });
     return r.slice(0, MAX_VISIBLE).map((h) => h.item);
-  }, [query, items]);
+  }, [query, items, t, resolvedTheme]);
 
   // Reset state on open.
   useEffect(() => {
@@ -113,7 +119,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       className={s.backdrop}
       role="dialog"
       aria-modal="true"
-      aria-label="Command palette"
+      aria-label={t('palette.ariaLabel')}
       data-testid="command-palette"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -129,18 +135,18 @@ export function CommandPalette(props: CommandPaletteProps) {
               setQuery(e.target.value);
               setActiveIdx(0);
             }}
-            placeholder="Type a command or search…"
+            placeholder={t('palette.placeholder')}
             className={s.input}
             data-testid="command-palette-input"
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className={s.kbd}>esc</kbd>
+          <kbd className={s.kbd}>{t('palette.esc')}</kbd>
         </div>
         <ul ref={listRef} className={s.list} role="listbox" aria-label="Commands">
           {hits.length === 0 ? (
             <li className={s.emptyRow} data-testid="command-palette-empty">
-              No matches
+              {t('palette.empty')}
             </li>
           ) : (
             hits.map((item, i) => (
@@ -157,10 +163,10 @@ export function CommandPalette(props: CommandPaletteProps) {
               >
                 <Icon icon={item.icon} size={13} className={s.rowIcon} />
                 <div className={s.rowBody}>
-                  <div className={s.rowLabel}>{item.label}</div>
-                  {item.hint && <div className={s.rowHint}>{item.hint}</div>}
+                  <div className={s.rowLabel}>{item.labelKey === 'palette.item.themeCurrent' ? t(item.labelKey, { theme: resolvedTheme }) : t(item.labelKey)}</div>
+                  {item.hintKey && <div className={s.rowHint}>{t(item.hintKey)}</div>}
                 </div>
-                <span className={s.rowKind}>{item.kind}</span>
+                <span className={s.rowKind}>{t(`palette.kind.${item.kind}`)}</span>
                 {i === activeIdx && <Icon icon={CornerDownLeft} size={11} className={s.enterIcon} />}
               </li>
             ))
@@ -168,12 +174,12 @@ export function CommandPalette(props: CommandPaletteProps) {
         </ul>
         <div className={s.footer}>
           <span className={s.footHint}>
-            <Icon icon={ArrowUp} size={10} /> <Icon icon={ArrowDown} size={10} /> navigate
+            <Icon icon={ArrowUp} size={10} /> <Icon icon={ArrowDown} size={10} /> {t('palette.navigate')}
           </span>
           <span className={s.footHint}>
-            <Icon icon={CornerDownLeft} size={10} /> select
+            <Icon icon={CornerDownLeft} size={10} /> {t('palette.select')}
           </span>
-          <span className={s.footHint}>esc close</span>
+          <span className={s.footHint}>{t('palette.escClose')}</span>
         </div>
       </div>
     </div>

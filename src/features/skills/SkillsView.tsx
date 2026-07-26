@@ -3,12 +3,14 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { Wrench, Wrench as ToolIcon } from 'lucide-react';
-import { reflect_list_tools } from '@/utils/tauri';
+import { reflect_list_tools } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, EmptyState, Spinner } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import s from './SkillsView.module.css';
 
 export function SkillsView() {
+  const { t } = useI18n();
   const toolsQ = useQuery({ queryKey: ['tools'], queryFn: reflect_list_tools, staleTime: 30_000 });
 
   const tools = toolsQ.data ?? [];
@@ -18,11 +20,10 @@ export function SkillsView() {
   return (
     <PageShell
       icon={Wrench}
-      title="Skills & Tools"
+      title={t('skills.title')}
       subtitle={
         <>
-          {tools.length} tool{tools.length === 1 ? '' : 's'} available. Built-in tools come from
-          reflect-tools; <code className={s.codeInline}>mcp__</code>-prefixed tools come from MCP servers.
+          {t('skills.toolsCount', { count: tools.length })} <code className={s.codeInline}>mcp__</code>{t('skills.toolsCountSuffix')}
         </>
       }
       width="md"
@@ -31,12 +32,12 @@ export function SkillsView() {
         <div className={s.loading}><Spinner size={20} /></div>
       ) : toolsQ.error ? (
         <Card level="flat" padding="none">
-          <EmptyState icon={<Icon icon={Wrench} />} title="Failed to load tools" description="Check the agent backend and try again." />
+          <EmptyState icon={<Icon icon={Wrench} />} title={t('skills.error')} description={t('skills.errorDesc')} />
         </Card>
       ) : (
         <>
-          <ToolGroup title="Built-in" tools={builtin} />
-          {mcp.length > 0 && <ToolGroup title="MCP" tools={mcp} variant="accent" />}
+          <ToolGroup title={t('skills.builtin')} tools={builtin} />
+          {mcp.length > 0 && <ToolGroup title={t('skills.mcp')} tools={mcp} variant="accent" />}
         </>
       )}
     </PageShell>
@@ -52,6 +53,7 @@ function ToolGroup({
   tools: { name: string; description: string }[];
   variant?: 'neutral' | 'accent';
 }) {
+  const { t } = useI18n();
   return (
     <section className={s.group}>
       <div className={s.groupHeader}>
@@ -59,7 +61,7 @@ function ToolGroup({
         <Badge variant={variant}>{tools.length}</Badge>
       </div>
       {tools.length === 0 ? (
-        <p className={s.empty}>None registered.</p>
+        <p className={s.empty}>{t('skills.empty')}</p>
       ) : (
         <div className={s.toolList}>
           {tools.map((t) => (

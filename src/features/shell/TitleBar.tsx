@@ -16,39 +16,43 @@ import { useLocation } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Icon, IconButton, Tooltip, Badge } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_agent_status } from '@/utils/tauri';
+import { reflect_agent_status } from '@/utils/commands';
+import { useI18n, type LocaleKey } from '@/utils/i18n';
 import s from './TitleBar.module.css';
 
-/** 路径 → 标题映射。 */
-const TITLES: Record<string, string> = {
-  '/': 'Chat',
-  '/home': 'Home',
-  '/chat': 'Chat',
-  '/sessions': 'Threads',
-  '/files': 'Files',
-  '/git': 'Git',
-  '/terminal': 'Terminal',
-  '/skills': 'Skills & Tools',
-  '/workspaces': 'Workspaces',
-  '/models': 'Models',
-  '/plan': 'Plan Mode',
-  '/prompts': 'Prompts',
-  '/notifications': 'Notifications',
-  '/settings': 'Settings',
-  '/about': 'About',
-  '/update': 'Updates',
-  '/debug': 'Debug',
-  '/apps': 'Apps',
-  '/collaboration': 'Collaboration',
-  '/mobile': 'Mobile',
-  '/dictation': 'Dictation',
-  '/design-system': 'Design System',
+/** 路径 → i18n key 映射。统一通过 t(key) 渲染。 */
+const TITLES: Record<string, LocaleKey> = {
+  '/': 'shell.title.chat',
+  '/home': 'shell.title.home',
+  '/chat': 'shell.title.chat',
+  '/sessions': 'shell.title.threads',
+  '/files': 'shell.title.files',
+  '/git': 'shell.title.git',
+  '/terminal': 'shell.title.terminal',
+  '/skills': 'shell.title.skills',
+  '/workspaces': 'shell.title.workspaces',
+  '/models': 'shell.title.models',
+  '/plan': 'shell.title.plan',
+  '/prompts': 'shell.title.prompts',
+  '/notifications': 'shell.title.notifications',
+  '/settings': 'shell.title.settings',
+  '/about': 'shell.title.about',
+  '/update': 'shell.title.update',
+  '/debug': 'shell.title.debug',
+  '/apps': 'shell.title.apps',
+  '/collaboration': 'shell.title.collaboration',
+  '/mobile': 'shell.title.mobile',
+  '/dictation': 'shell.title.dictation',
+  '/design-system': 'shell.title.designSystem',
+  '/memory': 'shell.title.memory',
+  '/search': 'shell.title.search',
 };
 
-function titleFor(pathname: string): string {
-  if (TITLES[pathname]) return TITLES[pathname];
-  if (pathname.startsWith('/chat')) return 'Chat';
-  return 'Reflect';
+function titleFor(pathname: string, t: (key: LocaleKey) => string): string {
+  const key = TITLES[pathname];
+  if (key) return t(key);
+  if (pathname.startsWith('/chat')) return t('shell.title.chat');
+  return t('shell.title.reflect');
 }
 
 export function TitleBar({
@@ -65,6 +69,7 @@ export function TitleBar({
   const location = useLocation();
   const session = useAgentStore((s) => s.session);
   const permissionMode = useAgentStore((s) => s.permissionMode);
+  const { t } = useI18n();
 
   // 后端诊断查询 —— session_configured 事件未到时的 fallback。
   const statusQ = useQuery({
@@ -77,27 +82,37 @@ export function TitleBar({
     ? `${session.model} @ ${session.provider}`
     : statusQ.data?.has_model
       ? statusQ.data.model
-      : '(waiting…)';
+      : t('shell.sessionWaiting');
 
   return (
     // data-tauri-drag-region：让整条顶栏可拖动窗口。
     // 内部的 button/a/input 由 base.css 的 `[data-tauri-drag-region] button { no-drag }` 自动豁免，
     // 保证 sidebar/inspector toggle 仍可点击。
-    <header className={s.bar} data-tauri-drag-region data-testid="titlebar">
+    // onMouseDown 兜底：target 不是 button 时 preventDefault，避免 webview
+    // 抢焦点（focus 文本）打断 native drag 行为。
+    <header
+      className={s.bar}
+      data-tauri-drag-region
+      data-testid="titlebar"
+      onMouseDown={(e) => {
+        if (e.target instanceof HTMLElement && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
+        e.preventDefault();
+      }}
+    >
       <div className={s.left}>
-        <Tooltip label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} side="bottom">
-          <IconButton label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} onClick={onToggleSidebar}>
+        <Tooltip label={sidebarOpen ? t('shell.hideSidebar') : t('shell.showSidebar')} side="bottom">
+          <IconButton label={sidebarOpen ? t('shell.hideSidebar') : t('shell.showSidebar')} onClick={onToggleSidebar}>
             <Icon icon={sidebarOpen ? PanelLeftClose : PanelLeftOpen} size={16} />
           </IconButton>
         </Tooltip>
-        <h1 className={s.title}>{titleFor(location.pathname)}</h1>
-        {/* session 状态（保留 "session: (waiting...)" 文案契约，供 MessageList 测试断言） */}
+        <h1 className={s.title}>{titleFor(location.pathname, t)}</h1>
+        {/* session 状态（保留 "session: ..." 文案契约，供 MessageList 测试断言） */}
         <span className={s.sessionStatus} data-testid="titlebar-session">
-          session: {sessionLabel}
+          {t('shell.sessionLabel', { label: sessionLabel })}
         </span>
       </div>
       <div className={s.right}>
-        <Tooltip label="Command Palette (⌘K)" side="bottom">
+        <Tooltip label={t('shell.commandPaletteHint')} side="bottom">
           <kbd className={s.kbdHint}>
             <Icon icon={Search} size={11} /> ⌘K
           </kbd>
@@ -107,8 +122,8 @@ export function TitleBar({
             {permissionMode}
           </Badge>
         )}
-        <Tooltip label={inspectorOpen ? 'Hide inspector' : 'Show inspector'} side="bottom">
-          <IconButton label={inspectorOpen ? 'Hide inspector' : 'Show inspector'} onClick={onToggleInspector} variant={inspectorOpen ? 'active' : 'default'}>
+        <Tooltip label={inspectorOpen ? t('shell.hideInspector') : t('shell.showInspector')} side="bottom">
+          <IconButton label={inspectorOpen ? t('shell.hideInspector') : t('shell.showInspector')} onClick={onToggleInspector} variant={inspectorOpen ? 'active' : 'default'}>
             <Icon icon={inspectorOpen ? PanelRightClose : PanelRightOpen} size={16} />
           </IconButton>
         </Tooltip>

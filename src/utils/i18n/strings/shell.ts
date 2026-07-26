@@ -68,6 +68,8 @@ const shell: Record<string, StringEntry> = {
   'shell.nav.notifications':      { en: 'Notifications',                                          'zh-CN': '通知' },
   'shell.nav.settings':           { en: 'Settings',                                               'zh-CN': '设置' },
   'shell.nav.about':              { en: 'About',                                                  'zh-CN': '关于' },
+  'shell.nav.workspaces':         { en: 'Workspaces',                                             'zh-CN': '工作区' },
+  'shell.nav.models':             { en: 'Models',                                                 'zh-CN': '模型' },
 };
 
 export default shell;

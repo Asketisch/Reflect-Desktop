@@ -12,27 +12,29 @@ import type { ComponentType } from 'react';
 import { useSessions } from '@/features/sessions/hooks/useSessions';
 import { useAgent } from '@/services/agent';
 import { Card, Badge, Icon, Button, EmptyState } from '@/features/design-system';
+import { useI18n, type LocaleKey } from '@/utils/i18n';
 import { relativeTime } from '@/utils/time';
 import s from './HomeView.module.css';
 
 interface QuickAction {
   to: string;
-  label: string;
-  desc: string;
+  labelKey: LocaleKey;
+  descKey: LocaleKey;
   icon: ComponentType;
 }
 
 const ACTIONS: QuickAction[] = [
-  { to: '/chat', label: 'New chat', desc: 'Start a fresh conversation', icon: MessageSquarePlus },
-  { to: '/workspaces', label: 'Workspaces', desc: 'Recent project directories', icon: FolderOpen },
-  { to: '/models', label: 'Models', desc: 'Switch model or effort', icon: Cpu },
-  { to: '/settings', label: 'Settings', desc: 'Provider & permissions', icon: SettingsIcon },
+  { to: '/chat', labelKey: 'sidebar.newChat', descKey: 'home.startNew', icon: MessageSquarePlus },
+  { to: '/workspaces', labelKey: 'shell.nav.workspaces', descKey: 'home.openRecent', icon: FolderOpen },
+  { to: '/models', labelKey: 'shell.nav.models', descKey: 'home.shortcut.newSession', icon: Cpu },
+  { to: '/settings', labelKey: 'shell.nav.settings', descKey: 'settings.title', icon: SettingsIcon },
 ];
 
 export function HomeView() {
   const { buckets } = useSessions();
   const { session } = useAgent();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const recent = useMemo(() => {
     const all: Array<{ id: string; label: string; started_at: string; tokens: number }> = [];
@@ -56,16 +58,16 @@ export function HomeView() {
         <div className={s.brand}>
           <div className={s.logo}>R</div>
           <div>
-            <h1 className={s.title}>Welcome to Reflect</h1>
+            <h1 className={s.title}>{t('home.title')}</h1>
             <p className={s.subtitle}>
-              AI coding agent — start a conversation or pick up where you left off.
+              {t('home.subtitle')}
             </p>
           </div>
         </div>
         {session && (
           <Card level="outlined" padding="sm" className={s.statusCard}>
             <div className={s.statusRow}>
-              <Badge variant="success" dot>active</Badge>
+              <Badge variant="success" dot>{t('home.active')}</Badge>
               <code className={s.statusModel}>{session.model}</code>
               <span className={s.statusProvider}>@ {session.provider}</span>
             </div>
@@ -74,7 +76,7 @@ export function HomeView() {
       </header>
 
       <section>
-        <h2 className={s.sectionTitle}>Quick start</h2>
+        <h2 className={s.sectionTitle}>{t('home.quickStart')}</h2>
         <div className={s.actionGrid}>
           {ACTIONS.map((a) => (
             <button
@@ -86,8 +88,8 @@ export function HomeView() {
                 <Icon icon={a.icon} size={20} />
               </div>
               <div className={s.actionBody}>
-                <div className={s.actionLabel}>{a.label}</div>
-                <div className={s.actionDesc}>{a.desc}</div>
+                <div className={s.actionLabel}>{t(a.labelKey)}</div>
+                <div className={s.actionDesc}>{t(a.descKey)}</div>
               </div>
               <Icon icon={ArrowRight} size={14} className={s.actionArrow} />
             </button>
@@ -97,20 +99,20 @@ export function HomeView() {
 
       <section>
         <div className={s.sectionHeader}>
-          <h2 className={s.sectionTitle}>Recent sessions</h2>
+          <h2 className={s.sectionTitle}>{t('home.recentSessions')}</h2>
           <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/sessions' })}>
-            View all
+            {t('home.viewAll')}
           </Button>
         </div>
         {recent.length === 0 ? (
           <Card level="flat" padding="none">
             <EmptyState
               icon={<Icon icon={MessageSquare} />}
-              title="No sessions yet"
-              description="Start a chat to create your first session."
+              title={t('home.noRecent')}
+              description={t('home.startNew')}
               action={
                 <Button variant="primary" size="sm" leftIcon={<Icon icon={MessageSquarePlus} size={14} />} onClick={() => navigate({ to: '/chat' })}>
-                  New chat
+                  {t('sidebar.newChat')}
                 </Button>
               }
             />

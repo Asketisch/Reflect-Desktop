@@ -16,15 +16,17 @@ import {
   reflect_git_log,
   type ReflectGitStatus,
   type ReflectGitLogEntry,
-} from '@/utils/tauri';
+} from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Icon } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { DiffViewer } from './DiffViewer';
 import s from './GitView.module.css';
 
 type Tab = 'working' | 'staged';
 
 export function GitView() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<ReflectGitStatus | null>(null);
   const [diff, setDiff] = useState('');
   const [tab, setTab] = useState<Tab>('working');
@@ -58,11 +60,10 @@ export function GitView() {
 
   if (status && !status.is_repo) {
     return (
-      <PageShell icon={GitBranch} title="Git" subtitle="No git repository found." width="md">
+      <PageShell icon={GitBranch} title={t('git.title')} subtitle={t('git.notRepo')} width="md">
         <Card level="outlined" padding="md">
           <p className={s.note}>
-            The current workspace is not a git repository. Run <code>git init</code> or open a folder
-            that contains a <code>.git</code> directory.
+            {t('git.notRepoDesc')}
           </p>
         </Card>
       </PageShell>
@@ -70,8 +71,8 @@ export function GitView() {
   }
 
   return (
-    <PageShell icon={GitBranch} title="Git" subtitle="Working tree, diff, and recent log." width="lg">
-      {error && <Card level="outlined" padding="md"><p className={s.error}>Error: {error}</p></Card>}
+    <PageShell icon={GitBranch} title={t('git.title')} subtitle={t('git.subtitle')} width="lg">
+      {error && <Card level="outlined" padding="md"><p className={s.error}>{t('common.error')}: {error}</p></Card>}
 
       <Card level="elevated" padding="md" className={s.headerCard}>
         <div className={s.branchRow}>
@@ -83,8 +84,8 @@ export function GitView() {
             )}
           </div>
           <div className={s.arrows}>
-            <span title="ahead">↑ {status?.ahead ?? 0}</span>
-            <span title="behind">↓ {status?.behind ?? 0}</span>
+            <span title={t('git.ahead')}>↑ {status?.ahead ?? 0}</span>
+            <span title={t('git.behind')}>↓ {status?.behind ?? 0}</span>
           </div>
         </div>
         <div className={s.tabs}>
@@ -94,7 +95,7 @@ export function GitView() {
             data-active={tab === 'working'}
             onClick={() => setTab('working')}
           >
-            Working ({status?.entries.filter((e) => !e.status.startsWith('A') && !e.status.startsWith('R')).length ?? 0})
+            {t('git.working')} ({status?.entries.filter((e) => !e.status.startsWith('A') && !e.status.startsWith('R')).length ?? 0})
           </button>
           <button
             type="button"
@@ -102,15 +103,15 @@ export function GitView() {
             data-active={tab === 'staged'}
             onClick={() => setTab('staged')}
           >
-            Staged
+            {t('git.staged')}
           </button>
         </div>
       </Card>
 
-      <h3 className={s.sectionTitle}>Changes</h3>
+      <h3 className={s.sectionTitle}>{t('git.changes')}</h3>
       <Card level="flat" padding="none" className={s.entryList}>
         {status?.entries.length === 0 ? (
-          <div className={s.emptyState}>No changes.</div>
+          <div className={s.emptyState}>{t('git.noChanges')}</div>
         ) : (
           <ul>
             {status?.entries.map((e, i) => (
@@ -125,13 +126,13 @@ export function GitView() {
         )}
       </Card>
 
-      <h3 className={s.sectionTitle}>Diff ({tab})</h3>
-      <DiffViewer diff={diff} emptyMessage="No diff." />
+      <h3 className={s.sectionTitle}>{t('git.diffTitle', { tab: t(`git.${tab}`) })}</h3>
+      <DiffViewer diff={diff} emptyMessage={t('git.noDiff')} />
 
-      <h3 className={s.sectionTitle}>Recent commits</h3>
+      <h3 className={s.sectionTitle}>{t('git.commits')}</h3>
       <Card level="flat" padding="none" className={s.logList}>
         {log.length === 0 ? (
-          <div className={s.emptyState}>No commits.</div>
+          <div className={s.emptyState}>{t('git.noCommits')}</div>
         ) : (
           <ul>
             {log.map((c) => (
@@ -154,7 +155,7 @@ export function GitView() {
         data-testid="git-refresh"
       >
         <Icon icon={loading ? Check : ArrowRight} size={14} />
-        {loading ? 'Refreshing…' : 'Refresh'}
+        {loading ? t('git.refreshing') : t('git.refresh')}
       </button>
     </PageShell>
   );

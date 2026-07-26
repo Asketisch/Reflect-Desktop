@@ -14,6 +14,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, RefreshCw, Search } from 'lucide-react';
 import { Icon, IconButton, Button, Input } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import type { SessionBucket } from '../utils/buckets';
 import { BucketGroup } from './BucketGroup';
 import s from './Sidebar.module.css';
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function Sidebar({ buckets, loading, error, activeId, onSelect, onRefresh, onNewChat }: Props) {
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -47,9 +49,9 @@ export function Sidebar({ buckets, loading, error, activeId, onSelect, onRefresh
   return (
     <div className={s.root}>
       <div className={s.header}>
-        <h3 className={s.title}>Sessions</h3>
+        <h3 className={s.title}>{t('sidebar.sessions')}</h3>
         <div className={s.headerActions}>
-          <IconButton label="Refresh" onClick={onRefresh} disabled={loading} size="sm">
+          <IconButton label={t('sidebar.refresh')} onClick={onRefresh} disabled={loading} size="sm">
             <Icon icon={RefreshCw} size={14} />
           </IconButton>
         </div>
@@ -57,23 +59,23 @@ export function Sidebar({ buckets, loading, error, activeId, onSelect, onRefresh
 
       <div className={s.actions}>
         <Button variant="primary" block size="sm" onClick={onNewChat} leftIcon={<Icon icon={Plus} size={14} />}>
-          New chat
+          {t('sidebar.newChat')}
         </Button>
         <Input
           size="sm"
           leading={<Icon icon={Search} size={13} />}
-          placeholder="Search sessions…"
+          placeholder={t('sidebar.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search sessions"
+          aria-label={t('sidebar.searchAriaLabel')}
         />
       </div>
 
       <div className={s.list}>
         {error && <p className={s.error}>{error}</p>}
-        {loading && filtered.length === 0 && <p className={s.hint}>Loading…</p>}
+        {loading && filtered.length === 0 && <p className={s.hint}>{t('sidebar.loading')}</p>}
         {!loading && filtered.length === 0 && !error && (
-          <p className={s.hint}>No sessions yet. Start a turn above to create one.</p>
+          <p className={s.hint}>{t('sidebar.empty')}</p>
         )}
         {filtered.map((b) => (
           <BucketGroup key={b.label} bucket={b} activeId={activeId} onSelect={onSelect} />

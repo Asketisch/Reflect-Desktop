@@ -6,6 +6,9 @@
  *   - 子序列匹配(字符按顺序出现),case-insensitive
  *   - 命中开头得高分,连续匹配得更高分
  *   - 完全相等得最高分
+ *
+ * **i18n-aware**:用 `getLabel` / `getHint` 回调提供当前 locale 文本,
+ * 避免依赖 `item.label` / `item.hint` 字段名(可能不存在)。
  */
 export interface FuzzyHit<T> {
   item: T;
@@ -14,18 +17,31 @@ export interface FuzzyHit<T> {
   matches: number[];
 }
 
-export function fuzzy<T extends { label: string; keywords?: string[]; hint?: string }>(
+export interface FuzzyOptions<T> {
+  getLabel?: (item: T) => string;
+  getHint?: (item: T) => string | undefined;
+  getKeywords?: (item: T) => string[] | undefined;
+}
+
+export function fuzzy<T>(
   query: string,
   list: T[],
+  options: FuzzyOptions<T> = {},
 ): FuzzyHit<T>[] {
+  const getLabel = options.getLabel ?? ((item: any) => item.label ?? '');
+  const getHint = options.getHint ?? ((item: any) => item.hint);
+  const getKeywords = options.getKeywords ?? ((item: any) => item.keywords);
   const q = query.trim().toLowerCase();
   if (!q) return list.map((item) => ({ item, score: 0, matches: [] }));
   const hits: FuzzyHit<T>[] = [];
   for (const item of list) {
+    const label = getLabel(item);
+    const hint = getHint(item);
+    const keywords = getKeywords(item);
     const haystacks: { text: string; boost: number }[] = [
-      { text: item.label, boost: 2 },
-      ...(item.keywords ?? []).map((k) => ({ text: k, boost: 1.5 })),
-      ...(item.hint ? [{ text: item.hint, boost: 0.5 }] : []),
+      { text: label, boost: 2 },
+      ...(keywords ?? []).map((k: string) => ({ text: k, boost: 1.5 })),
+      ...(hint ? [{ text: hint, boost: 0.5 }] : []),
     ];
     let bestScore = -1;
     let bestMatches: number[] = [];

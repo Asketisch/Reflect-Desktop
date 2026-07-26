@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Icon } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import s from './ToolCells.module.css';
 
 export interface ToolCellProps {
@@ -83,6 +84,7 @@ function summarize(name: string, args: Record<string, unknown> | null): string {
 }
 
 export function ToolCell({ toolName, argsSummary, status }: ToolCellProps) {
+  const { t } = useI18n();
   const Icon2 = pickIcon(toolName);
   const args = parseArgs(argsSummary);
   const summary = summarize(toolName, args);
@@ -110,7 +112,7 @@ export function ToolCell({ toolName, argsSummary, status }: ToolCellProps) {
       </button>
       {open && (
         <pre className={s.args} data-testid={`tool-args-${toolName}`}>
-          {argsSummary || '(no args)'}
+          {argsSummary || t('chat.tool.emptyArgs')}
         </pre>
       )}
     </div>

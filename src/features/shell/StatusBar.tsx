@@ -16,8 +16,9 @@ import { Sun, Moon, Monitor, AlertCircle, MessagesSquare } from 'lucide-react';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useQuery } from '@tanstack/react-query';
-import { reflect_agent_status, reflect_list_sessions } from '@/utils/tauri';
+import { reflect_agent_status, reflect_list_sessions } from '@/utils/commands';
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
+import { useI18n } from '@/utils/i18n';
 import s from './StatusBar.module.css';
 
 export function StatusBar() {
@@ -28,6 +29,7 @@ export function StatusBar() {
   const lspServers = useAgentStore((st) => st.lspServers);
   const lastError = useAgentStore((st) => st.lastError);
   const clearError = useAgentStore((st) => st.clearError);
+  const { t, tp } = useI18n();
 
   const statusQ = useQuery({
     queryKey: ['agent-status'],
@@ -82,14 +84,14 @@ export function StatusBar() {
             {modelLabel}
           </span>
         ) : (
-          <Tooltip label={modelTooltip ?? 'No model configured — open Settings to add an API key'} side="top">
+          <Tooltip label={modelTooltip ?? t('shell.noModelTooltip')} side="top">
             <span className={s.item}>
               <span className={s.dot} data-kind={modelKind} />
-              no model
+              {t('shell.noModel')}
             </span>
           </Tooltip>
         )}
-        <button className={s.btn} onClick={() => cyclePermission()} title="Cycle permission mode">
+        <button className={s.btn} onClick={() => cyclePermission()} title={t('shell.cyclePermission')}>
           {permissionMode}
         </button>
         {workspaceLabel && (
@@ -104,30 +106,30 @@ export function StatusBar() {
           <Tooltip label={lastError} side="top">
             <button className={s.item} onClick={clearError} data-kind="error">
               <Icon icon={AlertCircle} size={12} />
-              error
+              {t('shell.errorButton')}
             </button>
           </Tooltip>
         )}
         {(mcpFailed > 0 || lspFailed > 0) && (
-          <Tooltip label={`${mcpFailed} MCP / ${lspFailed} LSP failed`} side="top">
+          <Tooltip label={t('shell.mcpLspFailed', { mcp: mcpFailed, lsp: lspFailed })} side="top">
             <span className={s.item} data-kind="error">
-              {mcpFailed + lspFailed} failed
+              {t('shell.failedCount', { count: mcpFailed + lspFailed })}
             </span>
           </Tooltip>
         )}
         {mcpServers.length > 0 && (
           <span className={s.itemMuted}>
-            MCP {mcpServers.length}
+            {t('shell.mcpCount', { count: mcpServers.length })}
           </span>
         )}
-        <Tooltip label={`${sessionCount} session${sessionCount === 1 ? '' : 's'} on disk`} side="top">
+        <Tooltip label={tp('shell.sessionCount', sessionCount, { count: sessionCount })} side="top">
           <span className={s.itemMuted} data-testid="statusbar-session-count">
             <Icon icon={MessagesSquare} size={11} /> {sessionCount}
           </span>
         </Tooltip>
-        <Tooltip label={`Theme: ${mode}`} side="top">
+        <Tooltip label={t('shell.themeCurrent', { mode: mode })} side="top">
           <IconButton
-            label={`Theme: ${mode}`}
+            label={t('shell.themeCurrent', { mode: mode })}
             size="sm"
             onClick={cycleTheme}
             className={s.themeBtn}

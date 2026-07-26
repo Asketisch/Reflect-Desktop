@@ -4,7 +4,8 @@
  * 契约：button 元素 + aria-pressed（active 反馈）。
  */
 import { memo } from 'react';
-import type { ReflectSessionInfo } from '@/utils/tauri';
+import type { ReflectSessionInfo } from '@/utils/commands';
+import { useI18n } from '@/utils/i18n';
 import { displayTitle } from '../utils/buckets';
 import s from './SessionItem.module.css';
 
@@ -15,6 +16,7 @@ export interface SessionItemProps {
 }
 
 function SessionItemImpl({ session, active, onClick }: SessionItemProps) {
+  const { t } = useI18n();
   const title = displayTitle(session);
   return (
     <button
@@ -23,7 +25,7 @@ function SessionItemImpl({ session, active, onClick }: SessionItemProps) {
       className={s.item}
       data-active={active || undefined}
     >
-      <div className={s.title}>{title}</div>
+      <div className={s.title}>{title || t('sidebar.untitled')}</div>
       <div className={s.meta}>
         {session.message_count} msgs · {session.token_total} tok
       </div>
