@@ -6,7 +6,7 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
-import type { ReflectSessionInfo } from '@/utils/tauri';
+import type { ReflectSessionInfo } from '@/utils/commands';
 import { chatLinkFor, shortTimestamp } from '../utils/threadLabels';
 import { ThreadItemMenu } from './ThreadItemMenu';
 import s from './ThreadItem.module.css';

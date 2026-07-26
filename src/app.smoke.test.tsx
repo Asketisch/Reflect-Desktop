@@ -20,6 +20,9 @@ declare const require: (id: string) => unknown;
 function nodeRead(p: string, enc: string = 'utf8'): string {
   return (require('node:fs') as { readFileSync: (p: string, enc: string) => string }).readFileSync(p, enc);
 }
+function nodeReadDir(p: string): string[] {
+  return (require('node:fs') as { readdirSync: (p: string) => string[] }).readdirSync(p);
+}
 function nodeExists(p: string): boolean {
   return (require('node:fs') as { existsSync: (p: string) => boolean; readFileSync: (p: string, enc: string) => string }).existsSync(p);
 }
@@ -481,15 +484,20 @@ describe('Feature barrel exports', () => {
 });
 
 // ===========================================================================
-// 8. IPC parity: 19 frontend commands ↔ 19 backend commands
+// 8. IPC parity: frontend wrappers ↔ backend commands
 // ===========================================================================
+
+function readBackendCommandSources(): string {
+  const commandDir = 'src-tauri/src/commands';
+  return nodeReadDir(commandDir)
+    .filter((name) => name.endsWith('.rs'))
+    .map((name) => nodeRead(`${commandDir}/${name}`))
+    .join('\n');
+}
 
 describe('IPC parity (frontend ↔ backend)', () => {
   it('frontend commands exactly match backend tauri::commands', async () => {
-    const backendSrc = nodeRead(
-      'src-tauri/src/commands/mod.rs',
-      'utf8',
-    );
+    const backendSrc = readBackendCommandSources();
     const frontend = await import('@/utils/commands');
     const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('reflect_'));
 

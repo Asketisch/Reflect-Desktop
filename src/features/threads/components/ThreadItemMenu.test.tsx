@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ThreadItemMenu } from '@/features/threads/components/ThreadItemMenu';
-import type { ReflectSessionInfo } from '@/utils/tauri';
+import type { ReflectSessionInfo } from '@/utils/commands';
 
 const SESSION: ReflectSessionInfo = {
   session_id: 's1',

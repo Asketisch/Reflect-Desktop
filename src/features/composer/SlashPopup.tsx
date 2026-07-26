@@ -8,6 +8,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SLASH_COMMANDS } from './slashCommands';
+import { useI18n } from '@/utils/i18n';
 import s from './SlashPopup.module.css';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function SlashPopup({ query, onSelect, visible }: Props) {
+  const { t } = useI18n();
   const listRef = useRef<HTMLDivElement>(null);
   const [activeIdx, setActiveIdx] = useState(0);
 
@@ -73,7 +75,7 @@ export function SlashPopup({ query, onSelect, visible }: Props) {
           aria-selected={i === activeIdx}
         >
           <span className={s.name}>/{c.name}</span>
-          <span className={s.summary}>{c.summary}</span>
+          <span className={s.summary}>{t(c.summaryKey as Parameters<typeof t>[0])}</span>
         </button>
       ))}
     </div>

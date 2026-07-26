@@ -5,7 +5,7 @@
  *                delete 二次 confirm; export 调 reflect_export_session。
  */
 import { useState } from 'react';
-import type { ReflectSessionInfo } from '@/utils/tauri';
+import type { ReflectSessionInfo } from '@/utils/commands';
 import s from './ThreadItemMenu.module.css';
 
 export interface ThreadItemMenuProps {

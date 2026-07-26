@@ -16,7 +16,7 @@ import {
   reflect_delete_session,
   reflect_export_session,
   type ReflectSessionInfo,
-} from '@/utils/tauri';
+} from '@/utils/commands';
 import { bucketSessions, type SessionBucket } from '../utils/buckets';
 
 export type { SessionBucket };

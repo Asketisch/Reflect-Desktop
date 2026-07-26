@@ -4,7 +4,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Network, Server, Cpu } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_list_tools } from '@/utils/tauri';
+import { reflect_list_tools } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, EmptyState } from '@/features/design-system';
 import s from './CollaborationView.module.css';

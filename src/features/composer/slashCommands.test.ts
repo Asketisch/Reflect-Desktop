@@ -16,9 +16,9 @@ describe('SLASH_COMMANDS', () => {
     }
   });
 
-  it('each command has summary', () => {
+  it('each command has summaryKey', () => {
     for (const c of SLASH_COMMANDS) {
-      expect(c.summary.length).toBeGreaterThan(0);
+      expect(c.summaryKey.length).toBeGreaterThan(0);
     }
   });
 

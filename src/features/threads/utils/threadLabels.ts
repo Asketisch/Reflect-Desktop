@@ -3,7 +3,7 @@
  *
  * CodexMonitor 同名: `src/features/threads/utils/threadLink.ts`
  */
-import type { ReflectSessionInfo } from '@/utils/tauri';
+import type { ReflectSessionInfo } from '@/utils/commands';
 
 /** 生成 chat 路由路径。 */
 export function chatLinkFor(session: Pick<ReflectSessionInfo, 'session_id'>): string {

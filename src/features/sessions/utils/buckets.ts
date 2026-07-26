@@ -5,7 +5,7 @@
  *
  * 纯函数，便于测试与跨 feature 复用。
  */
-import type { ReflectSessionInfo } from '@/utils/tauri';
+import type { ReflectSessionInfo } from '@/utils/commands';
 
 export const SESSION_BUCKET_LABELS = [
   'Now',

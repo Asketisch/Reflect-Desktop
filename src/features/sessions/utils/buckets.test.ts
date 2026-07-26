@@ -8,7 +8,7 @@ import {
   displayTitle,
   SESSION_BUCKET_LABELS,
 } from '@/features/sessions/utils/buckets';
-import type { ReflectSessionInfo } from '@/utils/tauri';
+import type { ReflectSessionInfo } from '@/utils/commands';
 
 function makeSession(overrides: Partial<ReflectSessionInfo> = {}): ReflectSessionInfo {
   return {

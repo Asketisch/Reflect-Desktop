@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClipboardList, Check, X } from 'lucide-react';
-import { reflect_plan_approval } from '@/utils/tauri';
+import { reflect_plan_approval } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Button, Icon, EmptyState } from '@/features/design-system';
 import s from './PlanView.module.css';

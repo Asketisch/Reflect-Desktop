@@ -3,7 +3,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, Tag, Terminal as TerminalIcon } from 'lucide-react';
-import { ping } from '@/utils/tauri';
+import { ping } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon } from '@/features/design-system';
 import s from './UpdateView.module.css';

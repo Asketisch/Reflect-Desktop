@@ -5,7 +5,7 @@
  * 点击 → onPick(name),外部 caller 把 { type: 'skill', name } 加入 attachments。
  */
 import { useEffect, useMemo, useState } from 'react';
-import { reflect_list_skills, type ReflectSkillInfo } from '@/utils/tauri';
+import { reflect_list_skills, type ReflectSkillInfo } from '@/utils/commands';
 import s from './MentionPicker.module.css';
 
 export interface MentionPickerProps {
