@@ -60,6 +60,8 @@ export function NotificationsView() {
   const lspServers = useAgentStore((st) => st.lspServers);
   const [filter, setFilter] = useState<Filter>('all');
   const [tab, setTab] = useState<Tab>('inbox');
+  // 单一 activity controller,由父级 `tab` 驱动 query 的 enabled。
+  const activity = useActivityController(tab);
 
   // ── Inbox derivations ────────────────────────────────────────
   const items: NotifItem[] = useMemo(() => {
@@ -145,9 +147,9 @@ export function NotificationsView() {
         />
       )}
 
-      {tab === 'activity' && <ActivityTab />}
+      {tab === 'activity' && <ActivityTab ctrl={activity} />}
 
-      {tab === 'mentions' && <MentionsTab />}
+      {tab === 'mentions' && <MentionsTab ctrl={activity} />}
     </div>
   );
 }
@@ -202,8 +204,8 @@ function InboxTab(props: {
   );
 }
 
-function ActivityTab() {
-  const ctrl = useActivityController();
+function ActivityTab({ ctrl }: { ctrl: ReturnType<typeof useActivityController> }) {
+  const events = ctrl.activityEvents;
   return (
     <>
       <div className={s.filters}>
@@ -213,24 +215,24 @@ function ActivityTab() {
           onChange={ctrl.setLevel}
           size="sm"
         />
-        <span className={s.count}>{ctrl.total}</span>
+        <span className={s.count}>{events.length}</span>
         <div className={s.spacer} />
         <Button variant="ghost" size="sm" onClick={() => void ctrl.clear()} data-testid="activity-clear">
           Clear buffer
         </Button>
       </div>
 
-      {ctrl.loading ? (
+      {ctrl.activityLoading ? (
         <div className={s.loading}><Spinner size={20} /></div>
-      ) : ctrl.error ? (
+      ) : ctrl.activityError ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={AlertCircle} />}
             title="Failed to load activity"
-            description={String(ctrl.error?.message ?? ctrl.error)}
+            description={String(ctrl.activityError?.message ?? ctrl.activityError)}
           />
         </Card>
-      ) : ctrl.events.length === 0 ? (
+      ) : events.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={History} />}
@@ -240,7 +242,8 @@ function ActivityTab() {
         </Card>
       ) : (
         <div className={s.list}>
-          {[...ctrl.events].reverse().map((e) => (
+          {/* 后端返回旧→新,UI 需要新→旧(最新在上)。 */}
+          {[...events].reverse().map((e) => (
             <ActivityRow key={e.id} event={e} />
           ))}
         </div>
@@ -249,8 +252,8 @@ function ActivityTab() {
   );
 }
 
-function MentionsTab() {
-  const ctrl = useActivityController();
+function MentionsTab({ ctrl }: { ctrl: ReturnType<typeof useActivityController> }) {
+  const events = ctrl.mentionEvents;
   return (
     <>
       <div className={s.filters}>
@@ -264,13 +267,13 @@ function MentionsTab() {
         />
       </div>
 
-      {ctrl.loading ? (
+      {ctrl.mentionLoading ? (
         <div className={s.loading}><Spinner size={20} /></div>
-      ) : ctrl.error ? (
+      ) : ctrl.mentionError ? (
         <Card level="flat" padding="none">
           <EmptyState icon={<Icon icon={AtSign} />} title="Search failed" />
         </Card>
-      ) : ctrl.events.length === 0 ? (
+      ) : events.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={AtSign} />}
@@ -284,7 +287,8 @@ function MentionsTab() {
         </Card>
       ) : (
         <div className={s.list}>
-          {ctrl.events.map((e) => (
+          {/* 后端返回旧→新,UI 需要新→旧(最新在上)。 */}
+          {[...events].reverse().map((e) => (
             <ActivityRow key={e.id} event={e} />
           ))}
         </div>

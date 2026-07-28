@@ -118,6 +118,16 @@
   margin: 0 0 4px;
 }
 
+.shotPreview {
+  margin-top: var(--space-2, 8px);
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  object-fit: contain;
+}
+
 .coordRow {
   display: flex;
   align-items: center;

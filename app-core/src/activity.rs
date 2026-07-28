@@ -317,19 +317,18 @@ impl ActivityLogger {
                 inner.next_seq = n + 1;
             }
         }
-        // 推入环形缓冲(驱逐最旧)。
+        // 磁盘 best-effort:目录可能为空串(in_memory 模式)→ 跳过。
+        // 先 persist(借 event 引用),再 move 进缓冲,避免无谓 clone。
+        if !self.root.as_os_str().is_empty() {
+            if let Err(e) = self.persist_locked(&mut inner, &event) {
+                tracing::warn!("[activity] persist failed: {e}");
+            }
+        }
+        // 推入环形缓冲(驱逐最旧)。move event,无需 clone。
         if inner.buf.len() >= CAP_INMEMORY {
             inner.buf.pop_front();
         }
-        let event_clone = event.clone();
-        inner.buf.push_back(event_clone);
-        // 磁盘 best-effort:目录可能为空串(in_memory 模式)→ 跳过。
-        if self.root.as_os_str().is_empty() {
-            return Ok(());
-        }
-        if let Err(e) = self.persist_locked(&mut inner, &event) {
-            tracing::warn!("[activity] persist failed: {e}");
-        }
+        inner.buf.push_back(event);
         Ok(())
     }
 

@@ -4,7 +4,12 @@
  * 数据源:
  * - `reflect_list_media` —— 目录扫图(Studio tab)。
  * - `reflect_media_capabilities` —— 后端能力诊断。
- * - `reflect_computer_use` —— 动作执行(Computer Use tab)。
+ * - `reflect_screenshot` —— 截屏(返回 base64 PNG data URL)。
+ * - `reflect_computer_use` —— 鼠标 / 键盘动作执行(Computer Use tab)。
+ *
+ * 注意:截图走独立的 `reflect_screenshot` 命令(后端 `RealComputerBackend::
+ * screenshot`),**不**经 `reflect_computer_use` —— 后者把 `Screenshot` 动作
+ * 显式拒绝(避免双入口)。本 controller 的 `captureScreenshot()` 是截图唯一入口。
  */
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +17,7 @@ import {
   reflect_list_media,
   reflect_media_capabilities,
   reflect_computer_use,
+  reflect_screenshot,
   type ReflectComputerUseAction,
   type ReflectMediaAsset,
   type ReflectMediaCapabilities,
@@ -36,6 +42,10 @@ export interface MediaController {
   /** Computer state */
   actionHistory: ReflectComputerUseAction[];
   executeAction: (action: ReflectComputerUseAction) => Promise<void>;
+  /** 截屏 —— 返回 base64 PNG data URL 并推入历史。 */
+  captureScreenshot: () => Promise<string | null>;
+  /** 最近一次截图的 data URL(供 UI 预览)。 */
+  lastScreenshot: string | null;
   busy: boolean;
   lastError: string | null;
   /** Capabilities */
@@ -66,6 +76,7 @@ export function useMediaController(): MediaController {
 
   const [actionHistory, setActionHistory] = useState<ReflectComputerUseAction[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [lastScreenshot, setLastScreenshot] = useState<string | null>(null);
 
   const actionMut = useMutation({
     mutationFn: async (action: ReflectComputerUseAction) => {
@@ -75,6 +86,27 @@ export function useMediaController(): MediaController {
       pushToast({ kind: 'success', message: `executed: ${summarizeAction(action)}` });
       setActionHistory((h) => [action, ...h].slice(0, 20));
       setLastError(null);
+    },
+    onError: (e) => {
+      const msg = String(e);
+      setLastError(msg);
+      pushToast({ kind: 'warn', message: msg });
+    },
+  });
+
+  const screenshotMut = useMutation({
+    mutationFn: async () => {
+      const b64 = await reflect_screenshot();
+      return b64;
+    },
+    onSuccess: (b64) => {
+      const dataUrl = `data:image/png;base64,${b64}`;
+      setLastScreenshot(dataUrl);
+      // 推一条占位动作进历史(用 screenshot kind 复用渲染)。
+      const shot: ReflectComputerUseAction = { kind: 'screenshot' };
+      setActionHistory((h) => [shot, ...h].slice(0, 20));
+      setLastError(null);
+      pushToast({ kind: 'success', message: 'Screenshot captured' });
     },
     onError: (e) => {
       const msg = String(e);
@@ -94,6 +126,15 @@ export function useMediaController(): MediaController {
     [actionMut],
   );
 
+  const captureScreenshot = useCallback(async () => {
+    try {
+      const b64 = await screenshotMut.mutateAsync();
+      return b64;
+    } catch {
+      return null;
+    }
+  }, [screenshotMut]);
+
   return {
     tab,
     setTab,
@@ -105,7 +146,9 @@ export function useMediaController(): MediaController {
     refreshStudio,
     actionHistory,
     executeAction,
-    busy: actionMut.isPending,
+    captureScreenshot,
+    lastScreenshot,
+    busy: actionMut.isPending || screenshotMut.isPending,
     lastError,
     capabilities: capsQ.data ?? null,
   };

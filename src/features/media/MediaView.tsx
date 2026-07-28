@@ -2,10 +2,14 @@
  * MediaView —— Media Studio + Computer Use (Phase 3 item 13).
  *
  * 双 tab:
- * - **Studio**:目录扫描图片列表。当前 backend = metadata-only(显示文件元数据;
- *   处理/缩放返回 `Unavailable`,需要 `image` crate 后续接入)。
- * - **Computer Use**:鼠标 / 键盘控制面板。后端 = `UnavailableBackend`
- *   (需要 `xcap` + `enigo` 后续接入)。
+ * - **Studio**:目录扫描图片列表。backend = `RealImageBackend`(`image` crate),
+ *   返回完整元数据(含像素维度)。
+ * - **Computer Use**:鼠标 / 键盘控制面板。backend = `RealComputerBackend`
+ *   (`xcap` 截屏 + `enigo` 鼠标键盘)。截图走独立 `reflect_screenshot` 命令
+ *   (返回 base64 PNG),其余动作走 `reflect_computer_use`。
+ *
+ * 注:CI / headless 环境下 xcap/enigo 会返回 `MediaError::Unavailable`,
+ * 错误以 toast + 错误卡片呈现,不 panic。
  */
 import { useState } from 'react';
 import { Image as ImageIcon, MousePointer2, Camera, Keyboard, RefreshCw } from 'lucide-react';
@@ -116,7 +120,11 @@ function ComputerUseTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> 
   return (
     <div className={s.cuLayout}>
       <div className={s.cuControls}>
-        <ScreenshotAction onClick={() => void ctrl.executeAction({ kind: 'screenshot' })} busy={ctrl.busy} />
+        <ScreenshotAction
+          onCapture={() => void ctrl.captureScreenshot()}
+          busy={ctrl.busy}
+          lastScreenshot={ctrl.lastScreenshot}
+        />
         <ClickAction onClick={(x, y, button) => void ctrl.executeAction({ kind: 'mouseClick', params: { x, y, button } })} busy={ctrl.busy} />
         <MoveAction onClick={(x, y) => void ctrl.executeAction({ kind: 'mouseMove', params: { x, y } })} busy={ctrl.busy} />
         <ScrollAction onClick={(dx, dy) => void ctrl.executeAction({ kind: 'scroll', params: { dx, dy } })} busy={ctrl.busy} />
@@ -136,7 +144,7 @@ function ComputerUseTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> 
           <EmptyState
             icon={<Icon icon={MousePointer2} />}
             title="No actions yet"
-            description="Click any control above to attempt an action. Backend unavailable in CI / headless environments — see error card."
+            description="Click any control above to drive the mouse, keyboard, or capture a screenshot. On macOS the first action may prompt for Accessibility / Screen Recording permission."
           />
         </Card>
       ) : (
@@ -153,16 +161,32 @@ function ComputerUseTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> 
   );
 }
 
-function ScreenshotAction({ onClick, busy }: { onClick: () => void; busy: boolean }) {
+function ScreenshotAction({
+  onCapture,
+  busy,
+  lastScreenshot,
+}: {
+  onCapture: () => void;
+  busy: boolean;
+  lastScreenshot: string | null;
+}) {
   return (
     <Card level="outlined" padding="md" className={s.cuCard}>
       <div className={s.cuTitle}>
         <Icon icon={Camera} size={14} /> Screenshot
       </div>
-      <p className={s.cuHint}>Capture the full screen.</p>
-      <Button variant="primary" size="sm" disabled={busy} onClick={onClick} data-testid="cu-screenshot">
+      <p className={s.cuHint}>Capture the full screen (PNG).</p>
+      <Button variant="primary" size="sm" disabled={busy} onClick={onCapture} data-testid="cu-screenshot">
         Capture
       </Button>
+      {lastScreenshot && (
+        <img
+          src={lastScreenshot}
+          alt="Last screenshot"
+          className={s.shotPreview}
+          data-testid="cu-screenshot-preview"
+        />
+      )}
     </Card>
   );
 }

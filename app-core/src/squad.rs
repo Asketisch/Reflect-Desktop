@@ -282,6 +282,11 @@ impl SquadManager {
     /// 把任务分配给具体成员(写 `owner` + `metadata.actor`)。
     ///
     /// `assignee_actor_id` 形如 `"architect@rocket"`;`None` 清空分配。
+    ///
+    /// **保留既有 metadata**:只合并 / 删除 `actor` 子键,不会用空对象
+    /// 覆盖整个 `Task.metadata`(避免丢失其他工具 / 集成写入的字段)。
+    /// 实现是 read-modify-write:先取当前 task 的 metadata,克隆 → 改
+    /// `actor` 键 → 回写。单进程桌面端无并发写同 task 的场景,够安全。
     pub async fn assign_task(
         &self,
         squad_name: &str,
@@ -291,18 +296,30 @@ impl SquadManager {
         let actor = assignee_actor_id
             .as_ref()
             .map(|id| crate::actor::Actor::from_agent_id(id));
-        // owner 是 tri-state:Some(Some(v)) 设值 / Some(None) 清空 / None 不动。
+        let list = squad_name.to_string();
+        // read-modify-write:合并 actor 到既有 metadata,而非整对象替换。
+        let current = self.task_manager.get_task(&list, task_id, false).await.map_err(tm_err)?;
+        let mut metadata_obj = match &current.metadata {
+            serde_json::Value::Object(map) => map.clone(),
+            // 非 object(或 null):用空 map 起步,不沿用非法结构。
+            _ => serde_json::Map::new(),
+        };
+        match &actor {
+            Some(a) => {
+                metadata_obj.insert("actor".into(), serde_json::to_value(a).unwrap_or(serde_json::Value::Null));
+            }
+            None => {
+                metadata_obj.remove("actor");
+            }
+        }
+        let merged = serde_json::Value::Object(metadata_obj);
+        // owner 是 tri-state:Some(Some(v)) 设值 / Some(None) 清空。
         let owner_patch = Some(assignee_actor_id);
-        let metadata_value = actor
-            .as_ref()
-            .map(|a| a.encode_metadata())
-            .unwrap_or_else(|| serde_json::json!({}));
         let patch = reflect_task::TaskPatch {
             owner: owner_patch,
-            metadata: Some(metadata_value),
+            metadata: Some(merged),
             ..Default::default()
         };
-        let list = squad_name.to_string();
         let outcome = self
             .task_manager
             .update_task(&list, task_id, patch)
@@ -468,6 +485,38 @@ mod tests {
         m.assign_task("eta", task.id, Some("builder@eta".into())).await.unwrap();
         let cleared = m.assign_task("eta", task.id, None).await.unwrap();
         assert!(cleared.owner.is_none());
+        // 清空 assignee 后 actor 子键也应被移除。
+        assert!(Actor::decode_metadata(&cleared.metadata).is_none());
+    }
+
+    #[tokio::test]
+    async fn assign_task_preserves_existing_metadata_on_clear() {
+        // 回归:清空 assignee 不应擦掉既有 metadata 的其他键。
+        let m = make_manager();
+        m.create_squad(sample_spec("theta")).await.unwrap();
+        // 创建任务时带 extra metadata。
+        let task = m
+            .task_manager
+            .create_task(
+                &"theta".to_string(),
+                "t1".into(),
+                "desc".into(),
+                None,
+                None,
+                serde_json::json!({ "source": "importer", "priority": 5 }),
+            )
+            .await
+            .unwrap();
+        // assign 写入 actor(应保留 source / priority)。
+        let assigned = m.assign_task("theta", task.id, Some("builder@theta".into())).await.unwrap();
+        assert_eq!(assigned.metadata["source"], "importer");
+        assert_eq!(assigned.metadata["priority"], 5);
+        assert!(assigned.metadata.get("actor").is_some());
+        // clear 移除 actor 但保留 source / priority。
+        let cleared = m.assign_task("theta", task.id, None).await.unwrap();
+        assert_eq!(cleared.metadata["source"], "importer");
+        assert_eq!(cleared.metadata["priority"], 5);
+        assert!(cleared.metadata.get("actor").is_none());
     }
 
     #[tokio::test]
