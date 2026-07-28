@@ -23,9 +23,11 @@ reflect-hooks    = { workspace = true }
 
 # 通用
 anyhow      = { workspace = true }
+dirs        = { workspace = true }
 serde       = { workspace = true }
 serde_json  = { workspace = true }
-tokio       = { workspace = true, features = ["sync", "rt", "macros"] }
+tokio       = { workspace = true, features = ["sync", "rt", "macros", "process", "io-util"] }
+tokio-util  = { workspace = true, features = ["rt"] }
 parking_lot = { workspace = true }
 tracing     = { workspace = true }
 tempfile    = "3"

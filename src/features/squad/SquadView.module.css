@@ -1,0 +1,224 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 2fr;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin: 0;
+  font-weight: var(--fw-semibold);
+}
+
+.subsectionTitle {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.listItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  background: var(--bg-surface-alpha, rgba(20, 22, 26, 0.5));
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast, 100ms);
+  color: var(--text-primary);
+}
+
+.listItem:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.listItem[data-active] {
+  background: var(--accent-subtle, rgba(99, 102, 241, 0.16));
+  border-color: var(--accent, #6366f1);
+}
+
+.listName {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.listMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6, 24px);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  padding-bottom: var(--space-2, 8px);
+}
+
+.detailName {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.desc {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  margin: 0;
+}
+
+.muted {
+  color: var(--text-tertiary);
+  font-size: var(--fs-sm);
+  margin: 0;
+}
+
+.membersList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+.memberRole {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.memberId {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, monospace);
+}
+
+.delegateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+.tasksList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.taskRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.taskInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.taskTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.taskMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+.taskActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+}
+
+.assignSelect {
+  padding: 4px 8px;
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface, #0c0d10);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  font-size: var(--fs-xs);
+}
+
+.memberEditor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.memberEditorRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}

@@ -126,3 +126,39 @@
   line-height: var(--lh-normal);
   word-break: break-word;
 }
+
+.notifMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.eventBadge {
+  margin-left: var(--space-1);
+  text-transform: capitalize;
+  font-size: 10px;
+}
+
+.tabBar {
+  display: flex;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.mentionInput {
+  flex: 1;
+  max-width: 480px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6);
+}

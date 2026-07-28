@@ -1,14 +1,29 @@
 /**
- * Notifications —— 运行时事件通知视图（CSS Modules 版）。
+ * Notifications —— 三标签 Inbox + Activity timeline + @mentions (Phase 3 item 9).
  *
- * 数据源：store 派生的真实事件（lastError / pending 队列 / MCP / LSP）。
- * 支持 All / Error / Pending 过滤。
+ * - **Inbox**:运行时事件通知(派生自 agentStore)。All / Error / Pending 过滤。
+ * - **Activity**:本地事件审计 timeline(reflect_list_activity + level 过滤)。
+ * - **Mentions**:@<query> 搜索(reflect_search_activity)。
+ *
+ * Refactored:Activity / Mentions tab 经 `useActivityController` 走 TanStack Query;
+ * Inbox tab 保持原有派生逻辑,不变。
  */
 import { useMemo, useState } from 'react';
-import { AlertCircle, AlertTriangle, Info, BellOff } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Info, BellOff, History, AtSign, Inbox } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
-import { Card, Badge, Button, Icon, EmptyState } from '@/features/design-system';
+import {
+  Card,
+  Badge,
+  Button,
+  Icon,
+  EmptyState,
+  SegmentedControl,
+  Input,
+  Spinner,
+} from '@/features/design-system';
+import type { ReflectActivityEvent } from '@/utils/commands/activity';
+import { useActivityController } from './useActivityController';
 import s from './NotificationsView.module.css';
 
 interface NotifItem {
@@ -19,6 +34,20 @@ interface NotifItem {
 }
 
 type Filter = 'all' | 'error' | 'pending';
+type Tab = 'inbox' | 'activity' | 'mentions';
+
+const TAB_OPTIONS = [
+  { value: 'inbox' as const, label: 'Inbox', hint: 'Live pending events' },
+  { value: 'activity' as const, label: 'Activity', hint: 'Audit timeline' },
+  { value: 'mentions' as const, label: 'Mentions', hint: '@agent searches' },
+];
+
+const LEVEL_FILTER_OPTIONS = [
+  { value: 'all' as const, label: 'All' },
+  { value: 'info' as const, label: 'Info' },
+  { value: 'warn' as const, label: 'Warn' },
+  { value: 'error' as const, label: 'Error' },
+];
 
 export function NotificationsView() {
   const lastError = useAgentStore((st) => st.lastError);
@@ -30,7 +59,9 @@ export function NotificationsView() {
   const mcpServers = useAgentStore((st) => st.mcpServers);
   const lspServers = useAgentStore((st) => st.lspServers);
   const [filter, setFilter] = useState<Filter>('all');
+  const [tab, setTab] = useState<Tab>('inbox');
 
+  // ── Inbox derivations ────────────────────────────────────────
   const items: NotifItem[] = useMemo(() => {
     const out: NotifItem[] = [];
     if (lastError) {
@@ -75,7 +106,7 @@ export function NotificationsView() {
   const errorCount = items.filter((i) => i.level === 'error').length;
   const pendingCount = items.filter((i) => i.level === 'warn').length;
 
-  const filtered = items.filter((i) => {
+  const inboxFiltered = items.filter((i) => {
     if (filter === 'error') return i.level === 'error';
     if (filter === 'pending') return i.level === 'warn';
     return true;
@@ -84,36 +115,75 @@ export function NotificationsView() {
   return (
     <div className={s.root}>
       <header className={s.header}>
-        <h1 className={s.title}>Notifications</h1>
-        {items.length > 0 && (
+        <h1 className={s.title}>Inbox</h1>
+        {tab === 'inbox' && items.length > 0 && (
           <div className={s.countBadges}>
             {errorCount > 0 && <Badge variant="danger" solid>{errorCount} error</Badge>}
             {pendingCount > 0 && <Badge variant="warning" solid>{pendingCount} pending</Badge>}
-            {errorCount === 0 && pendingCount === 0 && (
-              <Badge variant="neutral">{items.length}</Badge>
-            )}
+            {errorCount === 0 && pendingCount === 0 && <Badge variant="neutral">{items.length}</Badge>}
           </div>
         )}
       </header>
 
+      <div className={s.tabBar}>
+        <SegmentedControl<Tab>
+          options={TAB_OPTIONS}
+          value={tab}
+          onChange={setTab}
+        />
+      </div>
+
+      {tab === 'inbox' && (
+        <InboxTab
+          items={inboxFiltered}
+          filter={filter}
+          onFilter={setFilter}
+          errorCount={errorCount}
+          pendingCount={pendingCount}
+          lastError={lastError}
+          onClearError={clearError}
+        />
+      )}
+
+      {tab === 'activity' && <ActivityTab />}
+
+      {tab === 'mentions' && <MentionsTab />}
+    </div>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────
+
+function InboxTab(props: {
+  items: NotifItem[];
+  filter: Filter;
+  onFilter: (f: Filter) => void;
+  errorCount: number;
+  pendingCount: number;
+  lastError: string | null;
+  onClearError: () => void;
+}) {
+  const { items, filter, onFilter, errorCount, pendingCount, lastError, onClearError } = props;
+  return (
+    <>
       <div className={s.filters}>
-        <FilterBtn active={filter === 'all'} onClick={() => setFilter('all')}>
+        <FilterBtn active={filter === 'all'} onClick={() => onFilter('all')}>
           All <span className={s.count}>{items.length}</span>
         </FilterBtn>
-        <FilterBtn active={filter === 'error'} onClick={() => setFilter('error')}>
+        <FilterBtn active={filter === 'error'} onClick={() => onFilter('error')}>
           Errors <span className={s.count}>{errorCount}</span>
         </FilterBtn>
-        <FilterBtn active={filter === 'pending'} onClick={() => setFilter('pending')}>
+        <FilterBtn active={filter === 'pending'} onClick={() => onFilter('pending')}>
           Pending <span className={s.count}>{pendingCount}</span>
         </FilterBtn>
         {lastError && (
-          <Button variant="ghost" size="sm" onClick={clearError} className={s.dismissBtn}>
+          <Button variant="ghost" size="sm" onClick={onClearError} className={s.dismissBtn}>
             Dismiss error
           </Button>
         )}
       </div>
 
-      {filtered.length === 0 ? (
+      {items.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={BellOff} />}
@@ -123,14 +193,107 @@ export function NotificationsView() {
         </Card>
       ) : (
         <div className={s.list}>
-          {filtered.map((n) => (
+          {items.map((n) => (
             <NotifRow key={n.id} item={n} />
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
+
+function ActivityTab() {
+  const ctrl = useActivityController();
+  return (
+    <>
+      <div className={s.filters}>
+        <SegmentedControl<typeof ctrl.level>
+          options={LEVEL_FILTER_OPTIONS}
+          value={ctrl.level}
+          onChange={ctrl.setLevel}
+          size="sm"
+        />
+        <span className={s.count}>{ctrl.total}</span>
+        <div className={s.spacer} />
+        <Button variant="ghost" size="sm" onClick={() => void ctrl.clear()} data-testid="activity-clear">
+          Clear buffer
+        </Button>
+      </div>
+
+      {ctrl.loading ? (
+        <div className={s.loading}><Spinner size={20} /></div>
+      ) : ctrl.error ? (
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={AlertCircle} />}
+            title="Failed to load activity"
+            description={String(ctrl.error?.message ?? ctrl.error)}
+          />
+        </Card>
+      ) : ctrl.events.length === 0 ? (
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={History} />}
+            title="No activity yet"
+            description="Agent turns, tool calls, and approvals will accumulate here."
+          />
+        </Card>
+      ) : (
+        <div className={s.list}>
+          {[...ctrl.events].reverse().map((e) => (
+            <ActivityRow key={e.id} event={e} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function MentionsTab() {
+  const ctrl = useActivityController();
+  return (
+    <>
+      <div className={s.filters}>
+        <Input
+          type="text"
+          placeholder="@agent-id (e.g. team-lead@rocket)"
+          value={ctrl.mentionQuery}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => ctrl.setMentionQuery(e.target.value)}
+          className={s.mentionInput}
+          data-testid="mention-input"
+        />
+      </div>
+
+      {ctrl.loading ? (
+        <div className={s.loading}><Spinner size={20} /></div>
+      ) : ctrl.error ? (
+        <Card level="flat" padding="none">
+          <EmptyState icon={<Icon icon={AtSign} />} title="Search failed" />
+        </Card>
+      ) : ctrl.events.length === 0 ? (
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={AtSign} />}
+            title="No mentions"
+            description={
+              ctrl.mentionQuery
+                ? `No activity mentioning "${ctrl.mentionQuery}".`
+                : 'Type a query above (e.g. "@team-lead@rocket") or leave blank to list all mentions.'
+            }
+          />
+        </Card>
+      ) : (
+        <div className={s.list}>
+          {ctrl.events.map((e) => (
+            <ActivityRow key={e.id} event={e} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Row components ────────────────────────────────────────────────
 
 function FilterBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -160,3 +323,43 @@ function NotifRow({ item }: { item: NotifItem }) {
     </Card>
   );
 }
+
+const ACTIVITY_ICON: Record<ReflectActivityEvent['level'], ComponentType> = {
+  info: Info,
+  warn: AlertTriangle,
+  error: AlertCircle,
+};
+
+const ACTIVITY_BADGE: Record<ReflectActivityEvent['level'], 'neutral' | 'warning' | 'danger'> = {
+  info: 'neutral',
+  warn: 'warning',
+  error: 'danger',
+};
+
+function ActivityRow({ event }: { event: ReflectActivityEvent }) {
+  const IconComp = ACTIVITY_ICON[event.level];
+  const ts = new Date(event.tsMs).toLocaleString();
+  return (
+    <Card level="outlined" padding="md" className={s.notif} data-level={event.level}>
+      <div className={s.notifIcon}>
+        <Icon icon={IconComp} size={16} />
+      </div>
+      <div className={s.notifBody}>
+        <div className={s.notifTitle}>
+          {event.summary}
+          <Badge variant={ACTIVITY_BADGE[event.level]} className={s.eventBadge}>
+            {event.kind.replace(/_/g, ' ')}
+          </Badge>
+        </div>
+        <div className={s.notifMeta}>
+          <span>{event.actor.actorId}</span>
+          {event.actor.teamName && <span> · {event.actor.teamName}</span>}
+          <span> · {ts}</span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// suppress unused warning for the Inbox icon (kept for future Card adornment)
+void Inbox;

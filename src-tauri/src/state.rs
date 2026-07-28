@@ -20,10 +20,14 @@ use reflect_protocol::Event;
 use reflect_tools::ToolRegistry;
 use tokio::sync::broadcast;
 
+pub use remote_config::{RemoteConfig, RemoteStatus};
+
 mod agent;
 mod install;
+mod remote_config;
 mod session;
 mod submit;
+mod activity;
 
 pub use agent::AgentStatus;
 
@@ -94,6 +98,85 @@ impl MinimalAgent {
     /// 共享 ToolRegistry(MCP/LSP 后续 register_plugin_tool、tool 列表命令用)。
     pub fn tools(&self) -> Arc<ToolRegistry> {
         Arc::clone(&self.inner.tools)
+    }
+
+    /// Task/Team 管理器(Phase 1 多 agent 命令面)。
+    /// 命令层 `commands/tasks.rs` 通过本句柄调用 `TaskManager` 的 create/get/
+    /// update/list/claim/upsert_team/list_teams 等方法。
+    pub fn task_manager(&self) -> Arc<reflect_task::TaskManager> {
+        Arc::clone(&self.inner.task_manager)
+    }
+
+    /// Cron 调度器句柄(Phase 1 第 2 项)。
+    /// 返回当前 scheduler 的 clone(若已 install);未 install 时返回 `None`。
+    /// 命令层 `commands/schedule.rs` 据此决定走真 scheduler 还是空响应。
+    pub fn cron_scheduler(&self) -> Option<reflect_stream::cron::CronScheduler> {
+        self.inner.cron_scheduler.read().clone()
+    }
+
+    /// Side-channel 注册表句柄(Phase 2 第 1 项)。命令层
+    /// `commands/side_channel.rs` 用它 start / cancel / list。
+    pub fn side_channels(&self) -> reflect_app_core::side_channel::SideChannelRegistry {
+        self.inner.side_channels.clone()
+    }
+
+    /// Remote mode config(Phase 2 第 2 项):host + port + auth_token + auto_connect。
+    /// 命令层 `commands/remote.rs` 用它持久化配置(进程内);连接状态(传输 up/down)
+    /// 留作后续 driver 任务。
+    pub fn remote_config(&self) -> RemoteConfig {
+        self.inner.remote_config.read().clone()
+    }
+
+    /// 写入远程配置(覆盖式)。返回更新后的 snapshot。
+    pub fn set_remote_config(&self, cfg: RemoteConfig) -> RemoteConfig {
+        *self.inner.remote_config.write() = cfg.clone();
+        cfg
+    }
+
+    /// KMS 知识库管理器(Phase 3 第 12 项)。
+    pub fn kms_manager(&self) -> &reflect_app_core::kms::KnowledgeManager {
+        &self.inner.kms_manager
+    }
+
+    /// Autopilot 管理器(Phase 3 第 10 项)。
+    pub fn autopilot_manager(&self) -> &reflect_app_core::autopilot::AutopilotManager {
+        &self.inner.autopilot_manager
+    }
+
+    /// Activity 日志管理器(Phase 3 第 9 项)。
+    /// `install_agent_thread` 会 spawn 一个 task 订阅 session broadcast,
+    /// 把 `Event` 映射成 `ActivityEvent` 写入。
+    pub fn activity_logger(&self) -> Arc<reflect_app_core::activity::ActivityLogger> {
+        Arc::clone(&self.inner.activity_logger)
+    }
+
+    /// Squad 管理器(Phase 3 第 11 项):复用 task_manager 的 team 存储。
+    pub fn squad_manager(&self) -> Arc<reflect_app_core::squad::SquadManager> {
+        Arc::clone(&self.inner.squad_manager)
+    }
+
+    /// install_agent_thread 内部调用:把带真 submission sender 的 scheduler
+    /// 写回 inner,并启动后台 driver(30s tick)。幂等:重复调用只重建一次。
+    pub(crate) fn install_cron_scheduler(&self, sender: tokio::sync::mpsc::Sender<reflect_protocol::Submission>) {
+        // session_id 用 "desktop" 固定值(单进程单 scheduler;持久化留后续)。
+        let scheduler = reflect_stream::cron::CronScheduler::new(
+            Some(sender),
+            reflect_protocol::ThreadId::new(),
+        );
+        // 若已有 scheduler(含 jobs),把 jobs 迁移过来,避免 install 二次调用丢 jobs。
+        if let Some(prev) = self.inner.cron_scheduler.read().as_ref() {
+            for job in prev.list() {
+                // 重建:用 create 复制(prompt + schedule + name),保留 id 不可控
+                // (create 生成新 uuid)—— 桌面端 install 只在启动时调一次,
+                // 此分支主要是防御性,实际不会进。
+                let _ = scheduler.create(&job.schedule, job.prompt.clone(), job.name.clone());
+            }
+        }
+        // 启动后台 driver(30s tick)。driver 持 jobs Arc + sender clone,
+        // 与命令层共享同一把锁。
+        let driver = scheduler.clone();
+        let _driver_handle = driver.start(30);
+        *self.inner.cron_scheduler.write() = Some(scheduler);
     }
 
     /// B8-01: register a shell session; returns the kill handle to put in the map.

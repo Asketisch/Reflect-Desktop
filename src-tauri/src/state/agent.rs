@@ -14,6 +14,8 @@ use reflect_tools::ToolRegistry;
 use serde::Serialize;
 use tokio::sync::broadcast;
 
+use super::remote_config::RemoteConfig;
+
 /// Session-level broadcast 通道容量。覆盖 1024 个 event 后最旧事件被丢;
 /// 桌面端 UI 通常只关心最近 50-100 个事件,这个容量远超实际需要。
 pub(crate) const SESSION_BROADCAST_CAPACITY: usize = 1024;
@@ -38,6 +40,34 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) shell_sessions: crate::shell_sessions::ShellSessions,
     pub(crate) memory_store: crate::memory_store::MemoryStore,
     pub(crate) hook_store: crate::hook_store::HookStore,
+    /// Task/Team 管理器(Phase 1 多 agent 命令面)。
+    /// 复用 vendor/reflect-task 默认 home(`~/.reflect`),与 TUI/CLI 共享数据。
+    /// Phase 0 形态:无 hook_engine / event_sink;后续阶段把 TaskCreated/Completed
+    /// 事件推前端时再 `with_event_sink`。
+    pub(crate) task_manager: Arc<reflect_task::TaskManager>,
+    /// Cron 调度器(Phase 1 第 2 项)。`None` 直到 `install_agent_thread`
+    /// 把真 `AgentThread::submission_sender()` 注入(driver 才能真正触发);
+    /// 此前 CRUD 仍可用(命令层读 `RwLock`,只是无后台 driver)。
+    pub(crate) cron_scheduler: parking_lot::RwLock<Option<reflect_stream::cron::CronScheduler>>,
+    /// Side-channel registry(Phase 2 第 1 项):每个 side-channel 持有独立
+    /// `CancelToken`,主 agent 的 cancel 不会传播到 side-channel。事件流
+    /// 经 `subscribe_events()` → Tauri `reflect_event` channel 推前端。
+    pub(crate) side_channels: reflect_app_core::side_channel::SideChannelRegistry,
+    /// Remote mode config(Phase 2 第 2 项):iOS / 远端 daemon 连接的目标
+    /// (host + port + auth_token) 与运行时状态。进程内存储,重启重置
+    /// —— 持久化留作后续。
+    pub(crate) remote_config: parking_lot::RwLock<RemoteConfig>,
+    /// KMS 知识库管理器(Phase 3 第 12 项):grep-based wiki + /dream。
+    pub(crate) kms_manager: reflect_app_core::kms::KnowledgeManager,
+    /// Autopilot 管理器(Phase 3 第 10 项):自动任务调度。
+    pub(crate) autopilot_manager: reflect_app_core::autopilot::AutopilotManager,
+    /// Activity 日志管理器(Phase 3 第 9 项):本地事件审计 timeline。
+    /// 由 `install_agent_thread` 订阅 session broadcast 把 `Event` 映射成
+    /// `ActivityEvent` 后写入。
+    pub(crate) activity_logger: Arc<reflect_app_core::activity::ActivityLogger>,
+    /// Squad 管理器(Phase 3 第 11 项):复用 `task_manager` 的 TeamFile 存储,
+    /// 提供 leader 委派语义层。
+    pub(crate) squad_manager: Arc<reflect_app_core::squad::SquadManager>,
 }
 
 /// agent 诊断快照 —— 给前端显示状态徽标(ready / 是否有 API key / 模型 / 工作区)。
@@ -62,6 +92,27 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let (session_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let cfg = reflect_config::load_default();
+    // Task/Team 存储复用 vendor 默认 home(REFLECT_HOME 或 $HOME/.reflect),
+    // 与 TUI/CLI 共享 `~/.reflect/tasks/` 与 `~/.reflect/teams/`。
+    // home 解析失败时回退到 cwd 下的 `.reflect`,保证进程仍可启动(命令会报 I/O 错)。
+    let task_store = Arc::new(
+        reflect_task::FileTaskStore::with_default_home()
+            .unwrap_or_else(|_| reflect_task::FileTaskStore::new(".")),
+    );
+    let team_store = Arc::new(
+        reflect_task::FileTeamStore::with_default_home()
+            .unwrap_or_else(|_| reflect_task::FileTeamStore::new(".")),
+    );
+    let task_manager = Arc::new(reflect_task::TaskManager::new(task_store, team_store));
+    // Cron scheduler 初始为 None;install_agent_thread 注入真 sender 后重建。
+    let cron_scheduler = parking_lot::RwLock::new(None);
+    let side_channels = reflect_app_core::side_channel::SideChannelRegistry::new();
+    let remote_config = parking_lot::RwLock::new(RemoteConfig::default());
+    let kms_manager = reflect_app_core::kms::KnowledgeManager::with_default_home();
+    let autopilot_manager = reflect_app_core::autopilot::AutopilotManager::new();
+    let activity_logger = Arc::new(reflect_app_core::activity::ActivityLogger::with_default_home());
+    // SquadManager 复用 task_manager(team 存储),必须在 task_manager 之后构造。
+    let squad_manager = Arc::new(reflect_app_core::squad::SquadManager::new(Arc::clone(&task_manager)));
     MinimalAgentInner {
         thread: ParkingMutex::new(None),
         session_tx,
@@ -73,6 +124,14 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         shell_sessions: crate::shell_sessions::ShellSessions::default(),
         memory_store: crate::memory_store::MemoryStore,
         hook_store: crate::hook_store::HookStore::default(),
+        task_manager,
+        cron_scheduler,
+        side_channels,
+        remote_config,
+        kms_manager,
+        autopilot_manager,
+        activity_logger,
+        squad_manager,
     }
 }
 

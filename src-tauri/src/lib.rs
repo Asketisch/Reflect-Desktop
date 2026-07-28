@@ -14,6 +14,7 @@ pub mod dock;
 pub mod events;
 mod hook_store;
 pub mod mcp;
+mod media_backend;
 mod memory_store;
 pub mod menu;
 mod shell_sessions;
@@ -23,19 +24,35 @@ pub mod tray;
 mod workspace_state;
 
 use commands::{
-    reflect_add_memory, reflect_agent_status, reflect_ask_user_input_response,
-    reflect_ask_user_question_response, reflect_check_allowlist, reflect_check_update,
-    reflect_compact, reflect_current_workspace, reflect_cycle_permission_mode,
-    reflect_delete_session, reflect_enter_plan_mode, reflect_exit_plan_mode,
-    reflect_export_session, reflect_export_session_markdown, reflect_get_config, reflect_git_diff,
-    reflect_git_log, reflect_git_status, reflect_hook_approval, reflect_interrupt,
-    reflect_kill_shell, reflect_list_dir, reflect_list_hooks, reflect_list_memory,
-    reflect_list_sessions, reflect_list_shell_sessions, reflect_list_skills, reflect_list_tools,
-    reflect_list_workspaces, reflect_load_allowlist, reflect_plan_approval, reflect_read_file,
-    reflect_remove_memory, reflect_rename_session, reflect_replay_session, reflect_rewind,
-    reflect_run_shell, reflect_save_allowlist, reflect_save_config, reflect_search_files,
+    reflect_activity_count, reflect_add_memory, reflect_add_schedule, reflect_agent_status,
+    reflect_ask_user_input_response, reflect_ask_user_question_response, reflect_assign_squad_task,
+    reflect_cancel_side_channel, reflect_check_allowlist, reflect_check_update, reflect_claim_task,
+    reflect_clear_activity, reflect_compact, reflect_computer_use, reflect_create_squad,
+    reflect_create_task, reflect_current_workspace, reflect_cycle_permission_mode,
+    reflect_delegate_next, reflect_delete_agent_def, reflect_delete_session, reflect_delete_squad,
+    reflect_delete_task, reflect_delete_team, reflect_dream, reflect_enter_plan_mode,
+    reflect_exit_plan_mode, reflect_export_session, reflect_export_session_markdown,
+    reflect_get_agent_def, reflect_get_autopilot_config, reflect_get_config,
+    reflect_get_remote_config, reflect_get_remote_status, reflect_get_schedule_status,
+    reflect_get_side_channel, reflect_get_squad, reflect_get_task, reflect_get_team,
+    reflect_git_diff, reflect_git_log, reflect_git_status, reflect_hook_approval,
+    reflect_image_process, reflect_interrupt, reflect_kill_shell, reflect_kms_create,
+    reflect_kms_delete, reflect_kms_get_page, reflect_kms_list, reflect_kms_list_pages,
+    reflect_kms_save_page, reflect_kms_search, reflect_list_activity, reflect_list_agent_defs,
+    reflect_list_dir, reflect_list_hooks, reflect_list_media, reflect_list_memory,
+    reflect_list_schedules, reflect_list_sessions, reflect_list_shell_sessions,
+    reflect_list_side_channels, reflect_list_skills, reflect_list_squads, reflect_list_tasks,
+    reflect_list_teams, reflect_list_tools, reflect_list_workspaces, reflect_load_allowlist,
+    reflect_media_capabilities, reflect_parse_agent_md, reflect_plan_approval, reflect_read_file,
+    reflect_remove_memory, reflect_remove_schedule, reflect_rename_session, reflect_replay_session,
+    reflect_rewind, reflect_run_shell, reflect_save_agent_def, reflect_save_allowlist,
+    reflect_save_config, reflect_screenshot, reflect_search_activity, reflect_search_files,
     reflect_set_effort, reflect_set_permission_mode, reflect_set_workspace, reflect_shutdown,
-    reflect_submit, reflect_toggle_hook, reflect_tool_approval,
+    reflect_start_side_channel, reflect_submit, reflect_tailscale_daemon_command_preview,
+    reflect_tailscale_daemon_start, reflect_tailscale_daemon_status, reflect_tailscale_daemon_stop,
+    reflect_tailscale_status, reflect_toggle_hook, reflect_tool_approval,
+    reflect_update_autopilot_config, reflect_update_remote_config, reflect_update_task,
+    reflect_update_schedule, reflect_upsert_team, reflect_autopilot_history,
 };
 use serde::Serialize;
 use state::MinimalAgent;
@@ -124,6 +141,74 @@ pub fn run() {
             reflect_export_session_markdown,
             reflect_check_update,
             reflect_search_files,
+            // Phase 1: Task/Team 管理命令(多 agent 协调,包装 reflect_task::TaskManager)
+            reflect_list_tasks,
+            reflect_create_task,
+            reflect_get_task,
+            reflect_update_task,
+            reflect_claim_task,
+            reflect_delete_task,
+            reflect_list_teams,
+            reflect_upsert_team,
+            reflect_get_team,
+            reflect_delete_team,
+            // Phase 1 第 2 项: Schedule(cron)管理命令(包装 reflect_stream::cron::CronScheduler)
+            reflect_list_schedules,
+            reflect_add_schedule,
+            reflect_update_schedule,
+            reflect_remove_schedule,
+            reflect_get_schedule_status,
+            // Phase 1 第 3 项: Agent definition 管理命令(包装 reflect_agent_def)
+            reflect_list_agent_defs,
+            reflect_get_agent_def,
+            reflect_save_agent_def,
+            reflect_delete_agent_def,
+            reflect_parse_agent_md,
+            // Phase 2 第 1 项: Side-channel(用户驱动的并发 agent)
+            reflect_start_side_channel,
+            reflect_cancel_side_channel,
+            reflect_list_side_channels,
+            reflect_get_side_channel,
+            // Phase 2 第 2 项: Remote mode(Tailscale + iOS daemon)
+            reflect_get_remote_config,
+            reflect_update_remote_config,
+            reflect_get_remote_status,
+            reflect_tailscale_status,
+            reflect_tailscale_daemon_command_preview,
+            reflect_tailscale_daemon_start,
+            reflect_tailscale_daemon_stop,
+            reflect_tailscale_daemon_status,
+            // Phase 3 第 12 项: KMS(grep-based wiki + /dream)
+            reflect_kms_list,
+            reflect_kms_create,
+            reflect_kms_delete,
+            reflect_kms_save_page,
+            reflect_kms_get_page,
+            reflect_kms_list_pages,
+            reflect_kms_search,
+            reflect_dream,
+            // Phase 3 第 10 项: Autopilot(自动任务调度)
+            reflect_get_autopilot_config,
+            reflect_update_autopilot_config,
+            reflect_autopilot_history,
+            // Phase 3 第 9 项: Activity timeline(本地事件审计日志)
+            reflect_list_activity,
+            reflect_search_activity,
+            reflect_clear_activity,
+            reflect_activity_count,
+            // Phase 3 第 11 项: Squad + Leader delegation
+            reflect_list_squads,
+            reflect_create_squad,
+            reflect_get_squad,
+            reflect_delete_squad,
+            reflect_delegate_next,
+            reflect_assign_squad_task,
+            // Phase 3 第 13 项: Media Studio + Computer Use(metadata-only backends)
+            reflect_list_media,
+            reflect_image_process,
+            reflect_screenshot,
+            reflect_computer_use,
+            reflect_media_capabilities,
             dock::reflect_set_dock_badge,
         ])
         // ====== Window 事件:macOS close-to-tray ======

@@ -59,6 +59,8 @@ const shell: Record<string, StringEntry> = {
   'shell.title.memory':           { en: 'Memory',                                                 'zh-CN': '记忆' },
   'shell.title.search':           { en: 'Search',                                                 'zh-CN': '搜索' },
   'shell.title.reflect':          { en: 'Reflect',                                                'zh-CN': 'Reflect' },
+  'shell.title.squad':            { en: 'Squad',                                                  'zh-CN': '小队' },
+  'shell.title.media':            { en: 'Media Studio',                                           'zh-CN': '媒体工作台' },
   'shell.nav.home':               { en: 'Home',                                                   'zh-CN': '首页' },
   'shell.nav.chat':               { en: 'Chat',                                                   'zh-CN': '对话' },
   'shell.nav.files':              { en: 'Files',                                                  'zh-CN': '文件' },
@@ -70,6 +72,16 @@ const shell: Record<string, StringEntry> = {
   'shell.nav.about':              { en: 'About',                                                  'zh-CN': '关于' },
   'shell.nav.workspaces':         { en: 'Workspaces',                                             'zh-CN': '工作区' },
   'shell.nav.models':             { en: 'Models',                                                 'zh-CN': '模型' },
+  'shell.nav.tasks':              { en: 'Tasks',                                                  'zh-CN': '任务' },
+  'shell.nav.schedule':           { en: 'Schedule',                                               'zh-CN': '定时' },
+  'shell.nav.agents':             { en: 'Agents',                                                 'zh-CN': '智能体' },
+  'shell.nav.sideChannels':       { en: 'Side-channels',                                         'zh-CN': '并行通道' },
+  'shell.nav.remote':             { en: 'Remote',                                                'zh-CN': '远程' },
+  'shell.nav.dictation':          { en: 'Dictation',                                             'zh-CN': '语音输入' },
+  'shell.nav.kms':                { en: 'KMS',                                                   'zh-CN': '知识库' },
+  'shell.nav.autopilot':          { en: 'Autopilot',                                             'zh-CN': '自动调度' },
+  'shell.nav.squad':              { en: 'Squad',                                                 'zh-CN': '小队' },
+  'shell.nav.media':              { en: 'Media',                                                 'zh-CN': '媒体' },
 };
 
 export default shell;

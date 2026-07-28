@@ -36,6 +36,15 @@ import { MobileView } from '@/features/mobile/MobileView';
 import { UpdateView } from '@/features/update/UpdateView';
 import { MemoryView } from '@/features/memory/MemoryView';
 import { SearchView } from '@/features/files/SearchView';
+import { TasksBoardView } from '@/features/tasks-board/TasksBoardView';
+import { ScheduleView } from '@/features/schedule/ScheduleView';
+import { AgentsView } from '@/features/agents/AgentsView';
+import { SideChannelView } from '@/features/side-channel/SideChannelView';
+import { RemoteView } from '@/features/remote/RemoteView';
+import { KmsView } from '@/features/kms';
+import { AutopilotView } from '@/features/autopilot';
+import { SquadView } from '@/features/squad';
+import { MediaView } from '@/features/media';
 
 // ====== Route tree (TanStack Router v1 API) ======
 
@@ -68,6 +77,15 @@ const dictationRoute = new Route({ getParentRoute: () => rootRoute, path: 'dicta
 const designSystemRoute = new Route({ getParentRoute: () => rootRoute, path: 'design-system', component: DesignSystemView });
 const memoryRoute = new Route({ getParentRoute: () => rootRoute, path: 'memory', component: MemoryView });
 const searchRoute = new Route({ getParentRoute: () => rootRoute, path: 'search', component: SearchView });
+const tasksRoute = new Route({ getParentRoute: () => rootRoute, path: 'tasks', component: TasksBoardView });
+const scheduleRoute = new Route({ getParentRoute: () => rootRoute, path: 'schedule', component: ScheduleView });
+const agentsRoute = new Route({ getParentRoute: () => rootRoute, path: 'agents', component: AgentsView });
+const sideChannelRoute = new Route({ getParentRoute: () => rootRoute, path: 'side-channels', component: SideChannelView });
+const remoteRoute = new Route({ getParentRoute: () => rootRoute, path: 'remote', component: RemoteView });
+const kmsRoute = new Route({ getParentRoute: () => rootRoute, path: 'kms', component: KmsView });
+const autopilotRoute = new Route({ getParentRoute: () => rootRoute, path: 'autopilot', component: AutopilotView });
+const squadRoute = new Route({ getParentRoute: () => rootRoute, path: 'squad', component: SquadView });
+const mediaRoute = new Route({ getParentRoute: () => rootRoute, path: 'media', component: MediaView });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -94,6 +112,15 @@ const routeTree = rootRoute.addChildren([
   designSystemRoute,
   memoryRoute,
   searchRoute,
+  tasksRoute,
+  scheduleRoute,
+  agentsRoute,
+  sideChannelRoute,
+  remoteRoute,
+  kmsRoute,
+  autopilotRoute,
+  squadRoute,
+  mediaRoute,
 ]);
 
 // ====== Router instance ======

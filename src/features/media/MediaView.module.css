@@ -1,0 +1,170 @@
+.tabBar {
+  padding-bottom: var(--space-2);
+}
+
+.capsLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+.capsNote {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.studioLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.studioControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.assetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-2, 8px);
+}
+
+.asset {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+.assetIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface-alpha, rgba(20, 22, 26, 0.5));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.assetMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.assetName {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assetSub {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, monospace);
+}
+
+.assetPath {
+  font-size: 10px;
+  color: var(--text-faint, var(--text-tertiary));
+  margin-top: 2px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6, 24px);
+}
+
+/* ── Computer use ───────────────────────────────────────── */
+
+.cuLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.cuControls {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-2, 8px);
+}
+
+.cuCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+}
+
+.cuTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.cuHint {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  margin: 0 0 4px;
+}
+
+.coordRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btnSelect {
+  padding: 4px 8px;
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface, #0c0d10);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  font-size: var(--fs-xs);
+}
+
+.errorCard {
+  border-color: var(--danger-border);
+}
+
+.errorTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--danger);
+  margin-bottom: 4px;
+}
+
+.errorBody {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  white-space: pre-wrap;
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subhead {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  font-weight: var(--fw-semibold);
+  margin: 0;
+}
+
+.histRow {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-xs);
+}

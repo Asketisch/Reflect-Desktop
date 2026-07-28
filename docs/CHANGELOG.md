@@ -4,6 +4,462 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Added — Phase 3 local-only features batch (KMS + Autopilot + Dictation wiring)
+
+Completes all remaining local-only features that don't require cloud services,
+SSO, or third-party APIs. IM bridging (Phase 2 item 7) and multi-tenant/SSO/cloud
+(Phase 3 item 14) are explicitly skipped as they depend on external services.
+
+- **Phase 2 item 6: Dictation** — UI + hook + i18n + route were already complete;
+  added the missing ActivityBar entry (`/dictation`, Mic icon) + `shell.nav.dictation`
+  i18n key (en/zh-CN).
+- **Phase 3 item 12: KMS (Knowledge Management System)**:
+  - **New `app-core::kms` module** (`app-core/src/kms.rs`): `KnowledgeManager` with
+    grep-based wiki storage (`~/.reflect/kms/<name>/pages/*.md`), frontmatter
+    parsing (title/tags/description), full-text search, and `/dream` session mining.
+    6 unit tests all passing.
+  - **Backend commands** (`src-tauri/src/commands/kms.rs`): 8 commands —
+    `reflect_kms_list` / `reflect_kms_create` / `reflect_kms_delete` /
+    `reflect_kms_save_page` / `reflect_kms_get_page` / `reflect_kms_list_pages` /
+    `reflect_kms_search` / `reflect_dream`.
+  - **Frontend wrapper** (`src/utils/commands/kms.ts`): 8 functions + 4 types.
+  - **Feature UI** (`src/features/kms/`): `KmsView.tsx` with wiki selector tabs,
+    page list, inline editor, and global search bar.
+  - **State wiring**: `MinimalAgentInner.kms_manager` + facade `kms_manager()`.
+- **Phase 3 item 10: Autopilot**:
+  - **New `app-core::autopilot` module** (`app-core/src/autopilot.rs`):
+    `AutopilotManager` with JSON-based config persistence + run history.
+    `AutopilotConfig` (enabled/schedule/taskTemplate/agent/maxConcurrent) +
+    `AutopilotRun` + `AutopilotRunStatus`. 4 unit tests all passing.
+  - **Backend commands** (`src-tauri/src/commands/autopilot.rs`): 3 commands —
+    `reflect_get_autopilot_config` / `reflect_update_autopilot_config` /
+    `reflect_autopilot_history`.
+  - **Frontend wrapper** (`src/utils/commands/autopilot.ts`): 3 functions + 2 types.
+  - **Feature UI** (`src/features/autopilot/`): `AutopilotView.tsx` with config
+    editor form (enable/schedule/template/agent/concurrency) + run history panel.
+  - **State wiring**: `MinimalAgentInner.autopilot_manager` + facade `autopilot_manager()`.
+- **Routing + navigation**: `/kms` + `/autopilot` routes registered;
+  `ActivityBar` gains KMS (BookOpen icon) and Autopilot (Zap icon) entries;
+  i18n `shell.nav.kms` + `shell.nav.autopilot` (en/zh-CN).
+- **Verification**: `cargo check` ✅, `cargo test -p reflect-app-core` ✅ (42 passed),
+  `pnpm typecheck` ✅, `pnpm test` ✅ (61 files / 524 tests).
+
+### Added — Phase 3 items 8/9/11/13 (Squad + Activity + Actor + Media Studio)
+
+Final local-only batch: completes every Phase 3 roadmap item that doesn't
+require cloud services, SSO, third-party APIs, or unverified external
+desktop-automation crates.
+
+- **Phase 3 item 8: Polymorphic Actor (semantic layer)** —
+  - `app-core/src/actor.rs`: `ActorType` (Human / Agent / System),
+    `ActorKind` (User / Lead / Member / System), `Actor { actor_type,
+    actor_id, kind, display_name, team_name }` (camelCase serde).
+  - Helpers: `Actor::user()` / `system()` / `agent(team, role)` /
+    `from_agent_id()` + `actor_from_team_member(&TeamMemberSpec)` +
+    `encode_metadata` / `decode_metadata` for round-tripping through
+    `Task.metadata.actor`. Doesn't refactor vendor `Task` schema.
+  - 12 unit tests covering `actor_type` / `actor_kind` serialize, lead
+    role detection, metadata round-trip, default = user.
+- **Phase 3 item 9: Inbox + Activity timeline + @mentions** —
+  - `app-core/src/activity.rs`: `ActivityLogger` with in-memory ring
+    buffer (cap = 500) + JSONL persistence to `~/.reflect/activity/`
+    (1 MB rotate) + `record` / `list(filter)` / `search_mentions(q)` /
+    `clear_memory`. `ActivityEvent { id, ts_ms, kind, actor, summary,
+    task_id?, team_name?, level }`; `ActivityFilter` matches by
+    kind / level / actor_id / team_name / since_ms.
+  - `src-tauri/src/state/activity.rs`: independent broadcast subscriber
+    that maps every `reflect_protocol::Event` to an `ActivityEvent`
+    and writes via the logger. Runs in parallel with
+    `forward_agent_events` (no interference).
+  - `src-tauri/src/commands/activity.rs`: 4 commands —
+    `reflect_list_activity` / `reflect_search_activity` /
+    `reflect_clear_activity` / `reflect_activity_count`.
+  - `src/utils/commands/activity.ts`: TypeScript wrappers + `Actor` /
+    `ActivityKind` / `ActivityLevel` types + `extractMentions(text)`
+    helper (regex `@[a-z0-9_@-]+`).
+  - `src/utils/commands/squad.ts`: re-exported.
+  - `src/features/notifications/useActivityController.ts`: TanStack
+    Query controller (activity + mentions sub-queries).
+  - `src/features/notifications/NotificationsView.tsx`: refactored to
+    three tabs via `SegmentedControl` — **Inbox** (existing live
+    store-derived pending items), **Activity** (audit timeline with
+    level filter + clear button), **Mentions** (`@<query>` input +
+    search results).
+  - `ActivityLogger` injected into `MinimalAgentInner` +
+    `subscribe_activity_logger` spawned in `install_agent_thread`
+    (post-thread, before cron scheduler).
+  - 12 activity unit tests (ring eviction, filter, persistence
+    round-trip, mention search).
+- **Phase 3 item 11: Squad + Leader delegation** —
+  - `app-core/src/squad.rs`: `SquadSpec` (name, description,
+    leader_actor, members, created_at_ms) + `SquadMember { actor,
+    role, model, system_prompt, allowed_tools }` + `SquadManager`
+    wrapping `Arc<reflect_task::TaskManager>`. Methods:
+    `create_squad(spec)` upserts as `TeamFile` (`team-lead@<name>`
+    lead + mapped member specs); `list_squads()` / `get_squad(name)` /
+    `delete_squad(name)`; `delegate_next(squad_name, leader_id)`
+    calls vendor `claim_next_available` for atomic first-Pending +
+    unblocked task claim with per-list mutex safety;
+    `assign_task(squad_name, task_id, assignee)` writes `owner` +
+    `metadata.actor` via vendor `TaskPatch`.
+  - Doesn't refactor vendor Team/Task schema; squadrons are stored
+    via existing `~/.reflect/teams/<name>.json` files.
+  - `src-tauri/src/commands/squad.rs`: 6 commands —
+    `reflect_list_squads` / `reflect_create_squad` /
+    `reflect_get_squad` / `reflect_delete_squad` /
+    `reflect_delegate_next` / `reflect_assign_squad_task`.
+  - `src/utils/commands/squad.ts`: wrappers + `ReflectSquadSpec` /
+    `ReflectSquadMember` types.
+  - `src/features/squad/`: `SquadView` (master-detail: squad list
+    + create form on left, selected squad's members + tasks +
+    "Delegate next" button + per-task assignee dropdown on right) +
+    `useSquadController` (TanStack Query with mutations for create /
+    delete / delegate / assign) + CSS module + barrel + 3 tests.
+  - 12 squad unit tests (CRUD, validate, round-trip spec↔TeamFile,
+    delegate, assign with actor metadata round-trip).
+- **Phase 3 item 13: Media Studio + Computer Use (metadata-only
+  scaffold)** —
+  - `app-core/src/media.rs`: `MediaAsset` (path / filename /
+    size_bytes / mime_type / width / height / modified_at_ms) +
+    `ImageProcessSpec` / `ImageProcessResult` + `ImageFormat`
+    (Png / Jpeg / Gif / WebP / Bmp) + `scan_dir_for_assets(dir)`
+    (stdlib-based, no external deps) + `BackendCapability` enum +
+    `ImageBackend` / `ComputerBackend` traits +
+    `ComputerUseAction` (Screenshot / MouseMove / MouseClick /
+    KeyType / KeyCombo / Scroll, `#[serde(tag = "kind")]`).
+  - Default backends: `MetadataOnlyBackend` (read file headers
+    only) + `UnavailableComputerBackend` (returns
+    `MediaError::Unavailable` with capability reason). Commands
+    that require real `image` / `xcap` / `enigo` cargo deps
+    gracefully return `MediaError::Unavailable` instead of panicking,
+    so the feature works in dev / CI / headless.
+  - `src-tauri/src/commands/media.rs`: 5 commands —
+    `reflect_list_media` / `reflect_image_process` /
+    `reflect_screenshot` (base64-encoded PNG string) /
+    `reflect_computer_use` / `reflect_media_capabilities`.
+  - `src/utils/commands/media.ts`: wrappers + types
+    (`ReflectMediaAsset` / `ReflectImageProcessSpec` /
+    `ReflectComputerUseAction` / `ReflectMediaCapabilities`).
+  - `src/features/media/`: `MediaView` (2 tabs via
+    `SegmentedControl` — **Studio** lists assets in user-entered
+    directory; **Computer Use** has control cards for
+    screenshot / click / move / scroll / keytype / key combo with
+    graceful `MediaError::Unavailable` display) +
+    `useMediaController` (TanStack Query) + CSS module + barrel +
+    3 tests.
+  - 12 media unit tests covering format detection, Asset serialization,
+    action summaries, backend error paths, and `scan_dir` filtering.
+  - **Note**: Real image processing / screen capture / mouse + keyboard
+    control require `image` / `xcap` / `enigo` cargo crates. These are
+    intentionally NOT added to `Cargo.toml` in this batch — the
+    contracts are stable, and swapping the default backends for real
+    implementations is a localized change.
+- **Routing + navigation**: `/squad` + `/media` routes registered;
+  `ActivityBar` adds Squad (Users icon) + Media (Image icon)
+  entries; i18n `shell.nav.media` (en/zh-CN). `shell.nav.squad` was
+  already present from the dictation batch.
+- **Verification**: `cargo check` ✅, `cargo test -p reflect-app-core`
+  ✅ (90 passed; 12 actor + 12 activity + 12 squad + 12 media + 42
+  pre-existing), `pnpm typecheck` ✅, `pnpm test` ✅ (63 files / 530
+  tests).
+
+### Added — Phase 2 item 2: Remote daemon / Tailscale helper / iOS config UI
+
+First Phase 2 item: user-driven concurrent agent orchestration (vs. model-driven
+`Task` subagent). Each side-channel runs concurrently with the main agent on
+its own `CancelToken` — main's `Cmd+C` does not stop it.
+
+- **New `app-core::side_channel` module** (`app-core/src/side_channel.rs`):
+  - `SideChannelRegistry` (process-level) + `SideChannelHandle` (per-run).
+  - Stable ids `side-<8hex>`, deterministic salt-retry on collision.
+  - `Started` / `Done` / `Cancelled` / `Error` / `Output` events via a
+    `tokio::sync::broadcast::Sender<SideChannelEvent>` — the existing Tauri
+    event forwarder can pick it up and surface to the frontend as
+    `reflect_event` messages tagged `kind: side_channel_*`.
+  - 6 unit tests (start yields id + cancel token / cancel emits events /
+    cancel on already-terminal is noop / finish done/error transition /
+    independent cancels / cancel does not block future starts).
+  - `app-core/Cargo.toml` adds `tokio-util = { workspace = true, features = ["rt"] }`
+    for `CancellationToken`.
+- **Backend wiring**:
+  - `MinimalAgentInner.side_channels` holds `SideChannelRegistry` (built in
+    `build_empty_inner` so it's ready pre-install).
+  - Facade `MinimalAgent::side_channels()` for the command layer.
+  - New commands in `src-tauri/src/commands/side_channel.rs`:
+    `reflect_start_side_channel` / `reflect_cancel_side_channel` /
+    `reflect_list_side_channels` / `reflect_get_side_channel`.
+  - 6 unit tests covering start/get/cancel + finish transitions.
+- **Frontend wrapper** (`src/utils/commands/side_channel.ts`):
+  - 4 functions + `ReflectSideChannelInfo` / `ReflectSideChannelStatus` /
+    `ReflectStartSideChannelResult` types.
+  - Index barrel re-export added; `commands.test.ts` gains 3 forwarding
+    assertions (list/get no-args, start forwards `{ agent_name, prompt }`,
+    cancel forwards `{ id }`).
+- **Feature UI** (`src/features/side-channel/`):
+  - `SideChannelView.tsx` — PageShell + running-count badge + Start form
+    (agent name + prompt) + list rows (id / agent / prompt / duration) +
+    cancel button on running rows.
+  - `useSideChannelController.ts` — TanStack Query + start/cancel mutations
+    with toast + 5s poll refetch.
+  - 5 smoke + behavior tests.
+- **Routing + navigation**: `/side-channels` route registered; `ActivityBar`
+  gains a Side-channels entry (`Workflow` icon); i18n
+  `shell.nav.sideChannels` (en/zh-CN).
+- **Honest scope** (planned follow-ups): a runtime driver that actually runs
+  the side-channel (submits prompt as `Submission::user_input` to the agent
+  loop and updates the registry entry on completion) is NOT yet implemented.
+  The view shows the registry state and exposes create/cancel today; the
+  driver is the next Phase 2 sub-item.
+- **Verification**: `cargo check` ✅, `cargo test commands` ✅ (27 passed),
+  `pnpm typecheck` ✅, `pnpm test` ✅ (60 files / 516 tests).
+
+### Added — Phase 2 item 2: Remote daemon / Tailscale helper / iOS config UI
+
+Second Phase 2 item: desktop daemon status surface + Tailscale network helper
++ iOS configuration entry point. Provides the building blocks for remote clients
+(iOS) to connect to a ReflectDesktop instance over Tailscale.
+
+- **New `app-core::tailscale` module** (`app-core/src/tailscale.rs`):
+  - `TailscaleStatus` struct (installed/running/dns_name/ipv4/ipv6/suggested_remote_host).
+  - `detect()` — shells out `tailscale status --json=true`, parses JSON output,
+    returns degraded status on any failure (missing binary, non-zero exit, parse error).
+  - `daemon_command_preview()` — hint string for headless daemon setup.
+  - `derive_suggested_host()` — prefers DNS name (e.g. `node.tail.net`), falls back to IPv4.
+  - 6 unit tests (4 unit + 2 async): suggested host derivation (DNS/IPv4/none),
+    degraded status shape, daemon command preview includes default port,
+    detect returns status without panicking even when tailscale is absent.
+- **Remote config state** (`src-tauri/src/state/remote_config.rs`):
+  - `RemoteConfig` (host/port/auth_token/auto_connect) + `endpoint()` method
+    that returns `<host>:<port>` string + `is_ready()` checks host is set.
+  - `RemoteStatus` (state/message/endpoint/since_ms) for connection tracking.
+  - Default config: host/port/auth_token/auto_connect all null or empty.
+  - 4 unit tests: default endpoint uses default port, config is_ready with
+    host set, is_ready false with empty host, disconnected status carries since_ms.
+- **Backend wiring**:
+  - `MinimalAgentInner.remote_config: RwLock<RemoteConfig>` (built in
+    `build_empty_inner` with default config).
+  - Facade `MinimalAgent::remote_config()` accessor for command layer.
+  - New commands in `src-tauri/src/commands/remote.rs`:
+    `reflect_get_remote_config` / `reflect_update_remote_config` /
+    `reflect_get_remote_status` / `reflect_tailscale_status` /
+    `reflect_tailscale_daemon_command_preview` /
+    `reflect_tailscale_daemon_start` / `reflect_tailscale_daemon_stop` /
+    `reflect_tailscale_daemon_status`.
+  - `RemoteConfigSnapshot` (camelCase serde) carries endpoint + is_ready flag.
+  - 3 unit tests: snapshot endpoint/ready flag handling, port defaulting,
+    update config round-trip.
+- **Frontend wrapper** (`src/utils/commands/remote.ts`):
+  - 8 functions + `ReflectRemoteConfigSnapshot` / `ReflectRemoteStatus` /
+    `ReflectTailscaleStatus` types.
+  - Index barrel re-export; `commands.test.ts` gains 8 forwarding assertions
+    (config get/update with defaults, tailscale status no-args,
+    daemon command preview/start/stop/status no-args).
+- **Feature UI** (`src/features/remote/`):
+  - `RemoteView.tsx` — PageShell + 4 card sections: iOS config (edit form
+    for host/port/auth/auto_connect with save), Tailscale detection (status
+    badge + DNS name + IPv4 display), Daemon hint (command preview with
+    copy-to-clipboard), Transport status (disconnected/connected state display).
+  - `useRemoteController.ts` — 4 TanStack Query queries (remote config,
+    remote status, tailscale status, daemon command preview) + update mutation
+    + draft editor state for iOS config form.
+  - `RemoteView.module.css` — full token-only styling with card layout.
+  - 5 tests: page title, 4 cards visible, ready badge + endpoint display,
+    tailscale fields rendered, daemon preview text shown, save forwards update.
+- **Routing + navigation**: `/remote` route registered; `ActivityBar`
+  gains a Remote entry (`Wifi` icon); i18n `shell.nav.remote` (en/zh-CN).
+- **Honest scope** (planned follow-ups): actual TCP JSON-RPC daemon binary
+  (`src-tauri/src/bin/reflect_daemon.rs`) NOT yet implemented — would require
+  an independent workspace crate with cross-compilation targets. iOS client
+  app also not started. The current implementation provides the desktop
+  configuration surface and Tailscale network detection as prerequisites.
+- **Verification**: `cargo check` ✅, `cargo test -p reflect-app-core -- tailscale`
+  ✅ (6 passed), `cargo test -p reflect-desktop -- remote` ✅ (7 passed),
+  `pnpm typecheck` ✅, `pnpm test` ✅ (61 files / 524 tests).
+
+### Added — Phase 1 item 3: Agent definition management (profile UI)
+
+Lands the last slice of Phase 1 item 3: agent profile management end-to-end.
+Agent definitions are now creatable / editable / deletable from the desktop,
+stored as Markdown + YAML frontmatter at `~/.reflect/agents/<name>.md`, shared
+with the TUI/CLI.
+
+- **Dependency**: `reflect-agent-def = { workspace = true }` + `serde_yaml`
+  added to `src-tauri/Cargo.toml` (serde_yaml for frontmatter serialization on
+  save; the vendor crate only ships a parser).
+- **Backend commands** (`src-tauri/src/commands/agents.rs`):
+  - `reflect_list_agent_defs` / `reflect_get_agent_def` /
+    `reflect_save_agent_def` / `reflect_delete_agent_def` /
+    `reflect_parse_agent_md` (preview/validate without side effects).
+  - Save serializes frontmatter (YAML, omitting empty optionals) + body, then
+    round-trip-validates by re-parsing the written file.
+  - Path-safety: `path_for()` rejects empty / `..` / slashes / backslashes /
+    NUL in names, preventing traversal outside `~/.reflect/agents/`.
+  - Error mapping: `From<AgentDefError> for CommandError`.
+  - 4 unit tests: serialize round-trip, minimal-omits-optional, path
+    traversal rejection, filename building.
+- **Frontend wrapper** (`src/utils/commands/agents.ts`): 5 functions +
+  `ReflectAgentDef` / `ReflectMemoryScope` types. `index.ts` re-export; 4
+  forwarding assertions in `commands.test.ts`.
+- **Feature UI** (`src/features/agents/`):
+  - `AgentsView.tsx` — PageShell + list rows (name / description / model /
+    readonly / spawnable badges) + New button.
+  - `AgentEditor.tsx` — full-field editor: name / description / model /
+    tools (csv) / disallowed_tools (csv) / spawnable / readonly /
+    max_turns / max_result_chars / memory scopes / system_prompt (markdown
+    body). Name locked when editing (rename would change the file).
+  - `useAgentsController.ts` — query + save/delete mutations + draft state.
+  - 5 smoke + behavior tests.
+- **Routing + navigation**: `/agents` route registered; `ActivityBar` gains an
+  Agents entry (`Bot` icon); i18n `shell.nav.agents` (en/zh-CN).
+- **Verification**: `cargo check` ✅, `cargo test commands` ✅ (21 passed),
+  `pnpm typecheck` ✅, `pnpm test` ✅ (59 files / 508 tests).
+
+### Added — Phase 1 item 2: Schedule (cron) command surface + UI
+
+Lands cron-driven autonomous triggers end-to-end (backend → wrapper → UI). The
+vendor `reflect-stream::cron::CronScheduler` is now wired into the desktop:
+`install_agent_thread` injects the real `AgentThread::submission_sender()` and
+spawns a 30s driver tick; due jobs fire their `prompt` as a
+`Submission::user_input` into the agent loop.
+
+- **Dependency**: `reflect-stream = { workspace = true }` added to
+  `src-tauri/Cargo.toml`.
+- **State injection**: `MinimalAgentInner.cron_scheduler:
+  RwLock<Option<CronScheduler>>` (None until install). Facade
+  `MinimalAgent::install_cron_scheduler(sender)` constructs a scheduler with the
+  real sender, migrates any pre-existing jobs, starts the 30s driver, and writes
+  it back. `cron_scheduler()` accessor for the command layer.
+- **Backend commands** (`src-tauri/src/commands/schedule.rs`):
+  - `reflect_list_schedules` / `reflect_add_schedule` /
+    `reflect_update_schedule` / `reflect_remove_schedule` /
+    `reflect_get_schedule_status`.
+  - Error mapping: `From<CronParseError> for CommandError` added; `thiserror`
+    `Display` preserves variant info.
+  - 3 unit tests covering the create/list/update/delete chain, bad-expression
+    rejection, and error mapping.
+- **Frontend wrapper** (`src/utils/commands/schedule.ts`): 5 functions +
+  `ReflectCronJob` / `ReflectScheduleStatus` types (snake_case vendor payload;
+  camelCase status envelope, mirroring Rust `rename_all`). `index.ts`
+  re-export added; `commands.test.ts` gains 4 forwarding assertions.
+- **Feature UI** (`src/features/schedule/`):
+  - `ScheduleView.tsx` — PageShell + status badge (`enabled/total active`) +
+    inline create form + job rows (schedule / prompt / next-fire + toggle /
+    remove).
+  - `useScheduleController.ts` — TanStack Query for list + status + 3 mutations
+    (add / toggle / remove) with toast + invalidation.
+  - `ScheduleView.module.css` — design-token-only.
+  - 6 smoke + behavior tests.
+- **Routing + navigation**: `/schedule` route registered; `ActivityBar` gains a
+  Schedule entry (`Clock` icon); i18n `shell.nav.schedule` (en/zh-CN).
+- **Out of scope (next)**: `run_now` (needs vendor `pub async fn run_now(&self)`
+  — `CronScheduler::tick` is public but reads the private `jobs` Arc; a one-line
+  upstream accessor is the clean path), persistence (vendor scheduler is
+  in-memory; restart drops jobs), tick-interval config, one-shot `run_at`.
+- **Verification**: `cargo check` ✅, `cargo test commands::schedule` ✅ (3/3),
+  `pnpm typecheck` ✅, `pnpm test` ✅ (58 files / 499 tests).
+
+### Added — Phase 1 multi-agent feature UI (Tasks board)
+
+Completes Phase 1 item 1 ("Team/Task/Coordinator command surface") end-to-end:
+the backend commands (previous-previous slice) and the IPC wrappers (previous
+slice) are now drivable from a desktop feature view. Multi-agent task
+coordination is visible and operable in the GUI for the first time.
+
+- **New feature** `src/features/tasks-board/`:
+  - `TasksBoardView.tsx` — page shell with List / Board view toggle
+    (`SegmentedControl`), active-list picker (free-text list id + team chips
+    from `reflect_list_teams`), and inline create form.
+  - `useTasksBoardController.ts` — TanStack Query for `reflect_list_tasks` /
+    `reflect_list_teams` + four mutations (create / claim / advance-status /
+    delete) with toast + cache invalidation. Mirrors the
+    `useMemoryController` shape (2026-07-25 refactor precedent).
+  - `TaskRow.tsx` — presentational row with id / subject / claimer / status
+    badge + per-status actions (Claim / Start / Complete / Delete).
+  - `TaskCreateForm.tsx` — inline create form (subject / description / owner).
+  - `TasksBoardView.module.css` — design-token-only styling (no inline hex),
+    board view is a 3-column grid that collapses to 1 column under 900px.
+  - `index.ts` — feature barrel.
+- **Routing**: `tasksRoute` (`/tasks`) registered in `src/router.tsx`.
+- **Navigation**: `ActivityBar` PRIMARY group gains a Tasks entry
+  (`FolderKanban` icon); i18n key `shell.nav.tasks` (en/zh-CN) added.
+- **Tests**: `TasksBoardView.test.tsx` — 8 smoke + behavior cases covering
+  empty state, create form submit, board-view switch, seeded rows with action
+  buttons, and claim / complete / delete forwarding to the right commands.
+  Full suite: 57 files / 489 tests green.
+- **Out of scope (next)**: Phase 1 item 2 — Schedule (cron) command surface
+  (backend `commands/schedule.rs` + wrapper `commands/schedule.ts` + UI).
+
+### Added — Phase 1 multi-agent IPC wrappers (frontend)
+
+Frontend TypeScript wrappers for the Task/Team commands landed in the
+previous slice. The 10 backend commands are now callable from
+`@/utils/commands` (and the compat barrels `@/utils/commands` /
+`@/utils/tauri`).
+
+- **New wrappers**:
+  - `src/utils/commands/tasks.ts` — `reflect_list_tasks` /
+    `reflect_create_task` / `reflect_get_task` / `reflect_update_task` /
+    `reflect_claim_task` / `reflect_delete_task` + types `ReflectTask`,
+    `ReflectTaskStatus`, `ReflectTaskPatch`, `ReflectTaskUpdateResult`,
+    `ReflectTaskStatusChange`.
+  - `src/utils/commands/teams.ts` — `reflect_list_teams` /
+    `reflect_upsert_team` / `reflect_get_team` / `reflect_delete_team` +
+    types `ReflectTeam`, `ReflectTeamMember`.
+- **Type fidelity**: `Task` / `TeamFile` / `TeamMemberSpec` mirror the
+  vendor serde shape verbatim (snake_case, since the Rust types do not
+  derive `rename_all = "camelCase"`). Only the `TaskUpdateResult` envelope
+  is camelCase (matches the Rust `#[serde(rename_all = "camelCase")]` in
+  `commands/tasks.rs`). `TaskPatch` mirrors the `Option<Option<T>>`
+  tri-state via `T | null | undefined`.
+- **Barrel wiring**: `src/utils/commands/index.ts` re-exports both modules
+  (placed after `hooks`, before `git`). The compat barrels
+  (`src/utils/commands.ts`, `src/utils/tauri.ts`) pick them up
+  automatically via the existing `export * from './commands/index'` chain.
+- **Tests**: `src/utils/commands.test.ts` extended with 8 forwarding
+  assertions that lock the cmd-name + argument-key invariants for all 10
+  new wrappers (mirrors the existing per-domain pattern). Full suite:
+  56 files / 481 tests green.
+
+### Added — Phase 1 multi-agent command surface (Task / Team)
+
+Backend `vendor/reflect-task` already implemented the full `TaskManager` API
+(Task/Team CRUD + atomic claim + dependency tracking), but it was neither a
+dependency of the Tauri app nor exposed as commands. This lands the first
+slice of the multi-agent desktop roadmap (`docs/reference-projects-survey.md`
+§10 Phase 1, item 1): wire `TaskManager` into `MinimalAgentInner` and expose
+10 commands so the frontend can observe / drive multi-agent coordination.
+
+- **Dependency**: `reflect-task = { workspace = true }` added to
+  `src-tauri/Cargo.toml`. Storage reuses the vendor default home
+  (`~/.reflect/tasks/<list>/`, `~/.reflect/teams/<name>.json`), shared with
+  the TUI/CLI — no new config knob, no vendor edits.
+- **State injection**: `MinimalAgentInner` now holds an
+  `Arc<reflect_task::TaskManager>` (Phase 0 form: no `hook_engine` /
+  `event_sink`; those land when the frontend UI subscribes to task lifecycle
+  events). Facade accessor `MinimalAgent::task_manager()` added.
+- **Commands** (`src-tauri/src/commands/tasks.rs`, registered in
+  `src-tauri/src/lib.rs::invoke_handler`):
+  - Task: `reflect_list_tasks` / `reflect_create_task` / `reflect_get_task` /
+    `reflect_update_task` / `reflect_claim_task` / `reflect_delete_task`.
+  - Team: `reflect_list_teams` / `reflect_upsert_team` / `reflect_get_team` /
+    `reflect_delete_team`.
+- **Return type shaping**: `reflect_update_task` returns a flattened
+  `TaskUpdateResult { task, updatedFields, statusChange? }` instead of the
+  vendor `UpdateOutcome` (whose `(TaskStatus, TaskStatus)` tuple is not
+  frontend-friendly and the type lacks `Serialize`). Camel-case serialized
+  to match existing IPC conventions.
+- **Error mapping**: `From<reflect_task::TaskError> for CommandError` added
+  in `commands/error.rs`; `TaskError`'s `thiserror::Display` ensures no
+  variant information is lost.
+- **Tests**: `commands::tasks` covers task create→get→update→list→claim→
+  delete, team upsert→get→list→delete, and the error mapping (3 tests,
+  all green). No Tauri runtime spin-up (mirrors `commands/sessions.rs`).
+- **Out of scope (next rounds)**: frontend IPC wrappers
+  (`src/utils/commands/{tasks,teams}.ts`), feature UI
+  (`src/features/{tasks-board,agents}/`), `hook_engine`/`event_sink`
+  injection for Task lifecycle events, Schedule (cron) commands, Coordinator
+  mode toggle.
+
 ### Changed — Structural refactor (canonical live state docs)
 
 Canonical-live-state documentation pass after the structural refactor. No code or
@@ -152,7 +608,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **Documentation**: CHANGELOG.md + PROTOCOL_BRIDGE.md + codebase-map.md updated for
   all B1-B12 changes. All 342/342 tests pass; tsc clean; cargo check clean.
 
-### Added — Batch 1 (协议层 + app-core 基础) 对齐 zcode/Codex Desktop
+### Added — Batch 1 (协议层 + app-core 基础)
 
 - **协议类型生成 (B1-01)**:给 `vendor/reflect-protocol` 的 `EventMsg` / `Op` /
   `Submission` / `UserInputItem` / `ContentBlock` / `Question` 等所有
@@ -207,14 +663,14 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 
 
 
-### Fixed — 顶栏贯通 + 红绿灯避让 + drag region（对齐 ZCode/Codex）
+### Fixed — 顶栏贯通 + 红绿灯避让 + drag region
 
 - **根因**:`tauri.conf.json` 已设 `titleBarStyle: "Overlay"`(红绿灯按钮浮在
   webview 之上),但 React 树**没有任何元素为红绿灯预留避让空间**,
   `ActivityBar` 的 32px "R" logo 正好被 3 个圆点盖住。同时 `base.css` 的
   `[data-tauri-drag-region]` 规则虽然存在,**全代码库没有任何元素挂这个属性** ——
   整个窗口无法靠标题栏拖动。此外旧 `TitleBar` 只横跨主区(嵌在 `.main` 内),
-  与 ActivityBar/Sidebar 视觉脱节,与 ZCode/Codex「一条贯通全宽的深色顶栏」范式不符。
+  与 ActivityBar/Sidebar 视觉脱节,与「一条贯通全宽的深色顶栏」范式不符。
 - **修复**:
   - `AppShell` 把 `TitleBar` 从 `.main` 内提升到 `.shell` 顶层(与 ActivityBar 同级、
     在它之前),顶栏现在横跨整个窗口宽度;`.body`(ActivityBar + Sidebar + Main + Inspector)

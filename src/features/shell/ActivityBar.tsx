@@ -5,7 +5,7 @@
  * 底部：Settings / About。
  * active 态从当前 location 派生。
  */
-import { MessageSquare, FolderGit2, Wrench, GitBranch, Bell, Settings, Info, Terminal, Home } from 'lucide-react';
+import { MessageSquare, FolderGit2, Wrench, GitBranch, Bell, Settings, Info, Terminal, Home, FolderKanban, Clock, Bot, Workflow, Wifi, Mic, BookOpen, Zap, Users, Image } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useRouter, useLocation } from '@tanstack/react-router';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
@@ -28,6 +28,16 @@ const PRIMARY: NavItem[] = [
   { to: '/terminal', labelKey: 'shell.nav.terminal', icon: Terminal },
   { to: '/skills', labelKey: 'shell.nav.skills', icon: Wrench },
   { to: '/notifications', labelKey: 'shell.nav.notifications', icon: Bell },
+  { to: '/tasks', labelKey: 'shell.nav.tasks', icon: FolderKanban },
+  { to: '/schedule', labelKey: 'shell.nav.schedule', icon: Clock },
+  { to: '/agents', labelKey: 'shell.nav.agents', icon: Bot },
+  { to: '/side-channels', labelKey: 'shell.nav.sideChannels', icon: Workflow },
+  { to: '/remote', labelKey: 'shell.nav.remote', icon: Wifi },
+  { to: '/dictation', labelKey: 'shell.nav.dictation', icon: Mic },
+  { to: '/kms', labelKey: 'shell.nav.kms', icon: BookOpen },
+  { to: '/autopilot', labelKey: 'shell.nav.autopilot', icon: Zap },
+  { to: '/squad', labelKey: 'shell.nav.squad', icon: Users },
+  { to: '/media', labelKey: 'shell.nav.media', icon: Image },
 ];
 
 const SECONDARY: NavItem[] = [

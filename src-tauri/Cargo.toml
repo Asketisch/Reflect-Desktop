@@ -21,6 +21,7 @@ tauri                       = { version = "2", features = ["tray-icon", "macos-p
 tauri-plugin-global-shortcut = "2"
 serde                       = { workspace = true }
 serde_json                  = { workspace = true }
+serde_yaml                  = { workspace = true }
 tokio                       = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
 anyhow                      = { workspace = true }
 tracing                     = { workspace = true }
@@ -40,6 +41,15 @@ reflect-hooks               = { workspace = true }
 # 阶段 3d:MCP / LSP 运行时接入。
 reflect-mcp                 = { workspace = true }
 reflect-lsp                 = { workspace = true }
+# 多 agent 协调:Task/Team/Coordinator(vendor/reflect-task 已实现 TaskManager 全套 API)。
+# Phase 1 暴露命令面;UI 与 hook/event_sink 注入留后续阶段。
+reflect-task                = { workspace = true }
+# Schedule(cron):vendor/reflect-stream 的 CronScheduler(create/update/delete/tick)。
+# Phase 1 第 2 项暴露命令面;后台 driver 与持久化留后续。
+reflect-stream              = { workspace = true }
+# Agent definitions:vendor/reflect-agent-def 的 Markdown + frontmatter 解析/加载。
+# Phase 1 第 3 项:agent profile 管理页(列表/创建/编辑/删除)。
+reflect-agent-def           = { workspace = true }
 # 阶段 1:真实 agent 集成所需 — sanitizer / 工具输出脱敏(默认 10 pattern)。
 # Sanitizer::with_defaults() 直接可用,无需 reflect-config 的 SanitizeSection 转换。
 uuid                        = { workspace = true }
@@ -48,6 +58,12 @@ dirs                        = "5"
 # 阶段 2:config 读写命令(to_string_pretty / load_from_str 校验)。
 toml                        = { workspace = true }
 once_cell                   = { workspace = true }
+# Phase 3 item 13:Media Studio (image decode / scale / format convert)
+# + Computer Use (xcap screenshot + enigo mouse/keyboard).
+# 纯本地依赖 — vendor/reflect-* 不动。
+image                       = { workspace = true }
+xcap                        = { workspace = true }
+enigo                       = { workspace = true }
 
 # macOS-only dock badge: NSApplication.dockTile.badgeLabel via objc2.
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -60,3 +76,4 @@ tauri-build = { workspace = true }
 
 [dev-dependencies]
 tokio-util = { workspace = true }
+tempfile = "3"
