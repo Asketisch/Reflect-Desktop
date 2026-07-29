@@ -84,6 +84,10 @@ pub fn apply_event(mut state: RenderState, event: Event) -> RenderState {
         | EventMsg::PlanApproved(_)
         | EventMsg::PlanRejected(_)
         | EventMsg::PermissionModeChanged(_)) => matchers::apply_plan(&mut state, msg, turn_id),
+
+        // 协议层新增的 event variant,Desktop reducer 暂无专门处理逻辑;
+        // 显式列出并 no-op,避免 match 非穷尽编译错误,后续按需接入渲染。
+        EventMsg::PlanStep(_) | EventMsg::PluginLoaded(_) | EventMsg::QuotaExhausted(_) => {}
     }
 
     state

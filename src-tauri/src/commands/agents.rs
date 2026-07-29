@@ -82,7 +82,9 @@ fn serialize_agent_md(def: &AgentDefinition) -> CommandResult<String> {
         disallowed_tools: def.disallowed_tools.clone(),
         model: def.model.clone(),
         max_turns: def.max_turns,
-        max_result_chars: def.max_result_chars,
+        // 协议升级:`AgentDefinition` 移除了 `max_result_chars` 字段。
+        // 该 DTO 字段保留给前端(可选),此处用 None 占位。
+        max_result_chars: None,
         memory: memory_str,
         mcp_collections: def.mcp_collections.clone(),
     };

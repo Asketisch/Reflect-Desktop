@@ -85,9 +85,9 @@ pub async fn reflect_exit_plan_mode(agent: State<'_, MinimalAgent>) -> CommandRe
 pub async fn reflect_plan_approval(
     agent: State<'_, MinimalAgent>,
     id: String,
-    decision: ReviewDecision,
+    choice: PlanApprovalChoice,
 ) -> CommandResult<String> {
-    Ok(agent.submit_op(Op::PlanApproval { id, decision }).await?)
+    Ok(agent.submit_op(Op::PlanApproval { id, choice }).await?)
 }
 
 /// 设置 reasoning effort。前端传字符串 `"low"|"medium"|"high"`,
@@ -174,7 +174,7 @@ pub(crate) fn parse_permission_mode(s: &str) -> CommandResult<PermissionMode> {
     })
 }
 
-use reflect_protocol::ReviewDecision;
+use reflect_protocol::{PlanApprovalChoice, ReviewDecision};
 
 #[cfg(test)]
 mod tests {

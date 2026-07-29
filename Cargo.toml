@@ -1,29 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "vendor/reflect-protocol",
-    "vendor/reflect-core",
-    "vendor/reflect-tools",
-    "vendor/reflect-config",
-    "vendor/reflect-rollout",
-    "vendor/reflect-llm",
-    "vendor/reflect-skills",
-    "vendor/reflect-memory",
-    "vendor/reflect-hooks",
-    "vendor/reflect-permissions",
-    "vendor/reflect-stream",
-    "vendor/reflect-task",
-    "vendor/reflect-agent-def",
-    "vendor/reflect-recovery",
-    "vendor/reflect-prompt",
-    "vendor/reflect-compact",
-    "vendor/reflect-async-graph",
-    "vendor/reflect-notes",
-    "vendor/reflect-ast",
-    "vendor/reflect-subagent",
-    "vendor/reflect-sandbox",
-    "vendor/reflect-mcp",
-    "vendor/reflect-lsp",
     "app-core",
     "src-tauri",
 ]
@@ -35,38 +12,63 @@ license = "Apache-2.0"
 repository = "https://github.com/CNB/ReflectDesktop"
 authors = ["Reflect Agent Contributors"]
 
+# ── 核心依赖:从 reflect-agent submodule 通过 path 引用 ──
+# 注:Cargo 不支持嵌套 workspace,这里只用 path 依赖,不把核心 crate 列入 members。
+# 核心 crate 仍属于 reflect-agent 自己的 workspace,通过 path 被本仓库消费。
+# workspace.dependencies 必须**完整声明**核心 crate 用 `workspace = true` 继承的全部项
+# (含内部 reflect-* 与外部 crate),否则跨 workspace 解析会失败。
 [workspace.dependencies]
-# Internal crates (vendored)
-reflect-protocol    = { path = "vendor/reflect-protocol" }
-reflect-core        = { path = "vendor/reflect-core" }
-reflect-tools       = { path = "vendor/reflect-tools" }
-reflect-config      = { path = "vendor/reflect-config" }
-reflect-rollout     = { path = "vendor/reflect-rollout" }
-reflect-llm         = { path = "vendor/reflect-llm" }
-reflect-skills      = { path = "vendor/reflect-skills" }
-reflect-memory      = { path = "vendor/reflect-memory" }
-reflect-hooks       = { path = "vendor/reflect-hooks" }
-reflect-permissions = { path = "vendor/reflect-permissions" }
-reflect-stream      = { path = "vendor/reflect-stream" }
-reflect-task        = { path = "vendor/reflect-task" }
-reflect-agent-def   = { path = "vendor/reflect-agent-def" }
-reflect-recovery    = { path = "vendor/reflect-recovery" }
-reflect-prompt      = { path = "vendor/reflect-prompt" }
-reflect-compact     = { path = "vendor/reflect-compact" }
-reflect-async-graph = { path = "vendor/reflect-async-graph" }
-reflect-notes       = { path = "vendor/reflect-notes" }
-reflect-ast         = { path = "vendor/reflect-ast" }
-reflect-subagent    = { path = "vendor/reflect-subagent" }
-reflect-sandbox     = { path = "vendor/reflect-sandbox" }
-reflect-mcp         = { path = "vendor/reflect-mcp" }
-reflect-lsp         = { path = "vendor/reflect-lsp" }
+# protocol 层
+reflect-protocol = { path = "reflect-agent/crates/protocol/reflect-protocol" }
+
+# abilities 层
+reflect-llm        = { path = "reflect-agent/crates/abilities/reflect-llm" }
+reflect-tools      = { path = "reflect-agent/crates/abilities/reflect-tools" }
+reflect-hooks      = { path = "reflect-agent/crates/abilities/reflect-hooks" }
+reflect-skills     = { path = "reflect-agent/crates/abilities/reflect-skills" }
+reflect-memory     = { path = "reflect-agent/crates/abilities/reflect-memory" }
+reflect-agent-def  = { path = "reflect-agent/crates/abilities/reflect-agent-def" }
+reflect-prompt     = { path = "reflect-agent/crates/abilities/reflect-prompt" }
+reflect-compact    = { path = "reflect-agent/crates/abilities/reflect-compact" }
+reflect-recovery   = { path = "reflect-agent/crates/abilities/reflect-recovery" }
+reflect-notes      = { path = "reflect-agent/crates/abilities/reflect-notes" }
+reflect-sanitize   = { path = "reflect-agent/crates/abilities/reflect-sanitize" }
+
+# resources 层
+reflect-config      = { path = "reflect-agent/crates/resources/reflect-config" }
+reflect-permissions = { path = "reflect-agent/crates/resources/reflect-permissions" }
+reflect-plugin      = { path = "reflect-agent/crates/resources/reflect-plugin" }
+reflect-rollout     = { path = "reflect-agent/crates/resources/reflect-rollout" }
+reflect-telemetry   = { path = "reflect-agent/crates/resources/reflect-telemetry" }
+reflect-sandbox     = { path = "reflect-agent/crates/resources/reflect-sandbox" }
+reflect-ast         = { path = "reflect-agent/crates/resources/reflect-ast" }
+
+# orchestration 层
+reflect-subagent    = { path = "reflect-agent/crates/orchestration/reflect-subagent" }
+reflect-discussion  = { path = "reflect-agent/crates/orchestration/reflect-discussion" }
+reflect-task        = { path = "reflect-agent/crates/orchestration/reflect-task" }
+reflect-pipeline    = { path = "reflect-agent/crates/orchestration/reflect-pipeline" }
+reflect-goal        = { path = "reflect-agent/crates/orchestration/reflect-goal" }
+
+# integrations 层
+reflect-mcp         = { path = "reflect-agent/crates/integrations/reflect-mcp" }
+reflect-lsp         = { path = "reflect-agent/crates/integrations/reflect-lsp" }
+reflect-integration = { path = "reflect-agent/crates/integrations/reflect-integration" }
+reflect-stream      = { path = "reflect-agent/crates/integrations/reflect-stream" }
+
+# runtime 层
+reflect-core = { path = "reflect-agent/crates/runtime/reflect-core" }
+
+# Desktop 自有共享层(UI 无关应用层,Tauri 与未来其它 runtime 复用)
 reflect-app-core    = { path = "app-core" }
 
-# Common externals
+# ── 通用外部依赖(需与核心 workspace 对齐版本,核心 crate 的 workspace=true 会解析到这里)──
 tokio              = { version = "1", features = ["full"] }
 tokio-util         = "0.7"
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
+serde_yaml         = "0.9"
+toml               = "0.8"
 async-trait        = "0.1"
 anyhow             = "1"
 dirs               = "5"
@@ -75,7 +77,7 @@ clap               = { version = "4", features = ["derive"] }
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 futures            = "0.3"
-uuid               = { version = "1", features = ["v4", "serde"] }
+uuid               = { version = "1", features = ["v4", "v7", "serde"] }
 chrono             = { version = "0.4", features = ["serde"] }
 parking_lot        = "0.12"
 schemars           = "0.8"
@@ -87,44 +89,34 @@ insta              = { version = "1", features = ["yaml"] }
 tauri              = { version = "2", features = [] }
 tauri-build        = { version = "2", features = [] }
 
-# LLM/Tools
+# LLM/Tools(核心 crate 依赖,需在此声明供 workspace=true 解析)
+reqwest            = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
 walkdir            = "2"
 ignore             = "0.4"
 similar            = "2"
 regex              = "1"
 globset            = "0.4"
-url                = "2"
+url               = "2"
 image              = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
 xcap               = "0.9"
 enigo              = "0.6"
-
-# ReflectAgent-only deps (still in workspace; harmless to keep)
-serde_yaml         = "0.9"
-toml               = "0.8"
-pyo3               = "0.23"
 eventsource-stream = "0.2"
 rankfns            = "0.1"
 htmd               = "0.5"
 minijinja          = "2"
 sled               = "0.34"
-ratatui            = "0.29"
-crossterm          = "0.28"
-color-eyre         = "0.6"
 filetime           = "0.2"
+pollster           = "0.4"
 lsp-types          = { version = "=0.97", default-features = false }
-# rmcp features 对齐上游 Reflect-Agent(client + stdio/http transport);
-# reflect-mcp 运行时需要这些才能构造 McpConnectionManager。
 rmcp               = { version = "=1.7.0", features = [
     "client",
     "transport-child-process",
     "transport-streamable-http-client-reqwest",
 ] }
-reqwest            = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
 opentelemetry         = "0.27"
 opentelemetry_sdk     = { version = "0.27", features = ["rt-tokio"] }
 opentelemetry-otlp    = { version = "0.27", features = ["http-proto", "reqwest-client", "trace"] }
 tracing-opentelemetry = "0.28"
-pollster           = "0.4"
 
 [profile.release]
 lto = "thin"

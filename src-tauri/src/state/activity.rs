@@ -192,6 +192,9 @@ fn map_event(event: &Event) -> Option<ActivityEvent> {
         | EventMsg::CollabFinished(_)
         | EventMsg::McpToolInvoked(_)
         | EventMsg::TurnRewound(_)
+        | EventMsg::PlanStep(_)
+        | EventMsg::PluginLoaded(_)
+        | EventMsg::QuotaExhausted(_)
         | EventMsg::ShutdownComplete => return None,
     };
     Some(ActivityEvent {

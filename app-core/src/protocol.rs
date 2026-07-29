@@ -7,7 +7,7 @@
 //! `crypto.randomUUID`); this module provides a canonical Rust helper
 //! for any in-process builder (e.g. NAPI bindings, native tests).
 
-use reflect_protocol::{AskUserAnswer, Op, PermissionMode, ReasoningEffortMirror, ReviewDecision, Submission, UserInputItem};
+use reflect_protocol::{AskUserAnswer, Op, PermissionMode, PlanApprovalChoice, ReasoningEffortMirror, ReviewDecision, Submission, UserInputItem};
 
 /// Build a Submission with a fresh UUID v4 id.
 pub fn new_submission(op: Op) -> Submission {
@@ -37,7 +37,7 @@ pub fn compact() -> Submission {
 
 /// Abort the in-flight turn.
 pub fn interrupt() -> Submission {
-    new_submission(Op::Interrupt)
+    new_submission(Op::Interrupt { child_id: None })
 }
 
 /// Roll back to a prior turn (rewinds history).
@@ -67,10 +67,14 @@ pub fn hook_approval(id: impl Into<String>, decision: ReviewDecision) -> Submiss
 }
 
 /// Submit a plan approval decision.
-pub fn plan_approval(id: impl Into<String>, decision: ReviewDecision) -> Submission {
+///
+/// 注:协议层 `Op::PlanApproval` 的字段从 `decision: ReviewDecision` 升级为
+/// `choice: PlanApprovalChoice`(plan 模式专用三选一:AutoMode/ManualApprove/Revise)。
+/// 调用方需传入 `PlanApprovalChoice`。
+pub fn plan_approval(id: impl Into<String>, choice: PlanApprovalChoice) -> Submission {
     new_submission(Op::PlanApproval {
         id: id.into(),
-        decision,
+        choice,
     })
 }
 
