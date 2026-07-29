@@ -9,12 +9,12 @@
 //!
 //! - **不复用 `ReviewDecision`**:三态(Approve / Deny / ApproveForSession)
 //!   无法承载"4 选 1 + Other"的结构化答案,新协议类型必备。
-//! - **`header` 长度上限 12 字符**:对齐 Claude Code 的 chip 标签规范,
+//! - **`header` 长度上限 12 字符**:chip 标签规范,
 //!   避免 TUI 渲染时换行错位。
-//! - **`options.len()` 2-4**:与 Claude Code 一致;少于 2 没有"选项"意义,
+//! - **`options.len()` 2-4**:少于 2 没有"选项"意义,
 //!   多于 4 难以在 modal 中浏览。
 //! - **`multi_select`**:false 时每题答案唯一;true 时答案可选多个。
-//! - **`custom` 字段**:Claude Code 每个 option 之外允许 "Other" 自定义
+//! - **`custom` 字段**:每个 option 之外允许 "Other" 自定义
 //!   文本;本项目 `Answer.custom: Option<String>` 表达,即使所有 option
 //!   都没选也允许只填自定义文本。
 //!
@@ -31,7 +31,7 @@ pub const MAX_HEADER_CHARS: usize = 12;
 /// 一组问题的最大数量(由 config `[tool.ask_user_question].max_questions` 控制,默认 4)。
 pub const MAX_QUESTIONS: usize = 4;
 
-/// 单题选项的最小/最大数量(对齐 Claude Code 规范)。
+/// 单题选项的最小/最大数量。
 pub const MIN_OPTIONS: usize = 2;
 pub const MAX_OPTIONS: usize = 4;
 

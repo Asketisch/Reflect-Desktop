@@ -15,7 +15,7 @@
 | `feature6.png` | 右 panel：tool inspector + cost ring | M2.2/2.3 实施后 |
 | `app-icon.png` | 应用图标（1024×1024 PNG） | `src-tauri/icons/` 任意一张导出 |
 
-## 取图规范（与 CodexMonitor 对齐）
+## 取图规范
 
 - **分辨率**：2x（Retina），单张 ≤ 1MB（GitHub README 显示最佳）
 - **主题**：dark（默认），如有 light 变体命名 `*-light.png`

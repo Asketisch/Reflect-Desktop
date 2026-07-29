@@ -19,7 +19,7 @@ use reflect_tools::SessionWorktreeState;
 use std::collections::HashMap;
 
 /// Environment variable that overrides the default compaction trigger
-/// threshold. Matches claw's `CLAUDE_CODE_AUTO_COMPACT_INPUT_TOKENS`.
+/// threshold. Mirrors the upstream auto-compact env var.
 pub const AUTO_COMPACT_INPUT_TOKENS_ENV: &str = "REFLECT_AUTO_COMPACT_INPUT_TOKENS";
 
 /// v1.2 P1-12:Environment variable that sets a hard session-level token
@@ -45,7 +45,7 @@ pub fn token_budget_from_env(toml_budget: Option<u64>) -> Option<u64> {
     toml_budget
 }
 
-/// Default trigger threshold (matches claw's `10000`). Reads the env var at
+/// Default trigger threshold (10000). Reads the env var at
 /// call time so tests can flip it between cases; production callers
 /// (`reflect-exec::bootstrap_m5`) snapshot the value at startup.
 pub fn trigger_tokens_from_env() -> u32 {

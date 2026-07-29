@@ -176,6 +176,7 @@ pub(super) fn apply_approval(state: &mut RenderState, msg: EventMsg, turn_id: Op
                 kind,
                 tool_name,
                 args_summary,
+                risk: None,
                 turn_id: turn_id.unwrap_or_default(),
             });
         }
@@ -189,6 +190,7 @@ pub(super) fn apply_approval(state: &mut RenderState, msg: EventMsg, turn_id: Op
                 kind: ApprovalKind::Tool,
                 tool_name: Some(e.tool_name),
                 args_summary: e.args_preview,
+                risk: Some(e.risk),
                 turn_id: turn_id.unwrap_or_default(),
             });
         }
@@ -381,9 +383,17 @@ pub(super) fn apply_plan(state: &mut RenderState, msg: EventMsg, turn_id: Option
             });
         }
         EventMsg::PlanReady(e) => {
+            // Preserve the user-visible task description from the prior
+            // PlanRequest event so the plan modal can still show what the
+            // agent was asked to do.
+            let prev_task = state
+                .pending_plan
+                .as_ref()
+                .map(|p| p.task.clone())
+                .unwrap_or_default();
             state.pending_plan = Some(PendingPlan {
                 id: e.plan_id,
-                task: String::new(),
+                task: prev_task,
                 markdown: Some(e.markdown),
                 turn_id: turn_id.unwrap_or_default(),
             });

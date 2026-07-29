@@ -26,24 +26,37 @@ pub(super) fn upsert_server(
 }
 
 pub(super) fn map_approval_policy(
-    _policy: &reflect_protocol::ApprovalPolicy,
+    policy: &reflect_protocol::ApprovalPolicy,
 ) -> crate::state::ApprovalPolicy {
-    // reflect-protocol uses stringly-typed policy; for now, default to Auto.
-    // Real mapping can read a field if needed.
-    crate::state::ApprovalPolicy::Auto
+    match policy {
+        reflect_protocol::ApprovalPolicy::Auto => crate::state::ApprovalPolicy::Auto,
+        reflect_protocol::ApprovalPolicy::Prompt => crate::state::ApprovalPolicy::Prompt,
+        reflect_protocol::ApprovalPolicy::Deny => crate::state::ApprovalPolicy::Deny,
+    }
 }
 
 pub(super) fn map_sandbox_policy(
-    _policy: &reflect_protocol::SandboxPolicy,
+    policy: &reflect_protocol::SandboxPolicy,
 ) -> crate::state::SandboxPolicy {
-    crate::state::SandboxPolicy::WorkspaceOnly
+    match policy {
+        reflect_protocol::SandboxPolicy::WorkspaceOnly => {
+            crate::state::SandboxPolicy::WorkspaceOnly
+        }
+        reflect_protocol::SandboxPolicy::OsSandbox => crate::state::SandboxPolicy::OsSandbox,
+        reflect_protocol::SandboxPolicy::FullAccess => crate::state::SandboxPolicy::FullAccess,
+    }
 }
 
 pub(super) fn map_permission_mode(
     policy: &reflect_protocol::ApprovalPolicy,
 ) -> reflect_protocol::PermissionMode {
-    // ApprovalPolicy is snake_case stringly; PermissionMode has more variants.
-    // For Phase 1, return Auto; future work reads the actual value.
-    let _ = policy;
-    reflect_protocol::PermissionMode::Auto
+    // SessionConfiguredEvent only carries ApprovalPolicy; map the overlapping
+    // variants directly. Variants exclusive to PermissionMode (Plan /
+    // AcceptEdits / Bubble / Bypass) cannot be derived from an ApprovalPolicy
+    // and fall back to Auto.
+    match policy {
+        reflect_protocol::ApprovalPolicy::Auto => reflect_protocol::PermissionMode::Auto,
+        reflect_protocol::ApprovalPolicy::Prompt => reflect_protocol::PermissionMode::Prompt,
+        reflect_protocol::ApprovalPolicy::Deny => reflect_protocol::PermissionMode::Deny,
+    }
 }

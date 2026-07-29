@@ -33,9 +33,14 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
 
     case 'turn_rewound': {
       const cutoff = msg.to_turn_id;
-      return cutoff
-        ? { turns: state.turns.filter((turn) => turn.id <= cutoff) }
-        : {};
+      if (!cutoff) return {};
+      // Find the cutoff turn by id; keep all turns up to and including it.
+      // We can't lexicographically compare v4 UUIDs, so locate the index
+      // instead. If the id is unknown, leave turns untouched (the backend
+      // is the source of truth — the next replay will re-sync).
+      const idx = state.turns.findIndex((turn) => turn.id === cutoff);
+      if (idx < 0) return {};
+      return { turns: state.turns.slice(0, idx + 1) };
     }
 
     case 'shutdown_complete':
@@ -72,22 +77,31 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         }),
       };
 
-    case 'tool_call_end':
-      return {
-        turns: appendItem(state.turns, turnId, {
-          kind: 'tool_output',
-          callId: msg.call_id,
-          text: summarizeToolOutput(msg.output),
-          isError: msg.is_error,
-        }).map((turn) => ({
-          ...turn,
-          items: turn.items.map((item) =>
-            item.kind === 'tool_call' && item.callId === msg.call_id
-              ? { ...item, status: msg.is_error ? ('error' as const) : ('done' as const) }
-              : item,
-          ),
-        })),
+    case 'tool_call_end': {
+      const withOutput = appendItem(state.turns, turnId, {
+        kind: 'tool_output',
+        callId: msg.call_id,
+        text: summarizeToolOutput(msg.output),
+        isError: msg.is_error,
+      });
+      // Only rewrite the turn that owns the matching tool_call; other turns
+      // would just be re-allocated for no reason.
+      const targetTurnIdx = withOutput.findIndex((t) => t.id === turnId);
+      if (targetTurnIdx < 0) return { turns: withOutput };
+      const target = withOutput[targetTurnIdx];
+      const nextStatus: 'done' | 'error' = msg.is_error ? 'error' : 'done';
+      const updatedTurn = {
+        ...target,
+        items: target.items.map((item) =>
+          item.kind === 'tool_call' && item.callId === msg.call_id
+            ? { ...item, status: nextStatus }
+            : item,
+        ),
       };
+      const turns = withOutput.slice();
+      turns[targetTurnIdx] = updatedTurn;
+      return { turns };
+    }
 
     case 'approval_request': {
       const approval: PendingApproval = {
@@ -124,6 +138,7 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
             id: `bubble-${msg.tool_name}-${turnId}`,
             kind: 'tool',
             toolName: msg.tool_name,
+            risk: msg.risk,
             turnId,
           },
         ],

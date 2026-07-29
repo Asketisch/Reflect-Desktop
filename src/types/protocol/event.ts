@@ -7,7 +7,7 @@
  * enum, letting TS narrow via `event.msg.type`.
  *
  * Helpers / constants re-exported from the barrel:
- *   - `EVENT_ID_NONE` → `'.'` (per-submission id of session-level events)
+ *   - `EVENT_ID_NONE` → `''` (empty string — id of session-level events)
  *   - `EventMsgType` → string literal union of all discriminator values
  *   - `ReflectEventMsg` → discriminated union over `EventMsgType`
  *   - `ReflectEvent` → outer envelope
@@ -102,9 +102,10 @@ export interface TurnCompletePayload {
   status: 'success' | 'max_iterations' | 'stopped' | 'token_budget_exceeded';
 }
 
-export interface AbortReasonPayload {
-  type: 'user_interrupt' | 'shutdown' | { error: { code: string; message: string } };
-}
+export type AbortReasonPayload =
+  | { type: 'user_interrupt' }
+  | { type: 'shutdown' }
+  | { type: 'error'; code: string; message: string };
 
 export interface TurnAbortedPayload {
   turn_id: string;

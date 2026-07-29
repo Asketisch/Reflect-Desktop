@@ -1,8 +1,8 @@
 //! `reflect-task` — 结构化任务管理 (Task*) + 团队管理 (TeamCreate/Delete) + TodoWrite + Coordinator 模式。
 //!
-//! v1.1.0 引入。对齐 Claude Code `TaskCreateTool` / `TaskGetTool` / `TaskUpdateTool` /
+//! v1.1.0 引入。落地 `TaskCreateTool` / `TaskGetTool` / `TaskUpdateTool` /
 //! `TaskListTool` / `TaskStopTool` / `TaskOutputTool` / `TeamCreateTool` / `TeamDeleteTool` /
-//! `TodoWriteTool` + `coordinatorMode` 的行为契约,落地为 Rust builtin tools。
+//! `TodoWriteTool` + `coordinatorMode` 的行为契约,作为 Rust builtin tools。
 //!
 //! ## 设计原则
 //!

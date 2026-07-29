@@ -48,7 +48,9 @@ export function Composer() {
 
   const onSlashSelect = useCallback((command: string) => {
     setText((previous) => {
-      const replaced = previous.replace(/(\/\w*)$/, `/${command} `);
+      // Strip any existing `/<word>` token (and any args the user typed after
+      // it) so a click on a popup entry always yields a clean `/<command> `.
+      const replaced = previous.replace(/\/\w*(?:\s+.*)?$/, `/${command} `);
       requestAnimationFrame(() => {
         const element = textareaRef.current;
         if (element) {
@@ -124,7 +126,7 @@ export function Composer() {
             key={command.name}
             type="button"
             onClick={() => {
-              setText(`/${command.name} `);
+              setText((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}/${command.name} `);
               setSlashVisible(false);
               focus();
             }}

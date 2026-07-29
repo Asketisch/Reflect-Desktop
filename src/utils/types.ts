@@ -1,24 +1,23 @@
 /**
  * Shared Tauri types —— reflect-protocol 镜像 + ReflectAgent 特定类型。
  *
- * CodexMonitor 同名: `src/services/types.ts`
- *
  * Source of truth:
  * - Rust: `vendor/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
  * - TS:   `src/types/protocol.ts`（事件/Submission 判别联合）
  */
 
 export interface ReflectSessionInfo {
+  /**
+   * Mirrors `reflect_protocol::SessionInfo` as returned by
+   * `reflect_list_sessions` (`vendor/reflect-protocol/src/recorder.rs::SessionInfo`).
+   * 4 fields only — anything richer (provider, cwd, tool_count, …) must be
+   * surfaced through a separate command, not retrofitted here.
+   */
   session_id: string;
-  thread_id: string;
   model: string;
-  provider: string;
+  /** RFC3339 timestamp (`DateTime<Utc>`). */
   started_at: string;
   message_count: number;
-  tool_count: number;
-  token_total: number;
-  cwd: string;
-  display_name?: string;
 }
 
 export interface ReflectRolloutRecord {

@@ -439,7 +439,7 @@ async fn tui_pump_style_select_does_not_deadlock_on_approval() {
     assert!(saw_tool_ok, "审批后工具应成功执行(证明未死锁)");
 }
 
-// ── Bypass 模式:静默跳过工具审批(对齐 Claude Code bypass permissions) ──────
+// ── Bypass 模式:静默跳过工具审批(bypass permissions 语义) ──────
 //
 // 覆盖:
 // 1. Bypass 下 Prompt 工具直接跑,无 ApprovalRequest modal。

@@ -1,6 +1,6 @@
 //! `TaskStop` — 中止一个 in-progress 任务。
 //!
-//! 镜像 Claude Code 的 `TaskStopTool`:把 status 从 `in_progress` 改为
+//! 把 status 从 `in_progress` 改为
 //! `pending`,清除 `owner`,让其他 agent 接手。**不**做物理删除 ——
 //! 那是 `TaskUpdate status=deleted` 的语义。
 //!

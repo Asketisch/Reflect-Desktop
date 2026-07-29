@@ -38,9 +38,8 @@ describe('MemoryView', () => {
   it('renders scope filter buttons', () => {
     render(wrap(<MemoryView />));
     expect(screen.getByTestId('memory-filter-all')).toBeDefined();
-    expect(screen.getByTestId('memory-filter-global')).toBeDefined();
+    expect(screen.getByTestId('memory-filter-user')).toBeDefined();
     expect(screen.getByTestId('memory-filter-project')).toBeDefined();
-    expect(screen.getByTestId('memory-filter-session')).toBeDefined();
   });
 
   it('renders the add button', () => {

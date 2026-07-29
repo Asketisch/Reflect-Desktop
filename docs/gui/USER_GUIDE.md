@@ -27,8 +27,7 @@ pnpm tauri dev           # 开发模式（热重载）
 
 ### Linux / Windows
 
-依赖清单与排错见 [`docs/gui/03-architecture.md` §6](../../docs/gui/03-architecture.md#6-跨平台注意点) 与
-[开源项目 scripts/doctor.sh](https://github.com/Dimillian/CodexMonitor) 的参考。
+依赖清单与排错见 [`docs/gui/03-architecture.md` §6](../../docs/gui/03-architecture.md#6-跨平台注意点)。
 
 ## 2. 启动
 

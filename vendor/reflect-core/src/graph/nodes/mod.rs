@@ -211,8 +211,8 @@ pub async fn pre_loop(state: &mut AgentState, ctx: &NodeContext) -> Option<Graph
             .recovery_meta
             .push(RecoveryEntry::new(MetaKind::SessionMemory, text));
     }
-    // 6a. Active File Recovery:仅在 compact 触发后注入(对齐 AIWorkFlow
-    // `_pre_loop_node` 的 post-compact block),文件读取静默 skip 失败项。
+    // 6a. Active File Recovery:仅在 compact 触发后注入(pre_loop
+    // 的 post-compact block),文件读取静默 skip 失败项。
     // Review 2026-06-29 BUG-5: 使用 `recover_with_deleted` 把 NotFound
     // 收集到 deleted, 在 meta 顶部提示 LLM。
     if state.compact_triggered {

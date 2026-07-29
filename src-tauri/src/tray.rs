@@ -1,6 +1,6 @@
 //! 系统托盘图标 (macOS-only)。
 //!
-//! 设计参考 CodexMonitor `src-tauri/src/tray.rs:114-130`：
+//! 托盘结构：
 //! - 左键单击 = 直接弹菜单 (`show_menu_on_left_click(true)`);
 //! - 菜单项 = Show / Hide / Quit,click 后由 `handle_tray_menu_event` 派发;
 //! - 图标作为 macOS template image 自动着色 (`icon_as_template(true)`)。

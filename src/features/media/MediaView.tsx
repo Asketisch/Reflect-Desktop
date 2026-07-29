@@ -295,7 +295,7 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-function summarize(action: { kind: string; params?: Record<string, unknown> }): string {
+function summarize(action: { kind: string; params?: Record<string, unknown> | null }): string {
   const p = action.params ?? {};
   switch (action.kind) {
     case 'screenshot':

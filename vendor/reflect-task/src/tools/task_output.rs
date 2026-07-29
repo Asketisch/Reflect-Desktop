@@ -1,6 +1,6 @@
 //! `TaskOutput` — 读任务的输出文件 (`task.output_path`)。
 //!
-//! 镜像 Claude Code `TaskOutputTool` 的核心契约:
+//! 核心契约:
 //! - `block = true`(默认)+ `timeoutMs = 30000`(默认):轮询文件直到出现
 //!   或超时。轮询间隔 100ms,模仿 Unix `tail -f` 风格。
 //! - `block = false`:立即读,文件不存在返回空串(`""`),不报错。

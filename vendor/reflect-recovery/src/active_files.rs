@@ -1,13 +1,13 @@
 //! `ActiveFileRecovery` — post-compact 自动重读最近修改过的文件。
 //!
-//! 对齐 AIWorkFlow `ReflectGraph._extract_active_files` +
-//! `_read_active_files_content` (graph.py:2067+ / 2088+):扫
+//! 提取逻辑:
+//! 扫
 //! `AIMessage.tool_calls`,过滤 write / replace / edit 类工具,反向
 //! 遍历 + dedup,cap 10 文件,50k token 总预算 + 5k token / 文件。
 //!
-//! ## 与 AIWorkFlow 的差异
+//! ## 设计说明
 //!
-//! - AIWorkFlow 按"提取后拼接"方式构造 meta-message;本实现把
+//! - 上游按"提取后拼接"方式构造 meta-message;本实现把
 //!   提取(返回 `Vec<(String, String)>`)和渲染(返回 `String`)
 //!   拆成两个方法,方便单测 + 让 `recovery_meta_to_messages` 统一去重。
 //! - 预算单位对齐 `reflect-compact::tokens::estimate_messages` 的
@@ -22,7 +22,7 @@ use serde_json::Value;
 
 /// 默认识别为"修改了文件"的工具名集合。
 ///
-/// 对齐 AIWorkFlow 硬编码列表(`graph.py:2067` 注释):
+/// 覆盖:
 /// `write` / `replace` / `write_file` / `edit_notebook`。
 /// 本实现把 `edit_notebook` 替换为更通用的 `edit_file` + `replace_in_file`。
 pub const DEFAULT_WRITE_TOOLS: &[&str] = &[
@@ -214,7 +214,7 @@ impl ActiveFileRecovery {
 
     /// 把恢复结果渲染为单条 `<system-reminder>` 内容。
     ///
-    /// 输出格式(对齐 AIWorkFlow `graph.py:1257-1281`):
+    /// 输出格式:
     /// ```text
     /// Active Files Context (auto-recovered after compaction)
     ///

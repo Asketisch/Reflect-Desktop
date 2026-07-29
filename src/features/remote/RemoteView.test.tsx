@@ -1,0 +1,140 @@
+/**
+ * Vitest — RemoteView (Phase 2 item 2).
+ *
+ * Smoke + behavior tests against mocked IPC:
+ *   - page title + 4 cards render
+ *   - iOS setup card: ready badge when config.is_ready, opens form on click
+ *   - form Save forwards to reflect_update_remote_config
+ *   - Tailscale card renders detected status fields
+ *   - Daemon hint card renders the preview text
+ */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { RemoteView } from './RemoteView';
+import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
+
+const calls: Array<{ cmd: string; args: unknown }> = [];
+
+vi.mock('@/utils/commands', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
+  return {
+    ...actual,
+    reflect_get_remote_config: vi.fn(async () => {
+      calls.push({ cmd: 'reflect_get_remote_config', args: undefined });
+      return {
+        host: 'node.tail.net',
+        port: 4732,
+        auth_token: 'topsecret',
+        auto_connect: false,
+        endpoint: 'node.tail.net:4732',
+        is_ready: true,
+      };
+    }),
+    reflect_update_remote_config: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'reflect_update_remote_config', args });
+      return {
+        host: (args.host as string) ?? '',
+        port: (args.port as number) ?? 4732,
+        auth_token: (args.auth_token as string | null) ?? null,
+        auto_connect: (args.auto_connect as boolean) ?? false,
+        endpoint: `${(args.host as string) ?? ''}:${(args.port as number) ?? 4732}`,
+        is_ready: true,
+      };
+    }),
+    reflect_get_remote_status: vi.fn(async () => ({
+      state: 'disconnected',
+      message: 'remote transport driver not yet implemented (Phase 2 follow-up)',
+      endpoint: null,
+      since_ms: 100,
+    })),
+    reflect_tailscale_status: vi.fn(async () => ({
+      installed: true,
+      running: true,
+      version: '1.78.0',
+      dns_name: 'node.tail.net',
+      host_name: 'node',
+      tailnet_name: 'tail.net',
+      ipv4: ['100.64.0.1'],
+      ipv6: [],
+      suggested_remote_host: 'node.tail.net:4732',
+      message: null,
+    })),
+    reflect_tailscale_daemon_command_preview: vi.fn(async () =>
+      'tailscaled --tun=userspace-networking &\nlisten 0.0.0.0:4732',
+    ),
+    reflect_tailscale_daemon_start: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
+    reflect_tailscale_daemon_stop: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
+    reflect_tailscale_daemon_status: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
+  };
+});
+
+function wrap(node: React.ReactNode) {
+  return <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>;
+}
+
+describe('RemoteView', () => {
+  beforeEach(() => {
+    cleanup();
+    calls.length = 0;
+    resetMockInvoke();
+  });
+
+  it('renders the page title and the four cards', async () => {
+    render(wrap(<RemoteView />));
+    expect(screen.getByText('Remote')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByTestId('remote-config-card')).toBeDefined();
+      expect(screen.getByTestId('remote-tailscale-card')).toBeDefined();
+      expect(screen.getByTestId('remote-daemon-card')).toBeDefined();
+      expect(screen.getByTestId('remote-status-card')).toBeDefined();
+    });
+  });
+
+  it('shows the ready badge + endpoint when config is_ready', async () => {
+    render(wrap(<RemoteView />));
+    await waitFor(() => {
+      expect(screen.getByText('ready')).toBeDefined();
+    });
+    // Endpoint appears in both the iOS card and the Tailscale card;
+    // assert at least one match exists.
+    const matches = screen.getAllByText('node.tail.net:4732');
+    expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders Tailscale fields', async () => {
+    render(wrap(<RemoteView />));
+    await waitFor(() => {
+      // The tailnet name "tail.net" is unique to the Tailscale card.
+      expect(screen.getByText('tail.net')).toBeDefined();
+    });
+    const ips = screen.getAllByText('100.64.0.1');
+    expect(ips.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the daemon preview text', async () => {
+    render(wrap(<RemoteView />));
+    await waitFor(() => {
+      expect(screen.getByText(/tailscaled --tun/)).toBeDefined();
+    });
+  });
+
+  it('Save forwards to reflect_update_remote_config with the new host', async () => {
+    render(wrap(<RemoteView />));
+    await waitFor(() => screen.getByTestId('remote-edit-btn'));
+    fireEvent.click(screen.getByTestId('remote-edit-btn'));
+    fireEvent.change(screen.getByTestId('remote-form-host'), {
+      target: { value: 'updated.tail.net' },
+    });
+    fireEvent.click(screen.getByTestId('remote-form-submit'));
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (c) =>
+            c.cmd === 'reflect_update_remote_config' &&
+            (c.args as { host: string }).host === 'updated.tail.net',
+        ),
+      ).toBe(true);
+    });
+  });
+});

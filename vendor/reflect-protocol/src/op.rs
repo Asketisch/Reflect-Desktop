@@ -30,8 +30,8 @@ pub enum Op {
     /// 批次十九:回退对话到指定节点(原地回滚)。`to_turn_id = None` 表示回退
     /// 到最近一条 user turn(最常用的「编辑并重发上一条」)。submission_loop
     /// 收到后:**截断 rollout 记录器**(删除该 turn 之后的所有记录,持久化),
-    /// 并 emit `TurnRewound` 事件让 TUI 同步裁剪显示。对齐 codex 的 rewind/
-    /// backtrack 语义(原地回退,非 fork 子会话)。
+    /// 并 emit `TurnRewound` 事件让 TUI 同步裁剪显示。语义为 rewind/
+    /// backtrack(原地回退,非 fork 子会话)。
     Rewind {
         #[serde(default)]
         to_turn_id: Option<String>,

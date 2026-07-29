@@ -55,6 +55,10 @@ export function SlashPopup({ query, onSelect, visible }: Props) {
         }
       }
     };
+    // NOTE: keyboard nav is currently mouse-driven only — the textarea
+    // keeps focus while the popup is open, so the popup's keydown handler
+    // never fires from a real keypress. Click-to-select (line 71) still
+    // works. A proper fix would transfer focus to the popup on open.
     node.addEventListener('keydown', onKey);
     return () => node.removeEventListener('keydown', onKey);
   }, [visible, filtered, activeIdx, onSelect]);

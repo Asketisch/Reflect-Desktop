@@ -1,7 +1,5 @@
 /**
  * Debounce / throttle 工具 —— 用于输入防抖、滚动节流等。
- *
- * CodexMonitor 同名: `src/utils/debounce.ts`
  */
 
 export function debounce<TArgs extends unknown[]>(

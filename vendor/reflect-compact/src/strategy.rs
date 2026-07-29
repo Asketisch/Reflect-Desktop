@@ -23,10 +23,10 @@ use crate::smart_prune::{SmartPruneConfig, smart_prune};
 use crate::summarizer::Summarizer;
 use crate::tokens::estimate_messages;
 
-/// Default trigger threshold. M5 v0: aligned with claw's
-/// `max_estimated_tokens = 10000` so microcompact fires frequently on long
-/// conversations; the prior M4 default was 160_000 (reflect). Operators can
-/// override via the `REFLECT_AUTO_COMPACT_INPUT_TOKENS` env var.
+/// Default trigger threshold. M5 v0: `max_estimated_tokens = 10000` so
+/// microcompact fires frequently on long conversations; the prior M4
+/// default was 160_000 (reflect). Operators can override via the
+/// `REFLECT_AUTO_COMPACT_INPUT_TOKENS` env var.
 pub const DEFAULT_TRIGGER_TOKENS: u32 = 10_000;
 
 /// Selected compaction strategy for a single `compact()` call. Also

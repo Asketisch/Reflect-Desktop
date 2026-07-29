@@ -4,8 +4,6 @@
  * - useQuery 缓存 `reflect_list_sessions` 结果(5min staleTime)
  * - useMutation 处理 rename → invalidate → 自动重刷
  * - 时间分桶规则已抽出到 `./utils/buckets.ts`(纯函数,可独立测试)
- *
- * CodexMonitor 同名: `src/features/threads/hooks/useThreads.ts`
  */
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -96,8 +94,6 @@ export function useSessions(): UseSessionsResult {
  * 读源: `/chat/$sessionId` 路由参数；fallback 到 `/chat`（无 id,新对话）。
  * 写入: `setActiveId(id)` 导航到 `/chat/$sessionId`,`setActiveId(null)` 导航到 `/chat`。
  *        `clear()` 显式清除(等价 null)。
- *
- * CodexMonitor 同名: `src/features/threads/hooks/useActiveThread.ts`
  */
 export interface UseActiveSessionResult {
   activeId: string | null;

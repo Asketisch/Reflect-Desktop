@@ -13,7 +13,7 @@
  *
  * 关键决策：TitleBar 是 .shell 的第一个子元素（**与 ActivityBar 同级，而非嵌在 .main 内**），
  * 这样它横跨整个窗口宽度。macOS 红绿灯按钮（titleBarStyle: "Overlay"）嵌在顶栏左侧
- * （由 TitleBar 的 `--traffic-light-gutter` 左 padding 让位），对齐 ZCode/Codex 范式。
+ * （由 TitleBar 的 `--traffic-light-gutter` 左 padding 让位），与常见 IDE 顶栏范式一致。
  *
  * **TanStack Router v1 根路由契约**：rootRoute 的 component 必须渲染 `<Outlet />`
  * 才能把匹配到的子路由（HomeView / ChatView / SettingsView / …）挂到 DOM。
@@ -94,7 +94,7 @@ export function AppShell() {
     <div className={s.shell}>
       {/* 贯通全宽顶栏：红绿灯按钮（macOS Overlay）嵌在里面。
        * 必须是 .shell 的第一个子元素，让 .body（ActivityBar + Sidebar + Main + Inspector）
-       * 全部从顶栏下方开始 —— 对齐 ZCode/Codex 的「一条深色顶栏」范式。
+       * 全部从顶栏下方开始 —— 「一条贯通全宽的深色顶栏」范式。
        */}
       <TitleBar
         sidebarOpen={sidebarOpen}

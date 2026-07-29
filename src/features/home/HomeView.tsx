@@ -37,14 +37,17 @@ export function HomeView() {
   const { t } = useI18n();
 
   const recent = useMemo(() => {
-    const all: Array<{ id: string; label: string; started_at: string; tokens: number }> = [];
+    // `ReflectSessionInfo` only carries `session_id`, `model`, `started_at`,
+    // `message_count` — no display_name / token_total. Label falls back to
+    // the id prefix; tokens are surfaced via message_count in the card meta.
+    const all: Array<{ id: string; label: string; started_at: string; messages: number }> = [];
     for (const b of buckets) {
       for (const sess of b.sessions) {
         all.push({
           id: sess.session_id,
-          label: sess.display_name || sess.session_id,
+          label: sess.session_id.slice(0, 8),
           started_at: sess.started_at,
-          tokens: sess.token_total,
+          messages: sess.message_count,
         });
       }
     }
@@ -129,7 +132,7 @@ export function HomeView() {
                 <div className={s.recentBody}>
                   <div className={s.recentLabel}>{sess.label}</div>
                   <div className={s.recentMeta}>
-                    {relativeTime(sess.started_at)} · {sess.tokens} tok
+                    {relativeTime(sess.started_at)} · {sess.messages} msgs
                   </div>
                 </div>
                 <Icon icon={ArrowRight} size={12} className={s.actionArrow} />

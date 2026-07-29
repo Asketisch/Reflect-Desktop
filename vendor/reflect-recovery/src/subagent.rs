@@ -1,13 +1,13 @@
 //! `SubagentRegistry` — 追踪已完成的子代理调用,防 LLM 重复 spawn。
 //!
-//! 对齐 AIWorkFlow `ReflectAgentState.subagent_registry`:
-//> list of dict,每条 `{"tool", "task_summary", "result_summary", "iteration"}`。
-//> `_pre_loop_node` 渲染为 `[已完成的子代理调用记录(请勿重复 spawn)]` meta-message
+//! Registry 语义:
+//! list of dict,每条 `{"tool", "task_summary", "result_summary", "iteration"}`。
+//! pre_loop 渲染为 `[已完成的子代理调用记录(请勿重复 spawn)]` meta-message
 //! 注入到下一轮 pre_loop,LLM 看到后能复用已知结果。
 //!
 //! ## 实现要点
 //!
-//! - **FIFO cap = 32**:32 条是 AIWorkFlow 默认值,够 8+ 轮子代理调用
+//! - **FIFO cap = 32**:32 条够 8+ 轮子代理调用
 //!   滚动窗口。
 //! - **summary 截断**:`task_summary ≤ 200` / `result_summary ≤ 500`
 //!   字符(`chars().take(n)` 按字符边界切,避免在多字节 UTF-8 中切坏)。
@@ -115,7 +115,7 @@ impl SubagentRegistry {
 
     /// 渲染为 `<system-reminder>` 注入内容。空时返回 `None`。
     ///
-    /// 输出格式(对齐 AIWorkFlow `graph.py:1347-1369`):
+    /// 输出格式:
     /// ```text
     /// [已完成的子代理调用记录(请勿重复 spawn)]
     /// - 第3轮 call_explorer: 任务=探索当前目录 | 结果摘要=找到 5 个模块...

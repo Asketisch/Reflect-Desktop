@@ -7,7 +7,6 @@
  */
 import { useState } from 'react';
 import { Plus, Users, Trash2, Zap, UserPlus, X } from 'lucide-react';
-import { useAgentStore } from '@/stores/agentStore';
 import { PageShell } from '@/features/shell/PageShell';
 import {
   Card,
@@ -25,7 +24,6 @@ import s from './SquadView.module.css';
 
 export function SquadView() {
   const ctrl = useSquadController();
-  const pushToast = useAgentStore((st) => st.pushToast);
 
   return (
     <PageShell
@@ -107,10 +105,7 @@ export function SquadView() {
         {/* ── Right: details + tasks + delegate ────────────────── */}
         <div className={s.col}>
           {ctrl.selectedSquad ? (
-            <SquadDetail
-              ctrl={ctrl}
-              onDeleteError={(e) => pushToast({ kind: 'error', message: e })}
-            />
+            <SquadDetail ctrl={ctrl} />
           ) : (
             <Card level="flat" padding="none">
               <EmptyState
@@ -130,9 +125,8 @@ export function SquadView() {
 
 function SquadDetail(props: {
   ctrl: ReturnType<typeof useSquadController>;
-  onDeleteError: (msg: string) => void;
 }) {
-  const { ctrl, onDeleteError } = props;
+  const { ctrl } = props;
   const squad = ctrl.selectedSquad!;
   return (
     <div className={s.detail}>
@@ -143,13 +137,7 @@ function SquadDetail(props: {
         <Button
           variant="ghost"
           size="sm"
-          onClick={async () => {
-            try {
-              await ctrl.remove(squad.name);
-            } catch (e) {
-              onDeleteError(String(e));
-            }
-          }}
+          onClick={() => void ctrl.remove(squad.name)}
           data-testid="squad-delete"
         >
           <Icon icon={Trash2} size={12} /> Delete

@@ -15,7 +15,7 @@
 //!
 //! `recovery_meta_to_messages()` 按 `MetaKind` 枚举顺序渲染:
 //! `ActiveFiles` → `SubagentRegistry` → `SessionMemory`,
-//! 对齐 AIWorkFlow `_pre_loop_node` 的注入顺序。
+//! 即 pre_loop 的注入顺序。
 //!
 //! ## 单实例去重
 //!

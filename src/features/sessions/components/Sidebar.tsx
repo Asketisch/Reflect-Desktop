@@ -40,7 +40,7 @@ export function Sidebar({ buckets, loading, error, activeId, onSelect, onRefresh
       .map((b) => ({
         ...b,
         sessions: b.sessions.filter((s) =>
-          (s.display_name || s.session_id).toLowerCase().includes(q),
+          s.session_id.toLowerCase().includes(q),
         ),
       }))
       .filter((b) => b.sessions.length > 0);

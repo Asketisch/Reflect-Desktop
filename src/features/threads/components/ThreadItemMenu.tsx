@@ -17,14 +17,16 @@ export interface ThreadItemMenuProps {
 
 export function ThreadItemMenu({ session, onRename, onDelete, onExport }: ThreadItemMenuProps) {
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState(session.display_name ?? '');
+  // `ReflectSessionInfo` (backend `SessionInfo`) only carries `session_id` —
+  // there is no `display_name` field, so the rename input starts empty.
+  const [renameValue, setRenameValue] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportPath, setExportPath] = useState<string | null>(null);
 
   const handleRename = async () => {
     const trimmed = renameValue.trim();
-    if (!trimmed || trimmed === session.display_name) {
+    if (!trimmed) {
       setRenameOpen(false);
       return;
     }
@@ -41,7 +43,7 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete thread "${session.display_name ?? session.session_id}"?\nThis removes its rollout files permanently.`)) {
+    if (!confirm(`Delete thread "${session.session_id}"?\nThis removes its rollout files permanently.`)) {
       return;
     }
     setPending(true);

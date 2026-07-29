@@ -80,6 +80,19 @@ beforeEach(() => {
   // reflect_submit
   mockInvoke('reflect_submit', async (submission: { id: string }) => submission.id);
 
+  // Phase 2 item 2 — remote daemon placeholders (default no-op for tests
+  // that don't override via vi.mock; specific tests override these).
+  mockInvoke('reflect_tailscale_daemon_command_preview', async () => '');
+  mockInvoke('reflect_tailscale_daemon_start', async () => '');
+  mockInvoke('reflect_tailscale_daemon_stop', async () => '');
+  mockInvoke('reflect_tailscale_daemon_status', async () => '');
+  mockInvoke('reflect_get_remote_status', async () => ({
+    state: 'disconnected',
+    message: null,
+    endpoint: null,
+    sinceMs: null,
+  }));
+
   // ping
   mockInvoke('ping', async () => ({ msg: 'pong', version: '0.1.0' }));
 });

@@ -65,7 +65,7 @@ pub struct TaskPatch {
 
 /// `update_task` 的执行结果。
 ///
-/// 镜像 Claude Code `TaskUpdate` 的返回结构(`updatedFields` / `statusChange`),
+/// 沿用 `TaskUpdate` 的返回结构(`updatedFields` / `statusChange`),
 /// 加上任务对象本身,便于工具实现直接 `Ok(ToolOutput { metadata: ... })`。
 #[derive(Debug, Clone)]
 pub struct UpdateOutcome {

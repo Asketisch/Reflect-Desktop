@@ -1,6 +1,6 @@
 //! `TeamCreate` — 创建一个 team 并写入 `~/.reflect/teams/<name>.json`。
 //!
-//! 镜像 Claude Code `TeamCreateTool` 的契约:
+//! 契约:
 //! - 必填 `name`(1..=64 字符,字符集 `[a-z0-9_-]`,与 `SubAgentSpec::validate` 对齐)。
 //! - 可选 `description`。
 //! - 可选 `members: Vec<TeamMemberSpec>`,缺省时仅含 1 个 `team-lead@<name>` 成员。

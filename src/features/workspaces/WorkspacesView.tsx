@@ -39,22 +39,24 @@ export function WorkspacesView() {
     staleTime: 60_000,
   });
 
-  const workspaces: WorkspaceEntry[] = (() => {
-    const map = new Map<string, WorkspaceEntry>();
-    for (const sess of sessionsQ.data ?? []) {
-      const cwd = sess.cwd || '(unknown)';
-      const existing = map.get(cwd);
-      if (existing) {
-        existing.sessionCount += 1;
-        if (sess.started_at > existing.lastUsed) existing.lastUsed = sess.started_at;
-      } else {
-        map.set(cwd, { path: cwd, sessionCount: 1, lastUsed: sess.started_at });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => b.lastUsed.localeCompare(a.lastUsed));
-  })();
-
   const currentWs = statusQ.data?.workspace;
+
+  // `ReflectSessionInfo` (backend `SessionInfo`) only carries `session_id`,
+  // `model`, `started_at`, `message_count` — there's no `cwd` field. Until
+  // the backend exposes a per-session workspace, we surface a single card
+  // for the current workspace plus the recent session count.
+  const totalSessions = sessionsQ.data?.length ?? 0;
+  const lastUsed = sessionsQ.data?.[0]?.started_at;
+
+  const workspaces: WorkspaceEntry[] = currentWs
+    ? [
+        {
+          path: currentWs,
+          sessionCount: totalSessions,
+          lastUsed: lastUsed ?? new Date().toISOString(),
+        },
+      ]
+    : [];
 
   const onUse = async (path: string) => {
     try {

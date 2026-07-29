@@ -14,15 +14,9 @@ import type { ReflectSessionInfo } from '@/utils/commands';
 
 const SESSION: ReflectSessionInfo = {
   session_id: 's1',
-  thread_id: 't1',
   model: 'stub/test',
-  provider: 'local',
   started_at: new Date().toISOString(),
   message_count: 2,
-  tool_count: 0,
-  token_total: 0,
-  cwd: '/tmp',
-  display_name: 'Recent chat',
 };
 
 describe('ThreadItemMenu', () => {

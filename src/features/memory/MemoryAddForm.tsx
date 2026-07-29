@@ -10,10 +10,10 @@ import { NEW_SCOPES } from './useMemoryController';
 import s from './MemoryView.module.css';
 
 export interface MemoryAddFormProps {
-  newScope: 'global' | 'project' | 'session';
+  newScope: 'user' | 'project';
   newKey: string;
   newValue: string;
-  setNewScope: (s: 'global' | 'project' | 'session') => void;
+  setNewScope: (s: 'user' | 'project') => void;
   setNewKey: (v: string) => void;
   setNewValue: (v: string) => void;
   onSubmit: () => void;
@@ -33,7 +33,7 @@ export function MemoryAddForm({
       <div className={s.formRow}>
         <select
           value={newScope}
-          onChange={(e) => setNewScope(e.target.value as 'global' | 'project' | 'session')}
+          onChange={(e) => setNewScope(e.target.value as 'user' | 'project')}
           className={s.formSelect}
           data-testid="memory-new-scope"
         >

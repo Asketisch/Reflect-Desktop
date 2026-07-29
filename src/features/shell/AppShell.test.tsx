@@ -100,7 +100,7 @@ describe('AppShell collapse behavior', () => {
   });
 
   // 回归保护：TitleBar 必须挂 data-tauri-drag-region（否则窗口无法拖动），
-  // 必须是 .shell 的第一个子元素（贯通全宽，红绿灯嵌在里面 —— 对齐 ZCode/Codex）。
+  // 必须是 .shell 的第一个子元素（贯通全宽，红绿灯嵌在里面）。
   it('TitleBar is top-level (spans full width) and has drag region', () => {
     const { container } = render(wrap(<AppShell />));
     const titlebar = container.querySelector('[data-testid="titlebar"]');

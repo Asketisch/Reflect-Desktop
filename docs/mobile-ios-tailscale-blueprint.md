@@ -1,8 +1,6 @@
 # iOS + Tailscale Setup (TCP) — ReflectDesktop Remote Backend
 
 > **Status: WIP / placeholder**. iOS builds are planned for M3.x. This document captures the intended setup so reviewers can follow along.
->
-> Mirrors CodexMonitor's `docs/mobile-ios-tailscale-blueprint.md` structure.
 
 ## Goal
 

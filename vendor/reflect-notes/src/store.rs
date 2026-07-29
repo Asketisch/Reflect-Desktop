@@ -15,7 +15,7 @@ use crate::error::NoteError;
 /// 单条 note 的硬上限(超过返回 `NoteError::TooLong`)。
 pub const NOTE_MAX_CHARS: usize = 4096;
 
-/// 笔记队列的默认容量(对齐 AIWorkFlow `SessionMemory(max_notes=30)`)。
+/// 笔记队列的默认容量(对齐上游 `SessionMemory(max_notes=30)`)。
 pub const SESSION_NOTE_CAP: usize = 30;
 
 /// `as_meta_message()` 渲染时的字节预算。

@@ -2,8 +2,6 @@
  * NotificationsSection —— Settings > Notifications。
  *
  * 提供声音 / 系统通知 / dock badge 的开关,持久化到 localStorage。
- *
- * 对标 CodexMonitor `SettingsDisplaySection` 中的 notification toggles。
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Volume2, Bell, Check } from 'lucide-react';

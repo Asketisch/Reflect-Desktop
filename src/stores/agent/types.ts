@@ -1,4 +1,5 @@
 import type { UserInputItem } from '@/types/protocol';
+import type { RiskLevel } from '@/types/protocol/enums';
 import type { ReflectRolloutRecord, ReviewDecision } from '@/utils/types';
 
 export type TurnItem =
@@ -29,6 +30,8 @@ export interface PendingApproval {
   kind: 'tool' | 'hook' | 'plan';
   toolName?: string;
   argsSummary?: string;
+  /** Risk level for permission-bubble approvals (omitted on non-bubble flows). */
+  risk?: RiskLevel;
   turnId: string;
 }
 

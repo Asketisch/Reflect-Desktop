@@ -28,8 +28,12 @@ declare global {
 import { ChatView } from './ChatView';
 
 const SAMPLE_RECORDS = [
-  { type: 'user_input', turn_id: 't1', text: 'hello there' },
-  { type: 'agent_message', turn_id: 't1', text: 'hi! how can I help?' },
+  {
+    seq: 1,
+    kind: 'event' as const,
+    timestamp: 0,
+    payload: { id: 't1', msg: { type: 'agent_message', text: 'hi! how can I help?' } },
+  },
 ];
 
 function renderWithProviders(ui: React.ReactElement) {

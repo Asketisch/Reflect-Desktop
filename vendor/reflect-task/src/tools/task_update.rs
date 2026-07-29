@@ -1,6 +1,6 @@
 //! `TaskUpdate` — 局部更新任务字段。
 //!
-//! 镜像 Claude Code `TaskUpdateTool`:任意字段 patch;`status=completed` 时
+//! 任意字段 patch;`status=completed` 时
 //! 触发 `TaskCompleted` 钩子,其他变更触发 `TaskUpdated` 钩子(由 manager 派发)。
 //!
 //! `required_permission = Prompt` —— 任务状态变更属于持久化副作用,需要

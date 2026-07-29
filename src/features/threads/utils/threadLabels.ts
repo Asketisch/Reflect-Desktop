@@ -1,7 +1,5 @@
 /**
  * Threads 工具 —— 链接生成 + 日期格式化。
- *
- * CodexMonitor 同名: `src/features/threads/utils/threadLink.ts`
  */
 import type { ReflectSessionInfo } from '@/utils/commands';
 

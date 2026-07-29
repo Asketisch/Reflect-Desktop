@@ -5,7 +5,7 @@
 //! 跨进程文件锁用 per-list `tokio::sync::Mutex`(进程内序列化),跨进程
 //! 互斥留给后续 phase 加 `fs2` advisory lock。
 //!
-//! 路径布局(对齐 Claude Code `~/.claude/tasks/<list>/<id>.json`):
+//! 路径布局:
 //! ```text
 //! $REFLECT_HOME/tasks/<list>/
 //!   .highwatermark   # 整数文本,记录该 list 历史最大 task id

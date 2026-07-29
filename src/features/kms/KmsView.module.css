@@ -1,0 +1,155 @@
+.searchCard {
+  margin-bottom: 16px;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchInput {
+  flex: 1;
+}
+
+.searchResults {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.searchItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.snippet {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.wikiBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.wikiTab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wikiTab:hover {
+  background: var(--bg-surface-alpha);
+}
+
+.wikiTab[data-active] {
+  background: var(--accent-primary-alpha);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.wikiContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wikiHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wikiTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.wikiActions {
+  display: flex;
+  gap: 4px;
+}
+
+.editorCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor {
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.editorActions {
+  display: flex;
+  gap: 8px;
+}
+
+.pageList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pageCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageName {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pageContent {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 60px;
+}
+
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}

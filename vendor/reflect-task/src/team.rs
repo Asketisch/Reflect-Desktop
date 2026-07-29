@@ -1,6 +1,6 @@
 //! Team 命名约定 + 校验 helper + `TeamMemberSpec ↔ SubAgentSpec` 转换。
 //!
-//! 镜像 Claude Code 的 `team-lead@<team>` agent id 格式;`parse_agent_id`
+//! 采用 `team-lead@<team>` agent id 格式;`parse_agent_id`
 //! 反向解析。`validate_team_name` 与 `reflect-subagent::SubAgentSpec::validate`
 //! 的角色字符规则保持一致(`[a-z0-9_-]+`),保证两类 spec 可互相转换。
 //!

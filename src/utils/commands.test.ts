@@ -78,6 +78,44 @@ import {
   reflect_check_update,
   // search
   reflect_search_files,
+  // tasks (Phase 1 multi-agent)
+  reflect_list_tasks,
+  reflect_create_task,
+  reflect_get_task,
+  reflect_update_task,
+  reflect_claim_task,
+  reflect_delete_task,
+  // teams (Phase 1 multi-agent)
+  reflect_list_teams,
+  reflect_upsert_team,
+  reflect_get_team,
+  reflect_delete_team,
+  // schedule (Phase 1 item 2)
+  reflect_list_schedules,
+  reflect_add_schedule,
+  reflect_update_schedule,
+  reflect_remove_schedule,
+  reflect_get_schedule_status,
+  // agents (Phase 1 item 3)
+  reflect_list_agent_defs,
+  reflect_get_agent_def,
+  reflect_save_agent_def,
+  reflect_delete_agent_def,
+  reflect_parse_agent_md,
+  // side-channel (Phase 2 item 1)
+  reflect_start_side_channel,
+  reflect_cancel_side_channel,
+  reflect_list_side_channels,
+  reflect_get_side_channel,
+  // remote (Phase 2 item 2)
+  reflect_get_remote_config,
+  reflect_update_remote_config,
+  reflect_get_remote_status,
+  reflect_tailscale_status,
+  reflect_tailscale_daemon_command_preview,
+  reflect_tailscale_daemon_start,
+  reflect_tailscale_daemon_stop,
+  reflect_tailscale_daemon_status,
 } from '@/utils/commands';
 
 /**
@@ -452,5 +490,264 @@ describe('commands forwarding (mapping)', () => {
       reflect_search_files('foo', '/tmp', 50),
     );
     expectArgs(some, { query: 'foo', path: '/tmp', maxResults: 50 });
+  });
+
+  // ----- tasks (Phase 1 multi-agent) -----
+
+  it('reflect_list_tasks forwards { list }', async () => {
+    const args = await captureCmd('reflect_list_tasks', () => reflect_list_tasks('sess-1'));
+    expectArgs(args, { list: 'sess-1' });
+  });
+
+  it('reflect_create_task forwards { list, subject, description, active_form, owner, metadata } with null defaults', async () => {
+    const minimal = await captureCmd('reflect_create_task', () =>
+      reflect_create_task({ list: 'L', subject: 's', description: 'd' }),
+    );
+    expectArgs(minimal, {
+      list: 'L',
+      subject: 's',
+      description: 'd',
+      active_form: null,
+      owner: null,
+      metadata: null,
+    });
+
+    const full = await captureCmd('reflect_create_task', () =>
+      reflect_create_task({
+        list: 'L',
+        subject: 's',
+        description: 'd',
+        active_form: 'Writing',
+        owner: 'alice',
+        metadata: { kind: 'bug' },
+      }),
+    );
+    expectArgs(full, {
+      list: 'L',
+      subject: 's',
+      description: 'd',
+      active_form: 'Writing',
+      owner: 'alice',
+      metadata: { kind: 'bug' },
+    });
+  });
+
+  it('reflect_get_task / delete_task forward { list, id }', async () => {
+    const get = await captureCmd('reflect_get_task', () => reflect_get_task('L', 7));
+    expectArgs(get, { list: 'L', id: 7 });
+
+    const del = await captureCmd('reflect_delete_task', () => reflect_delete_task('L', 7));
+    expectArgs(del, { list: 'L', id: 7 });
+  });
+
+  it('reflect_update_task forwards { list, id, patch } verbatim', async () => {
+    const patch = { status: 'in_progress' as const, add_blocks: [3] };
+    const args = await captureCmd('reflect_update_task', () =>
+      reflect_update_task('L', 1, patch),
+    );
+    expectArgs(args, { list: 'L', id: 1, patch });
+  });
+
+  it('reflect_claim_task forwards { list, claimer }', async () => {
+    const args = await captureCmd('reflect_claim_task', () =>
+      reflect_claim_task('L', 'worker@x'),
+    );
+    expectArgs(args, { list: 'L', claimer: 'worker@x' });
+  });
+
+  // ----- teams (Phase 1 multi-agent) -----
+
+  it('reflect_list_teams has no args', async () => {
+    const args = await captureCmd('reflect_list_teams', () => reflect_list_teams());
+    expectArgs(args, undefined);
+  });
+
+  it('reflect_upsert_team forwards { team }', async () => {
+    const team = {
+      name: 'rocket',
+      lead_agent_id: 'team-lead@rocket',
+      members: [],
+      created_at: 0,
+    };
+    const args = await captureCmd('reflect_upsert_team', () => reflect_upsert_team(team));
+    expectArgs(args, { team });
+  });
+
+  it('reflect_get_team / delete_team forward { name }', async () => {
+    const get = await captureCmd('reflect_get_team', () => reflect_get_team('rocket'));
+    expectArgs(get, { name: 'rocket' });
+
+    const del = await captureCmd('reflect_delete_team', () => reflect_delete_team('rocket'));
+    expectArgs(del, { name: 'rocket' });
+  });
+
+  // ----- schedule (Phase 1 item 2) -----
+
+  it('reflect_list_schedules / get_schedule_status have no args', async () => {
+    const list = await captureCmd('reflect_list_schedules', () => reflect_list_schedules());
+    expectArgs(list, undefined);
+
+    const status = await captureCmd('reflect_get_schedule_status', () =>
+      reflect_get_schedule_status(),
+    );
+    expectArgs(status, undefined);
+  });
+
+  it('reflect_add_schedule forwards { schedule, prompt, name } with null default', async () => {
+    const minimal = await captureCmd('reflect_add_schedule', () =>
+      reflect_add_schedule({ schedule: '0 * * * *', prompt: 'standup' }),
+    );
+    expectArgs(minimal, { schedule: '0 * * * *', prompt: 'standup', name: null });
+
+    const full = await captureCmd('reflect_add_schedule', () =>
+      reflect_add_schedule({ schedule: '0 9 * * 1-5', prompt: 'p', name: 'weekday' }),
+    );
+    expectArgs(full, { schedule: '0 9 * * 1-5', prompt: 'p', name: 'weekday' });
+  });
+
+  it('reflect_update_schedule forwards { id, schedule, prompt, name, enabled } with null defaults', async () => {
+    const args = await captureCmd('reflect_update_schedule', () =>
+      reflect_update_schedule({ id: 'job-1', enabled: false }),
+    );
+    expectArgs(args, {
+      id: 'job-1',
+      schedule: null,
+      prompt: null,
+      name: null,
+      enabled: false,
+    });
+  });
+
+  it('reflect_remove_schedule forwards { id }', async () => {
+    const args = await captureCmd('reflect_remove_schedule', () =>
+      reflect_remove_schedule('job-1'),
+    );
+    expectArgs(args, { id: 'job-1' });
+  });
+
+  // ----- agents (Phase 1 item 3) -----
+
+  it('reflect_list_agent_defs has no args', async () => {
+    const args = await captureCmd('reflect_list_agent_defs', () => reflect_list_agent_defs());
+    expectArgs(args, undefined);
+  });
+
+  it('reflect_get_agent_def / delete_agent_def forward { name }', async () => {
+    const get = await captureCmd('reflect_get_agent_def', () => reflect_get_agent_def('reviewer'));
+    expectArgs(get, { name: 'reviewer' });
+
+    const del = await captureCmd('reflect_delete_agent_def', () =>
+      reflect_delete_agent_def('reviewer'),
+    );
+    expectArgs(del, { name: 'reviewer' });
+  });
+
+  it('reflect_save_agent_def forwards { def }', async () => {
+    const def = {
+      name: 'reviewer',
+      description: 'd',
+      spawnable: false,
+      readonly: true,
+      tools: [],
+      disallowed_tools: [],
+      model: null,
+      max_turns: null,
+      max_result_chars: null,
+      memory: [],
+      mcp_collections: [],
+      system_prompt: 'body',
+    };
+    const args = await captureCmd('reflect_save_agent_def', () => reflect_save_agent_def(def));
+    expectArgs(args, { def });
+  });
+
+  it('reflect_parse_agent_md forwards { text }', async () => {
+    const args = await captureCmd('reflect_parse_agent_md', () =>
+      reflect_parse_agent_md('---\nname: x\ndescription: y\n---\nbody'),
+    );
+    expectArgs(args, { text: '---\nname: x\ndescription: y\n---\nbody' });
+  });
+
+  // ----- side-channel (Phase 2 item 1) -----
+
+  it('reflect_list_side_channels has no args; get forwards { id }', async () => {
+    const list = await captureCmd('reflect_list_side_channels', () =>
+      reflect_list_side_channels(),
+    );
+    expectArgs(list, undefined);
+
+    const get = await captureCmd('reflect_get_side_channel', () =>
+      reflect_get_side_channel('side-deadbeef'),
+    );
+    expectArgs(get, { id: 'side-deadbeef' });
+  });
+
+  it('reflect_start_side_channel forwards { agent_name, prompt }', async () => {
+    const args = await captureCmd('reflect_start_side_channel', () =>
+      reflect_start_side_channel({ agent_name: 'default', prompt: 'hello' }),
+    );
+    expectArgs(args, { agent_name: 'default', prompt: 'hello' });
+  });
+
+  it('reflect_cancel_side_channel forwards { id }', async () => {
+    const args = await captureCmd('reflect_cancel_side_channel', () =>
+      reflect_cancel_side_channel('side-deadbeef'),
+    );
+    expectArgs(args, { id: 'side-deadbeef' });
+  });
+
+  // ----- remote (Phase 2 item 2) -----
+
+  it('reflect_get_remote_config / get_remote_status / tailscale_status have no args', async () => {
+    const cfg = await captureCmd('reflect_get_remote_config', () => reflect_get_remote_config());
+    expectArgs(cfg, undefined);
+
+    const status = await captureCmd('reflect_get_remote_status', () =>
+      reflect_get_remote_status(),
+    );
+    expectArgs(status, undefined);
+
+    const ts = await captureCmd('reflect_tailscale_status', () => reflect_tailscale_status());
+    expectArgs(ts, undefined);
+  });
+
+  it('reflect_update_remote_config forwards { host, port, auth_token, auto_connect } with null defaults', async () => {
+    const minimal = await captureCmd('reflect_update_remote_config', () =>
+      reflect_update_remote_config({ host: 'node.tail.net' }),
+    );
+    expectArgs(minimal, {
+      host: 'node.tail.net',
+      port: null,
+      auth_token: null,
+      auto_connect: null,
+    });
+
+    const full = await captureCmd('reflect_update_remote_config', () =>
+      reflect_update_remote_config({
+        host: 'h',
+        port: 5555,
+        auth_token: 'secret',
+        auto_connect: true,
+      }),
+    );
+    expectArgs(full, {
+      host: 'h',
+      port: 5555,
+      auth_token: 'secret',
+      auto_connect: true,
+    });
+  });
+
+  it('reflect_tailscale_daemon_command_preview / start / stop / status have no args', async () => {
+    const cases: Array<[string, () => Promise<unknown>]> = [
+      ['reflect_tailscale_daemon_command_preview', reflect_tailscale_daemon_command_preview],
+      ['reflect_tailscale_daemon_start', reflect_tailscale_daemon_start],
+      ['reflect_tailscale_daemon_stop', reflect_tailscale_daemon_stop],
+      ['reflect_tailscale_daemon_status', reflect_tailscale_daemon_status],
+    ];
+    for (const [cmd, fn] of cases) {
+      const args = await captureCmd(cmd, fn);
+      expectArgs(args, undefined);
+    }
   });
 });

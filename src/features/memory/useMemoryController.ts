@@ -23,22 +23,17 @@ import { useAgentStore } from '@/stores/agentStore';
 export const MEMORY_QUERY_KEY = ['memory'] as const;
 const MEMORY_STALE_MS = 30_000;
 
-export type Scope = 'global' | 'project' | 'session' | 'all';
+export type Scope = 'user' | 'project' | 'all';
 
 export const SCOPE_LABELS: Record<string, string> = {
   all: 'All',
-  global: 'Global',
+  user: 'User',
   project: 'Project',
-  session: 'Session',
 };
 
-export const FILTERS: Scope[] = ['all', 'global', 'project', 'session'];
+export const FILTERS: Scope[] = ['all', 'user', 'project'];
 
-export const NEW_SCOPES: Array<'global' | 'project' | 'session'> = [
-  'global',
-  'project',
-  'session',
-];
+export const NEW_SCOPES: Array<'user' | 'project'> = ['user', 'project'];
 
 export interface MemoryCounts {
   all: number;
@@ -68,8 +63,8 @@ export interface MemoryController {
   // New-entry form state
   showForm: boolean;
   toggleShowForm: () => void;
-  newScope: 'global' | 'project' | 'session';
-  setNewScope: (s: 'global' | 'project' | 'session') => void;
+  newScope: 'user' | 'project';
+  setNewScope: (s: 'user' | 'project') => void;
   newKey: string;
   setNewKey: (v: string) => void;
   newValue: string;
@@ -92,7 +87,7 @@ export function useMemoryController(): MemoryController {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [newScope, setNewScope] = useState<'global' | 'project' | 'session'>('project');
+  const [newScope, setNewScope] = useState<'user' | 'project'>('project');
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
 

@@ -13,15 +13,9 @@ import type { ReflectSessionInfo } from '@/utils/commands';
 function makeSession(overrides: Partial<ReflectSessionInfo> = {}): ReflectSessionInfo {
   return {
     session_id: 'sess-' + Math.random().toString(36).slice(2, 8),
-    thread_id: 'thread-1',
     model: 'stub/test',
-    provider: 'local',
     started_at: new Date().toISOString(),
     message_count: 0,
-    tool_count: 0,
-    token_total: 0,
-    cwd: '/tmp',
-    display_name: undefined,
     ...overrides,
   };
 }
@@ -92,11 +86,11 @@ describe('bucketSessions', () => {
 });
 
 describe('displayTitle', () => {
-  it('returns display_name when set', () => {
-    expect(displayTitle({ session_id: 'abc', display_name: 'My chat' })).toBe('My chat');
+  it('returns the first 8 characters of the session_id', () => {
+    expect(displayTitle({ session_id: 'abcdef12-3456' })).toBe('abcdef12');
   });
 
-  it('falls back to id prefix', () => {
-    expect(displayTitle({ session_id: 'abcdef12-3456', display_name: undefined })).toBe('abcdef12');
+  it('returns full id when shorter than 8 chars', () => {
+    expect(displayTitle({ session_id: 'abc' })).toBe('abc');
   });
 });

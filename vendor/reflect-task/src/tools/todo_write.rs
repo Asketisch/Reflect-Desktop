@@ -1,6 +1,6 @@
 //! `TodoWrite` — V1 in-memory todo list,与 Task 系统(V2)并存。
 //!
-//! 镜像 Claude Code 的 `TodoWriteTool`:接受一个 todos 数组,每个 todo
+//! 接受一个 todos 数组,每个 todo
 //! 含 `content` + `status`(`pending` | `in_progress` | `completed`) +
 //! `activeForm`(可选)。工具把整个列表序列化到 `metadata.todos`,由
 //! `reflect-tui` 的 reducer(Phase 6)在 `EventMsg::ToolCallEnd` 时回填

@@ -1,6 +1,6 @@
 //! `Task` / `Team` 数据模型。
 //!
-//! 与 Claude Code 的 Task schema 对齐(`pending` / `in_progress` / `completed` /
+//! Task schema(`pending` / `in_progress` / `completed` /
 //! `deleted` 四态,`blocks` / `blockedBy` 双向依赖,`owner` 归属)。Team
 //! 文件采用 `team-lead@<team>` 作为 lead agent id 约定。
 //!

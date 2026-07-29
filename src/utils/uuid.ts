@@ -1,7 +1,5 @@
 /**
  * UUID / id 工具 —— 生成 + 解析。
- *
- * CodexMonitor 同名: `src/utils/keys.ts`
  */
 
 /** UUID v4 fallback。Tauri WebView2 / 现代浏览器 / Node 18+ 都有 crypto.randomUUID。 */

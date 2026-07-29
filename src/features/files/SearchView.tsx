@@ -3,8 +3,8 @@
  *
  * 通过后端 `reflect_search_files` 搜索工作区文本,跳过 .git / node_modules 等。
  *
- * 对标 CodexMonitor FileTreePanel 的 "search-as-you-type" —— 输入即查,
- * 200 hit 上限(可调),点击 hit 在目标文件打开(跳到 Files 视图 + 选中文件)。
+ * 输入即查(search-as-you-type),200 hit 上限(可调),
+ * 点击 hit 在目标文件打开(跳到 Files 视图 + 选中文件)。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
@@ -23,22 +23,35 @@ export function SearchView() {
   const [hits, setHits] = useState<ReflectFileSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [truncated, setTruncated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+  // Monotonic request token: out-of-order responses are dropped so a slow
+  // older query can never overwrite a fresher one.
+  const seqRef = useRef(0);
 
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) {
       setHits([]);
       setTruncated(false);
+      setError(null);
       return;
     }
+    const seq = ++seqRef.current;
     setLoading(true);
     try {
       const res = await reflect_search_files(trimmed, null, 200);
+      if (seq !== seqRef.current) return; // stale
       setHits(res?.hits ?? []);
       setTruncated(res?.truncated ?? false);
+      setError(null);
+    } catch (e) {
+      if (seq !== seqRef.current) return; // stale
+      setHits([]);
+      setTruncated(false);
+      setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (seq === seqRef.current) setLoading(false);
     }
   }, []);
 
@@ -88,7 +101,16 @@ export function SearchView() {
           </div>
         )}
 
-        {!loading && query && hits.length === 0 && (
+        {!loading && error && (
+          <EmptyState
+            size="sm"
+            icon={<Icon icon={Search} size={20} />}
+            title="Search failed"
+            description={error}
+          />
+        )}
+
+        {!loading && !error && query && hits.length === 0 && (
           <EmptyState
             size="sm"
             icon={<Icon icon={Search} size={20} />}

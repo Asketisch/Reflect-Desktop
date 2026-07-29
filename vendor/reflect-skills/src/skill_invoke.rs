@@ -11,7 +11,7 @@ use reflect_tools::{Tool, ToolContext, ToolError, ToolOutput};
 
 use crate::catalog::SkillsCatalog;
 
-/// Tool 名 —— Claude Code 兼容别名 `skill`。
+/// Tool 名 —— 兼容别名 `skill`。
 pub const SKILL_TOOL_NAME: &str = "skill";
 
 /// 通用技能调用工具。

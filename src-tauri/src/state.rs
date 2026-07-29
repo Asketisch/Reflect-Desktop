@@ -85,9 +85,11 @@ impl MinimalAgent {
         self.inner.model_spec.read().clone()
     }
 
-    /// 诊断接口:返回当前 workspace (供前端显示)。
-    pub fn workspace(&self) -> &PathBuf {
-        &self.inner.workspace
+    /// 诊断接口:返回当前 workspace (供前端显示)。优先返回运行时通过
+    /// `set_workspace` 设置的 override,fallback 到启动时的 cwd。
+    pub fn workspace(&self) -> PathBuf {
+        crate::workspace_state::WorkspaceState::get()
+            .unwrap_or_else(|| self.inner.workspace.clone())
     }
 
     /// 共享 config 只读句柄(settings 读写命令、热重载用)。
@@ -210,7 +212,7 @@ impl MinimalAgent {
             ready: thread_ready,
             has_model,
             model,
-            workspace: self.inner.workspace.display().to_string(),
+            workspace: self.workspace().display().to_string(),
             degraded_reason: self.inner.degraded_reason.lock().clone(),
         }
     }

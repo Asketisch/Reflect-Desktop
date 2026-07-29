@@ -17,9 +17,9 @@
 //!   不阻断整个 rehydrate)—— Review 2026-06-30 P1-2 修复前一行坏
 //!   就会让整文件不可用。
 //!
-//! ## 与 AIWorkFlow 的差异
+//! ## 设计说明
 //!
-//! AIWorkFlow 的 `SessionMemory` 是纯 RAM,重启即丢;本实现叠加 JSONL
+//! 上游的 `SessionMemory` 是纯 RAM,重启即丢;本实现叠加 JSONL
 //! 落盘,平衡"零 LLM 成本"和"重启可恢复"。
 
 use std::fs::OpenOptions;

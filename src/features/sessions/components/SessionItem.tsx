@@ -27,7 +27,7 @@ function SessionItemImpl({ session, active, onClick }: SessionItemProps) {
     >
       <div className={s.title}>{title || t('sidebar.untitled')}</div>
       <div className={s.meta}>
-        {session.message_count} msgs · {session.token_total} tok
+        {session.message_count} msgs
       </div>
     </button>
   );

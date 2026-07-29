@@ -1,4 +1,4 @@
-//! macOS dock badge —— ReflectDesktop 特有 (CodexMonitor 未实现)。
+//! macOS dock badge —— ReflectDesktop 特有。
 //!
 //! 通过 `objc2-app-kit` 直接调 `NSApplication.dockTile.badgeLabel`。
 //! 用法:

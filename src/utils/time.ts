@@ -1,7 +1,5 @@
 /**
  * Time 工具 —— 相对时间、格式化。
- *
- * CodexMonitor 同名: `src/utils/time.ts`
  */
 
 /** "30 minutes ago" / "2 days ago" / "just now"。 */

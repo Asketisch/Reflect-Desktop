@@ -12,7 +12,7 @@
 //! 保持外部 API 兼容(已落地的 11 个单测 + `register_except` 路径都引用
 //! `reflect_task::coordinator::INTERNAL_WORKER_TOOLS` / `build_worker_tool_registry`)。
 //!
-//! ## 镜像 Claude Code 的 `coordinatorMode` 行为
+//! ## Coordinator 模式行为契约
 //!
 //! Worker 不该被赋予 `TeamCreate` / `TeamDelete` —— 团队生命周期由
 //! coordinator 全权管理。`SyntheticOutput` 与 `send_message` 是反向通道
@@ -25,8 +25,8 @@ use reflect_tools::{ToolRegistry, ToolSource};
 
 /// Coordinator 自身拥有 / worker 必须排除的工具列表。
 ///
-/// 精确映射 Claude Code 的 `{TeamCreate, TeamDelete, SyntheticOutput,
-/// SendMessage}` —— 团队生命周期由 coordinator 全权管理,worker 不应
+/// 精确覆盖 `{TeamCreate, TeamDelete, SyntheticOutput, SendMessage}` ——
+/// 团队生命周期由 coordinator 全权管理,worker 不应
 /// 自行创建 / 删除团队,也不该向 coordinator 直接发消息。
 pub const INTERNAL_WORKER_TOOLS: &[&str] = &[
     "TeamCreate",
@@ -116,7 +116,7 @@ mod tests {
         assert!(!names.contains(&"TeamCreate".to_string()));
     }
 
-    /// 排除名单精确覆盖 4 个工具,与 Claude Code coordinator mode 契约一致。
+    /// 排除名单精确覆盖 4 个工具,与 coordinator mode 契约一致。
     #[test]
     fn internal_worker_tools_exact_set() {
         let expected = [

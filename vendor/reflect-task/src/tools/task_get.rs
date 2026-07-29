@@ -1,6 +1,6 @@
 //! `TaskGet` — 按 id 查单个任务的完整 JSON。
 //!
-//! 镜像 Claude Code 的 `TaskGetTool` —— 纯读,无副作用,无副作用钩子。
+//! 纯读,无副作用,无副作用钩子。
 //! 返回 `text` 给 LLM 一行概要 + `metadata.task` 完整结构。
 
 use std::sync::Arc;

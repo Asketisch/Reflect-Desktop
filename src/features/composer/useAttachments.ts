@@ -5,8 +5,6 @@
  * 在用户点 Send 时,把所有 pending items + 文本组成 `userInput(...)` submission。
  *
  * 不直接调 `reflect_*` —— 暴露 `items` + `text` 给 caller 自行组装。
- *
- * CodexMonitor 同名: `src/features/composer/hooks/useAttachments.ts`
  */
 import { useCallback, useState } from 'react';
 import type { UserInputItem } from '@/types/protocol';

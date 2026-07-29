@@ -16,11 +16,10 @@
 //! 每行一条 `{"text": ..., "created_at": ...}`,append-only + `sync_data()`
 //! 持久化。
 //!
-//! ## 与 AIWorkFlow / Claude Code 的差异
+//! ## 设计说明
 //!
-//! AIWorkFlow 的 `SessionMemory` 纯 RAM,Claude Code 的
-//! `SessionMemory/sessionMemory.ts` 用 LLM-fork 异步抽取 note;
-//! 本 crate 取**零成本 LLM-free 路径**(对齐 AIWorkFlow),但额外加
+//! 上游的 `SessionMemory` 纯 RAM,另一些上游实现用 LLM-fork 异步抽取 note;
+//! 本 crate 取**零成本 LLM-free 路径**,但额外加
 //! JSONL 落盘,平衡"零 LLM 成本"和"重启可恢复"两个目标。
 
 #![allow(clippy::derivable_impls)]

@@ -1,9 +1,8 @@
 //! `reflect_app_core::state` —— UI-agnostic RenderState 共享给 TUI 与 GUI。
 #![allow(missing_docs)]
 //!
-//! **B2-01 alignment**: 从 TUI `app.rs::RenderState` (~80 字段) 抽出对齐
-//! zcode/Codex Desktop 所需的全部 UI-agnostic 状态;`Default` 实现;无 IO;
-//! 不引用 ratatui/crossterm/tauri。
+//! **B2-01 alignment**: 从 TUI `app.rs::RenderState` (~80 字段) 抽出全部
+//! UI-agnostic 状态;`Default` 实现;无 IO;不引用 ratatui/crossterm/tauri。
 //!
 //! 设计原则:
 //! - 不引用 ratatui / crossterm / tauri(纯数据)
@@ -19,7 +18,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use reflect_protocol::{
-    AbortReason, AskUserQuestionEvent, EventMsg, PermissionMode, PlanId, RolloutRecord,
+    AbortReason, AskUserQuestionEvent, PermissionMode, PlanId, RiskLevel, RolloutRecord,
     RoutingEventKind, ThreadId, TurnId,
 };
 use serde::{Deserialize, Serialize};
@@ -251,6 +250,9 @@ pub struct PendingApproval {
     pub kind: ApprovalKind,
     pub tool_name: Option<String>,
     pub args_summary: Option<String>,
+    /// Optional risk level for permission-bubble approvals.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk: Option<RiskLevel>,
     pub turn_id: TurnId,
 }
 

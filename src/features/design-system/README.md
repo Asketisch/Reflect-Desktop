@@ -30,7 +30,7 @@ design-system/
 
 ## Primitives
 
-| Primitive | 用途 | 来自 CodexMonitor |
+| Primitive | 用途 | 源文件 |
 |---|---|---|
 | `Button` | 全局 button (primary/secondary/danger/ghost × sm/md) | `src/components/Button.tsx` |
 | `Toast` | 单条 toast (4 kinds + auto-dismiss) | `src/components/Toast.tsx` |

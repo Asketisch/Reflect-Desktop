@@ -15,7 +15,7 @@ use reflect_llm::{ChatMessage, ContentBlock, UserContent};
 /// 和未来按 kind 过滤 / 去重的能力。
 ///
 /// 顺序固定:`ActiveFiles` → `SubagentRegistry` → `SessionMemory`,
-/// 对齐 AIWorkFlow `_pre_loop_node` (graph.py:1257-1380) 的注入序列。
+/// 即 pre_loop 的注入序列。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetaKind {
     /// post-compact 自动重读的文件内容。
@@ -27,7 +27,7 @@ pub enum MetaKind {
 }
 
 impl MetaKind {
-    /// 单实例去重 key(对应 AIWorkFlow `_SINGLE_INSTANCE_META_TYPES`)。
+    /// 单实例去重 key。
     pub fn dedup_key(self) -> &'static str {
         match self {
             MetaKind::ActiveFiles => "active_files",

@@ -86,10 +86,16 @@ export function ModalShell({
         return;
       }
       if (e.key === 'Enter' && primaryAction) {
-        const active = document.activeElement;
+        const active = document.activeElement as HTMLElement | null;
         const tag = active?.tagName;
-        // 仅当焦点在 dialog 容器本身（非表单控件）时触发 primary。
-        if (active === dialog || (tag !== 'TEXTAREA' && tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'BUTTON' && active && dialog?.contains(active) === false)) {
+        // 仅当焦点在 dialog 容器本身（dialog 自身或非表单控件子元素）时
+        // 触发 primary。焦点跑出 dialog 时不接管,避免跨组件误提交。
+        const insideDialog = !!active && !!dialog && dialog.contains(active);
+        if (
+          insideDialog &&
+          (active === dialog ||
+            (tag !== 'TEXTAREA' && tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'BUTTON'))
+        ) {
           e.preventDefault();
           primaryAction.onClick();
         }

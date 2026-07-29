@@ -62,7 +62,6 @@
 | `docs/tui/` | 不改；TUI 保留 |
 | `docs/done/16-ui/` | 不改；GUI 工作流不进 done 管道 |
 | `docs/todo/` ← 21-gui 子目录 | 新增入口 |
-| `CLAUDE.md` | 不改 |
 | 根 `Cargo.toml` | 新增 workspace members `reflect-gui` + `reflect-app-core` |
 
 ---

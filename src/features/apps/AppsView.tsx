@@ -19,7 +19,6 @@ interface App {
 const STUB_APPS: App[] = [
   { id: 'vscode', name: 'VS Code', icon: AppWindow, connected: true, permissions: ['read_files', 'exec_command'] },
   { id: 'jetbrains', name: 'JetBrains', icon: AppWindow, connected: false, permissions: [] },
-  { id: 'cursor', name: 'Cursor', icon: AppWindow, connected: false, permissions: [] },
 ];
 
 export function AppsView() {

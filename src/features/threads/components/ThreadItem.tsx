@@ -63,7 +63,7 @@ export function ThreadItem({
         data-href={chatLinkFor(session)}
       >
         <div className={s.title}>
-          {session.display_name || session.session_id}
+          {session.session_id.slice(0, 8)}
         </div>
         <div className={s.meta}>
           {shortTimestamp(session.started_at)} · {session.message_count} msgs

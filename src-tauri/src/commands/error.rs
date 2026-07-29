@@ -46,4 +46,22 @@ impl From<reflect_config::ConfigError> for CommandError {
     }
 }
 
+impl From<reflect_task::TaskError> for CommandError {
+    fn from(e: reflect_task::TaskError) -> Self {
+        Self { msg: e.to_string() }
+    }
+}
+
+impl From<reflect_stream::cron::CronParseError> for CommandError {
+    fn from(e: reflect_stream::cron::CronParseError) -> Self {
+        Self { msg: e.to_string() }
+    }
+}
+
+impl From<reflect_agent_def::AgentDefError> for CommandError {
+    fn from(e: reflect_agent_def::AgentDefError) -> Self {
+        Self { msg: e.to_string() }
+    }
+}
+
 pub type CommandResult<T> = Result<T, CommandError>;

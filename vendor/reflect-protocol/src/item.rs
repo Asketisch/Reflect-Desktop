@@ -114,13 +114,13 @@ pub enum PermissionMode {
     /// `PlanModeGate` hook blanket-deny。
     Plan,
     /// 自动批准文件编辑类工具(`write` / `edit` / `delete`),其余
-    /// `Prompt` 工具仍走 approval modal(对齐 Claude Code acceptEdits)。
+    /// `Prompt` 工具仍走 approval modal(acceptEdits 语义)。
     AcceptEdits,
     /// 非阻塞 bubble 通知 + 自动批准:emit `PermissionBubble` 事件供
-    /// TUI 展示,不弹 blocking modal(对齐 Claude Code bubble)。
+    /// TUI 展示,不弹 blocking modal(bubble 语义)。
     Bubble,
-    /// 危险:静默跳过所有工具审批,不弹 modal、不发 bubble(对齐
-    /// Claude Code `bypass permissions`)。**不**影响 `ask_user` /
+    /// 危险:静默跳过所有工具审批,不弹 modal、不发 bubble(bypass
+    /// permissions 语义)。**不**影响 `ask_user` /
     /// `ask_user_question` 等主动索取人类输入的工具(那些仍会弹出)。
     Bypass,
 }
@@ -139,7 +139,7 @@ impl PermissionMode {
         }
     }
 
-    /// TUI `/mode` / Tab / Shift+Tab 的循环顺序,对齐 Claude Code 的
+    /// TUI `/mode` / Tab / Shift+Tab 的循环顺序,沿用
     /// `default → accept edits → plan → bypass permissions`。
     /// 循环 = `Auto→AcceptEdits→Plan→Bypass→Auto`。
     /// `Prompt | Deny | Bubble` 不进默认循环:从它们循环会落到 `Auto`
@@ -502,7 +502,7 @@ mod tests {
 
     #[test]
     fn permission_mode_ui_cycle_is_four_step() {
-        // 对齐 Claude Code: Auto → AcceptEdits → Plan → Bypass → Auto
+        // 循环顺序: Auto → AcceptEdits → Plan → Bypass → Auto
         assert_eq!(
             PermissionMode::Auto.next_in_ui_cycle(),
             PermissionMode::AcceptEdits
@@ -535,7 +535,7 @@ mod tests {
 
     #[test]
     fn bypass_auto_approves_all_tools() {
-        // Bypass 静默放行所有工具(对齐 Claude Code bypass permissions)。
+        // Bypass 静默放行所有工具(bypass permissions 语义)。
         for tool in ["bash", "write", "Edit", "delete", "read", "custom"] {
             assert!(
                 PermissionMode::Bypass.auto_approves_tool(tool),

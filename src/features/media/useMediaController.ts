@@ -103,7 +103,7 @@ export function useMediaController(): MediaController {
       const dataUrl = `data:image/png;base64,${b64}`;
       setLastScreenshot(dataUrl);
       // 推一条占位动作进历史(用 screenshot kind 复用渲染)。
-      const shot: ReflectComputerUseAction = { kind: 'screenshot' };
+      const shot: ReflectComputerUseAction = { kind: 'screenshot', params: null };
       setActionHistory((h) => [shot, ...h].slice(0, 20));
       setLastError(null);
       pushToast({ kind: 'success', message: 'Screenshot captured' });

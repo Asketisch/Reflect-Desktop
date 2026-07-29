@@ -139,7 +139,11 @@ export function useDictation(options: DictationOptions = {}): DictationState {
       if (final) {
         setFinalTranscript((prev) => `${prev ? `${prev} ` : ''}${final.trim()}`);
       }
-      setTranscript(`${finalTranscriptRef.current ? `${finalTranscriptRef.current} ` : ''}${final}${interim}`.trim());
+      // Read the ref (not the captured state) so the freshly-finalized
+      // segment is included in the very same render cycle's transcript.
+      setTranscript(
+        `${finalTranscriptRef.current ? `${finalTranscriptRef.current} ` : ''}${final}${interim}`.trim(),
+      );
     };
     recRef.current = rec;
     try {

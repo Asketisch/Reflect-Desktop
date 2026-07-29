@@ -12,15 +12,9 @@ const sample: SessionBucket[] = [
     sessions: [
       {
         session_id: 's1',
-        thread_id: 't1',
         model: 'stub/test',
-        provider: 'local',
         started_at: new Date().toISOString(),
         message_count: 2,
-        tool_count: 0,
-        token_total: 0,
-        cwd: '/tmp',
-        display_name: 'My chat',
       },
     ],
   },
@@ -81,7 +75,8 @@ describe('Sidebar', () => {
       />,
     );
     expect(screen.getByText('Now')).toBeDefined();
-    expect(screen.getByText('My chat')).toBeDefined();
+    // session_id "s1" → displayTitle yields the id prefix.
+    expect(screen.getByText('s1')).toBeDefined();
     expect(screen.getByText(/2 msgs/)).toBeDefined();
   });
 

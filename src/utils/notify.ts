@@ -1,7 +1,7 @@
 /**
  * useAgentNotifications —— 监听 agent 完成事件,触发声音 / 系统通知 / dock badge。
  *
- * 设计目标(对标 CodexMonitor `settings.notifications.*` + Sound toggle):
+ * 设计目标(对应 Settings 里的 `notifications.*` + Sound toggle):
  *   - 复用现有的 agent event 总线(`onReflectEvent`)。
  *   - agent 完成(`AgentMessage` 出现 + 不再有 `InProgress`)→ 播放"叮"。
  *   - 用户可在 Settings 切换声音开关 / 系统通知开关。

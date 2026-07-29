@@ -1,6 +1,6 @@
 //! `HookAbortSignal` — cooperative cancellation for hook + tool execution.
 //!
-//! Mirrors the claw-code `Arc<AtomicBool>` design (see
+//! Uses an `Arc<AtomicBool>` design (see
 //! `docs/tools-and-hooks.md §4.5`). The owning thread (e.g. `AgentThread`
 //! on Ctrl-C) calls [`HookAbortSignal::trigger`]; the `ToolExecutionQueue`
 //! polls [`HookAbortSignal::is_triggered`] between hook dispatches and

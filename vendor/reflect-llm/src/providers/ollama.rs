@@ -4,8 +4,7 @@
 //! - 拿到 `keep_alive` / `num_ctx` / `num_gpu` 等 Ollama 专属字段;
 //! - 真 `prompt_eval_count` / `eval_count` 直接从流末尾 `done:true`
 //!   chunk 拿到,无需借助 OpenAI 透传的 `prompt_tokens` / `completion_tokens`;
-//! - 原生 tool-call 格式(`arguments` 是 JSON object,不是字符串);
-//! - 与 codex `ollama` crate 行为一致。
+//! - 原生 tool-call 格式(`arguments` 是 JSON object,不是字符串)。
 //!
 //! 流形态:每行一个 JSON 对象,不是 SSE `data:` 前缀。`stream_ndjson`
 //! 用 `BufRead::lines()` 风格按 `\n` 切分,逐行 `serde_json::from_str`。

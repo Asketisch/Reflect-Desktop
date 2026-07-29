@@ -1,6 +1,6 @@
 //! Coordinator 模式 —— 把 `reflect-task` crate 升级为多 agent 协调中枢。
 //!
-//! v1.1.0 Phase 4 落地。镜像 Claude Code 的 `coordinatorMode` 行为契约:
+//! v1.1.0 Phase 4 落地。Coordinator 模式行为契约:
 //! - **启用开关**:`REFLECT_COORDINATOR_MODE` env var 或
 //!   `~/.reflect/config.toml` 的 `[coordinator] enabled = true`(config 优先)。
 //! - **System prompt**:`DEFAULT_COORDINATOR_PROMPT` 嵌入二进制,
@@ -8,7 +8,7 @@
 //! - **Worker 工具白名单**:`build_worker_tool_registry` 从父 registry
 //!   复制工具,排除 `INTERNAL_WORKER_TOOLS`(`TeamCreate` / `TeamDelete`
 //!   / `SyntheticOutput` / `send_message`)。
-//! - **Scratchpad**:`build_scratchpad_path` 沿用 Claude Code 格式
+//! - **Scratchpad**:`build_scratchpad_path` 沿用既有格式
 //!   `/tmp/reflect-<uid>/<sanitized-cwd>/<session_id>/scratchpad`,
 //!   session 启动期 `mkdir -p` 建好,SessionStart hook 触发。
 //!
@@ -89,8 +89,8 @@ pub fn validate_note_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// scratchpad 路径前缀的 `reflect-{id}` 部分 —— 镜像 Claude Code 的
-/// `claude-{uid}` 路径格式,但避免引入 `libc` / `nix` 依赖:`std` 已暴露
+/// scratchpad 路径前缀的 `reflect-{id}` 部分 —— 沿用
+/// `reflect-{uid}` 路径格式,但避免引入 `libc` / `nix` 依赖:`std` 已暴露
 /// `process::id()` (PID),跨用户隔离由 `$TMPDIR` / `/tmp` 自身的
 /// per-user 权限位(700 模式)保证,PID 已足够在同一用户下区分多 session。
 ///
@@ -225,7 +225,7 @@ impl CoordinatorConfig {
 // spawn 时调用的白名单逻辑搬到 spawn 所在 crate,避免 `reflect-subagent`
 // 反向依赖 `reflect-task`(后者已依赖前者)。
 
-/// 构造 scratchpad 路径 —— 镜像 Claude Code 格式
+/// 构造 scratchpad 路径 —— 沿用既有格式
 /// `/tmp/reflect-<uid>/<sanitized-cwd>/<session_id>/scratchpad`。
 ///
 /// `cwd` 用作 namespace(同一 workspace 不同 session 共享一组 scratchpads);

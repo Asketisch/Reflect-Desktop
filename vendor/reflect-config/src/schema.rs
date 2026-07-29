@@ -408,7 +408,7 @@ pub struct OllamaSubagentSection {
 
 // ── v1.1.0 Phase 4:Coordinator 模式配置段 ──────────────────────
 
-/// v1.1.0 Phase 4:`[coordinator]` 段镜像 —— 镜像 Claude Code 的
+/// v1.1.0 Phase 4:`[coordinator]` 段 ——
 /// `coordinatorMode` 行为契约。
 ///
 /// TOML 形态:
@@ -509,7 +509,7 @@ pub struct AskUserQuestionSection {
     #[serde(default)]
     pub max_options: Option<u8>,
     /// 默认超时(秒)。`0` = 永不超时(等用户主动回执或 cancel)。
-    /// `None` 走默认 900 秒(15 分钟,与 Claude Code 对齐)。
+    /// `None` 走默认 900 秒(15 分钟)。
     #[serde(default)]
     pub default_timeout_secs: Option<u64>,
 }
@@ -959,7 +959,7 @@ pub struct LspFilePattern {
 /// ```toml
 /// [plugins.marketplaces.official]
 /// type = "github"
-/// repo = "anthropics/claude-plugins-official"
+/// repo = "reflect-cli/official-plugins"
 /// auto_update = true
 /// ```
 #[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1011,11 +1011,11 @@ pub enum PluginMarketplaceKind {
 /// TOML 形态:
 /// ```toml
 /// [plugins]
-/// enabled_plugins = ["code-formatter@anthropic-tools", "local-plugin@inline"]
+/// enabled_plugins = ["code-formatter@sample-tools", "local-plugin@inline"]
 ///
 /// [plugins.marketplaces.official]
 /// type = "github"
-/// repo = "anthropics/claude-plugins-official"
+/// repo = "reflect-cli/official-plugins"
 /// auto_update = true
 ///
 /// [plugins.marketplaces.local-dev]
@@ -1365,11 +1365,11 @@ mod tests {
     fn plugins_section_parses_enabled_and_marketplaces() {
         let toml = r#"
             [plugins]
-            enabled_plugins = ["code-formatter@anthropic-tools", "local@inline"]
+            enabled_plugins = ["code-formatter@sample-tools", "local@inline"]
 
             [plugins.marketplaces.official]
             type = "github"
-            repo = "anthropics/claude-plugins-official"
+            repo = "reflect-cli/official-plugins"
             auto_update = true
 
             [plugins.marketplaces.local-dev]
@@ -1378,14 +1378,14 @@ mod tests {
         "#;
         let cfg: ReflectConfig = toml::from_str(toml).unwrap();
         assert_eq!(cfg.plugins.enabled_plugins.len(), 2);
-        assert!(cfg.plugins.is_enabled("code-formatter@anthropic-tools"));
+        assert!(cfg.plugins.is_enabled("code-formatter@sample-tools"));
         assert!(cfg.plugins.is_enabled("local@inline"));
         assert!(!cfg.plugins.is_enabled("ghost@nowhere"));
         let official = cfg.plugins.marketplaces.get("official").unwrap();
         assert_eq!(official.kind, PluginMarketplaceKind::Github);
         assert_eq!(
             official.repo.as_deref(),
-            Some("anthropics/claude-plugins-official")
+            Some("reflect-cli/official-plugins")
         );
         assert!(official.auto_update);
         let local = cfg.plugins.marketplaces.get("local-dev").unwrap();

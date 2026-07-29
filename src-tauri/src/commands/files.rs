@@ -170,7 +170,7 @@ pub async fn reflect_read_file(
     agent: State<'_, MinimalAgent>,
     path: String,
 ) -> CommandResult<FileReadResult> {
-    let resolved = resolve_under_workspace(agent.workspace(), &path)?;
+    let resolved = resolve_under_workspace(&agent.workspace(), &path)?;
     let meta = std::fs::metadata(&resolved).map_err(CommandError::from)?;
     if !meta.is_file() {
         return Err(CommandError {

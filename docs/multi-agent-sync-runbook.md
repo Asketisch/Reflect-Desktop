@@ -1,6 +1,6 @@
 # Multi-Agent / Vendor Sync Runbook
 
-> Canonical checklist for syncing `vendor/reflect-*` from upstream `Reflect-Agent`. Mirrors CodexMonitor's `docs/multi-agent-sync-runbook.md`.
+> Canonical checklist for syncing `vendor/reflect-*` from upstream `Reflect-Agent`.
 
 ## When to sync
 

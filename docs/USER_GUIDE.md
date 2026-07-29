@@ -32,11 +32,11 @@ bash scripts/install.sh
 
 ## 3. What you get in M1.x
 
-> ReflectDesktop follows a feature-sliced layout mirroring CodexMonitor's
-> `src/features/` (24 slices: about / app / apps / collaboration / composer
-> / debug / design-system / dictation / files / git / home / layout /
-> messages / mobile / models / notifications / plan / prompts / settings /
-> shared / skills / terminal / threads / update / workspaces).
+> ReflectDesktop 采用 feature-sliced 布局，`src/features/` 下 24 个 slices:
+> about / app / apps / collaboration / composer / debug / design-system
+> / dictation / files / git / home / layout / messages / mobile / models
+> / notifications / plan / prompts / settings / shared / skills / terminal
+> / threads / update / workspaces.
 
 In M1.x, the active slices are:
 

@@ -38,8 +38,8 @@ pub const TRUNCATABLE_TOOL_NAMES: &[&str] = &[
 /// no-op. Matches reflect `microcompact_trigger_ratio = 0.7`.
 pub const MICROCOMPACT_TRIGGER_RATIO: f32 = 0.7;
 
-/// Default `keep_recent` window for microcompact. M5 v0: aligned with claw
-/// (`4`) for tight per-turn context; the prior M4 default was 30 (reflect).
+/// Default `keep_recent` window for microcompact. M5 v0: set to `4`
+/// for tight per-turn context; the prior M4 default was 30 (reflect).
 pub const KEEP_RECENT_DEFAULT: usize = 4;
 
 /// Placeholder inserted in place of truncatable tool results.

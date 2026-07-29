@@ -1,4 +1,4 @@
-//! 全局快捷键 (ReflectDesktop 特有 —— CodexMonitor 无此功能)。
+//! 全局快捷键 (ReflectDesktop 特有)。
 //!
 //! 用 `tauri-plugin-global-shortcut` 注册应用前台+后台均可触发的快捷键。
 //! 默认注册一项:Cmd+Shift+Space (macOS) / Ctrl+Shift+Space (其他) 切换主窗口
@@ -14,7 +14,12 @@ use tauri_plugin_global_shortcut::{
 /// 注册所有全局快捷键。在 Tauri setup 阶段调用一次。
 pub fn register_global_shortcuts<R: Runtime>(app: &AppHandle<R>) -> anyhow::Result<()> {
     let gs = app.global_shortcut();
-    let toggle = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Space);
+    // macOS → Cmd (SUPER), Linux/Windows → Ctrl.
+    #[cfg(target_os = "macos")]
+    let modifiers = Modifiers::SUPER | Modifiers::SHIFT;
+    #[cfg(not(target_os = "macos"))]
+    let modifiers = Modifiers::CONTROL | Modifiers::SHIFT;
+    let toggle = Shortcut::new(Some(modifiers), Code::Space);
 
     gs.on_shortcut(toggle, move |app, _shortcut, event| {
         if event.state == ShortcutState::Pressed {
@@ -22,7 +27,11 @@ pub fn register_global_shortcuts<R: Runtime>(app: &AppHandle<R>) -> anyhow::Resu
         }
     })?;
 
-    tracing::info!("[reflect-gui] global shortcut registered: Cmd+Shift+Space (toggle main window)");
+    #[cfg(target_os = "macos")]
+    let label = "Cmd+Shift+Space";
+    #[cfg(not(target_os = "macos"))]
+    let label = "Ctrl+Shift+Space";
+    tracing::info!("[reflect-gui] global shortcut registered: {label} (toggle main window)");
     Ok(())
 }
 

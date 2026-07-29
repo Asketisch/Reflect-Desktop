@@ -1,6 +1,6 @@
 //! 应用菜单 (macOS 顶栏 / Windows 菜单栏 / Linux app menu)。
 //!
-//! 设计参考 CodexMonitor `src-tauri/src/menu.rs:63-325`：
+//! 菜单结构：
 //! - `enable_macos_default_menu(false)` 关闭 Tauri 默认菜单;
 //! - 5 个 submenu: Reflect / Edit / Composer / View / Window;
 //! - 每个菜单项 click → `app.emit("menu-<id>", ())` 通知前端,

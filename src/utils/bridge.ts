@@ -1,11 +1,8 @@
 /**
  * Tauri IPC bridge primitives —— `invoke` / `listen` + fallback。
  *
- * CodexMonitor 同名: `src/services/tauri.ts::invoke` / `listen`
- *
  * 在脱离 Tauri 上下文（浏览器 preview / Storybook / 测试）时静默 fallback
- * 到 `undefined` / noop unlisten。匹配 CodexMonitor 的
- * `isMissingTauriInvokeError` 守卫。
+ * 到 `undefined` / noop unlisten，通过 `isMissingTauriInvokeError` 守卫识别。
  */
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { listen as tauriListen, type UnlistenFn } from '@tauri-apps/api/event';

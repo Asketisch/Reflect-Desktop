@@ -1,8 +1,6 @@
 /**
  * Session bucket 工具 —— 时间分桶规则。
  *
- * CodexMonitor 同名文件: `src/features/threads/utils/sessionBuckets.ts`。
- *
  * 纯函数，便于测试与跨 feature 复用。
  */
 import type { ReflectSessionInfo } from '@/utils/commands';
@@ -55,7 +53,7 @@ export function bucketSessions(sessions: ReflectSessionInfo[], now: number = Dat
   }));
 }
 
-/** 解析显示名(display_name 优先,否则 id 前 8 字符)。 */
-export function displayTitle(session: Pick<ReflectSessionInfo, 'session_id' | 'display_name'>): string {
-  return session.display_name ?? session.session_id.slice(0, 8);
+/** 解析显示名(后端 `SessionInfo` 只有 `session_id`,所以固定用 id 前 8 字符)。 */
+export function displayTitle(session: Pick<ReflectSessionInfo, 'session_id'>): string {
+  return session.session_id.slice(0, 8);
 }

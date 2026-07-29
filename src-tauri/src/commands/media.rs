@@ -5,8 +5,7 @@
 
 use reflect_app_core::media::{
     scan_dir_for_assets, BackendCapability, ComputerBackend, ComputerUseAction, ImageBackend,
-    ImageProcessResult, ImageProcessSpec, MediaAsset, MediaError, MetadataOnlyBackend,
-    UnavailableComputerBackend,
+    ImageProcessResult, ImageProcessSpec, MediaAsset, MediaError,
 };
 use tauri::State;
 
@@ -73,14 +72,6 @@ pub async fn reflect_media_capabilities() -> CommandResult<MediaCapabilities> {
             _ => "backends unavailable in this environment".into(),
         },
     })
-}
-
-// `MetadataOnlyBackend` / `UnavailableComputerBackend` 仍保留供测试 + 离线场景,
-// 这里显式 reference 防止 unused-imports 警告。
-#[allow(dead_code)]
-fn _force_keep_alive_defaults() {
-    let _ = MetadataOnlyBackend::new();
-    let _ = UnavailableComputerBackend::new();
 }
 
 /// 能力描述摘要。

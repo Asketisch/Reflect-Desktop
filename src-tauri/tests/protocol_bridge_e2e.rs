@@ -123,8 +123,22 @@ async fn interrupt_token_cancels_in_flight_turn() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread();
     let _ = agent.subscribe_session();
+    // Before interrupt: token is not cancelled.
+    let token_before = {
+        let guard = agent.inner.thread.lock();
+        guard.as_ref().map(|t| t.cancel_token().clone())
+    };
+    assert!(
+        token_before.as_ref().map_or(false, |t| !t.is_cancelled()),
+        "cancel token should start uncancelled"
+    );
     agent.interrupt();
-    agent.interrupt(); // idempotent
+    agent.interrupt(); // idempotent: second call is a no-op
+    let token_after = token_before.expect("thread installed");
+    assert!(
+        token_after.is_cancelled(),
+        "cancel token must be cancelled after interrupt()"
+    );
 }
 
 #[tokio::test]
@@ -154,6 +168,19 @@ async fn broadcast_supports_multiple_subscribers() {
 #[tokio::test]
 async fn model_spec_and_workspace_accessors() {
     let agent = MinimalAgent::new_empty();
-    assert_eq!(agent.model_spec(), "stub/test");
-    assert!(agent.workspace().is_absolute() || agent.workspace().as_os_str().len() > 0);
+    assert_eq!(agent.model_spec(), "stub/test", "default model is stub/test");
+    let ws = agent.workspace();
+    assert!(
+        ws.is_absolute() || !ws.as_os_str().is_empty(),
+        "workspace should be a non-empty absolute path or at least a real path"
+    );
+    // After set_workspace, the accessor must reflect the override, not the
+    // original cwd captured at startup.
+    let original = ws.clone();
+    let override_path = std::path::PathBuf::from("/tmp/reflect-workspace-override-test");
+    std::fs::create_dir_all(&override_path).expect("create override dir");
+    agent.set_workspace(override_path.clone());
+    assert_eq!(agent.workspace(), override_path);
+    agent.set_workspace(original); // restore
+    let _ = std::fs::remove_dir(&override_path);
 }

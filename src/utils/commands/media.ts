@@ -36,7 +36,7 @@ export interface ReflectImageProcessResult {
 }
 
 export type ReflectComputerUseAction =
-  | { kind: 'screenshot' }
+  | { kind: 'screenshot'; params: null }
   | { kind: 'mouseMove'; params: { x: number; y: number } }
   | { kind: 'mouseClick'; params: { x: number; y: number; button?: string } }
   | { kind: 'keyType'; params: { text: string } }
