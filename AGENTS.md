@@ -18,12 +18,12 @@ ReflectDesktop is a Tauri 2 + React 19 desktop GUI for the Reflect Agent.
 
 - Frontend: React 19 + Vite + TanStack Router/Query (`src/`)
 - Backend app: Tauri Rust process (`src-tauri/src/lib.rs`)
-- Vendor mirror: read-only mirror of `reflect-*` crates under `vendor/`, kept in sync via `scripts/vendor-sync.sh`
+- Submodule: `reflect-*` 核心 crate 通过 git submodule 复用(见 `reflect-agent/`),升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
 - Shared app-core: `app-core/` (UI-agnostic reducer/state, shared with future Tauri shims)
 
 ## Non-Negotiable Architecture Rules
 
-1. Put shared/domain backend logic in `app-core/` and `vendor/reflect-*` first.
+1. Put shared/domain backend logic in `app-core/` and `reflect-agent/crates/reflect-*` first.
 2. The Tauri app is a thin adapter around `reflect_core::AgentThread`.
 3. Do not duplicate logic between TUI and GUI; both consume the same `reflect-protocol` envelope.
 4. Keep Tauri command names and payload shapes stable unless intentionally changing contracts.
@@ -33,7 +33,7 @@ ReflectDesktop is a Tauri 2 + React 19 desktop GUI for the Reflect Agent.
 
 For backend behavior changes, follow this order:
 
-1. Vendor crates (`vendor/reflect-*`) — preferred for cross-runtime logic. If the change belongs upstream, sync via `scripts/vendor-sync.sh` first.
+1. Core crates (`reflect-agent/crates/reflect-*`,via submodule) — preferred for cross-runtime logic. If the change belongs upstream,改 Reflect-Agent 仓库并升级 submodule(见 `SUBMODULE.md`)。
 2. App adapter and Tauri command surface (`src-tauri/src/lib.rs` + `commands/mod.rs`).
 3. Frontend IPC wrapper (`src/utils/commands/{domain}.ts`).
 4. If you add a backend command, update all relevant layers + tests + `docs/PROTOCOL_BRIDGE.md` + `docs/CHANGELOG.md`.
@@ -68,7 +68,7 @@ Use project aliases for frontend imports (defined in `tsconfig.json` + `vite.con
 - App state support modules (kept under `src-tauri/src/`): `state.rs`, `dock.rs`, `events.rs`, `mcp.rs`, `menu.rs`, `tray.rs`, `shortcut.rs`, plus private helpers `hook_store.rs`, `memory_store.rs`, `shell_sessions.rs`, `workspace_state.rs`.
 - Tauri command surface: `src-tauri/src/commands/mod.rs` — thin barrel that re-exports the per-domain modules under `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` and the shared `error.rs` (defines `CommandError` / `CommandResult`).
 - Cargo workspace: `Cargo.toml` (root) + `src-tauri/Cargo.toml`
-- Vendor mirror: `vendor/reflect-*/` (mirror, do not edit directly)
+- Submodule 核心: `reflect-agent/crates/reflect-*/` (只读镜像,不要直接改 —— 改 Reflect-Agent 仓库并升级 submodule)
 
 For broader path maps, use `docs/codebase-map.md`.
 
@@ -126,7 +126,7 @@ Use existing design tokens (`src/styles/tokens.css`, dark-first with light/syste
 - If unrelated changes appear, continue focusing on owned files unless they block correctness.
 - If conflicts impact correctness, call them out and choose the safest path.
 - Fix root cause, not band-aids.
-- **Vendor mirror**: never edit `vendor/reflect-*` directly — use `scripts/vendor-sync.sh`.
+- **Submodule 核心**: 不要直接改 `reflect-agent/crates/reflect-*`;改 Reflect-Agent 仓库后用 `git submodule update --remote` 升级(见 `SUBMODULE.md`)。
 
 ## Validation Matrix
 
@@ -157,13 +157,16 @@ pnpm tauri build --bundles app  # macOS .app only
 bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ReflectDesktop.app
 ```
 
-Vendor sync (when Reflect-Agent exports a new release):
+Submodule 升级(当 Reflect-Agent 发布新版本时,详见 [`SUBMODULE.md`](SUBMODULE.md)):
 
 ```bash
-bash scripts/vendor-sync.sh /Users/admin/Code/CNB/Reflect-Agent main
-git diff --stat vendor/
-git add vendor/ && git commit -m "sync vendor: <reason>"
+git submodule update --remote reflect-agent
+git diff --submodule reflect-agent
+git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
 ```
+
+> 历史:本仓库曾用 `vendor/` + `scripts/vendor-sync.sh`(rsync 手动同步)复用核心 crate,
+> 已迁移为 git submodule。旧的 vendor runbook 不再适用。
 
 Focused test runs:
 
@@ -194,7 +197,7 @@ If a future production entry needs to exceed 500 LoC, document the rationale her
 - `src/utils/i18n.ts` — compatibility barrel; runtime split into `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` and `src/utils/i18n/strings/index.ts` merging domain catalogs under `src/utils/i18n/strings/{about,app,apps,chat,collaboration,common,composer,debug,design,dictation,files,git,home,inspector,memory,mobile,modal,models,notifications,palette,permissionMode,plan,prompts,settings,shell,sidebar,skills,slash,terminal,threads,toast,update,workspaces}.ts`.
 - `src/router.tsx` — TanStack Router route table.
 - `src/styles/tokens.css` — design tokens; dark/light/system themes — single source of truth.
-- `scripts/vendor-sync.sh` — CRATES list controls which vendor crates sync.
+- `scripts/vendor-sync.sh` — **已移除**(vendor 模式已迁移为 submodule)。核心升级见 `SUBMODULE.md`。
 - View/controller split: `src/features/terminal/TerminalView.tsx` reads from `src/features/terminal/useTerminalController.ts`; `src/features/memory/MemoryView.tsx` reads from `src/features/memory/useMemoryController.ts`; `src/features/modals/index.tsx` orchestrates `ApprovalModal` / `QuestionModal` / `AskUserModal` / `PlanReadyModal` whose bodies live alongside it.
 
 ## Canonical References

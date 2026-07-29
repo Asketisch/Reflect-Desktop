@@ -1,0 +1,78 @@
+# Reflect-Agent Submodule 复用指南
+
+本仓库(ReflectDesktop)通过 **git submodule** 复用 [Reflect-Agent](https://cnb.cool/Demon1019/Reflect-Agent) 的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
+
+> 历史:ReflectDesktop 之前用 `vendor/` 目录 + `scripts/vendor-sync.sh`(rsync 手动同步 21 个 crate)。该方式无版本指针、同步易漂移,已于本次重构迁移为 git submodule。
+
+## 架构原理
+
+```
+ReflectDesktop (本仓库,workspace 消费端)
+  ├─ app-core/        (Desktop 自有:UI 无关应用层,reducer / RenderState / Services)
+  ├─ src-tauri/       (Tauri 后端,嵌入 reflect_core::AgentThread)
+  └─ reflect-agent/   (submodule → Reflect-Agent 仓库)
+       └─ crates/{protocol,abilities,resources,orchestration,integrations,runtime}/reflect-*
+```
+
+**关键约束**:Cargo 不支持嵌套 workspace。本仓库**不**把核心 crate 列入 `workspace.members`,而是用 `path` 依赖引用(`reflect-core = { path = "reflect-agent/crates/runtime/reflect-core" }`)。
+
+⚠️ 核心 crate 用 `workspace = true` 继承依赖,会解析到**本仓库**根 `workspace.dependencies`。因此 `[workspace.dependencies]` 必须完整声明核心 crate 引用的全部 reflect-* 与外部依赖。
+
+## 日常操作
+
+### 克隆(带 submodule)
+
+```bash
+git clone --recursive https://cnb.cool/Demon1019/Reflect-Desktop.git
+```
+
+### 已克隆仓库初始化
+
+```bash
+git submodule update --init --recursive
+```
+
+### 升级核心到最新
+
+```bash
+git submodule update --remote reflect-agent
+git diff --submodule reflect-agent
+git add reflect-agent
+git commit -m "chore: bump reflect-agent submodule"
+```
+
+### 本地联调核心改动
+
+```bash
+# 改核心 → push → 本仓库 pull
+cd ../Reflect-Agent
+# ... 改代码 ...
+git push
+cd ../ReflectDesktop
+git submodule update --remote reflect-agent
+```
+
+### 升级核心后的适配检查
+
+核心升级可能引入协议/结构变更。若 `cargo check` 报错,常见适配点:
+
+- `EventMsg` 新增 variant → `app-core/src/reducer/mod.rs` 和 `src-tauri/src/state/activity.rs` 的 match 补全
+- `Op` 变体形态变更 → `app-core/src/protocol.rs` 的构造函数适配
+- `AgentDefinition` 字段变更 → `src-tauri/src/commands/agents.rs` 适配
+
+## 当前 submodule 指针
+
+```
+reflect-agent → 分支 refactor/split-tui-and-bootstrap
+```
+
+合并到 Reflect-Agent main 后,应将 submodule 指向 main。
+
+## 旧 vendor 模式迁移记录
+
+本次迁移(vendor → submodule)顺带修复的版本漂移:
+- 移除 `reflect-async-graph` 死声明(该 crate 在 Reflect-Agent 已不存在)
+- `Op::Interrupt` 升级为 struct variant `{ child_id }`
+- `Op::PlanApproval` 字段 `decision` → `choice`(类型 `PlanApprovalChoice`)
+- `EventMsg` 新增 `PlanStep` / `PluginLoaded` / `QuotaExhausted`
+- `AgentDefinition` 移除 `max_result_chars` 字段
