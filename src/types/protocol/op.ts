@@ -15,6 +15,7 @@ import type {
   ApprovalPolicy,
   ReasoningEffort,
   ReviewDecision,
+  PlanApprovalChoice,
   SandboxPolicy,
   PermissionMode,
 } from './enums';
@@ -60,7 +61,7 @@ export type ReflectSubmissionOp =
   | { type: 'hook_approval'; id: string; decision: ReviewDecision }
   | { type: 'enter_plan_mode'; task: string }
   | { type: 'exit_plan_mode' }
-  | { type: 'plan_approval'; id: string; decision: ReviewDecision }
+  | { type: 'plan_approval'; id: string; choice: PlanApprovalChoice }
   | { type: 'set_effort'; effort: ReasoningEffort }
   | { type: 'ask_user_question_response'; id: string; answers: AskUserAnswer }
   | { type: 'ask_user_input_response'; id: string; text: string }

@@ -1,10 +1,16 @@
 /**
  * Plan —— Plan mode viewer + approval workflow（CSS Modules 版）。
+ *
+ * Plan 审批三选一(对齐 `reflect_protocol::PlanApprovalChoice`):
+ *   - Auto Mode(auto_mode):切到 AcceptEdits,自动批准编辑/写入类。
+ *   - Manual Approve(manual_approve):切到 Prompt,逐工具审批(旧行为)。
+ *   - Revise(revise):留在 plan 模式,用户输入反馈继续 plan。
  */
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ClipboardList, Check, X } from 'lucide-react';
+import { ClipboardList, Check, Pencil, Zap } from 'lucide-react';
 import { reflect_plan_approval } from '@/utils/commands';
+import type { PlanApprovalChoice } from '@/utils/types';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Button, Icon, EmptyState } from '@/features/design-system';
 import s from './PlanView.module.css';
@@ -31,18 +37,14 @@ export function PlanView() {
   const [plans, setPlans] = useState<PlanEvent[]>(STUB_PLANS);
   const qc = useQueryClient();
 
-  const approveMutation = useMutation({
-    mutationFn: async (id: string) => reflect_plan_approval(id, 'approve'),
-    onSuccess: (_, id) => {
-      setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'approved' as const } : p)));
-      qc.invalidateQueries({ queryKey: ['plan'] });
-    },
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: async (id: string) => reflect_plan_approval(id, { deny: { reason: 'rejected by user' } }),
-    onSuccess: (_, id) => {
-      setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'rejected' as const } : p)));
+  // 统一的 plan 审批 mutation:接收 PlanApprovalChoice 三选一。
+  const planApprovalMutation = useMutation({
+    mutationFn: async ({ id, choice }: { id: string; choice: PlanApprovalChoice }) =>
+      reflect_plan_approval(id, choice),
+    onSuccess: (_, { id, choice }) => {
+      // auto_mode / manual_approve 视为「通过」(切到对应 mode);revise 视为「打回修改」。
+      const status: PlanEvent['status'] = choice === 'revise' ? 'rejected' : 'approved';
+      setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
       qc.invalidateQueries({ queryKey: ['plan'] });
     },
   });
@@ -87,22 +89,31 @@ export function PlanView() {
               {plan.status === 'pending' && (
                 <div className={s.actions}>
                   <Button
-                    variant="danger"
+                    variant="primary"
                     size="sm"
-                    onClick={() => rejectMutation.mutate(plan.id)}
-                    loading={rejectMutation.isPending}
-                    leftIcon={<Icon icon={X} size={14} />}
+                    onClick={() => planApprovalMutation.mutate({ id: plan.id, choice: 'auto_mode' })}
+                    loading={planApprovalMutation.isPending}
+                    leftIcon={<Icon icon={Zap} size={14} />}
                   >
-                    Reject
+                    Auto Mode
                   </Button>
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => approveMutation.mutate(plan.id)}
-                    loading={approveMutation.isPending}
+                    onClick={() => planApprovalMutation.mutate({ id: plan.id, choice: 'manual_approve' })}
+                    loading={planApprovalMutation.isPending}
                     leftIcon={<Icon icon={Check} size={14} />}
                   >
-                    Approve
+                    Manual Approve
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => planApprovalMutation.mutate({ id: plan.id, choice: 'revise' })}
+                    loading={planApprovalMutation.isPending}
+                    leftIcon={<Icon icon={Pencil} size={14} />}
+                  >
+                    Revise
                   </Button>
                 </div>
               )}

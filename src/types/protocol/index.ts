@@ -123,6 +123,7 @@ export type {
   RiskLevel,
   ReasoningEffort,
   ReviewDecision,
+  PlanApprovalChoice,
 } from './enums';
 
 // ----- Usage -----

@@ -41,6 +41,7 @@ const emptyState = (): AgentState => ({
   rewind: async () => {},
   shutdown: async () => {},
   approve: async () => {},
+  approvePlan: async () => {},
   enterPlanMode: async () => {},
   exitPlanMode: async () => {},
   setEffort: async () => {},
@@ -251,12 +252,13 @@ describe('reduceEvent — approval / ask_user / bubble', () => {
     expect(patch.pendingApprovals![0]).toMatchObject({ id: 'a1', kind: 'tool', toolName: 'Bash' });
   });
 
-  it('approval_request (plan kind) enqueues with kind=plan', () => {
+  it('approval_request (plan kind) 不进 pendingApprovals —— plan 走独立的 pendingPlan', () => {
     const patch = reduceEvent(
       emptyState(),
       ev('t1', { type: 'approval_request', request_id: 'a2', kind: { type: 'plan', plan_id: 'p1', summary: 'refactor' } }),
     );
-    expect(patch.pendingApprovals![0].kind).toBe('plan');
+    // plan 审批走 plan_ready 事件 + PlanReadyModal,不进 tool/hook 的 pendingApprovals。
+    expect(patch.pendingApprovals).toBeUndefined();
   });
 
   it('ask_user_question enqueues', () => {

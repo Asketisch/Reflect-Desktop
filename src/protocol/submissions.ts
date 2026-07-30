@@ -23,6 +23,7 @@ import {
   EVENT_ID_NONE,
   type AskUserAnswer,
   type PermissionMode,
+  type PlanApprovalChoice,
   type ReflectSubmission,
   type ReflectSubmissionOp,
   type ReasoningEffort,
@@ -128,13 +129,13 @@ export function hookApproval(
   return build({ type: 'hook_approval', id: id_, decision }, id);
 }
 
-/** `Op::PlanApproval` — approve / deny a plan markdown. */
+/** `Op::PlanApproval` — plan 审批三选一(auto_mode / manual_approve / revise)。 */
 export function planApproval(
   id_: string,
-  decision: ReviewDecision,
+  choice: PlanApprovalChoice,
   id = newSubmissionId(),
 ): ReflectSubmission {
-  return build({ type: 'plan_approval', id: id_, decision }, id);
+  return build({ type: 'plan_approval', id: id_, choice }, id);
 }
 
 /** `Op::EnterPlanMode` — request entry to plan mode. */

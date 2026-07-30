@@ -218,16 +218,22 @@ describe('commands forwarding (mapping)', () => {
 
   // ----- approvals -----
 
-  it('each approval forwards { id, decision } identically', async () => {
+  it('tool/hook approval forwards { id, decision } identically', async () => {
     const cases = [
       ['reflect_tool_approval', reflect_tool_approval],
       ['reflect_hook_approval', reflect_hook_approval],
-      ['reflect_plan_approval', reflect_plan_approval],
     ] as const;
     for (const [cmd, fn] of cases) {
       const captured = await captureCmd(cmd, () => fn('approval-42', 'approve'));
       expectArgs(captured, { id: 'approval-42', decision: 'approve' });
     }
+  });
+
+  it('plan approval forwards { id, choice } (PlanApprovalChoice 三选一)', async () => {
+    const captured = await captureCmd('reflect_plan_approval', () =>
+      reflect_plan_approval('plan-42', 'auto_mode'),
+    );
+    expectArgs(captured, { id: 'plan-42', choice: 'auto_mode' });
   });
 
   // ----- plan -----

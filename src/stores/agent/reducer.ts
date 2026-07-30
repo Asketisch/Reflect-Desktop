@@ -104,6 +104,9 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     }
 
     case 'approval_request': {
+      // plan 类型的审批走独立的 plan_ready 事件 + pendingPlan + PlanReadyModal,
+      // 不进 pendingApprovals(后者只收 tool / hook)。
+      if (msg.kind.type === 'plan') return {};
       const approval: PendingApproval = {
         id: msg.request_id,
         kind: msg.kind.type,

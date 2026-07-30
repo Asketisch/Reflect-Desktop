@@ -129,8 +129,16 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       pendingApprovals: state.pendingApprovals.filter((approval) => approval.id !== id),
     }));
     if (kind === 'tool') await reflect_tool_approval(id, decision);
-    else if (kind === 'hook') await reflect_hook_approval(id, decision);
-    else await reflect_plan_approval(id, decision);
+    else await reflect_hook_approval(id, decision);
+  },
+
+  // plan 审批走独立的 approvePlan —— PlanApprovalChoice 三选一,语义与
+  // tool/hook 的 ReviewDecision 不同,故单独方法。
+  approvePlan: async (id, choice) => {
+    set((state) => ({
+      pendingApprovals: state.pendingApprovals.filter((approval) => approval.id !== id),
+    }));
+    await reflect_plan_approval(id, choice);
   },
 
   enterPlanMode: async (task) => {

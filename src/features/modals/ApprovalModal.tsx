@@ -1,11 +1,14 @@
 /**
- * ApprovalModal —— 工具 / Hook / Plan 权限审批弹窗（聚焦版）。
+ * ApprovalModal —— 工具 / Hook 权限审批弹窗（聚焦版）。
  *
- * 行为契约(从原 modals/index.tsx 抽出,不可变):
- *   - title 按 kind 取 tool / hook / plan 对应 i18n 标题。
+ * 行为契约(从原 modals/index.tsx 抽出):
+ *   - title 按 kind 取 tool / hook 对应 i18n 标题。
  *   - 三按钮:tertiary Deny / secondary Approve-for-session / primary Approve(autoFocus)。
  *   - onClose 走 store `approve(kind, id, { deny: { reason: 'dismissed' } })`。
  *   - 内容仅渲染 toolName(若有)+ argsSummary(若有)+ hint 文案。
+ *
+ * 注:plan 审批走独立的 `PlanReadyModal`(`approvePlan` + PlanApprovalChoice 三选一),
+ * 不经过本 modal。
  */
 import { useAgentStore, type PendingApproval } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
@@ -16,11 +19,7 @@ export function ApprovalModal({ approval }: { approval: PendingApproval }) {
   const { t } = useI18n();
   const approve = useAgentStore((st) => st.approve);
   const kindLabel =
-    approval.kind === 'tool'
-      ? t('modal.approval.toolTitle')
-      : approval.kind === 'hook'
-        ? t('modal.approval.hookTitle')
-        : t('modal.approval.planTitle');
+    approval.kind === 'tool' ? t('modal.approval.toolTitle') : t('modal.approval.hookTitle');
   return (
     <ModalShell
       title={kindLabel}

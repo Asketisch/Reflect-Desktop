@@ -1,6 +1,6 @@
 import type { UserInputItem } from '@/types/protocol';
 import type { RiskLevel } from '@/types/protocol/enums';
-import type { ReflectRolloutRecord, ReviewDecision } from '@/utils/types';
+import type { PlanApprovalChoice, ReflectRolloutRecord, ReviewDecision } from '@/utils/types';
 
 export type TurnItem =
   | { kind: 'user_text'; text: string }
@@ -27,7 +27,8 @@ export interface Turn {
 
 export interface PendingApproval {
   id: string;
-  kind: 'tool' | 'hook' | 'plan';
+  /** tool / hook 审批;plan 审批走独立的 PendingPlan + PlanReadyModal(ApprovePlan)。 */
+  kind: 'tool' | 'hook';
   toolName?: string;
   argsSummary?: string;
   /** Risk level for permission-bubble approvals (omitted on non-bubble flows). */
@@ -152,10 +153,12 @@ export interface AgentState {
   rewind: (toTurnId?: string) => Promise<void>;
   shutdown: () => Promise<void>;
   approve: (
-    kind: 'tool' | 'hook' | 'plan',
+    kind: 'tool' | 'hook',
     id: string,
     decision: ReviewDecision,
   ) => Promise<void>;
+  /** Plan 审批 —— 三选一 PlanApprovalChoice(语义与 tool/hook 的 ReviewDecision 不同)。 */
+  approvePlan: (id: string, choice: PlanApprovalChoice) => Promise<void>;
   enterPlanMode: (task: string) => Promise<void>;
   exitPlanMode: () => Promise<void>;
   setEffort: (level: 'low' | 'medium' | 'high') => Promise<void>;

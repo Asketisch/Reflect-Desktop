@@ -38,3 +38,13 @@ export type ReviewDecision =
   | 'approve'
   | 'approve_for_session'
   | { deny: { reason: string } };
+
+/**
+ * PlanApprovalChoice —— 对齐 Rust `reflect_protocol::PlanApprovalChoice`。
+ *
+ * Rust 用 `#[serde(rename_all = "snake_case")]`,plan 审批三选一:
+ *   - "auto_mode":切到 AcceptEdits(自动批准编辑/写入类)。
+ *   - "manual_approve":切到 Prompt(逐工具审批,旧行为)。
+ *   - "revise":留在 plan 模式,用户输入反馈继续 plan(等价 reject + 回到 plan 编辑)。
+ */
+export type PlanApprovalChoice = 'auto_mode' | 'manual_approve' | 'revise';
