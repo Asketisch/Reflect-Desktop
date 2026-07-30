@@ -22,6 +22,8 @@ WixTools/
 
 # Local agent tooling (plan files, scratch)
 .zcode/
+graphify-out/
+crates/graphify-out/
 
 # ─── Cargo vendor mirrors ───
 # vendor/* are git subtree pulls from the ReflectAgent crate, locked at HEAD
