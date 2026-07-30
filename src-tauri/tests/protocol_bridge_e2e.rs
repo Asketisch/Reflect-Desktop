@@ -124,10 +124,8 @@ async fn interrupt_token_cancels_in_flight_turn() {
     agent.install_agent_thread();
     let _ = agent.subscribe_session();
     // Before interrupt: token is not cancelled.
-    let token_before = {
-        let guard = agent.inner.thread.lock();
-        guard.as_ref().map(|t| t.cancel_token().clone())
-    };
+    // 通过 MinimalAgent::cancel_token() 公开 getter 访问(替代私有 inner.thread)。
+    let token_before = agent.cancel_token();
     assert!(
         token_before.as_ref().map_or(false, |t| !t.is_cancelled()),
         "cancel token should start uncancelled"

@@ -80,6 +80,17 @@ impl MinimalAgent {
         submit::interrupt(self);
     }
 
+    /// 返回当前 AgentThread 的 cancel token(`install_agent_thread` 之前为 None)。
+    /// 暴露给测试代码断言 cancel 状态 —— submodule 升级后 `inner` 字段不可见,
+    /// 加此公开 getter 替代私有字段访问。
+    pub fn cancel_token(&self) -> Option<tokio_util::sync::CancellationToken> {
+        self.inner
+            .thread
+            .lock()
+            .as_ref()
+            .map(|t| t.cancel_token().clone())
+    }
+
     /// 诊断接口:返回当前 model spec (供前端 settings UI 显示)。
     pub fn model_spec(&self) -> String {
         self.inner.model_spec.read().clone()

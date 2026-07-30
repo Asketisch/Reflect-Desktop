@@ -253,6 +253,7 @@ mod tests {
             call_id: "c1".into(),
             tool_name: "Bash".into(),
             args: serde_json::json!({}),
+            child_id: None,
         }));
         let a = map_event(&e).unwrap();
         assert!(a.summary.contains("Bash"));

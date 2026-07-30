@@ -368,6 +368,8 @@ fn event_kind(e: &reflect_llm::ChatEvent) -> &'static str {
         reflect_llm::ChatEvent::ToolUseDelta(_) => "ToolUseDelta",
         reflect_llm::ChatEvent::ThinkingDelta(_) => "ThinkingDelta",
         reflect_llm::ChatEvent::MessageStop => "MessageStop",
+        // submodule 升级后 reflect-llm 新增 variant(消息因截断而停止)
+        reflect_llm::ChatEvent::MessageStopTruncated { .. } => "MessageStopTruncated",
         reflect_llm::ChatEvent::Usage { .. } => "Usage",
         reflect_llm::ChatEvent::Error(_) => "Error",
     }

@@ -226,7 +226,6 @@ mod tests {
             disallowed_tools: vec!["bash".into()],
             model: Some("inherit".into()),
             max_turns: Some(30),
-            max_result_chars: Some(3000),
             memory: vec![],
             mcp_collections: vec![],
             system_prompt: "# Code Reviewer\n\nYou are strict.".into(),
