@@ -285,7 +285,33 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     case 'plan_rejected':
       return { pendingPlan: null };
 
+    case 'plan_step':
+      // plan 执行进度。TODO:接入 plan 步骤 UI(目前仅补全类型,不渲染)。
+      return {};
+
     case 'permission_mode_changed':
       return { permissionMode: msg.to };
+
+    case 'plugin_loaded':
+      // 插件运行时挂载完成。TODO:展示到 plugins panel;目前仅补全类型。
+      return {};
+
+    case 'quota_exhausted': {
+      // 配额耗尽 → 立即 toast warn,告知用户 agent 因此停止。
+      const usedStr = msg.used_tokens && msg.max_tokens
+        ? ` (${msg.used_tokens}/${msg.max_tokens} tokens)`
+        : '';
+      const cooldownStr = msg.window_ends_secs
+        ? ` — ${Math.ceil(msg.window_ends_secs / 60)}min 后重置`
+        : '';
+      const toast: AgentState['toasts'][number] = {
+        id: `quota-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        kind: 'warn',
+        message: `配额耗尽:${msg.provider}/${msg.label}${usedStr}${cooldownStr}`,
+        ttlMs: 6000,
+        createdAt: Date.now(),
+      };
+      return { toasts: [...state.toasts, toast] };
+    }
   }
 }

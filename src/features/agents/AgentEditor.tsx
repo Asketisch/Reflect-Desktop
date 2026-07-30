@@ -147,20 +147,6 @@ export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorPro
               data-testid="agent-editor-max-turns"
             />
           </label>
-          <label className={s.fieldLabel}>
-            Max result chars
-            <Input
-              type="number"
-              value={draft.max_result_chars ?? ''}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                onPatch({
-                  max_result_chars: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-              placeholder="unset"
-              data-testid="agent-editor-max-result-chars"
-            />
-          </label>
         </div>
 
         <div className={s.fieldLabel}>

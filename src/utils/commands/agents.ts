@@ -30,8 +30,6 @@ export interface ReflectAgentDef {
   model: string | null;
   /** Hard cap on iterations per turn. */
   max_turns: number | null;
-  /** Cap on tool-result character count per call. */
-  max_result_chars: number | null;
   /** Memory scopes to load and inject. */
   memory: ReflectMemoryScope[];
   /** Reserved for v1 MCP support. */

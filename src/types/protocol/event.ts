@@ -76,7 +76,11 @@ export type EventMsgType =
   | 'plan_ready'
   | 'plan_approved'
   | 'plan_rejected'
-  | 'permission_mode_changed';
+  | 'plan_step'
+  | 'permission_mode_changed'
+  // Plugin / quota
+  | 'plugin_loaded'
+  | 'quota_exhausted';
 
 // ============================================================================
 // EventMsg payload structs
@@ -305,6 +309,37 @@ export interface PermissionModeChangedPayload {
   to: PermissionMode;
 }
 
+/** PlanStepStatus — snake_case(对齐 Rust `PlanStepStatus`)。 */
+export type PlanStepStatus = 'pending' | 'in_progress' | 'done' | 'skipped';
+
+/** `plan_step` —— plan 执行进度(单 step 状态变更)。 */
+export interface PlanStepPayload {
+  plan_id: string;
+  index: number;
+  /** 已知 step 总数(0 = 未知 / 动态)。 */
+  total: number;
+  status: PlanStepStatus;
+  title?: string;
+}
+
+/** `plugin_loaded` —— 插件运行时挂载完成。 */
+export interface PluginLoadedPayload {
+  plugin: string;
+  scope?: string;
+  version?: string;
+  skill_count?: number;
+}
+
+/** `quota_exhausted` —— credential 配额耗尽,agent 因此停止。 */
+export interface QuotaExhaustedPayload {
+  provider: string;
+  label: string;
+  used_tokens?: number;
+  max_tokens?: number;
+  /** 窗口结束的 unix 秒数(窗口重置时间,后端 `QuotaExhaustedEvent::window_ends_secs`)。 */
+  window_ends_secs?: number;
+}
+
 // ============================================================================
 // EventMsgByType — discriminated union
 // ============================================================================
@@ -358,7 +393,11 @@ export interface EventMsgByType {
   plan_ready: PlanReadyPayload;
   plan_approved: PlanApprovedPayload;
   plan_rejected: PlanRejectedPayload;
+  plan_step: PlanStepPayload;
   permission_mode_changed: PermissionModeChangedPayload;
+  // Plugin / quota
+  plugin_loaded: PluginLoadedPayload;
+  quota_exhausted: QuotaExhaustedPayload;
 }
 
 /** Single union variant for ReflectEvent — narrowed by `msg.type`. */

@@ -4,7 +4,7 @@
  * Lists agent definitions from `reflect_list_agent_defs`, supports
  * create / edit / delete. The editor form covers name / description /
  * model / system_prompt / tools / disallowed_tools / spawnable / readonly /
- * max_turns / max_result_chars / memory scopes.
+ * max_turns / memory scopes.
  *
  * Backend contract: `src/utils/commands/agents.ts` ↔
  * `src-tauri/src/commands/agents.rs` ↔ `vendor/reflect-agent-def`.

@@ -59,8 +59,6 @@ fn serialize_agent_md(def: &AgentDefinition) -> CommandResult<String> {
         model: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         max_turns: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        max_result_chars: Option<usize>,
         #[serde(skip_serializing_if = "Vec::is_empty", default)]
         memory: Vec<String>,
         #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -82,9 +80,6 @@ fn serialize_agent_md(def: &AgentDefinition) -> CommandResult<String> {
         disallowed_tools: def.disallowed_tools.clone(),
         model: def.model.clone(),
         max_turns: def.max_turns,
-        // 协议升级:`AgentDefinition` 移除了 `max_result_chars` 字段。
-        // 该 DTO 字段保留给前端(可选),此处用 None 占位。
-        max_result_chars: None,
         memory: memory_str,
         mcp_collections: def.mcp_collections.clone(),
     };

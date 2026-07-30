@@ -34,7 +34,6 @@ export function emptyAgentDraft(): ReflectAgentDef {
     disallowed_tools: [],
     model: null,
     max_turns: null,
-    max_result_chars: null,
     memory: [],
     mcp_collections: [],
     system_prompt: '',

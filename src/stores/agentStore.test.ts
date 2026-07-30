@@ -465,3 +465,57 @@ describe('reduceEvent — plan mode', () => {
     expect(patch.permissionMode).toBe('plan');
   });
 });
+
+// ====== Plugin / quota ======
+
+describe('reduceEvent — plugin / quota', () => {
+  it('quota_exhausted 推 toast warn 告知用户配额耗尽', () => {
+    const state = emptyState();
+    const patch = reduceEvent(
+      state,
+      ev('', {
+        type: 'quota_exhausted',
+        provider: 'anthropic',
+        label: 'plan-a',
+        used_tokens: 50000,
+        max_tokens: 50000,
+        window_ends_secs: 1800,
+      }),
+    );
+    expect(patch.toasts).toHaveLength(1);
+    expect(patch.toasts![0].kind).toBe('warn');
+    expect(patch.toasts![0].message).toContain('anthropic/plan-a');
+    expect(patch.toasts![0].message).toContain('50000/50000');
+    expect(patch.toasts![0].message).toContain('30min');
+    expect(patch.toasts![0].ttlMs).toBe(6000);
+  });
+
+  it('plan_step 是 no-op(待接入 plan 步骤 UI)', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'plan_step',
+        plan_id: 'p1',
+        index: 0,
+        total: 3,
+        status: 'in_progress',
+        title: 'analyze',
+      }),
+    );
+    expect(patch).toEqual({});
+  });
+
+  it('plugin_loaded 是 no-op(待接入 plugins panel)', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'plugin_loaded',
+        plugin: 'demo',
+        scope: 'user',
+        version: '1.0',
+        skill_count: 2,
+      }),
+    );
+    expect(patch).toEqual({});
+  });
+});

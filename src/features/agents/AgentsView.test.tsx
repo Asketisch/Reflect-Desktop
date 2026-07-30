@@ -32,7 +32,6 @@ vi.mock('@/utils/commands', async () => {
           disallowed_tools: ['bash'],
           model: 'inherit',
           max_turns: 30,
-          max_result_chars: null,
           memory: ['project'],
           mcp_collections: [],
           system_prompt: 'You are strict.',

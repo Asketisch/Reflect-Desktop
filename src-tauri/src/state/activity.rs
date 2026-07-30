@@ -192,10 +192,22 @@ fn map_event(event: &Event) -> Option<ActivityEvent> {
         | EventMsg::CollabFinished(_)
         | EventMsg::McpToolInvoked(_)
         | EventMsg::TurnRewound(_)
+        // PlanStep 高频进度更新 + PluginLoaded(暂无合适 ActivityKind)忽略;
+        // 类型完整性已在 src/types/protocol/event.ts 补全。
         | EventMsg::PlanStep(_)
         | EventMsg::PluginLoaded(_)
-        | EventMsg::QuotaExhausted(_)
         | EventMsg::ShutdownComplete => return None,
+
+        // QuotaExhausted —— 配额耗尽(独立分支,展示为 Warn)。
+        EventMsg::QuotaExhausted(e) => (
+            ActivityKind::Error,
+            format!(
+                "Quota exhausted: {}/{} ({} tokens used, window ends in {}s)",
+                e.provider, e.label, e.used_tokens, e.window_ends_secs
+            ),
+            ActivityLevel::Warn,
+            Actor::system(),
+        ),
     };
     Some(ActivityEvent {
         id: String::new(),
