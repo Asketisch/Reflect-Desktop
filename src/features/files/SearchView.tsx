@@ -11,6 +11,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Search, X } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, Spinner, EmptyState } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import {
   reflect_search_files,
   type ReflectFileSearchHit,
@@ -19,6 +20,7 @@ import s from './SearchView.module.css';
 
 export function SearchView() {
   const navigate = useNavigate();
+  const { t, tp } = useI18n();
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<ReflectFileSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,8 +70,8 @@ export function SearchView() {
   return (
     <PageShell
       icon={Search}
-      title="Find in files"
-      subtitle="Search file contents across the active workspace. Skips .git, node_modules, target, dist, build."
+      title={t('files.findInFiles')}
+      subtitle={t('files.findInFilesSubtitle')}
       width="lg"
     >
       <Card level="flat" padding="lg">
@@ -77,7 +79,7 @@ export function SearchView() {
           <Icon icon={Search} size={14} />
           <input
             className={s.input}
-            placeholder="Type to search…"
+            placeholder={t('files.findPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
@@ -97,7 +99,7 @@ export function SearchView() {
 
         {loading && (
           <div className={s.status}>
-            <Spinner size={14} /> Searching…
+            <Spinner size={14} /> {t('files.findSearching')}
           </div>
         )}
 
@@ -105,7 +107,7 @@ export function SearchView() {
           <EmptyState
             size="sm"
             icon={<Icon icon={Search} size={20} />}
-            title="Search failed"
+            title={t('files.findFailed')}
             description={error}
           />
         )}
@@ -114,8 +116,8 @@ export function SearchView() {
           <EmptyState
             size="sm"
             icon={<Icon icon={Search} size={20} />}
-            title="No matches"
-            description={`No files contain "${query}".`}
+            title={t('files.findNoMatches')}
+            description={t('files.findNoMatchesDesc', { query })}
           />
         )}
 
@@ -123,9 +125,9 @@ export function SearchView() {
           <>
             <div className={s.summary}>
               <Badge variant="info">
-                {hits.length} hit{hits.length === 1 ? '' : 's'}
+                {tp('files.findHits', hits.length)}
               </Badge>
-              {truncated && <Badge variant="warning">truncated at 200</Badge>}
+              {truncated && <Badge variant="warning">{t('files.findTruncated')}</Badge>}
             </div>
             <ul className={s.list}>
               {hits.map((h, idx) => (

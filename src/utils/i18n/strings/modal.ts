@@ -33,6 +33,7 @@ const modal: Record<string, StringEntry> = {
   'modal.planReady.approve':      { en: 'Approve plan',                                                                               'zh-CN': '批准计划' },
   'modal.planReady.reject':       { en: 'Reject',                                                                                     'zh-CN': '拒绝' },
   'modal.planReady.hint':         { en: 'Approve lets the agent execute the plan; Reject cancels and exits plan mode.',               'zh-CN': '「批准」让 agent 执行计划;「拒绝」取消并退出计划模式。' },
+  'modal.planReady.manualApprove':{ en: 'Manual Approve',                                                                             'zh-CN': '手动审批' },
 };
 
 export default modal;

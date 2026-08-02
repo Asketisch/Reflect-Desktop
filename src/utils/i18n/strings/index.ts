@@ -8,6 +8,7 @@ export type { StringEntry, Strings } from '../types';
 import type { StringEntry } from '../types';
 
 import about from './about';
+import agents from './agents';
 import app from './app';
 import apps from './apps';
 import chat from './chat';
@@ -30,11 +31,13 @@ import palette from './palette';
 import permissionMode from './permissionMode';
 import plan from './plan';
 import prompts from './prompts';
+import schedule from './schedule';
 import settings from './settings';
 import shell from './shell';
 import sidebar from './sidebar';
 import skills from './skills';
 import slash from './slash';
+import tasks from './tasks';
 import terminal from './terminal';
 import threads from './threads';
 import toast from './toast';
@@ -43,6 +46,7 @@ import workspaces from './workspaces';
 
 export const STRINGS: Record<string, StringEntry> = {
   ...about,
+  ...agents,
   ...app,
   ...apps,
   ...chat,
@@ -65,11 +69,13 @@ export const STRINGS: Record<string, StringEntry> = {
   ...permissionMode,
   ...plan,
   ...prompts,
+  ...schedule,
   ...settings,
   ...shell,
   ...sidebar,
   ...skills,
   ...slash,
+  ...tasks,
   ...terminal,
   ...threads,
   ...toast,
