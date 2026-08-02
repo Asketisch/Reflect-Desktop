@@ -19,16 +19,18 @@ import {
   type ReflectMemoryEntry,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
+import type { LocaleKey } from '@/utils/i18n';
+import type { I18nContextValue } from '@/utils/i18n/context';
 
 export const MEMORY_QUERY_KEY = ['memory'] as const;
 const MEMORY_STALE_MS = 30_000;
 
 export type Scope = 'user' | 'project' | 'all';
 
-export const SCOPE_LABELS: Record<string, string> = {
-  all: 'All',
-  user: 'User',
-  project: 'Project',
+export const SCOPE_KEYS: Record<Scope, LocaleKey> = {
+  all: 'memory.scope.all',
+  user: 'memory.scope.user',
+  project: 'memory.scope.project',
 };
 
 export const FILTERS: Scope[] = ['all', 'user', 'project'];
@@ -79,7 +81,7 @@ export interface MemoryController {
   isMutating: boolean;
 }
 
-export function useMemoryController(): MemoryController {
+export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
 
@@ -145,37 +147,37 @@ export function useMemoryController(): MemoryController {
     async (entry: ReflectMemoryEntry) => {
       try {
         await removeMut.mutateAsync({ scope: entry.scope, key: entry.key });
-        pushToast({ kind: 'success', message: `Removed ${entry.key}` });
+        pushToast({ kind: 'success', message: t('memory.toast.removed', { key: entry.key }) });
       } catch (e) {
         pushToast({
           kind: 'error',
-          message: `Remove failed: ${(e as Error).message}`,
+          message: t('memory.toast.removeFail', { msg: (e as Error).message }),
         });
       }
     },
-    [pushToast, removeMut],
+    [pushToast, removeMut, t],
   );
 
   const saveEdit = useCallback(
     async (entry: ReflectMemoryEntry) => {
       try {
         await addMut.mutateAsync({ scope: entry.scope, key: entry.key, value: editValue });
-        pushToast({ kind: 'success', message: `Updated ${entry.key}` });
+        pushToast({ kind: 'success', message: t('memory.toast.updated', { key: entry.key }) });
         setEditingKey(null);
       } catch (e) {
         pushToast({
           kind: 'error',
-          message: `Update failed: ${(e as Error).message}`,
+          message: t('memory.toast.updateFail', { msg: (e as Error).message }),
         });
       }
     },
-    [addMut, editValue, pushToast],
+    [addMut, editValue, pushToast, t],
   );
 
   const addNew = useCallback(async () => {
     const trimmedKey = newKey.trim();
     if (!trimmedKey) {
-      pushToast({ kind: 'warn', message: 'Key is required.' });
+      pushToast({ kind: 'warn', message: t('memory.toast.keyRequired') });
       return;
     }
     try {
@@ -184,17 +186,17 @@ export function useMemoryController(): MemoryController {
         key: trimmedKey,
         value: newValue.trim(),
       });
-      pushToast({ kind: 'success', message: `Added ${trimmedKey}` });
+      pushToast({ kind: 'success', message: t('memory.toast.added', { key: trimmedKey }) });
       setNewKey('');
       setNewValue('');
       setShowForm(false);
     } catch (e) {
       pushToast({
         kind: 'error',
-        message: `Add failed: ${(e as Error).message}`,
+        message: t('memory.toast.addFail', { msg: (e as Error).message }),
       });
     }
-  }, [addMut, newKey, newScope, newValue, pushToast]);
+  }, [addMut, newKey, newScope, newValue, pushToast, t]);
 
   return {
     entries,

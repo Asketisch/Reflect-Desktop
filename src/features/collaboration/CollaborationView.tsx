@@ -7,9 +7,11 @@ import { useAgentStore } from '@/stores/agentStore';
 import { reflect_list_tools } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, EmptyState } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import s from './CollaborationView.module.css';
 
 export function CollaborationView() {
+  const { t } = useI18n();
   const mcpServers = useAgentStore((st) => st.mcpServers);
   const lspServers = useAgentStore((st) => st.lspServers);
   const toolsQ = useQuery({ queryKey: ['tools'], queryFn: reflect_list_tools, staleTime: 30_000 });
@@ -19,16 +21,15 @@ export function CollaborationView() {
   return (
     <PageShell
       icon={Network}
-      title="Collaboration & Extensions"
-      subtitle="External tools and language servers connected to the agent."
+      title={t('collaboration.title')}
+      subtitle={t('collaboration.subtitle')}
       width="md"
     >
-      {/* MCP servers */}
       <section className={s.section}>
         <div className={s.sectionHeader}>
           <h3 className={s.sectionTitle}>
             <Icon icon={Server} size={14} />
-            MCP servers
+            {t('collaboration.mcpTitle')}
           </h3>
           {mcpServers.length > 0 && <Badge variant="neutral">{mcpServers.length}</Badge>}
         </div>
@@ -37,7 +38,7 @@ export function CollaborationView() {
             <EmptyState
               size="sm"
               icon={<Icon icon={Server} />}
-              title="No MCP servers configured"
+              title={t('collaboration.mcpEmpty')}
               description={<>Add an <code className={s.codeInline}>[mcp_servers.&lt;name&gt;]</code> section in Settings → Advanced.</>}
             />
           </Card>
@@ -50,9 +51,7 @@ export function CollaborationView() {
                   <div className={s.serverName}>{m.name}</div>
                   {m.detail && <div className={s.serverDetail}>{m.detail}</div>}
                 </div>
-                <Badge variant={m.status === 'started' ? 'success' : 'danger'}>
-                  {m.status}
-                </Badge>
+                <Badge variant={m.status === 'started' ? 'success' : 'danger'}>{m.status}</Badge>
               </Card>
             ))}
           </div>
@@ -62,18 +61,17 @@ export function CollaborationView() {
         )}
       </section>
 
-      {/* LSP servers */}
       <section className={s.section}>
         <div className={s.sectionHeader}>
           <h3 className={s.sectionTitle}>
             <Icon icon={Cpu} size={14} />
-            LSP servers
+            {t('collaboration.lspTitle')}
           </h3>
           {lspServers.length > 0 && <Badge variant="neutral">{lspServers.length}</Badge>}
         </div>
         {lspServers.length === 0 ? (
           <Card level="flat" padding="none">
-            <EmptyState size="sm" icon={<Icon icon={Cpu} />} title="No LSP servers configured" />
+            <EmptyState size="sm" icon={<Icon icon={Cpu} />} title={t('collaboration.lspEmpty')} />
           </Card>
         ) : (
           <div className={s.serverList}>
@@ -92,12 +90,8 @@ export function CollaborationView() {
       </section>
 
       <Card level="outlined" padding="md" className={s.futureCard}>
-        <div className={s.futureTitle}>Multi-agent orchestration</div>
-        <p className={s.futureText}>
-          Subagent / discussion / task / pipeline / goal orchestration is a core reflect-agent
-          capability. GUI triggers will arrive in a later phase — for now, ask the agent in Chat
-          (e.g. "use a subagent to parallelize").
-        </p>
+        <div className={s.futureTitle}>{t('collaboration.futureTitle')}</div>
+        <p className={s.futureText}>{t('collaboration.futureText')}</p>
       </Card>
     </PageShell>
   );

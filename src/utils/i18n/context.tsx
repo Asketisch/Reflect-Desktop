@@ -11,7 +11,7 @@ import { pluralize, t } from './lookup';
 import type { Locale } from './types';
 import type { LocaleKey } from './strings';
 
-type I18nContextValue = {
+export type I18nContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   /** 静态 lookup,返回 string. */

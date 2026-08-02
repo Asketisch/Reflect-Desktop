@@ -6,6 +6,7 @@
  */
 import { Save } from 'lucide-react';
 import { Card, Icon } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { NEW_SCOPES } from './useMemoryController';
 import s from './MemoryView.module.css';
 
@@ -28,6 +29,8 @@ export function MemoryAddForm({
   setNewValue,
   onSubmit,
 }: MemoryAddFormProps) {
+  const { t } = useI18n();
+
   return (
     <Card level="outlined" padding="sm" className={s.addForm}>
       <div className={s.formRow}>
@@ -39,7 +42,7 @@ export function MemoryAddForm({
         >
           {NEW_SCOPES.map((sc) => (
             <option key={sc} value={sc}>
-              {sc.charAt(0).toUpperCase() + sc.slice(1)}
+              {t(sc === 'user' ? 'memory.scope.userCap' : 'memory.scope.projectCap')}
             </option>
           ))}
         </select>
@@ -47,18 +50,18 @@ export function MemoryAddForm({
           value={newKey}
           onChange={(e) => setNewKey(e.target.value)}
           className={s.formInput}
-          placeholder="Key (e.g. preference)"
+          placeholder={t('memory.key')}
           data-testid="memory-new-key"
         />
         <input
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
           className={s.formInput}
-          placeholder="Value"
+          placeholder={t('memory.value')}
           data-testid="memory-new-value"
         />
         <button type="button" className={s.saveBtn} onClick={onSubmit} data-testid="memory-add-confirm">
-          <Icon icon={Save} size={12} /> Save
+          <Icon icon={Save} size={12} /> {t('memory.save')}
         </button>
       </div>
     </Card>

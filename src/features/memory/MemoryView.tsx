@@ -13,9 +13,10 @@
 import { Brain, Plus, X } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Icon, EmptyState, Spinner } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import {
   FILTERS,
-  SCOPE_LABELS,
+  SCOPE_KEYS,
   entryKey,
   useMemoryController,
 } from './useMemoryController';
@@ -24,16 +25,16 @@ import { MemoryAddForm } from './MemoryAddForm';
 import s from './MemoryView.module.css';
 
 export function MemoryView() {
-  const ctrl = useMemoryController();
+  const { t } = useI18n();
+  const ctrl = useMemoryController({ t });
 
   return (
     <PageShell
       icon={Brain}
-      title="Memory"
-      subtitle="Persistent key-value memory across sessions, scoped by context."
+      title={t('memory.title')}
+      subtitle={t('memory.subtitle')}
       width="lg"
     >
-      {/* Filter bar */}
       <div className={s.filterBar}>
         {FILTERS.map((sc) => (
           <button
@@ -44,7 +45,7 @@ export function MemoryView() {
             onClick={() => ctrl.setFilter(sc)}
             data-testid={`memory-filter-${sc}`}
           >
-            {SCOPE_LABELS[sc]} <span className={s.count}>{ctrl.counts[sc] ?? 0}</span>
+            {t(SCOPE_KEYS[sc])} <span className={s.count}>{ctrl.counts[sc] ?? 0}</span>
           </button>
         ))}
         <button
@@ -54,11 +55,10 @@ export function MemoryView() {
           data-testid="memory-add-btn"
         >
           {ctrl.showForm ? <Icon icon={X} size={12} /> : <Icon icon={Plus} size={12} />}{' '}
-          {ctrl.showForm ? 'Cancel' : 'Add'}
+          {ctrl.showForm ? t('memory.cancel') : t('memory.add')}
         </button>
       </div>
 
-      {/* Add form */}
       {ctrl.showForm && (
         <MemoryAddForm
           newScope={ctrl.newScope}
@@ -71,7 +71,6 @@ export function MemoryView() {
         />
       )}
 
-      {/* List */}
       {ctrl.loading ? (
         <div className={s.loading}>
           <Spinner size={20} />
@@ -80,16 +79,16 @@ export function MemoryView() {
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={Brain} />}
-            title="Failed to load memory"
-            description="Check the agent backend and try again."
+            title={t('memory.failed')}
+            description={t('memory.failedDesc')}
           />
         </Card>
       ) : ctrl.filtered.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={Brain} />}
-            title="No memory entries"
-            description="Add a key above or let the agent learn your preferences through chat."
+            title={t('memory.empty')}
+            description={t('memory.emptyDesc')}
           />
         </Card>
       ) : (

@@ -8,6 +8,7 @@ import { Save, X } from 'lucide-react';
 import { Card, Icon, Textarea, Input } from '@/features/design-system';
 import type { ReflectAgentDef, ReflectMemoryScope } from '@/utils/commands';
 import { joinCsv, parseCsv } from './useAgentsController';
+import { useI18n } from '@/utils/i18n';
 import s from './AgentsView.module.css';
 
 const MEMORY_SCOPES: ReflectMemoryScope[] = ['project', 'user', 'session'];
@@ -20,11 +21,12 @@ export interface AgentEditorProps {
 }
 
 export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorProps) {
+  const { t } = useI18n();
   const isNew = !draft.name;
   return (
     <Card level="outlined" padding="md" className={s.editor} data-testid="agent-editor">
       <div className={s.editorHeader}>
-        <strong>{isNew ? 'New agent' : `Edit “${draft.name}”`}</strong>
+        <strong>{isNew ? t('agents.newAgent') : t('agents.editAgent', { name: draft.name })}</strong>
         <div className={s.editorActions}>
           <button
             type="button"
@@ -32,7 +34,7 @@ export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorPro
             onClick={onCancel}
             data-testid="agent-editor-cancel"
           >
-            <Icon icon={X} size={12} /> Cancel
+            <Icon icon={X} size={12} /> {t('agents.cancel')}
           </button>
           <button
             type="button"
@@ -40,7 +42,7 @@ export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorPro
             onClick={onSave}
             data-testid="agent-editor-save"
           >
-            <Icon icon={Save} size={12} /> Save
+            <Icon icon={Save} size={12} /> {t('agents.save')}
           </button>
         </div>
       </div>
@@ -53,133 +55,123 @@ export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorPro
         }}
       >
         <label className={s.fieldLabel}>
-          Name <span className={s.required}>*</span>
+          {t('agents.name')} <span className={s.required}>*</span>
           <Input
             value={draft.name}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPatch({ name: e.target.value })}
-            placeholder="e.g. code-reviewer"
+            placeholder={t('agents.namePlaceholder')}
             data-testid="agent-editor-name"
             disabled={!isNew}
           />
         </label>
 
         <label className={s.fieldLabel}>
-          Description <span className={s.required}>*</span>
+          {t('agents.description')} <span className={s.required}>*</span>
           <Input
             value={draft.description}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onPatch({ description: e.target.value })
-            }
-            placeholder="Short human-readable description"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPatch({ description: e.target.value })}
+            placeholder={t('agents.descriptionPlaceholder')}
             data-testid="agent-editor-description"
           />
         </label>
 
         <label className={s.fieldLabel}>
-          Model
+          {t('agents.model')}
           <Input
             value={draft.model ?? ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onPatch({ model: e.target.value || null })
-            }
-            placeholder="inherit (default), or provider/model"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPatch({ model: e.target.value || null })}
+            placeholder={t('agents.modelPlaceholder')}
             data-testid="agent-editor-model"
           />
         </label>
 
         <label className={s.fieldLabel}>
-          Tools (comma-separated; empty = all builtins)
+          {t('agents.toolsLabel')}
           <Input
-            value={joinCsv(draft.tools)}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onPatch({ tools: parseCsv(e.target.value) })
-            }
-            placeholder="read, grep, glob"
+            value={joinCsv(draft.tools ?? [])}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPatch({ tools: parseCsv(e.target.value) })}
+            placeholder={t('agents.toolsPlaceholder')}
             data-testid="agent-editor-tools"
           />
         </label>
 
         <label className={s.fieldLabel}>
-          Disallowed tools (comma-separated)
+          {t('agents.disallowedToolsLabel')}
           <Input
-            value={joinCsv(draft.disallowed_tools)}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onPatch({ disallowed_tools: parseCsv(e.target.value) })
-            }
-            placeholder="bash, edit"
-            data-testid="agent-editor-disallowed"
+            value={joinCsv(draft.disallowed_tools ?? [])}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPatch({ disallowed_tools: parseCsv(e.target.value) })}
+            placeholder={t('agents.disallowedToolsPlaceholder')}
+            data-testid="agent-editor-disallowed-tools"
           />
         </label>
 
-        <div className={s.fieldRow}>
-          <label className={s.checkbox}>
-            <input
-              type="checkbox"
-              checked={draft.spawnable}
-              onChange={(e) => onPatch({ spawnable: e.target.checked })}
-              data-testid="agent-editor-spawnable"
-            />{' '}
-            Spawnable (other agents may invoke)
-          </label>
-          <label className={s.checkbox}>
-            <input
-              type="checkbox"
-              checked={draft.readonly}
-              onChange={(e) => onPatch({ readonly: e.target.checked })}
-              data-testid="agent-editor-readonly"
-            />{' '}
-            Readonly (no write/edit tools)
-          </label>
-        </div>
+        <label className={s.fieldLabel}>
+          <input
+            type="checkbox"
+            checked={!!draft.spawnable}
+            onChange={(e) => onPatch({ spawnable: e.target.checked })}
+            data-testid="agent-editor-spawnable"
+          />
+          {t('agents.spawnableLabel')}
+        </label>
 
-        <div className={s.fieldRow}>
-          <label className={s.fieldLabel}>
-            Max turns
-            <Input
-              type="number"
-              value={draft.max_turns ?? ''}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                onPatch({
-                  max_turns: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-              placeholder="unset"
-              data-testid="agent-editor-max-turns"
-            />
-          </label>
-        </div>
+        <label className={s.fieldLabel}>
+          <input
+            type="checkbox"
+            checked={!!draft.readonly}
+            onChange={(e) => onPatch({ readonly: e.target.checked })}
+            data-testid="agent-editor-readonly"
+          />
+          {t('agents.readonlyLabel')}
+        </label>
 
-        <div className={s.fieldLabel}>
-          Memory scopes
-          <div className={s.checkboxRow}>
-            {MEMORY_SCOPES.map((scope) => (
-              <label key={scope} className={s.checkbox}>
+        <label className={s.fieldLabel}>
+          {t('agents.maxTurns')}
+          <span className={s.hint}>
+            {draft.max_turns != null ? draft.max_turns : t('agents.unset')}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={99}
+            step={1}
+            value={draft.max_turns ?? 99}
+            onChange={(e) => onPatch({ max_turns: Number(e.target.value) })}
+            data-testid="agent-editor-max-turns"
+          />
+        </label>
+
+        <label className={s.fieldLabel}>
+          {t('agents.memoryScopes')}
+          <div className={s.scopeRow}>
+            {MEMORY_SCOPES.map((sc) => (
+              <label key={sc} className={s.scopeItem}>
                 <input
                   type="checkbox"
-                  checked={draft.memory.includes(scope)}
+                  checked={(draft.memory ?? [])?.includes(sc) || false}
                   onChange={(e) => {
-                    const next = e.target.checked
-                      ? [...draft.memory, scope]
-                      : draft.memory.filter((s) => s !== scope);
-                    onPatch({ memory: next });
+                    const scopes = [...(draft.memory ?? [])];
+                    if (e.target.checked) {
+                      onPatch({ memory: scopes.includes(sc) ? scopes : [...scopes, sc] });
+                    } else {
+                      onPatch({ memory: scopes.filter((s) => s !== sc) });
+                    }
                   }}
-                  data-testid={`agent-editor-memory-${scope}`}
-                />{' '}
-                {scope}
+                  data-testid={`agent-editor-scope-${sc}`}
+                />
+                {sc}
               </label>
             ))}
           </div>
-        </div>
+        </label>
 
         <label className={s.fieldLabel}>
-          System prompt (markdown body)
+          {t('agents.systemPromptLabel')}
           <Textarea
             value={draft.system_prompt}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-              onPatch({ system_prompt: e.target.value })
-            }
-            placeholder="You are a strict code reviewer..."
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onPatch({ system_prompt: e.target.value })}
             rows={8}
+            placeholder={t('agents.systemPromptPlaceholder')}
             data-testid="agent-editor-system-prompt"
           />
         </label>

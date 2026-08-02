@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import type { ReflectSessionInfo } from '@/utils/commands';
+import { useI18n } from '@/utils/i18n';
 import s from './ThreadItemMenu.module.css';
 
 export interface ThreadItemMenuProps {
@@ -16,6 +17,7 @@ export interface ThreadItemMenuProps {
 }
 
 export function ThreadItemMenu({ session, onRename, onDelete, onExport }: ThreadItemMenuProps) {
+  const { t } = useI18n();
   const [renameOpen, setRenameOpen] = useState(false);
   // `ReflectSessionInfo` (backend `SessionInfo`) only carries `session_id` —
   // there is no `display_name` field, so the rename input starts empty.
@@ -43,7 +45,7 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete thread "${session.session_id}"?\nThis removes its rollout files permanently.`)) {
+    if (!confirm(t('threads.deleteConfirm', { id: session.session_id }))) {
       return;
     }
     setPending(true);
@@ -73,7 +75,7 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
 
   if (renameOpen) {
     return (
-      <div className={s.menu} data-thread-menu={session.session_id} role="dialog" aria-label="Rename thread">
+      <div className={s.menu} data-thread-menu={session.session_id} role="dialog" aria-label={t('threads.renameThread')}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -84,7 +86,7 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
             type="text"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
-            placeholder="Thread name"
+            placeholder={t('threads.threadName')}
             disabled={pending}
             autoFocus
             className={s.input}
@@ -92,10 +94,10 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
           />
           <div className={s.actions}>
             <button type="button" onClick={() => setRenameOpen(false)} disabled={pending}>
-              Cancel
+              {t('threads.cancel')}
             </button>
             <button type="submit" disabled={pending || !renameValue.trim()}>
-              {pending ? 'Saving…' : 'Save'}
+              {pending ? t('threads.saving') : t('threads.save')}
             </button>
           </div>
         </form>
@@ -105,7 +107,7 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
   }
 
   return (
-    <div className={s.menu} data-thread-menu={session.session_id} role="menu" aria-label="Thread actions">
+    <div className={s.menu} data-thread-menu={session.session_id} role="menu" aria-label={t('threads.threadActions')}>
       <button
         type="button"
         role="menuitem"
@@ -114,7 +116,7 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
         disabled={pending}
         data-testid={`thread-rename-${session.session_id}`}
       >
-        ✎ Rename
+        ✎ {t('threads.rename')}
       </button>
       <button
         type="button"
@@ -124,7 +126,7 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
         disabled={pending}
         data-testid={`thread-export-${session.session_id}`}
       >
-        ↓ Export
+        ↓ {t('threads.export')}
       </button>
       <button
         type="button"
@@ -134,11 +136,11 @@ export function ThreadItemMenu({ session, onRename, onDelete, onExport }: Thread
         disabled={pending}
         data-testid={`thread-delete-${session.session_id}`}
       >
-        🗑 Delete
+        🗑 {t('threads.delete')}
       </button>
       {exportPath && (
         <div className={s.toast} role="status">
-          Exported → {exportPath}
+          {t('threads.exported', { path: exportPath })}
         </div>
       )}
       {error && <div className={s.error}>{error}</div>}

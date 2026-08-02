@@ -7,6 +7,7 @@
  */
 import { Plus, Trash2, Save, X } from 'lucide-react';
 import { Card, Badge, Icon } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import type { ReflectMemoryEntry } from '@/utils/commands';
 import { entryKey } from './useMemoryController';
 import s from './MemoryView.module.css';
@@ -34,6 +35,8 @@ export function MemoryRow({
   onCancel,
   onRemove,
 }: MemoryRowProps) {
+  const { t } = useI18n();
+
   return (
     <Card level="outlined" padding="sm" className={s.row} data-testid={`memory-entry-${entry.key}`}>
       <div className={s.rowLeft}>
@@ -52,7 +55,7 @@ export function MemoryRow({
           />
           <div className={s.editActions}>
             <button type="button" className={s.saveBtnSmall} onClick={onSave} data-testid="memory-edit-save">
-              <Icon icon={Save} size={11} /> Save
+              <Icon icon={Save} size={11} /> {t('memory.save')}
             </button>
             <button type="button" className={s.cancelBtnSmall} onClick={onCancel}>
               <Icon icon={X} size={11} />
@@ -69,7 +72,7 @@ export function MemoryRow({
               type="button"
               className={s.actionBtn}
               onClick={onEdit}
-              title="Edit"
+              title={t('memory.edit')}
             >
               <Icon icon={Plus} size={11} />
             </button>
@@ -77,7 +80,7 @@ export function MemoryRow({
               type="button"
               className={`${s.actionBtn} ${s.actionBtnDanger}`}
               onClick={onRemove}
-              title="Delete"
+              title={t('memory.delete')}
               data-testid="memory-remove"
             >
               <Icon icon={Trash2} size={11} />

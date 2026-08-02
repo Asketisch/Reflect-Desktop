@@ -6,6 +6,7 @@ import { AppWindow, Plug, Plug2 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Button, Icon } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import s from './AppsView.module.css';
 
 interface App {
@@ -22,6 +23,7 @@ const STUB_APPS: App[] = [
 ];
 
 export function AppsView() {
+  const { t } = useI18n();
   const [apps, setApps] = useState<App[]>(STUB_APPS);
 
   const toggle = (id: string) => {
@@ -31,12 +33,10 @@ export function AppsView() {
   return (
     <PageShell
       icon={AppWindow}
-      title="Apps"
-      subtitle={
-        <>
-          Connect IDEs and external tools. <Badge variant="warning">sample data</Badge>
-        </>
-      }
+      title={t('apps.title')}
+      subtitle={<>
+        {t('apps.subtitle')} <Badge variant="warning">sample data</Badge>
+      </>}
       width="md"
     >
       <div className={s.list}>
@@ -48,7 +48,7 @@ export function AppsView() {
             <div className={s.appBody}>
               <div className={s.appNameRow}>
                 <span className={s.appName}>{a.name}</span>
-                {a.connected && <Badge variant="success" dot>connected</Badge>}
+                {a.connected && <Badge variant="success" dot>{t('apps.connected')}</Badge>}
               </div>
               {a.permissions.length > 0 ? (
                 <div className={s.permList}>
@@ -57,7 +57,7 @@ export function AppsView() {
                   ))}
                 </div>
               ) : (
-                <div className={s.appDesc}>Not connected</div>
+                <div className={s.appDesc}>{t('apps.notConnected')}</div>
               )}
             </div>
             <Button
@@ -66,7 +66,7 @@ export function AppsView() {
               onClick={() => toggle(a.id)}
               leftIcon={<Icon icon={a.connected ? Plug2 : Plug} size={13} />}
             >
-              {a.connected ? 'Disconnect' : 'Connect'}
+              {a.connected ? t('apps.disconnect') : t('apps.connect')}
             </Button>
           </Card>
         ))}

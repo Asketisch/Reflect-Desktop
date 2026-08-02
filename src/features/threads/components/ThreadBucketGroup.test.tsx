@@ -64,7 +64,7 @@ describe('ThreadBucketGroup', () => {
     expect(screen.getByText('Now')).toBeDefined();
     // session_id "s1" → displayTitle yields the id prefix.
     expect(screen.getByText('s1')).toBeDefined();
-    expect(screen.getByText(/2 msgs/)).toBeDefined();
+    expect(screen.getByText(/2 message/)).toBeDefined();
   });
 
   it('marks active item', () => {
@@ -95,7 +95,7 @@ describe('ThreadBucketGroup', () => {
     );
     expect(container.querySelector('[data-bucket="Now"]')).not.toBeNull();
     expect(container.textContent).toContain('s1');
-    expect(container.textContent).toContain('2 msgs');
+    expect(container.textContent).toContain('2 message');
   });
 
   it('calls onSelect when clicked', () => {

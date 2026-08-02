@@ -7,9 +7,13 @@
 import type { StringEntry } from '../types';
 
 const apps: Record<string, StringEntry> = {
-  'apps.title':     { en: 'Apps',                               'zh-CN': '应用' },
-  'apps.subtitle':  { en: 'Loaded apps and MCP integrations.',  'zh-CN': '已加载的应用与 MCP 集成。' },
-  'apps.empty':     { en: 'No apps loaded.',                    'zh-CN': '暂无应用。' },
+  'apps.title':        { en: 'Apps',                             'zh-CN': '应用' },
+  'apps.subtitle':     { en: 'Connect IDEs and external tools.', 'zh-CN': '连接 IDE 和外部工具。' },
+  'apps.empty':        { en: 'No apps loaded.',                  'zh-CN': '暂无应用。' },
+  'apps.connected':    { en: 'connected',                        'zh-CN': '已连接' },
+  'apps.notConnected': { en: 'Not connected',                    'zh-CN': '未连接' },
+  'apps.connect':      { en: 'Connect',                          'zh-CN': '连接' },
+  'apps.disconnect':   { en: 'Disconnect',                       'zh-CN': '断开' },
 };
 
 export default apps;

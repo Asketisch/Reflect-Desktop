@@ -9,6 +9,7 @@ import { Link } from '@tanstack/react-router';
 import type { ReflectSessionInfo } from '@/utils/commands';
 import { chatLinkFor, shortTimestamp } from '../utils/threadLabels';
 import { ThreadItemMenu } from './ThreadItemMenu';
+import { useI18n } from '@/utils/i18n';
 import s from './ThreadItem.module.css';
 
 export interface ThreadItemProps {
@@ -28,6 +29,7 @@ export function ThreadItem({
   onDelete,
   onExport,
 }: ThreadItemProps) {
+  const { tp } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const kebabRef = useRef<HTMLButtonElement | null>(null);
 
@@ -66,7 +68,7 @@ export function ThreadItem({
           {session.session_id.slice(0, 8)}
         </div>
         <div className={s.meta}>
-          {shortTimestamp(session.started_at)} · {session.message_count} msgs
+          {shortTimestamp(session.started_at)} · {tp('threads.msgCount', session.message_count)}
         </div>
       </Link>
       <button

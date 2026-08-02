@@ -15,6 +15,10 @@ const update: Record<string, StringEntry> = {
   'update.error':      { en: 'Could not check for updates.',   'zh-CN': '无法检查更新。' },
   'update.install':    { en: 'Install',                        'zh-CN': '安装' },
   'update.later':      { en: 'Later',                          'zh-CN': '稍后' },
+  'update.currentVersion': { en: 'Current version',           'zh-CN': '当前版本' },
+  'update.manual':     { en: 'manual',                        'zh-CN': '手动' },
+  'update.howTo':      { en: 'How to update',                 'zh-CN': '如何更新' },
+  'update.howText':    { en: 'Automatic updates are not integrated yet. Update manually:', 'zh-CN': '自动更新暂未集成。请手动更新：' },
 };
 
 export default update;
