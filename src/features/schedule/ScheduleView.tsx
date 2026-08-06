@@ -13,17 +13,19 @@
 import { Plus, X, Clock, Power, Trash2 } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Badge, Card, EmptyState, Icon, Spinner } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { useScheduleController } from './useScheduleController';
 import s from './ScheduleView.module.css';
 
 export function ScheduleView() {
   const ctrl = useScheduleController();
+  const { t } = useI18n();
 
   return (
     <PageShell
       icon={Clock}
-      title="Schedule"
-      subtitle="Cron-driven autonomous triggers. Due jobs fire their prompt into the agent loop."
+      title={t('schedule.title')}
+      subtitle={t('schedule.subtitle')}
       width="lg"
       actions={
         <>
@@ -31,7 +33,7 @@ export function ScheduleView() {
             <Badge
               variant={ctrl.status.status === 'has_jobs' ? 'success' : 'neutral'}
             >
-              {ctrl.status.enabled}/{ctrl.status.total} active
+              {ctrl.status.enabled}/{ctrl.status.total} {t('schedule.active')}
             </Badge>
           )}
           <button
@@ -41,7 +43,7 @@ export function ScheduleView() {
             data-testid="schedule-add-btn"
           >
             {ctrl.showForm ? <Icon icon={X} size={12} /> : <Icon icon={Plus} size={12} />}{' '}
-            {ctrl.showForm ? 'Cancel' : 'Add'}
+            {ctrl.showForm ? t('schedule.cancel') : t('schedule.add')}
           </button>
         </>
       }
@@ -58,27 +60,27 @@ export function ScheduleView() {
         >
           <input
             className={s.formInput}
-            placeholder="Schedule (cron: min hour dom month dow, e.g. 0 9 * * 1-5)"
+            placeholder={t('schedule.cron')}
             value={ctrl.newSchedule}
             onChange={(e) => ctrl.setNewSchedule(e.target.value)}
             data-testid="schedule-create-schedule"
           />
           <input
             className={s.formInput}
-            placeholder="Prompt (required)"
+            placeholder={t('schedule.prompt')}
             value={ctrl.newPrompt}
             onChange={(e) => ctrl.setNewPrompt(e.target.value)}
             data-testid="schedule-create-prompt"
           />
           <input
             className={s.formInput}
-            placeholder="Name (optional)"
+            placeholder={t('schedule.name')}
             value={ctrl.newName}
             onChange={(e) => ctrl.setNewName(e.target.value)}
             data-testid="schedule-create-name"
           />
           <button type="submit" className={s.saveBtn} data-testid="schedule-create-submit">
-            <Icon icon={Plus} size={12} /> Schedule
+            <Icon icon={Plus} size={12} /> {t('schedule.create')}
           </button>
         </form>
       )}
@@ -92,16 +94,16 @@ export function ScheduleView() {
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={Clock} />}
-            title="Failed to load schedules"
-            description="Check the agent backend and try again."
+            title={t('schedule.failed')}
+            description={t('schedule.failedDesc')}
           />
         </Card>
       ) : ctrl.jobs.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={Clock} />}
-            title="No scheduled jobs"
-            description="Add a cron job above to trigger the agent on a schedule."
+            title={t('schedule.empty')}
+            description={t('schedule.emptyDesc')}
           />
         </Card>
       ) : (
@@ -112,21 +114,21 @@ export function ScheduleView() {
                 <code className={s.rowSchedule}>{job.schedule}</code>
                 <span className={s.rowPrompt}>{job.prompt}</span>
                 {job.next_fire && (
-                  <span className={s.rowNext} title="next fire (UTC)">
-                    next: {new Date(job.next_fire).toLocaleString()}
+                  <span className={s.rowNext} title={t('schedule.nextFire')}>
+                    {new Date(job.next_fire).toLocaleString()}
                   </span>
                 )}
               </div>
               <div className={s.rowSide}>
                 <Badge variant={job.enabled ? 'success' : 'neutral'}>
-                  {job.enabled ? 'enabled' : 'disabled'}
+                  {job.enabled ? t('schedule.enabled') : t('schedule.disabled')}
                 </Badge>
                 <div className={s.rowActions}>
                   <button
                     type="button"
                     className={s.actionBtn}
                     onClick={() => void ctrl.toggle(job)}
-                    title={job.enabled ? 'Disable' : 'Enable'}
+                    title={job.enabled ? t('schedule.disable') : t('schedule.enable')}
                     data-testid={`schedule-toggle-${job.id}`}
                   >
                     <Icon icon={Power} size={12} />
@@ -135,7 +137,7 @@ export function ScheduleView() {
                     type="button"
                     className={`${s.actionBtn} ${s.actionBtnDanger}`}
                     onClick={() => void ctrl.remove(job)}
-                    title="Remove"
+                    title={t('schedule.remove')}
                     data-testid={`schedule-remove-${job.id}`}
                   >
                     <Icon icon={Trash2} size={12} />
