@@ -32,7 +32,7 @@ export function PlanReadyModal({ plan }: { plan: PendingPlan }) {
         onClick: () => approvePlan(plan.id, 'revise'),
       }}
       secondaryAction={{
-        label: 'Manual Approve',
+        label: t('modal.planReady.manualApprove'),
         onClick: () => approvePlan(plan.id, 'manual_approve'),
       }}
       primaryAction={{
