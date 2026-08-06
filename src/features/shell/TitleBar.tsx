@@ -46,6 +46,15 @@ const TITLES: Record<string, LocaleKey> = {
   '/design-system': 'shell.title.designSystem',
   '/memory': 'shell.title.memory',
   '/search': 'shell.title.search',
+  '/tasks': 'shell.title.tasks',
+  '/schedule': 'shell.title.schedule',
+  '/agents': 'shell.title.agents',
+  '/side-channels': 'shell.title.sideChannels',
+  '/remote': 'shell.title.remote',
+  '/kms': 'shell.title.kms',
+  '/autopilot': 'shell.title.autopilot',
+  '/squad': 'shell.title.squad',
+  '/media': 'shell.title.media',
 };
 
 function titleFor(pathname: string, t: (key: LocaleKey) => string): string {
@@ -119,7 +128,7 @@ export function TitleBar({
         </Tooltip>
         {permissionMode && (
           <Badge variant={permissionMode === 'auto' ? 'success' : permissionMode === 'plan' ? 'info' : 'warning'}>
-            {permissionMode}
+            {t(`permissionMode.${permissionMode}.name`)}
           </Badge>
         )}
         <Tooltip label={inspectorOpen ? t('shell.hideInspector') : t('shell.showInspector')} side="bottom">
