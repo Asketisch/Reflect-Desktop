@@ -59,6 +59,18 @@
   padding-top: 1px;
 }
 
+.planText {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: var(--lh-normal);
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
