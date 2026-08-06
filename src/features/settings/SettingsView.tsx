@@ -31,7 +31,7 @@ import { NotificationsSection } from './sections/NotificationsSection';
 import { UpdatesSection } from './sections/UpdatesSection';
 import s from './SettingsView.module.css';
 
-type PermissionMode = 'auto' | 'prompt' | 'deny' | 'plan';
+type PermissionMode = 'auto' | 'prompt' | 'deny' | 'plan' | 'accept_edits' | 'bubble' | 'bypass';
 type Section = 'provider' | 'permissions' | 'display' | 'notifications' | 'updates' | 'advanced';
 
 export function SettingsView({ onClose }: { onClose?: () => void }) {
@@ -139,7 +139,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           </div>
         )}
 
-        {/* Permission mode 快捷控件（始终可见，高频操作）—— 4 个按钮文案 auto/prompt/deny/plan。 */}
+        {/* Permission mode 快捷控件（始终可见，高频操作）—— 4 个常用模式，高级模式见 /mode 命令。 */}
         <div className={s.quickPerm}>
           <span className={s.quickPermLabel}>{t('settings.permissionMode')}</span>
           <div className={s.quickPermBtns}>
@@ -189,11 +189,18 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             <p className={s.sectionDesc}>
               {t('settings.permissionsDescription')}
             </p>
+            <h4 className={s.sectionTitle}>{t('settings.commonModes')}</h4>
             <div className={s.permGrid}>
               <PermCard mode="auto" onClick={() => onPermission('auto')} />
               <PermCard mode="prompt" onClick={() => onPermission('prompt')} />
               <PermCard mode="deny" onClick={() => onPermission('deny')} />
               <PermCard mode="plan" onClick={() => onPermission('plan')} />
+            </div>
+            <h4 className={s.sectionTitle}>{t('settings.advancedModes')}</h4>
+            <div className={s.permGrid}>
+              <PermCard mode="accept_edits" onClick={() => onPermission('accept_edits')} />
+              <PermCard mode="bubble" onClick={() => onPermission('bubble')} />
+              <PermCard mode="bypass" onClick={() => onPermission('bypass')} />
             </div>
           </section>
         )}
@@ -247,7 +254,7 @@ function NavBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 function PermCard({ mode, onClick }: { mode: PermissionMode; onClick: () => void }) {
   const { t } = useI18n();
-  const variant = mode === 'auto' ? 'success' : mode === 'deny' ? 'danger' : mode === 'plan' ? 'info' : 'warning';
+  const variant = mode === 'auto' ? 'success' : mode === 'deny' ? 'danger' : mode === 'plan' ? 'info' : mode === 'accept_edits' ? 'success' : mode === 'bypass' ? 'danger' : 'warning';
   return (
     <button className={s.permCard} data-variant={variant} onClick={onClick}>
       <div className={s.permCardHeader}>
