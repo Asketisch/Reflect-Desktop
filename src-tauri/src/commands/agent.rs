@@ -159,16 +159,19 @@ pub(crate) fn parse_effort(s: &str) -> CommandResult<ReasoningEffortMirror> {
     })
 }
 
-/// `"auto"|"prompt"|"deny"|"plan"` → `PermissionMode`。
+/// `"auto"|"prompt"|"deny"|"plan"|"accept_edits"|"bubble"|"bypass"` → `PermissionMode`。
 pub(crate) fn parse_permission_mode(s: &str) -> CommandResult<PermissionMode> {
     Ok(match s.to_ascii_lowercase().as_str() {
         "auto" => PermissionMode::Auto,
         "prompt" => PermissionMode::Prompt,
         "deny" => PermissionMode::Deny,
         "plan" => PermissionMode::Plan,
+        "accept_edits" => PermissionMode::AcceptEdits,
+        "bubble" => PermissionMode::Bubble,
+        "bypass" => PermissionMode::Bypass,
         other => {
             return Err(CommandError {
-                msg: format!("invalid permission mode '{other}'; expected auto|prompt|deny|plan"),
+                msg: format!("invalid permission mode '{other}'; expected auto|prompt|deny|plan|accept_edits|bubble|bypass"),
             });
         }
     })
@@ -200,6 +203,9 @@ mod tests {
         );
         assert_eq!(parse_permission_mode("deny").unwrap(), PermissionMode::Deny);
         assert_eq!(parse_permission_mode("plan").unwrap(), PermissionMode::Plan);
+        assert_eq!(parse_permission_mode("accept_edits").unwrap(), PermissionMode::AcceptEdits);
+        assert_eq!(parse_permission_mode("bubble").unwrap(), PermissionMode::Bubble);
+        assert_eq!(parse_permission_mode("bypass").unwrap(), PermissionMode::Bypass);
         assert!(parse_permission_mode("wat").is_err());
     }
 

@@ -118,6 +118,10 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
                 out.push_str(&pretty);
                 out.push_str("\n\n");
             }
+            // v1.x:per-turn token 用量快照(累计自 EventMsg::TokenCount)。
+            // Markdown 导出不渲染 token 统计 —— 显式忽略以保证 match 穷尽
+            // (新增 RolloutRecord variant 不会再次打破编译)。
+            RolloutRecord::TokenCount { .. } => {}
         }
     }
 

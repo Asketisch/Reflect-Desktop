@@ -74,11 +74,19 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     // sanitizer 用默认 10 pattern;AgentThread 内部传 None 也会走 with_defaults,
     // 这里显式构造便于后续接 [sanitize] config 段。
     let sanitizer = Arc::new(Sanitizer::with_defaults());
+    // v1.x:从 config.toml `[hooks]` 段构建 HookEngine(含 builtin hook +
+    // 插件 hook),注入 AgentThread。此前 AgentThread::new 内部硬编码
+    // `HookEngine::new()`,导致 `[hooks]` 配置整段死信(read_before_edit /
+    // plan_mode_gate 等运行时 toggle 永远不生效)。与 reflect-exec 对齐。
+    let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(
+        reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks).build_engine(),
+    );
     let thread = Arc::new(AgentThread::new(
         cfg,
         registry,
         tools.clone(),
         Some(sanitizer),
+        Some(hook_engine.clone()),
     ));
 
     // 5. 写回 inner。
