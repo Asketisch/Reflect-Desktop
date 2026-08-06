@@ -105,8 +105,8 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     }
     case 'mode': {
       const m = parsed.args[0]?.toLowerCase();
-      if (!m || !['auto', 'prompt', 'deny', 'plan'].includes(m)) {
-        return { kind: 'reject', message: '/mode requires: auto | prompt | deny | plan' };
+      if (!m || !['auto', 'prompt', 'deny', 'plan', 'accept_edits', 'bubble', 'bypass'].includes(m)) {
+        return { kind: 'reject', message: '/mode requires: auto | prompt | deny | plan | accept_edits | bubble | bypass' };
       }
       return {
         kind: 'submit_with_submission',
@@ -155,6 +155,20 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     case 'interrupt':
       return { kind: 'submit_with_submission', submission: 'interrupt', message: 'Interrupting…' };
 
+    // ===== Tier B — 轻量引导(数据已在 UI 展示) =====
+    // /usage /cost /context 的数据由 StatusBar + Inspector 实时展示,
+    // 这里返回引导提示而非副作用(engine 保持纯函数)。
+    case 'usage':
+    case 'cost':
+    case 'context':
+    case 'stats':
+    case 'insights':
+    case 'ctx_viz':
+      return {
+        kind: 'no-op',
+        message: 'Token 用量见底部状态栏 / 右侧 Inspector 的 Token Usage。',
+      };
+
     // ===== Tier C — stubs that route to settings / no-op =====
     case 'init':
     case 'diff':
@@ -164,14 +178,8 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     case 'commit-push-pr':
     case 'review':
     case 'ultrareview':
-    case 'cost':
-    case 'usage':
     case 'copy':
     case 'editor':
-    case 'stats':
-    case 'insights':
-    case 'context':
-    case 'ctx_viz':
     case 'color':
     case 'sandbox-toggle':
     case 'memory':

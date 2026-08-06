@@ -130,6 +130,16 @@ describe('executeSlash — Tier A real dispatch', () => {
     expect(r.kind).toBe('reject');
   });
 
+  it('/mode all variants accepted', () => {
+    for (const mode of ['auto', 'prompt', 'deny', 'plan', 'accept_edits', 'bubble', 'bypass']) {
+      const p = parseSlash(`/mode ${mode}`);
+      if (!p.isSlash) throw new Error('not slash');
+      const r = executeSlash(p as ParsedSlash, CTX);
+      expect(r.submission).toBe('set_permission_mode');
+      expect(r.message).toContain(mode);
+    }
+  });
+
   it('/help → no-op with count', () => {
     const p = parseSlash('/help');
     if (!p.isSlash) throw new Error('not slash');
