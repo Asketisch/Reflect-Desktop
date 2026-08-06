@@ -20,6 +20,12 @@
   transition: opacity var(--transition-fast);
 }
 
+/* multiline label:保留 `\n` 为换行(其余空白照常折叠)。
+   仅在 `data-multiline` 时生效,不影响默认单行 tooltip。 */
+.tip[data-multiline='true'] {
+  white-space: pre-line;
+}
+
 .wrap:hover .tip,
 .wrap:focus-within .tip {
   opacity: 1;

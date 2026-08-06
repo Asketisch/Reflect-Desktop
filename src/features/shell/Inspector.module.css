@@ -51,6 +51,18 @@
   white-space: nowrap;
 }
 
+.value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.strong {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
 .dot {
   width: 8px;
   height: 8px;

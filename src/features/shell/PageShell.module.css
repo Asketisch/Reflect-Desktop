@@ -46,6 +46,9 @@
   color: var(--text-primary);
   margin: 0;
   line-height: var(--lh-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .subtitle {
@@ -53,6 +56,9 @@
   color: var(--text-secondary);
   margin: 2px 0 0;
   line-height: var(--lh-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .actions {

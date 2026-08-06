@@ -12,7 +12,7 @@
  * 替代旧的 widgets/StatusBar（Topbar/BottomBar），移除所有 "M1.7 scaffold" 字样。
  */
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, AlertCircle, MessagesSquare } from 'lucide-react';
+import { Sun, Moon, Monitor, AlertCircle, MessagesSquare, Coins } from 'lucide-react';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useQuery } from '@tanstack/react-query';
@@ -29,6 +29,7 @@ export function StatusBar() {
   const lspServers = useAgentStore((st) => st.lspServers);
   const lastError = useAgentStore((st) => st.lastError);
   const clearError = useAgentStore((st) => st.clearError);
+  const tokens = useAgentStore((st) => st.tokens);
   const { t, tp } = useI18n();
 
   const statusQ = useQuery({
@@ -71,7 +72,7 @@ export function StatusBar() {
       ? 'ok'
       : status && status.degraded_reason
         ? 'warn'
-        : 'warn';
+        : 'error';
   const modelTooltip = status?.degraded_reason ?? undefined;
   const workspaceLabel = status?.workspace ? basename(status.workspace) : null;
 
@@ -121,6 +122,28 @@ export function StatusBar() {
           <span className={s.itemMuted}>
             {t('shell.mcpCount', { count: mcpServers.length })}
           </span>
+        )}
+        {tokens && (
+          <Tooltip
+            label={[
+              `${t('inspector.tokenInput')}: ${tokens.input.toLocaleString()}`,
+              `${t('inspector.tokenOutput')}: ${tokens.output.toLocaleString()}`,
+              `${t('inspector.tokenCached')}: ${tokens.cached.toLocaleString()}`,
+              `${t('inspector.tokenCacheWrite')}: ${tokens.cacheWrite.toLocaleString()}`,
+              `${t('inspector.tokenTotal')}: ${tokens.total.toLocaleString()}`,
+              tokens.cost != null ? `${t('inspector.tokenCost')}: $${tokens.cost.toFixed(4)}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n')}
+            side="top"
+            multiline
+          >
+            <span className={s.itemMuted} data-testid="statusbar-tokens">
+              <Icon icon={Coins} size={11} />
+              {tokens.total.toLocaleString()}
+              {tokens.cost != null && ` · $${tokens.cost.toFixed(4)}`}
+            </span>
+          </Tooltip>
         )}
         <Tooltip label={tp('shell.sessionCount', sessionCount, { count: sessionCount })} side="top">
           <span className={s.itemMuted} data-testid="statusbar-session-count">
