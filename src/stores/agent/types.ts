@@ -58,8 +58,14 @@ export interface TokenSnapshot {
   input: number;
   output: number;
   cached: number;
+  /** cache_creation_input_tokens(M8)—— input 的子集,不加进 total。 */
+  cacheWrite: number;
   total: number;
   cost: number | null;
+  /** 命中的 provider(v1.0 多 Provider 路由),未上报时为 null。 */
+  provider?: string | null;
+  /** 命中的 credential label,未上报时为 null。 */
+  credentialLabel?: string | null;
 }
 
 export interface McpInvocation {
@@ -139,6 +145,8 @@ export interface AgentState {
   hydrateSession?: (id: string, records: ReflectRolloutRecord[]) => void;
   clearSession?: () => void;
   tokens: TokenSnapshot | null;
+  /** 当前会话的 context window 大小(来自 session_configured),未知时为 null。 */
+  contextWindowSize: number | null;
   collabSessions: CollabSession[];
   mcpInvocations: McpInvocation[];
   lastRouting: RoutingSnapshot | null;

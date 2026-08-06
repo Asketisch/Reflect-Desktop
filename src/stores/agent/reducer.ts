@@ -18,8 +18,14 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
   const isSessionEvent = turnId === EVENT_ID_NONE;
 
   switch (msg.type) {
-    case 'session_configured':
-      return msg.model ? { session: { model: msg.model, provider: msg.provider } } : {};
+    case 'session_configured': {
+      const patch: Partial<AgentState> = {};
+      if (msg.model) patch.session = { model: msg.model, provider: msg.provider };
+      if (typeof msg.context_window_size === 'number') {
+        patch.contextWindowSize = msg.context_window_size;
+      }
+      return patch;
+    }
 
     case 'turn_started':
       if (state.turns.some((turn) => turn.id === turnId)) return {};
@@ -61,8 +67,11 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
           input: msg.input_tokens,
           output: msg.output_tokens,
           cached: msg.cached_tokens,
+          cacheWrite: msg.cache_write_tokens,
           total: msg.total_tokens,
           cost: msg.cost_usd ?? null,
+          provider: msg.provider ?? null,
+          credentialLabel: msg.credential_label ?? null,
         },
       };
 

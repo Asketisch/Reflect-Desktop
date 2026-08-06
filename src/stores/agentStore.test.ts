@@ -27,6 +27,7 @@ const emptyState = (): AgentState => ({
   lastError: null,
   subscribed: false,
   tokens: null,
+  contextWindowSize: null,
   collabSessions: [],
   mcpInvocations: [],
   lastRouting: null,
@@ -73,6 +74,22 @@ describe('reduceEvent — lifecycle', () => {
       }),
     );
     expect(patch.session).toEqual({ model: 'claude-opus-4-7', provider: 'anthropic' });
+  });
+
+  it('session_configured captures context_window_size', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'session_configured',
+        session_id: 's1',
+        model: 'claude-opus-4-7',
+        provider: 'anthropic',
+        context_window_size: 200000,
+        approval_policy: 'auto',
+        sandbox_policy: 'workspace_only',
+      }),
+    );
+    expect(patch.contextWindowSize).toBe(200000);
   });
 
   it('turn_started creates empty turn if missing', () => {
@@ -179,15 +196,47 @@ describe('reduceEvent — LLM output', () => {
       emptyState(),
       ev('t1', {
         type: 'token_count',
-        input_tokens: 100,
-        output_tokens: 50,
-        cached_tokens: 0,
-        cache_write_tokens: 0,
-        total_tokens: 150,
-        cost_usd: 0.001,
+        input_tokens: 1200,
+        output_tokens: 300,
+        cached_tokens: 200,
+        cache_write_tokens: 500,
+        total_tokens: 1500,
+        cost_usd: 0.0123,
+        provider: 'anthropic',
+        credential_label: 'main-key',
       }),
     );
-    expect(patch.tokens).toEqual({ input: 100, output: 50, cached: 0, total: 150, cost: 0.001 });
+    expect(patch.tokens).toEqual({
+      input: 1200,
+      output: 300,
+      cached: 200,
+      cacheWrite: 500,
+      total: 1500,
+      cost: 0.0123,
+      provider: 'anthropic',
+      credentialLabel: 'main-key',
+    });
+  });
+
+  it('token_count tolerates missing optional provider/credential_label', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('t1', {
+        type: 'token_count',
+        input_tokens: 10,
+        output_tokens: 5,
+        cached_tokens: 0,
+        cache_write_tokens: 0,
+        total_tokens: 15,
+      }),
+    );
+    expect(patch.tokens).toMatchObject({
+      total: 15,
+      cost: null,
+      provider: null,
+      credentialLabel: null,
+      cacheWrite: 0,
+    });
   });
 });
 
