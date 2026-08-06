@@ -4,6 +4,34 @@ All notable changes to ReflectDesktop are documented here. The format follows [K
 
 ## Unreleased
 
+### Added — 前端 token usage UI 接通
+
+后端 `token_count` 事件（`TokenCountEvent`）早已由 `model_call` 节点每轮 emit，前端
+reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数据。本次接通展示层：
+
+- **StatusBar**（`src/features/shell/StatusBar.tsx`）：右侧新增 token/cost 指示器，
+  显示 `total` + `cost`（`testid="statusbar-tokens"`），hover tooltip 展示完整细分
+  （input/output/cached/cacheWrite/total/cost）。
+- **Inspector**（`src/features/shell/Inspector.tsx`）：新增 "Token Usage" section，
+  镜像 MCP/LSP section 结构，展示 input / output / cached（含 "input 子集" 提示）/
+  cacheWrite（>0 时显示，含 "不计入 total" 提示）/ total（强调）/ cost / provider /
+  credential。空态显示 "No token data yet."
+- **字段补全**：reducer 此前丢弃了 `cache_write_tokens` / `provider` /
+  `credential_label`，现已对齐后端 `TokenCountEvent`；同时 `session_configured` 的
+  `context_window_size` 也存入 `state.contextWindowSize`（为后续 usage 占比预留）。
+- **斜杠命令引导**：`/usage` / `/cost` / `/context` / `/stats` / `/insights` /
+  `/ctx_viz` 从 no-op stub 改为返回引导提示（指向 StatusBar/Inspector），保持
+  `executeSlash` 纯函数契约。
+- **i18n**：`inspector.*` 命名空间新增 token 相关文案（中英双语）。
+- **测试**：`agentStore.test.ts` 补全 token_count + session_configured 字段断言；
+  新增 `Inspector.test.tsx` / `StatusBar.test.tsx` 组件测试。
+- **Tooltip 多行支持**：design-system `Tooltip` primitive 新增可选 `multiline`
+  prop（CSS `white-space: pre-line`），让 StatusBar token tooltip 的
+  `\n`-joined 细分真正换行渲染；默认关闭，不影响现有单行 tooltip。
+
+> 注：未接入 `ContextRing` 圆环——后端无 token **分类**细分（仅有计费维度），硬套
+> 5 段分类会制造虚假精确感；列为未来增强（需后端先提供分类 usage）。
+
 ### Added — Phase 3 local-only features batch (KMS + Autopilot + Dictation wiring)
 
 Completes all remaining local-only features that don't require cloud services,

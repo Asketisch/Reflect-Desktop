@@ -136,7 +136,7 @@ pub struct Submission {
 | `agent_message` | `text: String` | Non-streaming final bubble |
 | `agent_message_delta` | `delta: String` | Stream chunk → append to last assistant bubble |
 | `thinking_delta` | `delta: String` | Reasoning block (collapsible) |
-| `token_count` | `TokenCountEvent` (info) | Status bar token / cost / context ring |
+| `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?` |
 
 ### 3.3 Tools (2)
 
