@@ -19,8 +19,10 @@ import {
   Icon,
   SegmentedControl,
   Spinner,
+  Tooltip,
   type SegmentedOption,
 } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import {
   STATUS_LABELS,
   useTasksBoardController,
@@ -40,6 +42,7 @@ const BOARD_COLUMNS: ReflectTaskStatus[] = ['pending', 'in_progress', 'completed
 
 export function TasksBoardView() {
   const ctrl = useTasksBoardController();
+  const { t } = useI18n();
   // Custom list id input visibility (lets the user type an arbitrary list id
   // not backed by a team).
   const [showListPicker, setShowListPicker] = useState(false);
@@ -47,8 +50,8 @@ export function TasksBoardView() {
   return (
     <PageShell
       icon={FolderKanban}
-      title="Tasks"
-      subtitle="Multi-agent task board. Create, claim, advance, and delete tasks across lists."
+      title={t('tasks.title')}
+      subtitle={t('tasks.subtitle')}
       width="lg"
       actions={
         <>
@@ -58,15 +61,16 @@ export function TasksBoardView() {
             value={ctrl.view}
             onChange={ctrl.setView}
           />
-          <button
-            type="button"
-            className={s.listBtn}
-            onClick={() => setShowListPicker((v) => !v)}
-            title="Switch list / team"
-            data-testid="tasks-list-picker-toggle"
-          >
-            <Icon icon={FolderKanban} size={12} /> {ctrl.listId}
-          </button>
+          <Tooltip label={t('tasks.switchList')} side="bottom">
+            <button
+              type="button"
+              className={s.listBtn}
+              onClick={() => setShowListPicker((v) => !v)}
+              data-testid="tasks-list-picker-toggle"
+            >
+              <Icon icon={FolderKanban} size={12} /> {ctrl.listId}
+            </button>
+          </Tooltip>
           <button
             type="button"
             className={s.addBtn}
@@ -74,7 +78,7 @@ export function TasksBoardView() {
             data-testid="tasks-add-btn"
           >
             {ctrl.showForm ? <Icon icon={X} size={12} /> : <Icon icon={Plus} size={12} />}{' '}
-            {ctrl.showForm ? 'Cancel' : 'Add'}
+            {ctrl.showForm ? t('tasks.cancel') : t('tasks.add')}
           </button>
         </>
       }
@@ -82,17 +86,17 @@ export function TasksBoardView() {
       {/* List picker */}
       {showListPicker && (
         <Card level="flat" padding="sm" className={s.listPicker} data-testid="tasks-list-picker">
-          <div className={s.listPickerLabel}>Active list</div>
+          <div className={s.listPickerLabel}>{t('tasks.activeList')}</div>
           <input
             className={s.formInput}
             value={ctrl.listId}
             onChange={(e) => ctrl.setListId(e.target.value)}
             data-testid="tasks-list-id-input"
-            placeholder="list id (e.g. default, or a team name)"
+            placeholder={t('tasks.listPlaceholder')}
           />
           {ctrl.teamNames.length > 0 && (
             <>
-              <div className={s.listPickerLabel}>Teams</div>
+              <div className={s.listPickerLabel}>{t('tasks.teams')}</div>
               <div className={s.teamChips}>
                 {ctrl.teamNames.map((name) => (
                   <button
@@ -136,16 +140,16 @@ export function TasksBoardView() {
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={FolderKanban} />}
-            title="Failed to load tasks"
-            description="Check the agent backend and try again."
+            title={t('tasks.failed')}
+            description={t('tasks.failedDesc')}
           />
         </Card>
       ) : ctrl.tasks.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={FolderKanban} />}
-            title="No tasks"
-            description={`List “${ctrl.listId}” is empty. Add one above.`}
+            title={t('tasks.empty')}
+            description={t('tasks.emptyDesc', { listId: ctrl.listId })}
           />
         </Card>
       ) : ctrl.view === 'list' ? (

@@ -13,6 +13,7 @@
 import { Bot, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Badge, Card, EmptyState, Icon, Spinner } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import {
   joinCsv,
   parseCsv,
@@ -24,12 +25,13 @@ import s from './AgentsView.module.css';
 
 export function AgentsView() {
   const ctrl = useAgentsController();
+  const { t } = useI18n();
 
   return (
     <PageShell
       icon={Bot}
-      title="Agents"
-      subtitle="Agent profiles — model, system prompt, tools. Stored at ~/.reflect/agents/*.md."
+      title={t('agents.title')}
+      subtitle={t('agents.subtitle')}
       width="lg"
       actions={
         <button
@@ -39,7 +41,7 @@ export function AgentsView() {
           disabled={ctrl.isEditing}
           data-testid="agents-add-btn"
         >
-          <Icon icon={Plus} size={12} /> New
+          <Icon icon={Plus} size={12} /> {t('agents.new')}
         </button>
       }
     >
@@ -62,16 +64,16 @@ export function AgentsView() {
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={Bot} />}
-            title="Failed to load agents"
-            description="Check the agent backend and try again."
+            title={t('agents.failed')}
+            description={t('agents.failedDesc')}
           />
         </Card>
       ) : ctrl.defs.length === 0 && !ctrl.isEditing ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={Bot} />}
-            title="No agents defined"
-            description="Click “New” to create your first agent profile."
+            title={t('agents.empty')}
+            description={t('agents.emptyDesc')}
           />
         </Card>
       ) : (
@@ -99,14 +101,15 @@ function AgentRow({
   onEdit: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={s.row} data-testid={`agent-row-${def.name}`}>
       <div className={s.rowMain}>
         <code className={s.rowName}>{def.name}</code>
         <span className={s.rowDesc}>{def.description}</span>
         {def.model && <Badge variant="accent">{def.model}</Badge>}
-        {def.readonly && <Badge variant="neutral">readonly</Badge>}
-        {def.spawnable && <Badge variant="success">spawnable</Badge>}
+        {def.readonly && <Badge variant="neutral">{t('agents.readonly')}</Badge>}
+        {def.spawnable && <Badge variant="success">{t('agents.spawnable')}</Badge>}
       </div>
       <div className={s.rowSide}>
         <div className={s.rowActions}>
@@ -114,7 +117,7 @@ function AgentRow({
             type="button"
             className={s.actionBtn}
             onClick={onEdit}
-            title="Edit"
+            title={t('agents.edit')}
             data-testid={`agent-edit-${def.name}`}
           >
             <Icon icon={Pencil} size={12} />
@@ -123,7 +126,7 @@ function AgentRow({
             type="button"
             className={`${s.actionBtn} ${s.actionBtnDanger}`}
             onClick={onRemove}
-            title="Delete"
+            title={t('agents.delete')}
             data-testid={`agent-delete-${def.name}`}
           >
             <Icon icon={Trash2} size={12} />

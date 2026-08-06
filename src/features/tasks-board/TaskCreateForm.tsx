@@ -5,6 +5,7 @@
  */
 import { Plus } from 'lucide-react';
 import { Icon } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import s from './TasksBoardView.module.css';
 
 export interface TaskCreateFormProps {
@@ -26,6 +27,7 @@ export function TaskCreateForm({
   setNewOwner,
   onSubmit,
 }: TaskCreateFormProps) {
+  const { t } = useI18n();
   return (
     <form
       className={s.addForm}
@@ -37,7 +39,7 @@ export function TaskCreateForm({
     >
       <input
         className={s.formInput}
-        placeholder="Subject (required)"
+        placeholder={t('tasks.subject')}
         value={newSubject}
         onChange={(e) => setNewSubject(e.target.value)}
         data-testid="task-create-subject"
@@ -45,20 +47,20 @@ export function TaskCreateForm({
       />
       <input
         className={s.formInput}
-        placeholder="Description (optional)"
+        placeholder={t('tasks.description')}
         value={newDescription}
         onChange={(e) => setNewDescription(e.target.value)}
         data-testid="task-create-description"
       />
       <input
         className={s.formInput}
-        placeholder="Owner / claimer (optional)"
+        placeholder={t('tasks.owner')}
         value={newOwner}
         onChange={(e) => setNewOwner(e.target.value)}
         data-testid="task-create-owner"
       />
       <button type="submit" className={s.saveBtn} data-testid="task-create-submit">
-        <Icon icon={Plus} size={12} /> Create
+        <Icon icon={Plus} size={12} /> {t('tasks.create')}
       </button>
     </form>
   );

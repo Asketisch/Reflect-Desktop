@@ -42,6 +42,7 @@ export const STATUS_ORDER: ReflectTaskStatus[] = [
   'deleted',
 ];
 
+/** Legacy - use i18n `tasks.*` keys instead. Kept for backwards compat. */
 export const STATUS_LABELS: Record<ReflectTaskStatus, string> = {
   pending: 'Pending',
   in_progress: 'In Progress',
