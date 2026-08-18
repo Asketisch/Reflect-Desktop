@@ -1,12 +1,12 @@
 /**
- * Schedule controller hook (Phase 1 item 2).
+ * Schedule controller hook（阶段 1 任务 2）。
  *
- * Owns:
- *   - TanStack `useQuery` for `reflect_list_schedules` + `reflect_get_schedule_status`
- *   - three mutations: add / update / remove, each with toast + cache invalidation
- *   - create-form UI state (schedule / prompt / name)
+ * 职责：
+ *   - TanStack `useQuery` 用于 `reflect_list_schedules` + `reflect_get_schedule_status`
+ *   - 三个 mutation：add / update / remove，各带 toast + cache 失效
+ *   - 创建表单 UI 状态（schedule / prompt / name）
  *
- * Mirrors the `useMemoryController` / `useTasksBoardController` precedent.
+ * 参考 `useMemoryController` / `useTasksBoardController` 的模式。
  */
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,14 +25,14 @@ export const SCHEDULE_QUERY_KEY = ['schedules'] as const;
 const SCHEDULE_STALE_MS = 15_000;
 
 export interface ScheduleController {
-  // Query
+  // 查询
   jobs: ReflectCronJob[];
   status: ReflectScheduleStatus | null;
   loading: boolean;
   error: unknown;
   refetch: () => void;
 
-  // Create-form state
+  // 创建表单状态
   showForm: boolean;
   toggleShowForm: () => void;
   newSchedule: string;
@@ -42,7 +42,7 @@ export interface ScheduleController {
   newName: string;
   setNewName: (v: string) => void;
 
-  // Mutations
+  // 突变操作
   create: () => Promise<void>;
   toggle: (job: ReflectCronJob) => Promise<void>;
   remove: (job: ReflectCronJob) => Promise<void>;

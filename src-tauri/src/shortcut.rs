@@ -14,7 +14,7 @@ use tauri_plugin_global_shortcut::{
 /// 注册所有全局快捷键。在 Tauri setup 阶段调用一次。
 pub fn register_global_shortcuts<R: Runtime>(app: &AppHandle<R>) -> anyhow::Result<()> {
     let gs = app.global_shortcut();
-    // macOS → Cmd (SUPER), Linux/Windows → Ctrl.
+    // macOS → Cmd（SUPER），Linux/Windows → Ctrl。
     #[cfg(target_os = "macos")]
     let modifiers = Modifiers::SUPER | Modifiers::SHIFT;
     #[cfg(not(target_os = "macos"))]

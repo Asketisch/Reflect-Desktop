@@ -4,7 +4,7 @@
 
 use serde::Serialize;
 
-/// wrapper for any command errors
+/// 包装任意 command 错误的统一错误类型。
 #[derive(Debug, Serialize)]
 pub struct CommandError {
     pub(crate) msg: String,

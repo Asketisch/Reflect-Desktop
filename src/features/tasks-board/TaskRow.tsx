@@ -1,8 +1,8 @@
 /**
- * TaskRow —— single-task row in the List view.
+ * TaskRow —— 列表视图中的单任务行。
  *
- * Shows id, subject, status badge, claimer, and per-status actions
- * (claim / advance / delete). Presentational only; all behavior comes via props.
+ * 展示 id、主题、状态徽标、认领人和按状态区分的操作
+ * （claim / advance / delete）。纯展示组件；所有行为通过 props 传入。
  */
 import { CheckCircle, Play, Trash2, Hand } from 'lucide-react';
 import type { ReflectTask, ReflectTaskStatus } from '@/utils/commands';

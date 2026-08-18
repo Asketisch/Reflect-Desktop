@@ -58,9 +58,9 @@ function detectLanguage(path: string): string {
 export interface CodeEditorProps {
   path: string;
   content: string;
-  /** True if file was binary — render a notice instead of raw bytes. */
+  /** 文件是否为二进制 —— 若是则显示提示而非原始字节。 */
   binary?: boolean;
-  /** True if the content was clipped at 1 MiB. */
+  /** 内容是否在 1 MiB 处被截断。 */
   truncated?: boolean;
 }
 

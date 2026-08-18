@@ -23,7 +23,7 @@ describe('FileTree', () => {
 
   it('expands a directory on click and reveals children', () => {
     render(<FileTree entries={ENTRIES} />);
-    // depth-0 dirs default-open so main.ts/App.tsx should already be visible
+    // 顶层目录默认展开，因此 main.ts / App.tsx 应当已经可见
     expect(screen.getByText('main.ts')).toBeDefined();
     expect(screen.getByText('App.tsx')).toBeDefined();
   });

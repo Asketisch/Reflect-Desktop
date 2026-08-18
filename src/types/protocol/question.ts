@@ -1,10 +1,10 @@
 /**
- * Reflect protocol — Question / QuestionOption / Answer / AskUserAnswer.
+ * Reflect 协议 —— Question / QuestionOption / Answer / AskUserAnswer。
  *
- * Mirrors `vendor/reflect-protocol/src/question.rs` (structured
- * multi-question prompts). All wire-format field names are snake_case.
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/question.rs`（结构化多题提示）。
+ * 所有 wire-format 字段名使用 snake_case。
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 export interface Question {

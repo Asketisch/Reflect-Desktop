@@ -19,7 +19,7 @@ pub const MENU_CHECK_UPDATES: &str = "menu_check_updates";
 pub const MENU_SETTINGS: &str = "menu_settings";
 pub const MENU_QUIT: &str = "menu_quit";
 
-// ====== Edit 菜单 (use Predefined) ======
+// ====== Edit 菜单（PredefinedMenuItem）======
 // Edit 菜单全部走 PredefinedMenuItem, 不需要自定义 id.
 
 // ====== Composer 菜单 ======

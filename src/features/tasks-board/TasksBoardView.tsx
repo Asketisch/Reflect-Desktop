@@ -1,14 +1,14 @@
 /**
- * TasksBoard —— Phase 1 multi-agent task board.
+ * TasksBoard —— Phase 1 多 agent 任务看板。
  *
- * Renders tasks from `reflect_list_tasks` in two views (List / Board),
- * supports create / claim / advance-status / delete, and lets the user pick
- * the active list (defaults to "default"; switches to a team name when one is
- * selected). All orchestration lives in `useTasksBoardController`.
+ * 以两种视图（List / Board）渲染来自 `reflect_list_tasks` 的任务，
+ * 支持创建 / 认领 / 推进状态 / 删除，并允许用户选择
+ * 活动列表（默认为 "default"；选中团队名时切换为团队列表）。
+ * 所有编排逻辑位于 `useTasksBoardController`。
  *
- * Backend contract: `src/utils/commands/{tasks,teams}.ts` ↔
- * `src-tauri/src/commands/tasks.rs`. Storage: `~/.reflect/tasks/<list>/` +
- * `~/.reflect/teams/`, shared with the TUI/CLI.
+ * 后端契约：`src/utils/commands/{tasks,teams}.ts` ↔
+ * `src-tauri/src/commands/tasks.rs`。存储：`~/.reflect/tasks/<list>/` +
+ * `~/.reflect/teams/`，与 TUI/CLI 共享。
  */
 import { useState } from 'react';
 import { KanbanSquare, List as ListIcon, Plus, X, FolderKanban } from 'lucide-react';
@@ -43,8 +43,7 @@ const BOARD_COLUMNS: ReflectTaskStatus[] = ['pending', 'in_progress', 'completed
 export function TasksBoardView() {
   const ctrl = useTasksBoardController();
   const { t } = useI18n();
-  // Custom list id input visibility (lets the user type an arbitrary list id
-  // not backed by a team).
+  // 自定义列表 ID 输入框可见性（允许用户输入不关联任何 team 的任意列表 ID）。
   const [showListPicker, setShowListPicker] = useState(false);
 
   return (

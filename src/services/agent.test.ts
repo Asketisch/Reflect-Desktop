@@ -95,7 +95,7 @@ describe('reduceEvent', () => {
   it('error on turn appends error item; session-level error sets lastError', () => {
     let s = stateWithTurn('t1');
     s = { ...s, ...reduceEvent(s, ev('t1', { type: 'error', code: 'E_BOOM', message: 'boom' })) };
-    // B1-04: error text now formatted as "code: message".
+    // B1-04: 错误文本现在格式化为 "code: message"。
     expect(s.turns[0].items.some((i) => i.kind === 'error' && i.text === 'E_BOOM: boom')).toBe(true);
 
     // session-level (id='') 不挂 turn,设 lastError。
@@ -106,7 +106,7 @@ describe('reduceEvent', () => {
 
   it('approval_request enqueues pending approval (tool kind with tool_name + args)', () => {
     const s = emptyState();
-    // B1-04: schema is now strict — kind is a discriminated union { type, tool_name, args }.
+    // B1-04: schema 现在严格 —— kind 是判别联合 { type, tool_name, args }。
     const patch = reduceEvent(
       s,
       ev('t1', {
@@ -121,7 +121,7 @@ describe('reduceEvent', () => {
 
   it('mcp_server_started/failed upserts mcpServers by server field', () => {
     let s = emptyState();
-    // B1-04: schema field renamed `name` → `server`.
+    // B1-04: schema 字段重命名 `name` → `server`。
     s = { ...s, ...reduceEvent(s, ev('', { type: 'mcp_server_started', server: 'fs', tool_count: 3, transport: 'stdio' })) };
     s = { ...s, ...reduceEvent(s, ev('', { type: 'mcp_server_failed', server: 'fs', error: 'died', will_retry: false })) };
     expect(s.mcpServers.find((m) => m.name === 'fs')?.status).toBe('failed');
@@ -129,7 +129,7 @@ describe('reduceEvent', () => {
 
   it('permission_mode_changed updates permissionMode (uses `to` field)', () => {
     const s = emptyState();
-    // B1-04: schema field renamed `mode` → `from` + `to`.
+    // B1-04: schema 字段重命名 `mode` → `from` + `to`。
     const patch = reduceEvent(
       s,
       ev('', { type: 'permission_mode_changed', from: 'auto', to: 'plan' }),

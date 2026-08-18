@@ -58,7 +58,7 @@
   gap: var(--space-2);
 }
 
-/* ===== User bubble ===== */
+/* ===== 用户气泡 ===== */
 .userRow {
   display: flex;
   justify-content: flex-end;
@@ -77,7 +77,7 @@
   word-break: break-word;
 }
 
-/* ===== Assistant bubble ===== */
+/* ===== 助手气泡 ===== */
 .assistantRow {
   display: flex;
   gap: var(--space-3);
@@ -130,7 +130,7 @@
   }
 }
 
-/* ===== Mono text（thinking / tool）===== */
+/* ===== 等宽文本（thinking / tool）===== */
 .monoText {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
@@ -147,7 +147,7 @@
   color: var(--danger);
 }
 
-/* ===== Error / compacted ===== */
+/* ===== 错误 / 折叠 ===== */
 .errorRow {
   display: flex;
   align-items: center;

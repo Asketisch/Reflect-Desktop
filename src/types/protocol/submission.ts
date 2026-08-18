@@ -1,15 +1,14 @@
 /**
- * Reflect protocol — Submission envelope.
+ * Reflect protocol —— Submission 信封。
  *
- * Mirrors `vendor/reflect-protocol/src/submission.rs` `Submission`. The
- * Rust side serializes this as `{ id, op, client_user_message_id?, trace? }`;
- * the `op` payload is the discriminated union in `./op.ts`.
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/submission.rs` 的 `Submission`。
+ * Rust 端序列化为 `{ id, op, client_user_message_id?, trace? }`；
+ * `op` payload 为 `./op.ts` 中的判别联合。
  *
- * Constructors live in `src/protocol/submissions.ts` (one builder per
- * Op variant). Use those instead of hand-rolling `ReflectSubmission`
- * objects inline.
+ * 构造函数位于 `src/protocol/submissions.ts`（每个 Op 变体一个 builder）。
+ * 请使用这些构造函数，不要手动构造 `ReflectSubmission` 对象。
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 import type { ReflectSubmissionOp } from './op';

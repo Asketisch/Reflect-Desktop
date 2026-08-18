@@ -1,5 +1,5 @@
 /**
- * MediaView —— Media Studio + Computer Use (Phase 3 item 13).
+ * MediaView —— 媒体工作室 + 电脑操控（Phase 3 条目 13）。
  *
  * 双 tab:
  * - **Studio**:目录扫描图片列表。backend = `RealImageBackend`(`image` crate),

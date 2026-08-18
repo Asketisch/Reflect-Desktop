@@ -1,16 +1,15 @@
 /**
- * Reflect protocol — Rollout / SessionInfo.
+ * Reflect 协议 —— Rollout / SessionInfo。
  *
- * Mirrors `vendor/reflect-protocol/src/rollout.rs`. The `ReflectSessionInfo`
- * interface here is the *protocol* shape (snake_case) used by the Tauri
- * envelope — distinct from `src/utils/types.ts` `ReflectSessionInfo`,
- * which is the *backend* (Rust-crate) shape with kebab/extra fields
- * re-exported through `@/utils/commands`. Don't confuse the two.
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/rollout.rs`。这里的 `ReflectSessionInfo`
+ * 接口是 Tauri 信封使用的 *协议* 形状(snake_case),与 `src/utils/types.ts`
+ * 中的 `ReflectSessionInfo` 不同——后者是经 `@/utils/commands` 再导出的
+ * *后端* (Rust crate) 形状,字段为 kebab-case 并含额外字段。请勿混淆两者。
  *
- * `ReflectRolloutRecord` wraps a `ReflectSubmission` or `ReflectEvent`
- * with `seq`, `kind`, `timestamp` for replay.
+ * `ReflectRolloutRecord` 用 `seq`、`kind`、`timestamp` 包装
+ * `ReflectSubmission` 或 `ReflectEvent`,用于回放。
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 import type { ReflectSubmission } from './submission';

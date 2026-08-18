@@ -1,5 +1,5 @@
 /**
- * remote feature barrel (Phase 2 item 2).
+ * remote 功能桶（Phase 2 条目 2）。
  */
 export { RemoteView } from './RemoteView';
 export { useRemoteController, emptyRemoteDraft } from './useRemoteController';

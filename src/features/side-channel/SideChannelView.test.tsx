@@ -1,12 +1,11 @@
 /**
- * Vitest — SideChannelView (Phase 2 item 1).
+ * Vitest —— SideChannelView（Phase 2 条目 1）。
  *
- * Smoke + behavior tests against mocked IPC:
- *   - page title + status badge render
- *   - Start form opens on click; submits with agent_name + prompt
- *   - running channels expose a Cancel button that forwards to
- *     reflect_cancel_side_channel
- *   - terminal channels (done/cancelled/error) hide the Cancel button
+ * 基于模拟 IPC 的冒烟 + 行为测试：
+ *   - 页面标题 + 状态徽标渲染
+ *   - Start 表单点击打开；以 agent_name + prompt 提交
+ *   - 运行中的通道暴露 Cancel 按钮，转发到 reflect_cancel_side_channel
+ *   - 终态通道（done/cancelled/error）隐藏 Cancel 按钮
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -89,16 +88,16 @@ describe('SideChannelView', () => {
   it('running row exposes Cancel; terminal rows do not', async () => {
     render(wrap(<SideChannelView />));
     await waitFor(() => screen.getByTestId('side-channel-row-side-running01'));
-    // Running row has a Cancel button.
+    // 运行中的行有取消按钮。
     expect(screen.getByTestId('side-channel-cancel-side-running01')).toBeDefined();
-    // Done row does not (no Cancel button for terminal status).
+    // 已完成的行没有（终态没有取消按钮）。
     expect(screen.queryByTestId('side-channel-cancel-side-done0002')).toBeNull();
   });
 
   it('opens the start form and submits with agent_name + prompt', async () => {
     render(wrap(<SideChannelView />));
-    // Wait for the list to render so the Add button isn't competing with
-    // any post-mount updates from refetchInterval.
+    // 等待列表渲染完成，避免 Add 按钮与
+    // refetchInterval 触发的后续更新冲突。
     await waitFor(() => screen.getByTestId('side-channel-row-side-running01'));
     fireEvent.click(screen.getByTestId('side-channel-add-btn'));
     expect(screen.getByTestId('side-channel-start-form')).toBeDefined();
@@ -109,8 +108,8 @@ describe('SideChannelView', () => {
     fireEvent.change(screen.getByTestId('side-channel-start-prompt'), {
       target: { value: 'double-check the diff' },
     });
-    // Click the submit button so onClick (which calls start on each render)
-    // fires after the latest state.
+    // 点击提交按钮，让 onClick（每次渲染都会调用 start）
+    // 在最新状态之后触发。
     fireEvent.click(screen.getByTestId('side-channel-start-submit'));
 
     await waitFor(

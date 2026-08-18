@@ -1,4 +1,4 @@
-//! B16: Markdown grep / find-in-files (`reflect_search_files`)。
+//! Markdown grep / 全仓库查找（`reflect_search_files`）。
 //!
 //! 复用 `files::should_skip` 来过滤目录。
 

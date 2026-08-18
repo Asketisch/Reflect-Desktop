@@ -75,7 +75,7 @@ describe('Sidebar', () => {
       />,
     );
     expect(screen.getByText('Now')).toBeDefined();
-    // session_id "s1" → displayTitle yields the id prefix.
+    // session_id "s1" → displayTitle 返回 id 前缀。
     expect(screen.getByText('s1')).toBeDefined();
     expect(screen.getByText(/2 msgs/)).toBeDefined();
   });

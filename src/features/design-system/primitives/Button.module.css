@@ -39,7 +39,7 @@
   height: 1em;
 }
 
-/* ===== Sizes ===== */
+/* ===== 尺寸 ===== */
 .btn[data-size='sm'] {
   padding: 5px 10px;
   font-size: var(--fs-sm);
@@ -56,7 +56,7 @@
   min-height: 40px;
 }
 
-/* ===== Variants ===== */
+/* ===== 变体 ===== */
 
 /* primary: 实心 accent */
 .btn[data-variant='primary'] {

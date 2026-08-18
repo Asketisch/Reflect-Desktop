@@ -9,7 +9,7 @@
  * 行为契约:
  *   - title 为 i18n `modal.planReady.title`。
  *   - 显示 plan 文本(summary 优先,否则 plan,再否则 raw JSON)。
- *   - tertiary Revise / secondary Manual Approve / primary Auto Mode。
+ *   - 按钮层级：tertiary Revise / secondary Manual Approve / primary Auto Mode。
  *   - onClose 走 store `approvePlan(id, 'revise')`(等价 dismiss)。
  */
 import { useAgentStore, type PendingPlan } from '@/stores/agentStore';

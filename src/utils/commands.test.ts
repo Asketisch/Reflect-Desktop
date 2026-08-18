@@ -90,24 +90,24 @@ import {
   reflect_upsert_team,
   reflect_get_team,
   reflect_delete_team,
-  // schedule (Phase 1 item 2)
+  // schedule (Phase 1 条目 2)
   reflect_list_schedules,
   reflect_add_schedule,
   reflect_update_schedule,
   reflect_remove_schedule,
   reflect_get_schedule_status,
-  // agents (Phase 1 item 3)
+  // agents (Phase 1 条目 3)
   reflect_list_agent_defs,
   reflect_get_agent_def,
   reflect_save_agent_def,
   reflect_delete_agent_def,
   reflect_parse_agent_md,
-  // side-channel (Phase 2 item 1)
+  // side-channel (Phase 2 条目 1)
   reflect_start_side_channel,
   reflect_cancel_side_channel,
   reflect_list_side_channels,
   reflect_get_side_channel,
-  // remote (Phase 2 item 2)
+  // remote (Phase 2 条目 2)
   reflect_get_remote_config,
   reflect_update_remote_config,
   reflect_get_remote_status,
@@ -119,8 +119,8 @@ import {
 } from '@/utils/commands';
 
 /**
- * Capture a single call's cmd + args.
- * Returns the recorded args object (or undefined for wrappers that pass no args).
+ * 捕获单次调用的 cmd + args。
+ * 返回记录的 args 对象（对不传 args 的包装返回 undefined）。
  */
 async function captureCmd<T>(cmd: string, fn: () => Promise<T>): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -167,7 +167,7 @@ describe('commands forwarding (mapping)', () => {
     resetMockInvoke();
   });
 
-  /** Compare against the literal record passed by the wrapper. */
+  /** 与包装器传入的字面量记录逐项比较。 */
   function expectArgs(actual: unknown, expected: Record<string, unknown> | undefined) {
     expect(actual).toEqual(expected);
   }
@@ -179,7 +179,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, undefined);
   });
 
-  // ----- agent lifecycle -----
+  // ----- agent 生命周期 -----
 
   it('reflect_submit forwards { submission }', async () => {
     const args = await captureCmd('reflect_submit', () =>
@@ -216,7 +216,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(noId, { toTurnId: null });
   });
 
-  // ----- approvals -----
+  // ----- 审批 -----
 
   it('tool/hook approval forwards { id, decision } identically', async () => {
     const cases = [
@@ -236,7 +236,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(captured, { id: 'plan-42', choice: 'auto_mode' });
   });
 
-  // ----- plan -----
+  // ----- 计划 -----
 
   it('reflect_enter_plan_mode forwards { task }; exit_plan_mode has none', async () => {
     const enter = await captureCmd('reflect_enter_plan_mode', () =>
@@ -248,7 +248,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(exit, undefined);
   });
 
-  // ----- permissions -----
+  // ----- 权限 -----
 
   it('reflect_set_effort forwards { level }; set_permission_mode { mode }; cycle has none', async () => {
     const effort = await captureCmd('reflect_set_effort', () => reflect_set_effort('high'));
@@ -265,7 +265,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(cycle, undefined);
   });
 
-  // ----- questions -----
+  // ----- 提问 -----
 
   it('reflect_ask_user_question_response forwards { id, answers }', async () => {
     const args = await captureCmd('reflect_ask_user_question_response', () =>
@@ -281,7 +281,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, { id: 'q-2', text: 'typed answer' });
   });
 
-  // ----- config / agent status -----
+  // ----- 配置 / agent 状态 -----
 
   it('reflect_agent_status / get_config / list_tools use bare cmd names', async () => {
     const seenArgs: Array<{ cmd: string; args: unknown }> = [];
@@ -308,7 +308,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, { toml: 'foo = 1\n' });
   });
 
-  // ----- sessions -----
+  // ----- 会话 -----
 
   it('reflect_list_sessions normalises missing opts to { limit: null, offset: null }', async () => {
     const none = await captureCmd('reflect_list_sessions', () => reflect_list_sessions());
@@ -344,7 +344,7 @@ describe('commands forwarding (mapping)', () => {
     }
   });
 
-  // ----- events -----
+  // ----- 事件 -----
 
   it('onReflectEvent listens on "reflect_event" and unwraps .payload', async () => {
     const unlisten = await onReflectEvent(() => {});
@@ -352,7 +352,7 @@ describe('commands forwarding (mapping)', () => {
     unlisten();
   });
 
-  // ----- workspaces -----
+  // ----- 工作区 -----
 
   it('reflect_set_workspace forwards { path }; other workspace cmds have no args', async () => {
     const set = await captureCmd('reflect_set_workspace', () =>
@@ -375,14 +375,14 @@ describe('commands forwarding (mapping)', () => {
     ]);
   });
 
-  // ----- skills -----
+  // ----- 技能 -----
 
   it('reflect_list_skills has no args', async () => {
     const args = await captureCmd('reflect_list_skills', () => reflect_list_skills());
     expectArgs(args, undefined);
   });
 
-  // ----- memory -----
+  // ----- 记忆 -----
 
   it('memory wrappers forward { scope, key, value? }', async () => {
     const list = await captureCmd('reflect_list_memory', () => reflect_list_memory());
@@ -399,7 +399,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(rm, { scope: 'user', key: 'name' });
   });
 
-  // ----- hooks -----
+  // ----- 钩子 -----
 
   it('reflect_toggle_hook forwards { name, enabled }; list_hooks has no args', async () => {
     const toggle = await captureCmd('reflect_toggle_hook', () =>
@@ -424,14 +424,14 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(log, { limit: 50 });
   });
 
-  // ----- terminal -----
+  // ----- 终端 -----
 
   it('terminal spawn forwards { cmd }; kill forwards snake_case { session_id }; list has no args', async () => {
     const run = await captureCmd('reflect_run_shell', () => reflect_run_shell('ls -la'));
     expectArgs(run, { cmd: 'ls -la' });
 
     const kill = await captureCmd('reflect_kill_shell', () => reflect_kill_shell('sh-1'));
-    // backend key is snake_case "session_id" — preserve that for compat.
+    // 后端键是 snake_case "session_id" —— 为兼容性保留。
     expectArgs(kill, { session_id: 'sh-1' });
 
     const list = await captureCmd('reflect_list_shell_sessions', () =>
@@ -446,7 +446,7 @@ describe('commands forwarding (mapping)', () => {
     unlisten();
   });
 
-  // ----- files -----
+  // ----- 文件 -----
 
   it('reflect_list_dir forwards { path, maxDepth }; read_file forwards { path }', async () => {
     const dir = await captureCmd('reflect_list_dir', () => reflect_list_dir(null));
@@ -461,7 +461,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(read, { path: '/a.ts' });
   });
 
-  // ----- allowlist -----
+  // ----- 白名单 -----
 
   it('reflect_load_allowlist has no args; save_allowlist forwards { list }; check_allowlist forwards { prefix }', async () => {
     const load = await captureCmd('reflect_load_allowlist', () => reflect_load_allowlist());
@@ -479,14 +479,14 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(check, { prefix: 'rm ' });
   });
 
-  // ----- updates -----
+  // ----- 更新 -----
 
   it('reflect_check_update has no args', async () => {
     const args = await captureCmd('reflect_check_update', () => reflect_check_update());
     expectArgs(args, undefined);
   });
 
-  // ----- search -----
+  // ----- 搜索 -----
 
   it('reflect_search_files forwards { query, path, maxResults } with defaults', async () => {
     const none = await captureCmd('reflect_search_files', () => reflect_search_files('foo'));
@@ -498,7 +498,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(some, { query: 'foo', path: '/tmp', maxResults: 50 });
   });
 
-  // ----- tasks (Phase 1 multi-agent) -----
+  // ----- 任务（Phase 1 多 agent）-----
 
   it('reflect_list_tasks forwards { list }', async () => {
     const args = await captureCmd('reflect_list_tasks', () => reflect_list_tasks('sess-1'));
@@ -561,7 +561,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, { list: 'L', claimer: 'worker@x' });
   });
 
-  // ----- teams (Phase 1 multi-agent) -----
+  // ----- 团队（Phase 1 多 agent）-----
 
   it('reflect_list_teams has no args', async () => {
     const args = await captureCmd('reflect_list_teams', () => reflect_list_teams());
@@ -587,7 +587,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(del, { name: 'rocket' });
   });
 
-  // ----- schedule (Phase 1 item 2) -----
+  // ----- schedule (Phase 1 条目 2) -----
 
   it('reflect_list_schedules / get_schedule_status have no args', async () => {
     const list = await captureCmd('reflect_list_schedules', () => reflect_list_schedules());
@@ -631,7 +631,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, { id: 'job-1' });
   });
 
-  // ----- agents (Phase 1 item 3) -----
+  // ----- agents (Phase 1 条目 3) -----
 
   it('reflect_list_agent_defs has no args', async () => {
     const args = await captureCmd('reflect_list_agent_defs', () => reflect_list_agent_defs());
@@ -673,7 +673,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, { text: '---\nname: x\ndescription: y\n---\nbody' });
   });
 
-  // ----- side-channel (Phase 2 item 1) -----
+  // ----- side-channel (Phase 2 条目 1) -----
 
   it('reflect_list_side_channels has no args; get forwards { id }', async () => {
     const list = await captureCmd('reflect_list_side_channels', () =>
@@ -701,7 +701,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, { id: 'side-deadbeef' });
   });
 
-  // ----- remote (Phase 2 item 2) -----
+  // ----- remote (Phase 2 条目 2) -----
 
   it('reflect_get_remote_config / get_remote_status / tailscale_status have no args', async () => {
     const cfg = await captureCmd('reflect_get_remote_config', () => reflect_get_remote_config());

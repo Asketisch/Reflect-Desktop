@@ -34,7 +34,7 @@ describe('fuzzy', () => {
 
   it('subsequence match works', () => {
     const r = fuzzy('cpc', items);
-    // 'Compact context' contains c..p..c
+    // 'Compact context' 包含 c..p..c
     expect(r.length).toBeGreaterThan(0);
     expect(r[0].item.label).toBe('Compact context');
   });

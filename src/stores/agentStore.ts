@@ -1,8 +1,8 @@
 /**
- * Compatibility entry point for the modular agent store.
+ * 模块化 agent store 的兼容性入口。
  *
- * The implementation lives in `./agent`; existing imports from
- * `@/stores/agentStore` intentionally remain stable.
+ * 实现位于 `./agent`；来自 `@/stores/agentStore` 的现有导入
+ * 有意保持稳定。
  */
 export {
   reduceEvent,

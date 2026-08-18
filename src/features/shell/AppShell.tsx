@@ -57,10 +57,10 @@ export function AppShell() {
   // B13-B15: agent 完成时给 chime + 系统通知 + dock badge。
   useAgentNotifications(loadNotifyOptions());
 
-  // theme state for palette
+  // 调色板所需的主题状态
   const { resolved, cycleTheme, setThemeMode } = useThemeCycle();
 
-  // ⌘K / Ctrl+K global shortcut + Esc close
+  // ⌘K / Ctrl+K 全局快捷键 + Esc 关闭
   const { paletteOpen, setPaletteOpen } = useCommandPaletteShortcut();
 
   const handleSelect = (id: string) => {

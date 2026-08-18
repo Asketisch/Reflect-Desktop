@@ -1,163 +1,163 @@
-# ReflectDesktop Agent Guide
+# ReflectDesktop Agent 指南
 
-All docs must be canonical, with no past commentary, only live state.
+所有文档必须是规范化的，不包含过时评论，仅保留当前有效状态。
 
-## Scope
+## 范围
 
-This file is the agent contract for how to work in this repo.
-Detailed navigation/runbooks live in:
+本文档是仓库的 Agent 契约，规定在本仓库中的工作方式。
+详细的导航手册见：
 
-- `docs/codebase-map.md` (task-oriented file map: "if you need X, edit Y")
-- `docs/PROTOCOL_BRIDGE.md` (Tauri ↔ reflect-protocol envelope spec)
-- `README.md` (setup, build, release, and broader project docs)
-- `docs/CHANGELOG.md` (release notes)
+- `docs/codebase-map.md`（面向任务的代码映射："需要改 X，编辑 Y"）
+- `docs/PROTOCOL_BRIDGE.md`（Tauri ↔ reflect-protocol 协议信封规范）
+- `README.md`（环境设置、构建、发布和项目文档）
+- `docs/CHANGELOG.md`（版本更新日志）
 
-## Project Snapshot
+## 项目概况
 
-ReflectDesktop is a Tauri 2 + React 19 desktop GUI for the Reflect Agent.
+ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 19 构建。
 
-- Frontend: React 19 + Vite + TanStack Router/Query (`src/`)
-- Backend app: Tauri Rust process (`src-tauri/src/lib.rs`)
-- Submodule: `reflect-*` 核心 crate 通过 git submodule 复用(见 `reflect-agent/`),升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
-- Shared app-core: `app-core/` (UI-agnostic reducer/state, shared with future Tauri shims)
+- 前端：React 19 + Vite + TanStack Router/Query（`src/`）
+- 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
+- 子模块：`reflect-*` 核心 crate 通过 git submodule 复用（见 `reflect-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
+- 共享核心：`app-core/`（与 UI 无关的 reducer/state，供未来 Tauri 适配层共享）
 
-## Non-Negotiable Architecture Rules
+## 不可妥协的架构规则
 
-1. Put shared/domain backend logic in `app-core/` and `reflect-agent/crates/reflect-*` first.
-2. The Tauri app is a thin adapter around `reflect_core::AgentThread`.
-3. Do not duplicate logic between TUI and GUI; both consume the same `reflect-protocol` envelope.
-4. Keep Tauri command names and payload shapes stable unless intentionally changing contracts.
-5. Keep frontend IPC contracts in sync with backend command surfaces (`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`).
+1. 将共享/领域后端逻辑优先放在 `app-core/` 和 `reflect-agent/crates/reflect-*` 中。
+2. Tauri 应用是 `reflect_core::AgentThread` 的薄适配层。
+3. TUI 和 GUI 之间不重复逻辑；两者消费同一份 `reflect-protocol` 协议信封。
+4. 除非有意修改协议，否则保持 Tauri 命令名称和负载结构稳定。
+5. 保持前端 IPC 协议与后端命令表一致（`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`）。
 
-## Backend Routing Rules
+## 后端路由规则
 
-For backend behavior changes, follow this order:
+后端行为变更遵循以下顺序：
 
-1. Core crates (`reflect-agent/crates/reflect-*`,via submodule) — preferred for cross-runtime logic. If the change belongs upstream,改 Reflect-Agent 仓库并升级 submodule(见 `SUBMODULE.md`)。
-2. App adapter and Tauri command surface (`src-tauri/src/lib.rs` + `commands/mod.rs`).
-3. Frontend IPC wrapper (`src/utils/commands/{domain}.ts`).
-4. If you add a backend command, update all relevant layers + tests + `docs/PROTOCOL_BRIDGE.md` + `docs/CHANGELOG.md`.
+1. 核心 crate（`reflect-agent/crates/reflect-*`，通过 submodule）— 跨运行时逻辑的首选位置。如果变更应放在上游，修改 Reflect-Agent 仓库并升级 submodule（见 `SUBMODULE.md`）。
+2. 应用适配层和 Tauri 命令表（`src-tauri/src/lib.rs` + `commands/mod.rs`）。
+3. 前端 IPC 包装（`src/utils/commands/{domain}.ts`）。
+4. 如果新增后端命令，需同步更新所有相关层级 + 测试 + `docs/PROTOCOL_BRIDGE.md` + `docs/CHANGELOG.md`。
 
-## Frontend Routing Rules
+## 前端路由规则
 
-- Keep `src/main.tsx` as the composition root.
-- Keep `src/router.tsx` as the route table.
-- Move stateful orchestration into `src/features/<slice>/hooks/*` or `<slice>/use*Controller.ts` files co-located with the view.
-- Keep presentational UI in feature components (`src/features/<slice>/<View>.tsx`).
-- Keep Tauri calls in `src/utils/commands/` only (per-domain files); `src/utils/tauri.ts` and `src/utils/commands.ts` are compatibility barrels — do not add new wrappers there.
-- Keep event subscription fanout in `src/services/agent.ts` and `src/services/agentEventBus.ts`.
+- `src/main.tsx` 作为组合根。
+- `src/router.tsx` 作为路由表。
+- 有状态的编排逻辑放入 `src/features/<slice>/hooks/*` 或 `<slice>/use*Controller.ts`（与视图同目录）。
+- 表现层 UI 放在功能组件中（`src/features/<slice>/<View>.tsx`）。
+- Tauri 调用仅放在 `src/utils/commands/`（按领域分文件）；`src/utils/tauri.ts` 和 `src/utils/commands.ts` 为兼容桶，不要在其中新增包装。
+- 事件订阅广播保持在 `src/services/agent.ts` 和 `src/services/agentEventBus.ts`。
 
-## Import Aliases
+## 导入别名
 
-Use project aliases for frontend imports (defined in `tsconfig.json` + `vite.config.ts`):
+前端导入使用项目别名（在 `tsconfig.json` + `vite.config.ts` 中定义）：
 
 - `@/*` → `src/*`
 
-## Key File Anchors
+## 核心文件锚点
 
-- Frontend composition root: `src/main.tsx`
-- Frontend router: `src/router.tsx`
-- IDE app shell: `src/features/shell/AppShell.tsx`
-- Frontend IPC barrel (compat): `src/utils/tauri.ts` / `src/utils/commands.ts`
-- Frontend IPC low-level bridge: `src/utils/bridge.ts` (`invoke` / `listen` with fallback)
-- Frontend IPC wrappers (per-domain): `src/utils/commands/{domain}.ts` (e.g. `agent`, `sessions`, `memory`, `terminal`, `git`, `files`, `skills`, `hooks`, `workspaces`, `config`, `permissions`, `approvals`, `questions`, `plan`, `events`, `health`, `updates`, `allowlist`, `search`)
-- Frontend agent store: `src/stores/agentStore.ts` (compat facade) → `src/stores/agent/` (implementation: `store.ts`, `reducer.ts`, `turns.ts`, `toast.ts`, `servers.ts`, `types.ts`, `useAgent.ts`, `index.ts`)
-- Frontend agent hook (legacy re-export): `src/services/agent.ts`
-- App command registry: `src-tauri/src/lib.rs`
-- App state (AgentThread host): `src-tauri/src/state.rs`
-- App state support modules (kept under `src-tauri/src/`): `state.rs`, `dock.rs`, `events.rs`, `mcp.rs`, `menu.rs`, `tray.rs`, `shortcut.rs`, plus private helpers `hook_store.rs`, `memory_store.rs`, `shell_sessions.rs`, `workspace_state.rs`.
-- Tauri command surface: `src-tauri/src/commands/mod.rs` — thin barrel that re-exports the per-domain modules under `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` and the shared `error.rs` (defines `CommandError` / `CommandResult`).
-- Cargo workspace: `Cargo.toml` (root) + `src-tauri/Cargo.toml`
-- Submodule 核心: `reflect-agent/crates/reflect-*/` (只读镜像,不要直接改 —— 改 Reflect-Agent 仓库并升级 submodule)
+- 前端组合根：`src/main.tsx`
+- 前端路由表：`src/router.tsx`
+- IDE 应用外壳：`src/features/shell/AppShell.tsx`
+- 前端 IPC 兼容桶：`src/utils/tauri.ts` / `src/utils/commands.ts`
+- 前端底层桥接：`src/utils/bridge.ts`（`invoke` / `listen` 带降级）
+- 前端 IPC 包装（按领域）：`src/utils/commands/{domain}.ts`（如 `agent`、`sessions`、`memory`、`terminal`、`git`、`files`、`skills`、`hooks`、`workspaces`、`config`、`permissions`、`approvals`、`questions`、`plan`、`events`、`health`、`updates`、`allowlist`、`search`）
+- 前端代理存储：`src/stores/agentStore.ts`（兼容层）→ `src/stores/agent/`（实现：`store.ts`、`reducer.ts`、`turns.ts`、`toast.ts`、`servers.ts`、`types.ts`、`useAgent.ts`、`index.ts`）
+- 前端代理钩子（旧版重新导出）：`src/services/agent.ts`
+- 应用命令注册表：`src-tauri/src/lib.rs`
+- 应用状态（AgentThread 宿主）：`src-tauri/src/state.rs`
+- 应用状态支持模块（位于 `src-tauri/src/`）：`state.rs`、`dock.rs`、`events.rs`、`mcp.rs`、`menu.rs`、`tray.rs`、`shortcut.rs`，及辅助文件 `hook_store.rs`、`memory_store.rs`、`shell_sessions.rs`、`workspace_state.rs`
+- Tauri 命令表：`src-tauri/src/commands/mod.rs` — 薄桶模块，重新导出 `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` 中的命令体和 `error.rs`（定义 `CommandError` / `CommandResult`）
+- Cargo 工作区：`Cargo.toml`（根）+ `src-tauri/Cargo.toml`
+- 子模块核心：`reflect-agent/crates/reflect-*/`（只读镜像，不要直接修改——修改 Reflect-Agent 仓库并升级 submodule）
 
-For broader path maps, use `docs/codebase-map.md`.
+更详细的路径映射见 `docs/codebase-map.md`。
 
-## Protocol Invariants
+## 协议不变量
 
-- Wire format is `reflect_protocol::Event` / `Submission` (snake_case JSON).
-- All `Op` variants → Tauri commands (see `docs/PROTOCOL_BRIDGE.md` §2).
-- All `EventMsg` variants → single `reflect_event` channel; frontend dispatches by `msg.type`.
-- Submission id ↔ Event id pairing for stream correlation.
-- `EVENT_ID_NONE = ""` for lifecycle events (no matching submission).
+- 线格式为 `reflect_protocol::Event` / `Submission`（snake_case JSON）
+- 所有 `Op` 变体 → Tauri 命令（见 `docs/PROTOCOL_BRIDGE.md` §2）
+- 所有 `EventMsg` 变体 → 单一 `reflect_event` 通道，前端通过 `msg.type` 分发
+- Submission id ↔ Event id 配对用于流关联
+- `EVENT_ID_NONE = ""` 用于生命周期事件（无匹配提交）
 
-## AgentThread Host State Invariants
+## AgentThread 宿主状态不变量
 
-- `MinimalAgent` (M2.x) is the wrapper that holds `Arc<AgentThread>` + `tokio::sync::broadcast` for session event fan-out.
-- `install_agent_thread()` is called from Tauri `setup()` (post runtime init) — never from `manage()` (sync phase).
-- Slow subscribers trigger `RecvError::Lagged(n)` — logged but task keeps running.
-- macOS close button → hide to tray (do not exit) via `on_window_event`.
+- `MinimalAgent`（M2.x）是封装器，持有 `Arc<AgentThread>` + `tokio::sync::broadcast` 用于会话事件广播
+- `install_agent_thread()` 在 Tauri `setup()` 中调用（运行时初始化后），不要在 `manage()` 中调用（同步阶段）
+- 慢订阅者触发 `RecvError::Lagged(n)` — 记录日志但任务继续运行
+- macOS 关闭按钮 → 隐藏到托盘（不退出），通过 `on_window_event`
 
-## Session Hierarchy Invariants
+## 会话层级不变量
 
-- `useSessions` (`src/features/sessions/hooks/useSessions.ts`) is the canonical hook for session list.
-- Switching sessions → `reflect_replay_session(id)` then hydrate local state.
-- Time bucketing (`Now/Today/Yesterday/ThisWeek/Older`) lives in the hook, not the sidebar component.
+- `useSessions`（`src/features/sessions/hooks/useSessions.ts`）是会话列表的规范 hook
+- 切换会话 → `reflect_replay_session(id)` 后水合本地状态
+- 时间分组（`Now/今天/昨天/本周/更早`）在 hook 中，不在侧边栏组件中
 
-## Follow-up Behavior Map
+## 后续行为映射
 
-For Queue vs Steer follow-up behavior, start here:
+关于队列和导航后续行为，从这里开始：
 
-- Settings model + defaults: `src/features/settings/SettingsView.tsx` (uses `ConfigForm` + per-section components)
-- Composer runtime behavior: `src/features/composer/Composer.tsx` (the canonical location); `src/features/messages/Composer.tsx` is now a thin re-export shim that re-exports from `features/composer/Composer`.
-- Send intent routing: `src/stores/agent/index.ts::useAgentStore` (canonical) — `src/stores/agentStore.ts` is a compatibility facade.
-- App/layout wiring: `src/features/shell/AppShell.tsx`, `src/router.tsx`
+- 设置模型与默认值：`src/features/settings/SettingsView.tsx`（使用 `ConfigForm` + 每节组件）
+- 编辑器运行时行为：`src/features/composer/Composer.tsx`（规范位置）；`src/features/messages/Composer.tsx` 是薄重新导出层
+- 发送意图路由：`src/stores/agent/index.ts::useAgentStore`（规范位置）— `src/stores/agentStore.ts` 为兼容层
+- 应用布局布线：`src/features/shell/AppShell.tsx`、`src/router.tsx`
 
-## App State Sync Checklist
+## 应用状态同步检查表
 
-When changing settings/persistence that affects both backend and frontend:
+当修改同时影响后端和前端的设置/持久化时：
 
-1. Backend (`src-tauri/src/state.rs` + the relevant `commands/<domain>.rs` / `commands/mod.rs`) updated.
-2. Frontend IPC (`src/utils/commands/{domain}.ts`) updated.
-3. Feature settings UI (`src/features/settings/SettingsView.tsx`, `ConfigForm.tsx`, `sections/DisplaySection.tsx`, `sections/NotificationsSection.tsx`, `sections/UpdatesSection.tsx`, `components/StructuredField.tsx`, `components/ComplexEditors.tsx`, `config/schema.ts`) updated.
-4. Test coverage added.
-5. `docs/PROTOCOL_BRIDGE.md` updated if wire format changed.
-6. `docs/CHANGELOG.md` entry added.
+1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`）已更新
+2. 前端 IPC（`src/utils/commands/{domain}.ts`）已更新
+3. 功能设置 UI（`src/features/settings/SettingsView.tsx`、`ConfigForm.tsx`、`sections/DisplaySection.tsx`、`sections/NotificationsSection.tsx`、`sections/UpdatesSection.tsx`、`components/StructuredField.tsx`、`components/ComplexEditors.tsx`、`config/schema.ts`）已更新
+4. 测试覆盖率已补充
+5. `docs/PROTOCOL_BRIDGE.md` 已更新（如果线格式有变更）
+6. `docs/CHANGELOG.md` 已添加条目
 
-## Design System Rule (High-Level)
+## 设计系统规则（高层）
 
-Use existing design tokens (`src/styles/tokens.css`, dark-first with light/system themes) and primitives (`src/features/design-system/primitives/*`) for shared shell chrome. Do not reintroduce duplicated modal/toast/panel/popover shell styling in feature CSS. All views consume `token` via CSS Modules (no inline style hardcoded colors).
+使用现有的设计标记（`src/styles/tokens.css`，暗色优先，支持亮色/系统主题）和基础组件（`src/features/design-system/primitives/*`）构建共享壳层。不要在功能 CSS 中重复定义已存在的弹窗/提示/面板/浮层样式。所有视图通过 CSS Modules 消费 `token`（内联样式不硬编码颜色值）。
 
-(See existing DS files and `DesignSystemView` catalog for implementation details.)
+详见现有设计系统文件和 `DesignSystemView` 目录。
 
-## Safety and Git Behavior
+## 安全与 Git 行为
 
-- Prefer safe git operations (`status`, `diff`, `log`).
-- Do not reset/revert unrelated user changes.
-- If unrelated changes appear, continue focusing on owned files unless they block correctness.
-- If conflicts impact correctness, call them out and choose the safest path.
-- Fix root cause, not band-aids.
-- **Submodule 核心**: 不要直接改 `reflect-agent/crates/reflect-*`;改 Reflect-Agent 仓库后用 `git submodule update --remote` 升级(见 `SUBMODULE.md`)。
+- 优先使用安全的 git 操作（`status`、`diff`、`log`）
+- 不要重置或撤销无关的用户变更
+- 如果存在无关变更，继续专注自有文件，除非这些变更影响正确性
+- 如果冲突影响正确性，指出问题并选择最安全的路径
+- 修复根本原因，不要打补丁
+- **子模块核心**：不要直接修改 `reflect-agent/crates/reflect-*`；修改 Reflect-Agent 仓库后用 `git submodule update --remote` 升级（详见 `SUBMODULE.md`）
 
-## Validation Matrix
+## 验证矩阵
 
-Run validations based on touched areas:
+根据触碰的范围运行验证：
 
-- Always: `pnpm typecheck`
-- Frontend behavior/state/hooks/components: `pnpm test`
-- Rust backend changes: `cd src-tauri && cargo check`
-- Use targeted tests for touched modules before full-suite runs when iterating.
+- 始终运行：`pnpm typecheck`
+- 前端行为/状态/hooks/组件：`pnpm test`
+- Rust 后端变更：`cd src-tauri && cargo check`
+- 迭代时使用定向测试，而不是全量测试
 
-## Quick Runbook
+## 快速运行手册
 
-Core local commands (keep these inline for daily use):
+核心本地命令（日常使用）：
 
 ```bash
 pnpm install
-pnpm tauri dev                # dev mode (HMR)
+pnpm tauri dev                # 开发模式（HMR）
 pnpm test                     # vitest
 pnpm typecheck                # tsc --noEmit
-cd src-tauri && cargo check   # Rust types
+cd src-tauri && cargo check   # Rust 类型检查
 ```
 
-Release build:
+发布构建：
 
 ```bash
-pnpm tauri build              # full multi-platform
-pnpm tauri build --bundles app  # macOS .app only
+pnpm tauri build              # 全平台构建
+pnpm tauri build --bundles app  # 仅 macOS .app
 bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ReflectDesktop.app
 ```
 
-Submodule 升级(当 Reflect-Agent 发布新版本时,详见 [`SUBMODULE.md`](SUBMODULE.md)):
+子模块升级（当 Reflect-Agent 发布新版本时，详见 [`SUBMODULE.md`](SUBMODULE.md)）：
 
 ```bash
 git submodule update --remote reflect-agent
@@ -165,46 +165,47 @@ git diff --submodule reflect-agent
 git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
 ```
 
-> 历史:本仓库曾用 `vendor/` + `scripts/vendor-sync.sh`(rsync 手动同步)复用核心 crate,
-> 已迁移为 git submodule。旧的 vendor runbook 不再适用。
+> 历史：本仓库曾用 `vendor/` + `scripts/vendor-sync.sh`（rsync 手动同步）复用核心 crate，
+> 已迁移为 git submodule。旧的 vendor 运行手册不再适用。
 
-Focused test runs:
+定向测试运行：
 
 ```bash
 pnpm test -- src/features/settings/SettingsView.test.tsx
 ```
 
-## Hotspots
+## 高频变更文件
 
-Use extra care in high-churn/high-complexity files:
+以下文件变更频繁或复杂度高，需格外注意：
 
-- `src-tauri/src/lib.rs` — Tauri builder + command handler registration (`invoke_handler` lists every public `reflect_*` command exported from `src-tauri/src/commands/mod.rs`).
-- `src-tauri/src/state.rs` — AgentThread host; install timing matters.
+- `src-tauri/src/lib.rs` — Tauri 构建器 + 命令处理器注册（`invoke_handler` 列出 `src-tauri/src/commands/mod.rs` 导出的所有 `reflect_*` 命令）
+- `src-tauri/src/state.rs` — AgentThread 宿主；安装时机很重要
 
-## Oversized File Exceptions (>=500 LoC rationale)
+## 大文件例外说明（≥500 行理由）
 
-The structural-refactor target is `<= 500 LoC` for first-party production files. Currently no production entry file in the codebase exceeds this threshold.
+结构重构目标是：自有生产文件 `≤ 500 行`。当前代码库中没有生产入口文件超过此阈值。
 
-Sub-modules of the structural split are intentionally allowed to be small without an exception clause here; the principal unit of size discipline is the public entry point per domain (`commands/<domain>.rs`, `stores/agent/index.ts`, etc.).
+结构拆分的子模块有意允许较小规模，此处不加例外条款；大小约束的主要单元是每领域的公共入口（`commands/<domain>.rs`、`stores/agent/index.ts` 等）。
 
-If a future production entry needs to exceed 500 LoC, document the rationale here and prefer moving logic across crates (e.g. lifting reducer entries into `app-core::reducer::*`, lifting host logic into `app-core::host`) over mechanical slices inside the same file.
-- `src-tauri/src/commands/mod.rs` — thin barrel that re-exports per-domain command bodies in `commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` (the actual command bodies live here; the sub-`mod.rs` keeps module wiring only).
-- `src-tauri/src/events.rs` — event forwarder, single channel.
-- `src/stores/agent/store.ts` — the live Zustand store; `src/stores/agent/index.ts` re-exports `useAgentStore` / `reduceEvent` / `useAgent` and the type union; the user-facing compat entry is `src/stores/agentStore.ts`, which re-exports from `./agent`.
-- `src/features/shell/AppShell.tsx` — IDE 5-pane layout; sidebar/inspector toggle, session routing. Stateful shell interactions are extracted into `src/features/shell/hooks/useCommandPaletteShortcut.ts`, `usePaletteActions.ts`, `useThemeCycle.ts`.
-- `src/features/messages/MessageList.tsx` — chat rendering + Collapsible items (Composer now lives at `src/features/composer/Composer.tsx`; `src/features/messages/Composer.tsx` is a thin re-export shim).
-- `src/utils/bridge.ts` — low-level `invoke` / `listen` with fallback. `src/utils/tauri.ts` and `src/utils/commands.ts` are compatibility barrels; new wrappers go into `src/utils/commands/{domain}.ts`.
-- `src/utils/i18n.ts` — compatibility barrel; runtime split into `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` and `src/utils/i18n/strings/index.ts` merging domain catalogs under `src/utils/i18n/strings/{about,app,apps,chat,collaboration,common,composer,debug,design,dictation,files,git,home,inspector,memory,mobile,modal,models,notifications,palette,permissionMode,plan,prompts,settings,shell,sidebar,skills,slash,terminal,threads,toast,update,workspaces}.ts`.
-- `src/router.tsx` — TanStack Router route table.
-- `src/styles/tokens.css` — design tokens; dark/light/system themes — single source of truth.
-- `scripts/vendor-sync.sh` — **已移除**(vendor 模式已迁移为 submodule)。核心升级见 `SUBMODULE.md`。
-- View/controller split: `src/features/terminal/TerminalView.tsx` reads from `src/features/terminal/useTerminalController.ts`; `src/features/memory/MemoryView.tsx` reads from `src/features/memory/useMemoryController.ts`; `src/features/modals/index.tsx` orchestrates `ApprovalModal` / `QuestionModal` / `AskUserModal` / `PlanReadyModal` whose bodies live alongside it.
+如果未来某个生产入口需要超过 500 行，需在此文档说明理由，并优先将逻辑拆分到跨 crate（如将 reducer 条目提升到 `app-core::reducer::*`，宿主逻辑提升到 `app-core::host`），而非在同一文件内进行机械切片。
 
-## Canonical References
+- `src-tauri/src/commands/mod.rs` — 薄桶模块，重新导出各领域命令体（`commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs`，实际命令体在这些文件中，子 `mod.rs` 仅保留模块布线）
+- `src-tauri/src/events.rs` — 事件转发器，单一通道
+- `src/stores/agent/store.ts` — 活跃的 Zustand 存储；`src/stores/agent/index.ts` 重新导出 `useAgentStore` / `reduceEvent` / `useAgent` 和类型联合；面向用户的兼容入口是 `src/stores/agentStore.ts`，从 `./agent` 重新导出
+- `src/features/shell/AppShell.tsx` — IDE 五窗格布局；侧边栏/检查器切换，会话路由。有状态的壳交互提取到 `src/features/shell/hooks/useCommandPaletteShortcut.ts`、`usePaletteActions.ts`、`useThemeCycle.ts`
+- `src/features/messages/MessageList.tsx` — 聊天渲染 + 可折叠项（Composer 现已移至 `src/features/composer/Composer.tsx`；`src/features/messages/Composer.tsx` 是薄重新导出层）
+- `src/utils/bridge.ts` — 底层 `invoke` / `listen` 带降级；`src/utils/tauri.ts` 和 `src/utils/commands.ts` 是兼容桶；新包装写入 `src/utils/commands/{domain}.ts`
+- `src/utils/i18n.ts` — 兼容桶；运行时拆分为 `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` 和 `src/utils/i18n/strings/index.ts`，合并领域目录下的字符串文件
+- `src/router.tsx` — TanStack Router 路由表
+- `src/styles/tokens.css` — 设计标记；暗色/亮色/系统主题——单一事实来源
+- `scripts/vendor-sync.sh` — **已移除**（vendor 模式已迁移为 submodule）。核心升级见 `SUBMODULE.md`
+- 视图/控制器拆分：`src/features/terminal/TerminalView.tsx` 读取 `src/features/terminal/useTerminalController.ts`；`src/features/memory/MemoryView.tsx` 读取 `src/features/memory/useMemoryController.ts`；`src/features/modals/index.tsx` 编排 `ApprovalModal` / `QuestionModal` / `AskUserModal` / `PlanReadyModal`，实现位于同目录
 
-- Task-oriented code map: `docs/codebase-map.md`
-- Protocol envelope: `docs/PROTOCOL_BRIDGE.md`
-- Architecture: `docs/ARCHITECTURE.md`
-- Setup/build/release/test commands: `README.md`
-- Change log: `docs/CHANGELOG.md`
-- GUI design history: `docs/gui/00-index.md`
+## 规范引用
+
+- 面向任务的代码地图：`docs/codebase-map.md`
+- 协议信封：`docs/PROTOCOL_BRIDGE.md`
+- 架构文档：`docs/ARCHITECTURE.md`
+- 构建/发布/测试命令：`README.md`
+- 更新日志：`docs/CHANGELOG.md`
+- GUI 设计历史：`docs/gui/00-index.md`

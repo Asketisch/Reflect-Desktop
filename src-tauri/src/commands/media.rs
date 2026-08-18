@@ -1,4 +1,4 @@
-//! Media Studio + Computer Use 命令面 (Phase 3 item 13).
+//! Media Studio + Computer Use 命令面。
 //!
 //! 现在用 **真实 backend** (`image` crate + `xcap` + `enigo`),
 //! 由 `media_backend::{RealImageBackend, RealComputerBackend}` 提供。

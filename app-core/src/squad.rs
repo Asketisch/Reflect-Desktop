@@ -1,13 +1,13 @@
-//! Squad + Leader delegation —— 多 agent 小组 + leader 委派语义层 (Phase 3 item 11).
+//! Squad + Leader 委派 —— 多 agent 小组 + leader 委派语义层（Phase 3 条目 11）。
 //!
 //! Squad = 一组 agent + 一个 leader,leader 负责把任务派给成员。
-//! 灵感来自 multica 的 `packages/core/squads/`,但 ReflectDesktop 不引入
-//! server/DB,直接复用 vendor `reflect_task::TaskManager` 的 `TeamFile` 存储
+//! 参考通用 squad 设计，但 ReflectDesktop 不引入
+//! server/DB,直接复用 核心 crate `reflect_task::TaskManager` 的 `TeamFile` 存储
 //! (`~/.reflect/teams/<name>.json`)+ `Task.metadata.actor`(语义层 actor)。
 //!
-//! ## 与 vendor 的关系
+//! ## 与 核心 crate 的关系
 //!
-//! - **不改 vendor**:`SquadSpec` 是 `TeamFile` 的语义包装,落 app-core。
+//! - **不改核心 crate**:`SquadSpec` 是 `TeamFile` 的语义包装,落 app-core。
 //! - Squad name = team name(复用 [`reflect_task::team::validate_team_name`])。
 //! - Squad leader = `TeamFile` 里 `agent_id == "team-lead@<name>"` 的成员。
 //! - Squad task = 普通任务,`list_id = squad_name`,经 leader 认领 /
@@ -19,7 +19,7 @@
 //! 2. leader 通过 `delegate_next` 调 `task_manager.claim_next_available`
 //!    原子认领一个 Pending+unblocked 任务(claim_locks 保证并发安全)。
 //! 3. leader 再用 `assign_task` 把 `owner` / `metadata.actor` 改成具体成员
-//!    (这步是语义层动作,不触发 vendor 的 claim 状态机)。
+//!    (这步是语义层动作,不触发 核心 crate 的 claim 状态机)。
 
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::actor::Actor;
 
-/// Squad 成员(语义层,对应 vendor `TeamMemberSpec`)。
+/// Squad 成员(语义层,对应 核心 crate `TeamMemberSpec`)。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SquadMember {
@@ -56,7 +56,7 @@ pub struct SquadSpec {
     /// 描述(可选)。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    /// Leader actor(`kind == Lead`,`actorId == "team-lead@<name>"`)。
+    /// 领导者 actor（`kind == Lead`，`actorId == "team-lead@<name>"`）。
     pub leader_actor: Actor,
     /// 成员列表(不含 leader;leader 单独字段)。
     #[serde(default)]
@@ -113,7 +113,7 @@ impl std::fmt::Display for SquadError {
 
 impl std::error::Error for SquadError {}
 
-/// 把 vendor `TaskError` 转成 `SquadError`。
+/// 把 核心 crate `TaskError` 转成 `SquadError`。
 fn tm_err(e: reflect_task::TaskError) -> SquadError {
     SquadError::TaskManager {
         message: e.to_string(),
@@ -143,14 +143,14 @@ impl SquadManager {
         &self.task_manager
     }
 
-    /// 校验 squad 名(复用 vendor 规则)。
+    /// 校验 squad 名(复用 核心 crate 规则)。
     pub fn validate_name(name: &str) -> Result<(), SquadError> {
         reflect_task::team::validate_team_name(name).map_err(|e| SquadError::Invalid {
             message: e.to_string(),
         })
     }
 
-    /// 把 `SquadSpec` 翻译成 vendor `TeamFile`。
+    /// 把 `SquadSpec` 翻译成 核心 crate `TeamFile`。
     pub fn to_team_file(spec: &SquadSpec) -> reflect_task::TeamFile {
         let lead_member = reflect_task::TeamMemberSpec {
             agent_id: reflect_task::team::lead_agent_id_for(&spec.name),
@@ -200,7 +200,7 @@ impl SquadManager {
         }
     }
 
-    /// 把 vendor `TeamFile` 反向映射成 `SquadSpec`。
+    /// 把 核心 crate `TeamFile` 反向映射成 `SquadSpec`。
     pub fn from_team_file(team: &reflect_task::TeamFile) -> SquadSpec {
         let mut leader_actor = Actor::agent(&team.name, "team-lead");
         let mut members: Vec<SquadMember> = Vec::new();
@@ -313,7 +313,7 @@ impl SquadManager {
             }
         }
         let merged = serde_json::Value::Object(metadata_obj);
-        // owner 是 tri-state:Some(Some(v)) 设值 / Some(None) 清空。
+        // owner 是三态:Some(Some(v)) 设值 / Some(None) 清空。
         let owner_patch = Some(assignee_actor_id);
         let patch = reflect_task::TaskPatch {
             owner: owner_patch,
@@ -398,7 +398,7 @@ mod tests {
         let spec = sample_spec("gamma");
         let team = SquadManager::to_team_file(&spec);
         assert_eq!(team.lead_agent_id, "team-lead@gamma");
-        // leader + 1 member = 2 entries。
+        // 1 个 leader + 1 个成员 = 2 条目。
         assert_eq!(team.members.len(), 2);
         let back = SquadManager::from_team_file(&team);
         assert_eq!(back.name, "gamma");
@@ -410,7 +410,7 @@ mod tests {
     async fn delegate_next_claims_pending_task() {
         let m = make_manager();
         m.create_squad(sample_spec("delta")).await.unwrap();
-        // 创建一个 task in list "delta"。
+        // 在 "delta" list 中创建一个 task。
         let task = m
             .task_manager
             .create_task(

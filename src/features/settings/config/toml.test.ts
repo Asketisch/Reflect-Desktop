@@ -1,10 +1,9 @@
 /**
- * Vitest — pure TOML helpers extracted from ConfigForm.
+ * Vitest —— 从 ConfigForm 抽取的纯 TOML 辅助函数测试。
  *
- * Locks down the contracts that the Advanced editor + ConfigForm
- * depend on so we can refactor the React layer without losing the
- * raw TOML semantics (unknown sections preserved, subsections
- * scoped under a prefix, feature_flags inline-table syntax).
+ * 锁定高级编辑器 + ConfigForm 依赖的契约，让我们可以在重构 React 层的
+ * 同时不丢失原始 TOML 语义（未知分区保留、子分区按前缀限定作用域、
+ * feature_flags 内联表语法）。
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -50,7 +49,7 @@ type = "stdio"
 `;
     const out = extractSubSections(toml, 'mcp_servers');
     expect(out).toEqual([{ name: 'filesystem', body: 'type = "stdio"' }]);
-    // The unrelated `[active]` block must remain in the raw TOML.
+    // 无关的 `[active]` 块必须保留在原始 TOML 中。
     expect(toml).toContain('[active]');
   });
 });
@@ -66,7 +65,7 @@ type = "stdio"
     const next = updateSubSection(toml, 'mcp_servers', 'filesystem', 'type = "http"');
     expect(next).toContain('[mcp_servers.filesystem]');
     expect(next).toContain('type = "http"');
-    // Other subsection survives untouched.
+    // 其他子分区保持不变。
     expect(next).toContain('[mcp_servers.git]');
     expect(next).toContain('type = "stdio"');
   });
@@ -75,12 +74,12 @@ type = "stdio"
     const toml = `[mcp_servers.filesystem]
 type = "stdio"
 `;
-    // 'git' has no '.' so addSubSection writes the bare `[mcp_servers]` header
-    // (legacy semantics: name.includes('.') chooses nested vs bare).
+    // 'git' 不含 '.'，因此 addSubSection 写入裸的 `[mcp_servers]` 表头
+    // (旧语义：name.includes('.') 决定嵌套还是裸表头)。
     const next = addSubSection(toml, 'mcp_servers', 'git');
     expect(next).toContain('[mcp_servers]');
     expect(next).toContain('# TODO: edit me');
-    // Original subsection preserved.
+    // 原有子分区保留。
     expect(next).toContain('[mcp_servers.filesystem]');
     expect(next).toContain('type = "stdio"');
   });
@@ -89,9 +88,9 @@ type = "stdio"
     const toml = `[mcp_servers.git]
 type = "stdio"
 `;
-    // 'git.something' resolves to `[mcp_servers.git.something]` which is not in
-    // the doc, so the call appends a fresh header — but the existing
-    // `[mcp_servers.git]` must remain intact.
+    // 'git.something' 解析为 `[mcp_servers.git.something]`，该表头不在
+    // 文档中，因此调用会追加新表头 —— 但已有的
+    // `[mcp_servers.git]` 必须保持完整。
     const next = addSubSection(toml, 'mcp_servers', 'git.something');
     expect(next).toContain('[mcp_servers.git]');
     expect(next).toContain('type = "stdio"');
@@ -125,9 +124,9 @@ max_calls = 25
 type = "stdio"
 `;
     const next = setSectionBody(toml, '[hooks.search_budget]', 'max_calls = 99');
-    // The new body is emitted immediately under the header.
+    // 新内容紧跟在表头下发出。
     expect(next).toContain('max_calls = 99');
-    // Sibling section survives untouched (raw TOML semantics).
+    // 兄弟分区保持不变（原始 TOML 语义）。
     expect(next).toContain('[mcp_servers.filesystem]');
     expect(next).toContain('type = "stdio"');
   });
@@ -198,7 +197,7 @@ extra = "keep"
 `;
     const next = removeFlag(toml, 'alpha');
     expect(next).not.toMatch(/"alpha"\s*=\s*true/);
-    // The non-flag sibling key survives untouched.
+    // 非 flag 的兄弟键保持不变。
     expect(next).toContain('extra = "keep"');
   });
 });

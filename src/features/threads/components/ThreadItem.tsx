@@ -33,7 +33,7 @@ export function ThreadItem({
   const [menuOpen, setMenuOpen] = useState(false);
   const kebabRef = useRef<HTMLButtonElement | null>(null);
 
-  // Close menu on outside click / Esc.
+  // 外部点击 / Esc 时关闭菜单。
   useEffect(() => {
     if (!menuOpen) return;
     const onDocClick = (e: MouseEvent) => {

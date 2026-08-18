@@ -1,5 +1,5 @@
 /**
- * sessions slice public API barrel.
+ * sessions 切片公共 API 桶。
  *
  * Sidebar 是主入口（直接由 AppShell 渲染），不再导出 SessionsView（薄包装，已删除）。
  */

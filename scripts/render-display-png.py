@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """
-render-display-png.py — render a faithful Settings > Display section to PNG.
+render-display-png.py —— 将设置 > 显示分区渲染为忠实的 PNG 截图。
 
-This script produces docs/screenshots/display-section.png — a real on-disk PNG
-image showing the four primary Cards (Theme / Accent color / Transparency /
-Background image) side by side with the actual labels and control affordances
-in their rendered dark-theme Reflect Desktop skin.
+本脚本生成 docs/screenshots/display-section.png —— 一张真实落盘的 PNG
+图片，按暗色主题 Reflect Desktop 皮肤并排展示四张主卡片
+（主题 / 强调色 / 透明度 / 背景图）及其实际标签与控件外观。
 
-Renders an SVG that mirrors the production CSS Modules + tokens.css, then
-encodes it to a true PNG via pure Python (zlib + struct), with no native
-dependencies. The output is identical in layout to what jsdom proves from
-tests/uiPrefs + DisplaySection render assertions, but as concrete visual
-evidence.
+渲染一个镜像生产版 CSS Modules + tokens.css 的 SVG，再通过
+纯 Python（zlib + struct）编码为真正的 PNG，无原生依赖。
+输出布局与 jsdom 从 tests/uiPrefs + DisplaySection 渲染断言
+得到的证明一致，但作为具体的视觉证据。
 """
 from __future__ import annotations
 import os
@@ -25,7 +23,7 @@ PNG_PATH = os.path.join(OUT_DIR, "display-section.png")
 HTML_PATH = os.path.join(OUT_DIR, "display-section.html")
 TEXT_PATH = os.path.join(OUT_DIR, "display-section.txt")
 
-# Reflect Desktop dark theme tokens (mirrored from src/styles/tokens.css).
+# Reflect Desktop 暗色主题 token（镜像自 src/styles/tokens.css）。
 BG_APP = "#0b0e14"
 BG_SURFACE = "#11151f"
 BG_ELEVATED = "#161b27"
@@ -35,7 +33,7 @@ TEXT_PRIMARY = "#e6e9ef"
 TEXT_SECONDARY = "#a4adbe"
 TEXT_MUTED = "#828c9f"
 BORDER = "rgba(255,255,255,0.10)"
-ACCENT = "#60a5fa"  # the second preset, to mirror user-picked state
+ACCENT = "#60a5fa"  # 第二个预设色，模拟用户已选状态
 ACCENT_SUBTLE = "rgba(96,165,250,0.14)"
 SUCCESS_BG = "rgba(74,222,128,0.10)"
 SUCCESS_BORDER = "rgba(74,222,128,0.30)"
@@ -45,7 +43,7 @@ W, H = 1280, 1280
 
 
 def card(x: int, y: int, w: int, h: int, title: str, body: str) -> str:
-    """A flat Card with a 16px gap title row."""
+    """扁平卡片，标题行留 16px 间距。"""
     return f"""
     <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8"
           fill="{BG_SURFACE}" stroke="{BORDER}" stroke-width="1"/>
@@ -61,11 +59,11 @@ def thumb_dot(rgb: str) -> str:
     return f'<circle cx="0" cy="0" r="14" fill="{rgb}" stroke="rgba(0,0,0,0.6)"/>'
 
 
-# ---- Theme card body ----
+# ---- 主题卡片内容 ----
 theme_rows = []
 for i, (label, active) in enumerate([
     ("System", False),
-    ("Dark", True),       # user picked Dark
+    ("Dark", True),       # 用户选择了 Dark
     ("Light", False),
 ]):
     x0 = 24 + i * 130
@@ -87,7 +85,7 @@ theme_card_body = f"""
 </div>
 """
 
-# ---- Accent color card body ----
+# ---- 强调色卡片内容 ----
 swatches = ["#5dd1c6", "#60a5fa", "#a78bfa", "#f472b6", "#fb923c", "#4ade80"]
 swatch_svgs = []
 for i, c in enumerate(swatches):
@@ -112,8 +110,8 @@ accent_card_body = f"""
 </div>
 """
 
-# ---- Transparency card body ----
-# Slider thumb at 70% (pos x relative inside track 24..420).
+# ---- 透明度卡片内容 ----
+# 滑块位于 70%（轨道 24..420 内的相对 x 位置）。
 slider_pos = 24 + 0.7 * (420 - 24)
 
 trans_card_body = f"""
@@ -135,7 +133,7 @@ trans_card_body = f"""
 </div>
 """
 
-# ---- Background image card body ----
+# ---- 背景图卡片内容 ----
 bg_card_body = f"""
 <div xmlns="http://www.w3.org/1999/xhtml" style="font:13px Inter,system-ui,sans-serif;color:{TEXT_SECONDARY};line-height:1.5;">
   <p style="margin:0 0 14px 0;">Choose a local image or use an HTTPS image URL.</p>
@@ -189,7 +187,7 @@ with open(HTML_PATH, "w", encoding="utf-8") as f:
         f"<body style='background:{BG_APP};'>{svg}</body></html>"
     )
 
-# Plain-text dump for grep-friendly evidence.
+# 纯文本转储，便于 grep 的证据。
 lines = [
     "ReflectDesktop — Settings › Display (rendered evidence)",
     "============================================================",
@@ -223,9 +221,9 @@ lines = [
 with open(TEXT_PATH, "w", encoding="utf-8") as f:
     f.write("\n".join(lines))
 
-# --- Encode the SVG to PNG via Python stdlib (no native deps). ---
-# Strategy: walk every primitive in the SVG, rasterise into a RGB buffer,
-# write as 24-bit PNG (zlib-deflated).
+# --- 通过 Python 标准库将 SVG 编码为 PNG（无原生依赖）。---
+# 策略：遍历 SVG 中的每个图元，光栅化到 RGB 缓冲区，
+# 以 24 位 PNG（zlib 压缩）写出。
 from xml.etree import ElementTree as ET
 
 NS = "{http://www.w3.org/2000/svg}"
@@ -238,7 +236,7 @@ def parse_rgb(s: str) -> tuple[int, int, int]:
     if s.startswith("rgba"):
         nums = [float(x) for x in s[s.index("(")+1:s.index(")")].split(",")[:3]]
         return tuple(int(n) for n in nums)  # type: ignore
-    return TEXT_PRIMARY_RGB  # default
+    return TEXT_PRIMARY_RGB  # 默认值
 
 
 TEXT_PRIMARY_RGB = (230, 233, 239)
@@ -287,10 +285,9 @@ def fill_circle(cx: int, cy: int, r: int, color) -> None:
                 img[j][i] = color
 
 
-# Just rasterise the structure: a flat dark page with title, divider text,
-# and four labelled rectangles arranged top-to-bottom. This is the "objective"
-# rendering — the meaningful visual evidence is the four labelled cards
-# arranged under "Settings › Display".
+# 仅光栅化结构：一个带标题、分隔文本和自上而下排列的
+# 四个带标签矩形的扁平暗色页面。这是"客观"渲染 ——
+# 有意义的视觉证据是"Settings › Display"下排列的四张带标签卡片。
 y_cursor = 100
 colors = [(17, 21, 31), (17, 21, 31), (17, 21, 31), (17, 21, 31)]
 
@@ -300,8 +297,8 @@ def set_pixel(buf, x, y, rgb):
         buf[y][x] = rgb
 
 
-# Use Pillow if available; otherwise keep the SVG as the visual evidence
-# (browsers / OS preview tools render SVG fine).
+# 若可用则使用 Pillow；否则保留 SVG 作为视觉证据
+# （浏览器 / 系统预览工具都能正常渲染 SVG）。
 try:
     from PIL import Image, ImageDraw, ImageFont  # type: ignore
     im = Image.new("RGB", (W, H), (11, 14, 20))
@@ -335,12 +332,12 @@ try:
               fill=TEXT_MUTED_RGB, font=f_sub)
 
     def card(x: int, y: int, w: int, h: int, title: str, lines_func) -> None:
-        # Card surface
+        # 卡片表面
         draw.rounded_rectangle((x, y, x + w, y + h), radius=10, fill=(17, 21, 31),
                                outline=(255, 255, 255, 26), width=1)
-        # Title
+        # 标题
         draw.text((x + 24, y + 24), title, fill=TEXT_PRIMARY_RGB, font=f_h)
-        # Body content drawn by caller at y + 56
+        # 正文内容由调用方在 y + 56 处绘制
         lines_func(x + 24, y + 60)
 
     def theme_body(x: int, y: int) -> None:
@@ -370,9 +367,9 @@ try:
             draw.ellipse((cx - 14, sy, cx + 14, sy + 28), fill=(r, g, b), outline=(60, 60, 60))
             if c == ACCENT:
                 draw.ellipse((cx - 14, sy, cx + 14, sy + 28), outline=(96, 165, 250), width=3)
-        # hex label
+        # 十六进制色值标签
         draw.text((x + 280, sy + 4), ACCENT, fill=(164, 173, 190), font=f_mono)
-        # reset button
+        # 重置按钮
         draw.rounded_rectangle((x + 380, sy, x + 432, sy + 28), radius=4,
                                 outline=(255, 255, 255, 40), fill=(28, 35, 51))
         draw.text((x + 392, sy + 6), "Reset", fill=(164, 173, 190), font=f_body)
@@ -380,7 +377,7 @@ try:
     def trans_body(x: int, y: int) -> None:
         draw.text((x, y), "Let the background image show through app surfaces.",
                   fill=(164, 173, 190), font=f_body)
-        # row 1: surface opacity slider
+        # 行 1：表面不透明度滑块
         ry = y + 50
         draw.text((x, ry), "Surface opacity", fill=(230, 233, 239), font=f_body)
         track_x = x + 140
@@ -392,7 +389,7 @@ try:
                                 fill=(96, 165, 250))
         draw.ellipse((slider_pos - 7, ry + 3, slider_pos + 7, ry + 17), fill=(96, 165, 250))
         draw.text((x + 555, ry + 3), "70%", fill=(130, 140, 159), font=f_mono)
-        # row 2: reduce transparency checkbox
+        # 行 2：减少透明度复选框
         ry2 = ry + 40
         draw.rounded_rectangle((x, ry2, x + 16, ry2 + 16), radius=3,
                                 fill=(96, 165, 250, 36), outline=(96, 165, 250), width=1)
@@ -402,15 +399,15 @@ try:
         draw.text((x, y), "Choose a local image or use an HTTPS image URL.",
                   fill=(164, 173, 190), font=f_body)
         ry = y + 50
-        # Choose image button
+        # 选择图片按钮
         draw.rounded_rectangle((x, ry, x + 110, ry + 32), radius=5,
                                 fill=(13, 17, 25), outline=(255, 255, 255, 26))
         draw.text((x + 14, ry + 8), "Choose image", fill=(230, 233, 239), font=f_body)
-        # Clear button
+        # 清除按钮
         draw.rounded_rectangle((x + 122, ry, x + 174, ry + 32), radius=5,
                                 outline=(255, 255, 255, 26))
         draw.text((x + 140, ry + 8), "Clear", fill=(164, 173, 190), font=f_body)
-        # URL input + apply
+        # URL 输入 + 应用
         ry2 = ry + 44
         draw.rounded_rectangle((x, ry2, x + 480, ry2 + 32), radius=5,
                                 fill=(13, 17, 25), outline=(255, 255, 255, 26))
@@ -419,17 +416,17 @@ try:
         draw.rounded_rectangle((x + 492, ry2, x + 552, ry2 + 32), radius=5,
                                 outline=(255, 255, 255, 26))
         draw.text((x + 510, ry2 + 8), "Apply", fill=(164, 173, 190), font=f_body)
-        # Preview
+        # 预览
         ry3 = ry2 + 50
         for j in range(ry3, ry3 + 128):
             for i in range(x, x + 552):
-                # gradient
+                # 渐变
                 t = (i - x) / 552.0
                 r = int(30 + t * 60)
                 g = int(58 + t * 140)
                 b = int(138 + t * 100)
                 img[j][i] = (r, g, b)
-        # Image strength slider
+        # 图片强度滑块
         ry4 = ry3 + 150
         draw.text((x, ry4), "Image strength", fill=(230, 233, 239), font=f_body)
         track_x = x + 140
@@ -451,8 +448,8 @@ try:
     print("PNG via Pillow:", PNG_PATH, "size=", os.path.getsize(PNG_PATH), "bytes")
 
 except ImportError:
-    # No Pillow — keep the SVG file as the visual evidence. Browsers, OS
-    # preview tools, and git-rendered README can all show it.
+    # 无 Pillow —— 保留 SVG 文件作为视觉证据。浏览器、系统
+    # 预览工具和 git 渲染的 README 都能展示它。
     print("Pillow unavailable — leaving SVG/HTML evidence only at", OUT_DIR)
 
 

@@ -1,133 +1,133 @@
-# Codebase Map (Task-Oriented)
+# 代码库地图（任务导向）
 
-Canonical navigation for ReflectDesktop. Use this as: **"if you need X, edit Y"**.
+ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 
-Related docs:
+相关文档：
 
-- Setup / build / release: [`README.md`](../README.md)
-- Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- GUI design history: [`gui/00-index.md`](gui/00-index.md)
-- IPC envelope: [`PROTOCOL_BRIDGE.md`](PROTOCOL_BRIDGE.md)
-- Change log: [`CHANGELOG.md`](CHANGELOG.md)
-- Agent contract: [`AGENTS.md`](../AGENTS.md)
-
----
-
-## How Changes Flow
-
-For backend behavior, follow this path in order:
-
-1. Frontend callsite: `src/features/**` (hooks/controllers/components)
-2. Frontend IPC API: `src/utils/commands/{domain}.ts` (compat re-exports live in `src/utils/tauri.ts` and `src/utils/commands.ts`)
-3. Tauri command registration: `src-tauri/src/lib.rs` (`invoke_handler` enumerates each `reflect_*` command)
-4. Tauri command body: `src-tauri/src/commands/mod.rs` re-exports from `src-tauri/src/commands/<domain>.rs`
-5. App state (AgentThread host): `src-tauri/src/state.rs` (plus private helpers `hook_store.rs` / `memory_store.rs` / `shell_sessions.rs` / `workspace_state.rs`)
-6. Event forwarder: `src-tauri/src/events.rs`
-7. Reflect protocol types: `vendor/reflect-protocol/src/{event,event_msg,op,item}.rs`
-
-If behavior must run in headless (CLI/TUI) too, the change lives in `vendor/reflect-*` first.
+- 设置 / 构建 / 发布：[`README.md`](../README.md)
+- 架构：[`ARCHITECTURE.md`](ARCHITECTURE.md)
+- GUI 设计历史：[`gui/00-index.md`](gui/00-index.md)
+- IPC 信封：[`PROTOCOL_BRIDGE.md`](PROTOCOL_BRIDGE.md)
+- 变更日志：[`CHANGELOG.md`](CHANGELOG.md)
+- Agent 契约：[`AGENTS.md`](../AGENTS.md)
 
 ---
 
-## If You Need X, Edit Y
+## 变更流向
 
-| Need | Primary files |
+对于后端行为，按以下顺序遵循路径：
+
+1. 前端调用点：`src/features/**`（hooks/controllers/组件）
+2. 前端 IPC API：`src/utils/commands/{domain}.ts`（兼容 re-export 位于 `src/utils/tauri.ts` 和 `src/utils/commands.ts`）
+3. Tauri 命令注册：`src-tauri/src/lib.rs`（`invoke_handler` 枚举每个 `reflect_*` 命令）
+4. Tauri 命令主体：`src-tauri/src/commands/mod.rs` 从 `src-tauri/src/commands/<domain>.rs` re-export
+5. 应用状态（AgentThread 宿主）：`src-tauri/src/state.rs`（加上私有辅助 `hook_store.rs` / `memory_store.rs` / `shell_sessions.rs` / `workspace_state.rs`）
+6. 事件转发器：`src-tauri/src/events.rs`
+7. Reflect 协议类型：`reflect-agent/crates/protocol/reflect-protocol/src/{event,event_msg,op,item}.rs`
+
+如果行为也需要在无头（CLI/TUI）中运行，该变更优先放在 Reflect-Agent 仓库（submodule），再升级 submodule 引用。
+
+---
+
+## 需要 X，编辑 Y
+
+| 需求 | 主要文件 |
 | --- | --- |
-| Add a new feature slice / route | `src/router.tsx`, `src/features/<slice>/<View>.tsx`, `src/features/shell/AppShell.tsx` |
-| Add/change Tauri command from frontend | `src/utils/commands/<domain>.ts`, `src-tauri/src/commands/<domain>.rs`, `src-tauri/src/commands/mod.rs` (re-export), `src-tauri/src/lib.rs` (handler list) |
-| Add/change event handler in UI | `src/services/agent.ts` (compat re-export) + `src/services/agentEventBus.ts` (refcounted fan-out), `src/stores/agent/reducer.ts`, `src/features/<slice>/use*Controller.ts` |
-| Change composer (input box) | `src/features/composer/{Composer,SlashPopup}.tsx`, `src/features/composer/{slashCommands,slashEngine}.ts`, `src/features/composer/{useComposerInput,useComposerSubmission,useAttachments,usePromptHistory}.ts`. The legacy path `src/features/messages/Composer.tsx` is a thin re-export shim — do not edit. |
-| Change chat rendering | `src/features/messages/{ChatView,MessageList,ToolCells,Collapsible}.tsx` |
-| Change IDE shell (layout / activity bar / status bar) | `src/features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx`. Stateful shell interactions live in `src/features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts`. |
-| Change approval / question / plan modal | `src/features/modals/{ModalShell,index}.tsx`, individual bodies at `src/features/modals/{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` |
-| Change session list (sidebar) | `src/features/sessions/components/Sidebar.tsx`, `src/features/sessions/hooks/useSessions.ts` |
-| Change settings persistence | `src/features/settings/SettingsView.tsx`, `src/features/settings/ConfigForm.tsx`, `src/features/settings/config/{schema,toml}.ts`, `src/features/settings/components/{StructuredField,ComplexEditors}.tsx`, `src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection}.tsx`, `src/utils/commands/config.ts`, `src-tauri/src/commands/config.rs` |
-| Change theme / design tokens | `src/styles/tokens.css`, `src/features/design-system/DesignSystemView.tsx` |
-| Add tray icon / menu / shortcut | `src-tauri/src/{tray,menu,shortcut}.rs`, `src-tauri/src/lib.rs` |
-| macOS dock badge | `src-tauri/src/dock.rs` |
-| Memory view controller | `src/features/memory/MemoryView.tsx` + `src/features/memory/useMemoryController.ts` |
-| Terminal view controller | `src/features/terminal/TerminalView.tsx` + `src/features/terminal/useTerminalController.ts` |
-| Add a new vendor crate | `scripts/vendor-sync.sh` (CRATES list), `Cargo.toml` workspace |
-| Add a new test fixture | `src/test/setup.ts`, `vitest.config.ts` |
-| Change protocol types | `vendor/reflect-protocol/src/*.rs` (sync via `scripts/vendor-sync.sh`) |
-| Change agent store reducer / actions | `src/stores/agent/reducer.ts` (canonical). `src/stores/agentStore.ts` is a compatibility re-export — do not add new code there. |
+| 新增功能切片 / 路由 | `src/router.tsx`、`src/features/<slice>/<View>.tsx`、`src/features/shell/AppShell.tsx` |
+| 从前端新增/修改 Tauri 命令 | `src/utils/commands/<domain>.ts`、`src-tauri/src/commands/<domain>.rs`、`src-tauri/src/commands/mod.rs`（re-export）、`src-tauri/src/lib.rs`（handler 列表）|
+| 在 UI 中新增/修改事件处理 | `src/services/agent.ts`（兼容 re-export）+ `src/services/agentEventBus.ts`（引用计数扇出）、`src/stores/agent/reducer.ts`、`src/features/<slice>/use*Controller.ts` |
+| 修改输入框（Composer）| `src/features/composer/{Composer,SlashPopup}.tsx`、`src/features/composer/{slashCommands,slashEngine}.ts`、`src/features/composer/{useComposerInput,useComposerSubmission,useAttachments,usePromptHistory}.ts`。旧路径 `src/features/messages/Composer.tsx` 是薄 re-export 层 —— 不要编辑。|
+| 修改聊天渲染 | `src/features/messages/{ChatView,MessageList,ToolCells,Collapsible}.tsx` |
+| 更改 IDE shell（布局 / 活动栏 / 状态栏） | `src/features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx`。有状态的 shell 交互位于 `src/features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts`。 |
+| 更改审批 / 问题 / 计划模态框 | `src/features/modals/{ModalShell,index}.tsx`，各身体位于 `src/features/modals/{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` |
+| 更改会话列表（侧栏） | `src/features/sessions/components/Sidebar.tsx`、`src/features/sessions/hooks/useSessions.ts` |
+| 更改设置持久化 | `src/features/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
+| 更改主题 / 设计令牌 | `src/styles/tokens.css`、`src/features/design-system/DesignSystemView.tsx` |
+| 添加托盘图标 / 菜单 / 快捷键 | `src-tauri/src/{tray,menu,shortcut}.rs`、`src-tauri/src/lib.rs` |
+| macOS dock 徽标 | `src-tauri/src/dock.rs` |
+| 记忆视图控制器 | `src/features/memory/MemoryView.tsx` + `src/features/memory/useMemoryController.ts` |
+| 终端视图控制器 | `src/features/terminal/TerminalView.tsx` + `src/features/terminal/useTerminalController.ts` |
+| 新增核心 crate 引用 | 根 `Cargo.toml` `[workspace.dependencies]`（path 指向 submodule）|
+| 添加新测试夹具 | `src/test/setup.ts`、`vitest.config.ts` |
+| 更改协议类型 | `reflect-agent/crates/protocol/reflect-protocol/src/*.rs`（改 Reflect-Agent 仓库后升级 submodule）|
+| 更改 agent store reducer / 动作 | `src/stores/agent/reducer.ts`（规范）。`src/stores/agentStore.ts` 是兼容 re-export —— 不要在那里添加新代码。 |
 
 ---
 
-## Frontend Navigation
+## 前端导航
 
-- Composition root: `src/main.tsx`
-- Router (TanStack Router): `src/router.tsx`
-- App layout shell (IDE 5-pane): `src/features/shell/AppShell.tsx` (+ `ActivityBar/TitleBar/StatusBar/Inspector/PageShell`)
-- Tauri IPC low-level bridge: `src/utils/bridge.ts` (`invoke` / `listen` + fallback)
-- Tauri IPC wrapper barrels (compat): `src/utils/tauri.ts`, `src/utils/commands.ts`
-- Tauri IPC wrappers (canonical, per-domain): `src/utils/commands/{health,agent,approvals,plan,permissions,questions,config,sessions,events,workspaces,skills,memory,hooks,git,terminal,files,allowlist,updates,search}.ts`
-- Agent hook (event fanout + submit): `src/services/agent.ts` (legacy compat re-export) + `src/services/agentEventBus.ts` (refcounted bus)
-- Global Zustand store: `src/stores/agentStore.ts` (compat facade) → `src/stores/agent/` (canonical impl: `store.ts` + `reducer.ts` + `turns.ts` + `toast.ts` + `servers.ts` + `types.ts` + `useAgent.ts` + `index.ts`)
-- Theme infra: `src/utils/theme.ts`
-- Design tokens / base reset: `src/styles/{tokens,base}.css` + `typography.module.css`
-- i18n runtime: `src/utils/i18n.ts` (compat barrel) → `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` + `src/utils/i18n/strings/index.ts` merging domain catalogs under `src/utils/i18n/strings/{about,app,apps,chat,collaboration,common,composer,debug,design,dictation,files,git,home,inspector,memory,mobile,modal,models,notifications,palette,permissionMode,plan,prompts,settings,shell,sidebar,skills,slash,terminal,threads,toast,update,workspaces}.ts`
-- Shared types: `src/types/protocol.ts`
+- 组合根：`src/main.tsx`
+- 路由（TanStack Router）：`src/router.tsx`
+- 应用布局 shell（IDE 5 栏）：`src/features/shell/AppShell.tsx`（+ `ActivityBar/TitleBar/StatusBar/Inspector/PageShell`）
+- Tauri IPC 底层桥接：`src/utils/bridge.ts`（`invoke` / `listen` + 回退）
+- Tauri IPC 包装器桶文件（兼容）：`src/utils/tauri.ts`、`src/utils/commands.ts`
+- Tauri IPC 包装器（规范，按域）：`src/utils/commands/{health,agent,approvals,plan,permissions,questions,config,sessions,events,workspaces,skills,memory,hooks,git,terminal,files,allowlist,updates,search}.ts`
+- Agent 钩子（事件扇出 + 提交）：`src/services/agent.ts`（遗留兼容 re-export）+ `src/services/agentEventBus.ts`（引用计数总线）
+- 全局 Zustand store：`src/stores/agentStore.ts`（兼容门面）→ `src/stores/agent/`（规范实现：`store.ts` + `reducer.ts` + `turns.ts` + `toast.ts` + `servers.ts` + `types.ts` + `useAgent.ts` + `index.ts`）
+- 主题基础设施：`src/utils/theme.ts`
+- 设计令牌 / base reset：`src/styles/{tokens,base}.css` + `typography.module.css`
+- i18n 运行时：`src/utils/i18n.ts`（兼容桶文件）→ `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` + `src/utils/i18n/strings/index.ts` 合并 `src/utils/i18n/strings/` 下的域目录（about / app / apps / chat / collaboration / common / composer / debug / design / dictation / files / git / home / inspector / memory / mobile / modal / models / notifications / palette / permissionMode / plan / prompts / settings / shell / sidebar / skills / slash / terminal / threads / toast / update / workspaces）
+- 共享类型：`src/types/protocol.ts`
 
-### Feature slices
+### 功能切片
 
-| Slice | Files | Notes |
+| 切片 | 文件 | 备注 |
 | --- | --- | --- |
-| `home` | `features/home/HomeView.tsx` | Dashboard / quick actions |
-| `messages` | `features/messages/{ChatView,MessageList,ToolCells,Collapsible,Composer,Composer.module,MessageList.module,ChatView.module,ToolCells.module,Collapsible.module}.{tsx,css}` | Chat scrollback + rows; Composer is now a thin re-export shim → `features/composer/Composer` |
-| `composer` | `features/composer/{Composer,SlashPopup,MentionPicker,AttachmentBar}.tsx` + `slashCommands.ts` + `slashEngine.ts` + `useComposerInput.ts` + `useComposerSubmission.ts` + `useAttachments.ts` + `usePromptHistory.ts` | Self-owned Composer + slash engine |
-| `shell` | `features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx` + `features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts` | IDE 5-pane layout + stateful shell hooks |
-| `modals` | `features/modals/{ModalShell,index}.tsx` + `{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` | Approval / Question / Plan / AskUser + history |
-| `sessions` | `features/sessions/{components/Sidebar,hooks/useSessions}.{tsx,ts}` + test | Time-bucketed sidebar |
-| `settings` | `features/settings/{SettingsView,ConfigForm,configSchema}.tsx` + `features/settings/config/{schema,toml}.ts` + `features/settings/components/{StructuredField,ComplexEditors}.tsx` + `features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection}.tsx` | Display / Editor / Provider + structured config form |
-| `models` | `features/models/ModelsView.tsx` | Model picker |
-| `workspaces` | `features/workspaces/WorkspacesView.tsx` | Workspace picker (M3.x) |
-| `git` | `features/git/GitView.tsx` | Git panel (M3.x) |
-| `files` | `features/files/FilesView.tsx` | File tree (M3.x) |
-| `plan` | `features/plan/PlanView.tsx` | Plan mode UI |
-| `terminal` | `features/terminal/TerminalView.tsx` + `useTerminalController.ts` | Terminal dock + controller hook |
-| `memory` | `features/memory/MemoryView.tsx` + `MemoryRow.tsx` + `MemoryAddForm.tsx` + `useMemoryController.ts` | Memory view + controller hook |
-| `skills` | `features/skills/SkillsView.tsx` | Skills catalog |
-| `apps` | `features/apps/AppsView.tsx` | MCP apps (M3.1+) |
-| `prompts` | `features/prompts/PromptsView.tsx` | Custom prompts library |
-| `threads` | `features/threads/ThreadsView.tsx` + test | Threads (M2.5 LRU) |
-| `notifications` | `features/notifications/NotificationsView.tsx` | Toast center |
-| `dictation` | `features/dictation/DictationView.tsx` | Hold-to-talk (M3.x) |
-| `mobile` | `features/mobile/MobileView.tsx` | iOS layout |
-| `update` | `features/update/UpdateView.tsx` | Auto-update UI |
-| `debug` | `features/debug/DebugView.tsx` | Debug panel |
-| `about` | `features/about/AboutView.tsx` | About / version |
-| `design-system` | `features/design-system/{DesignSystemView,primitives/*}.tsx` | DS catalog + primitives (live) |
+| `home` | `features/home/HomeView.tsx` | 仪表盘 / 快速操作 |
+| `messages` | `features/messages/{ChatView,MessageList,ToolCells,Collapsible,Composer,Composer.module,MessageList.module,ChatView.module,ToolCells.module,Collapsible.module}.{tsx,css}` | 聊天滚动回退 + 行；Composer 现在是薄 re-export 存根 → `features/composer/Composer` |
+| `composer` | `features/composer/{Composer,SlashPopup,MentionPicker,AttachmentBar}.tsx` + `slashCommands.ts` + `slashEngine.ts` + `useComposerInput.ts` + `useComposerSubmission.ts` + `useAttachments.ts` + `usePromptHistory.ts` | 自有 Composer + 斜杠引擎 |
+| `shell` | `features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx` + `features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts` | IDE 5 栏布局 + 有状态 shell 钩子 |
+| `modals` | `features/modals/{ModalShell,index}.tsx` + `{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` | 审批 / 问题 / 计划 / AskUser + 历史 |
+| `sessions` | `features/sessions/{components/Sidebar,hooks/useSessions}.{tsx,ts}` + 测试 | 时间分桶侧栏 |
+| `settings` | `features/settings/{SettingsView,ConfigForm,configSchema}.tsx` + `features/settings/config/{schema,toml}.ts` + `features/settings/components/{StructuredField,ComplexEditors}.tsx` + `features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection}.tsx` | 显示 / 编辑器 / 提供程序 + 结构化配置表单 |
+| `models` | `features/models/ModelsView.tsx` | 模型选择器 |
+| `workspaces` | `features/workspaces/WorkspacesView.tsx` | 工作区选择器（M3.x） |
+| `git` | `features/git/GitView.tsx` | Git 面板（M3.x） |
+| `files` | `features/files/FilesView.tsx` | 文件树（M3.x） |
+| `plan` | `features/plan/PlanView.tsx` | 计划模式 UI |
+| `terminal` | `features/terminal/TerminalView.tsx` + `useTerminalController.ts` | 终端 dock + 控制器钩子 |
+| `memory` | `features/memory/MemoryView.tsx` + `MemoryRow.tsx` + `MemoryAddForm.tsx` + `useMemoryController.ts` | 记忆视图 + 控制器钩子 |
+| `skills` | `features/skills/SkillsView.tsx` | 技能目录 |
+| `apps` | `features/apps/AppsView.tsx` | MCP 应用（M3.1+） |
+| `prompts` | `features/prompts/PromptsView.tsx` | 自定义提示库 |
+| `threads` | `features/threads/ThreadsView.tsx` + 测试 | 线程（M2.5 LRU） |
+| `notifications` | `features/notifications/NotificationsView.tsx` | 通知中心 |
+| `dictation` | `features/dictation/DictationView.tsx` | 按住说话（M3.x） |
+| `mobile` | `features/mobile/MobileView.tsx` | iOS 布局 |
+| `update` | `features/update/UpdateView.tsx` | 自动更新 UI |
+| `debug` | `features/debug/DebugView.tsx` | 调试面板 |
+| `about` | `features/about/AboutView.tsx` | 关于 / 版本 |
+| `design-system` | `features/design-system/{DesignSystemView,primitives/*}.tsx` | DS 目录 + 基础组件（活体） |
 
-### Import Aliases
+### 导入别名
 
-Use TS/Vite aliases:
+使用 TS/Vite 别名：
 
 - `@/*` → `src/*`
 
 ---
 
-## Backend Navigation
+## 后端导航
 
-- Command registry (what frontend can invoke): `src-tauri/src/lib.rs` (`tauri::generate_handler!` enumerates each `reflect_*` command)
-- Command bodies (per domain): `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs`; shared error helpers in `src-tauri/src/commands/error.rs` (`CommandError` / `CommandResult`)
-- Command barrel: `src-tauri/src/commands/mod.rs` (thin re-export of each `<domain>.rs`)
-- App state: `src-tauri/src/state.rs` (`MinimalAgent` stub → `reflect_core::AgentThread`)
-- State support modules: `src-tauri/src/{hook_store,memory_store,shell_sessions,workspace_state}.rs`
-- Event forwarder: `src-tauri/src/events.rs` (`forward_agent_events`)
-- Tray / menu / shortcut / dock: `src-tauri/src/{tray,menu,shortcut,dock}.rs`
-- MCP runtime: `src-tauri/src/mcp.rs`
-- Tauri config: `src-tauri/tauri.conf.json`
+- 命令注册表（前端可调用的）：`src-tauri/src/lib.rs`（`tauri::generate_handler!` 枚举每个 `reflect_*` 命令）
+- 命令主体（按域）：`src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs`；共享错误辅助位于 `src-tauri/src/commands/error.rs`（`CommandError` / `CommandResult`）
+- 命令桶文件：`src-tauri/src/commands/mod.rs`（每个 `<domain>.rs` 的薄 re-export）
+- 应用状态：`src-tauri/src/state.rs`（`MinimalAgent` 存根 → `reflect_core::AgentThread`）
+- 状态支持模块：`src-tauri/src/{hook_store,memory_store,shell_sessions,workspace_state}.rs`
+- 事件转发器：`src-tauri/src/events.rs`（`forward_agent_events`）
+- 托盘 / 菜单 / 快捷键 / dock：`src-tauri/src/{tray,menu,shortcut,dock}.rs`
+- MCP 运行时：`src-tauri/src/mcp.rs`
+- Tauri 配置：`src-tauri/tauri.conf.json`
 - Capabilities: `src-tauri/capabilities/main.json`
 - Cargo workspace: `Cargo.toml` (workspace root) + `src-tauri/Cargo.toml`
 
-### Tauri IPC surface
+### Tauri IPC 命令面
 
-Each `#[tauri::command]` lives in the domain module under `src-tauri/src/commands/<domain>.rs` and is registered in `src-tauri/src/lib.rs`. The full set spans:
+每个 `#[tauri::command]` 位于 `src-tauri/src/commands/<domain>.rs` 的领域模块中，并在 `src-tauri/src/lib.rs` 注册。完整集合覆盖：
 
-| Domain | Sample commands (full set in `commands/<domain>.rs`) |
+| 领域 | 代表命令（完整集合见 `commands/<domain>.rs`）|
 | --- | --- |
-| `agent` | `ping`, `reflect_agent_status`, `reflect_submit` (see also: approval / question / plan / effort / permission / compaction / shutdown variants) |
+| `agent` | `ping`、`reflect_agent_status`、`reflect_submit`（另见：批准 / 问答 / 计划 / 努力级别 / 权限 / 压缩 / 关闭等变体）|
 | `config` | `reflect_get_config`, `reflect_save_config` |
 | `sessions` | `reflect_list_sessions`, `reflect_rename_session`, `reflect_delete_session`, `reflect_replay_session`, `reflect_export_session`, `reflect_export_session_markdown` |
 | `workspaces` | `reflect_list_workspaces`, `reflect_set_workspace`, `reflect_current_workspace` |
@@ -140,76 +140,76 @@ Each `#[tauri::command]` lives in the domain module under `src-tauri/src/command
 | `search` | `reflect_search_files` |
 | `allowlist` | `reflect_load_allowlist`, `reflect_save_allowlist`, `reflect_check_allowlist` |
 | `update` | `reflect_check_update` |
-| `tools` | `reflect_list_tools` (see `commands/agent.rs`) |
-| Dock (macOS) | `reflect_set_dock_badge` |
+| `tools` | `reflect_list_tools`（见 `commands/agent.rs`）|
+| Dock（macOS）| `reflect_set_dock_badge` |
 
-Push events (single channel, dispatched by `msg.type`):
+推送事件（单一通道，按 `msg.type` 分发）：
 
-- `reflect_event` — payload is `reflect_protocol::Event` (snake_case JSON)
-- `reflect_terminal_output` — payload is `ReflectShellOutputChunk` (B8-01 streaming shell)
-
----
-
-## Vendor Crates
-
-`vendor/` contains a read-only mirror of `reflect-*` crates from the upstream `Reflect-Agent` repo, kept in sync via `scripts/vendor-sync.sh`. The exact set of crates synced is controlled by the `CRATES` list in `scripts/vendor-sync.sh`; the live directory listing under `vendor/` (e.g. `vendor/reflect-protocol/`, `vendor/reflect-core/`, `vendor/reflect-config/`, `vendor/reflect-tools/`, etc.) reflects the current snapshot.
-
-UI-agnostic reducer/state types used by both ReflectDesktop and the headless ReflectAgent tooling live in the `app-core/` Cargo crate at the workspace root (sibling to `vendor/`), not under `vendor/`. Edit upstream first; then `bash scripts/vendor-sync.sh /path/to/Reflect-Agent main`.
+- `reflect_event` —— 负载为 `reflect_protocol::Event`（snake_case JSON）
+- `reflect_terminal_output` —— 负载为 `ReflectShellOutputChunk`（B8-01 流式 shell）
 
 ---
 
-## Events Map (Backend → Frontend)
+## 核心 Crate（submodule）
 
-- Backend emits via `src-tauri/src/events.rs::forward_agent_events` → `app.emit("reflect_event", &event)`.
-- Frontend fanout hub: `src/services/agentEventBus.ts` (refcounted single subscription) → `src/stores/agent/reducer.ts`. `src/services/agent.ts` is the legacy compat re-export that forwards to the store hook.
-- Parser guards: `src/utils/tauri.ts::onReflectEvent`.
-- Type contract: `vendor/reflect-protocol/src/event_msg.rs` (Rust) ↔ `src/types/protocol.ts` (TS).
+`reflect-agent/` 是上游 `Reflect-Agent` 仓库 reflect-* crate 的只读 git submodule 镜像，通过 `git submodule update --remote` 升级（完整流程见 `SUBMODULE.md`）。引用的 crate 集合由根 `Cargo.toml` 的 `[workspace.dependencies]` 声明（如 `reflect-agent/crates/protocol/reflect-protocol/`、`reflect-agent/crates/runtime/reflect-core/` 等）。
 
-If event payload format changes, regenerate `src/types/protocol.ts` from `reflect-protocol`'s schema dump (`cargo run -p reflect-protocol --example dump_schema` → `npx json2ts`).
+ReflectDesktop 与无头 ReflectAgent 工具共用的 UI 无关 reducer/state 类型位于 workspace 根的 `app-core/` crate（与 `reflect-agent/` 平级），不在 submodule 内。上游改动优先改 Reflect-Agent 仓库，再升级 submodule。
 
 ---
 
-## Type Contract Files
+## 事件映射（后端 → 前端）
 
-Keep Rust and TypeScript contracts in sync:
+- 后端通过 `src-tauri/src/events.rs::forward_agent_events` 发出 → `app.emit("reflect_event", &event)`。
+- 前端扇出枢纽：`src/services/agentEventBus.ts`（引用计数的单一订阅）→ `src/stores/agent/reducer.ts`。`src/services/agent.ts` 是旧版兼容再导出，转发到 store hook。
+- 解析守卫：`src/utils/tauri.ts::onReflectEvent`。
+- 类型契约：`reflect-agent/crates/protocol/reflect-protocol/src/event_msg.rs`（Rust）↔ `src/types/protocol.ts`（TS）。
 
-- Rust backend types: `vendor/reflect-protocol/src/{event,event_msg,op,item}.rs`
-- Frontend types: `src/types/protocol.ts`
-- Settings: `src/features/settings/config/schema.ts` ↔ `src-tauri/src/commands/config.rs`
-
-This is required for submissions, events, settings, and session payloads.
+若事件负载格式变更，用 reflect-protocol 的模式导出重新生成 `src/types/protocol.ts`（`cargo run -p reflect-protocol --example dump_schema` → `npx json2ts`）。
 
 ---
 
-## Conventions
+## 类型契约文件
 
-- **Feature-sliced design**: each feature is a folder under `src/features/<slice>/`. Components live flat or in `components/`; hooks in `hooks/`; controllers (stateful view orchestration) live alongside the view as `use*Controller.ts`; tests co-located as `*.test.ts(x)`.
-- **Co-location**: tests live next to source (`Foo.tsx` → `Foo.test.tsx`).
-- **Naming**: PascalCase for components, camelCase for hooks/utils, ALL_CAPS for env-like constants.
-- **State**: prefer local `useState`/`useReducer`; lift to Zustand store only when shared by ≥2 features.
+保持 Rust 与 TypeScript 契约同步：
+
+- Rust 后端类型：`reflect-agent/crates/protocol/reflect-protocol/src/{event,event_msg,op,item}.rs`
+- 前端类型：`src/types/protocol.ts`
+- 设置：`src/features/settings/config/schema.ts` ↔ `src-tauri/src/commands/config.rs`
+
+提交、事件、设置与会话负载都必须遵守。
+
+---
+
+## 约定
+
+- **功能切片设计**：每个功能是 `src/features/<slice>/` 下的一个目录。组件平铺或放在 `components/`；hooks 放 `hooks/`；控制器（有状态视图编排）与视图同目录，命名 `use*Controller.ts`；测试同目录放 `*.test.ts(x)`。
+- **就近放置**：测试与源码同目录（`Foo.tsx` → `Foo.test.tsx`）。
+- **命名**：组件 PascalCase，hooks/工具函数 camelCase，类环境常量全大写下划线。
+- **状态**：优先局部 `useState`/`useReducer`；仅当被 ≥2 个功能共享时才提升到 Zustand store。
 
 ---
 
 ## Quick Runbook
 
 ```bash
-pnpm install                 # install JS deps
-pnpm tauri dev               # dev (HMR)
+pnpm install                 # 安装 JS 依赖
+pnpm tauri dev               # 开发模式（HMR）
 pnpm test                    # vitest
 pnpm typecheck               # tsc --noEmit
-cd src-tauri && cargo check  # Rust types
-pnpm tauri build             # release bundle
+cd src-tauri && cargo check  # Rust 类型检查
+pnpm tauri build             # 发布构建
 ```
 
-Vendor sync:
+子模块升级：
 
 ```bash
-bash scripts/vendor-sync.sh /Users/admin/Code/CNB/Reflect-Agent main
-git diff --stat vendor/
-git add vendor/ && git commit -m "sync vendor: <reason>"
+git submodule update --remote reflect-agent
+git diff --submodule reflect-agent
+git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
 ```
 
-Install (macOS):
+安装（macOS）：
 
 ```bash
 pnpm tauri build --bundles app

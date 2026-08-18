@@ -41,10 +41,10 @@ export function WorkspacesView() {
 
   const currentWs = statusQ.data?.workspace;
 
-  // `ReflectSessionInfo` (backend `SessionInfo`) only carries `session_id`,
-  // `model`, `started_at`, `message_count` — there's no `cwd` field. Until
-  // the backend exposes a per-session workspace, we surface a single card
-  // for the current workspace plus the recent session count.
+  // `ReflectSessionInfo`（后端 `SessionInfo`）仅携带 `session_id`,
+  // `model`, `started_at`, `message_count` —— 没有 `cwd` 字段。在
+  // 后端暴露 per-session workspace 之前，我们展示当前工作区卡片
+  // 以及最近的 session 数量。
   const totalSessions = sessionsQ.data?.length ?? 0;
   const lastUsed = sessionsQ.data?.[0]?.started_at;
 

@@ -15,7 +15,7 @@ import { ThreadsView } from '@/features/threads/ThreadsView';
 import { resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
 import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 
-// Mock useSessions + useActiveSession hooks
+// 模拟 useSessions + useActiveSession hooks
 vi.mock('@/features/sessions/hooks/useSessions', () => ({
   useSessions: vi.fn(),
   useActiveSession: vi.fn(),
@@ -78,7 +78,7 @@ describe('ThreadsView', () => {
     );
 
     expect(screen.getByText('Threads')).toBeDefined();
-    // session_id "s1" → displayTitle yields the id prefix.
+    // session_id "s1" → displayTitle 返回 id 前缀。
     expect(screen.getByText('s1')).toBeDefined();
     expect(screen.getByText(/2 message/)).toBeDefined();
     expect(screen.getByText('Now')).toBeDefined();

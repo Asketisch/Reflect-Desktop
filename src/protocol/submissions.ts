@@ -1,22 +1,20 @@
 /**
- * src/protocol/submissions.ts — Submission constructors (B1-03).
+ * src/protocol/submissions.ts —— Submission 构造器（B1-03）。
  *
- * Single source of truth for all `Submission` payloads the frontend
- * constructs. Each function:
- *   1. Generates a fresh `id` (or accepts an explicit one).
- *   2. Builds the strongly-typed `op` payload.
- *   3. Returns a complete `ReflectSubmission` ready for `reflect_submit`.
+ * 前端构造的 `Submission` 负载的唯一权威来源。每个函数：
+ *   1. 生成新的 `id`（或接受显式传入的 id）。
+ *   2. 构建强类型的 `op` 负载。
+ *   3. 返回可直接交给 `reflect_submit` 的完整 `ReflectSubmission`。
  *
- * Why this exists:
- *   Before, callers (`agentStore.submit`, modals, slash engine) hand-built
- *   `Submission` objects inline, leading to inconsistent `id` generation
- *   and occasional missing fields. Centralizing here:
- *   - Guarantees every Submission has a unique id.
- *   - Gives one place to add `client_user_message_id` / `trace` later.
- *   - Lets the slash engine (B4) call the same constructors as the store.
+ * 为什么存在：
+ *   此前调用方（`agentStore.submit`、弹窗、斜杠引擎）内联手写
+ *   `Submission` 对象，导致 `id` 生成不一致和偶发字段缺失。集中于此：
+ *   - 保证每个 Submission 都有唯一 id。
+ *   - 为后续添加 `client_user_message_id` / `trace` 提供单一位置。
+ *   - 让斜杠引擎（B4）与 store 调用同一套构造器。
  *
- * Naming convention: every exported builder is a noun + verb matching
- * the `Op` variant. e.g. `Op::ToolApproval` → `toolApproval(...)`.
+ * 命名约定：每个导出的构建器都是与 `Op` 变体对应的名词 + 动词组合。
+ * 例如 `Op::ToolApproval` → `toolApproval(...)`。
  */
 
 import {
@@ -31,12 +29,12 @@ import {
   type UserInputItem,
 } from '@/types/protocol';
 
-// ====== ID generation ======
+// ====== ID 生成 ======
 
 let __submissionCounter = 0;
 
-/** Generate a unique submission id. Falls back to timestamp+counter if
- * `crypto.randomUUID` is unavailable (jsdom test env).
+/** 生成唯一的 submission id。当 `crypto.randomUUID` 不可用
+ * （jsdom 测试环境）时回退到时间戳+计数器。
  */
 export function newSubmissionId(prefix = 'sub'): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -46,14 +44,14 @@ export function newSubmissionId(prefix = 'sub'): string {
   return `${prefix}-${Date.now()}-${__submissionCounter}`;
 }
 
-/** Reset the counter (test-only). */
+/** 重置计数器（仅测试用）。 */
 export function __resetSubmissionIdCounter(): void {
   __submissionCounter = 0;
 }
 
 // ====== Submission builder ======
 
-/** Internal: build a Submission with auto id. */
+/** 内部：构造带自动 id 的 Submission。 */
 function build(op: ReflectSubmissionOp, id = newSubmissionId()): ReflectSubmission {
   return { id, op };
 }
@@ -61,8 +59,8 @@ function build(op: ReflectSubmissionOp, id = newSubmissionId()): ReflectSubmissi
 // ====== Per-Op constructors ======
 
 /**
- * `Op::UserInput` — submit one or more text/image/skill items to the agent.
- * Most callers should use `userInputText` for the simple case.
+ * `Op::UserInput` —— 向 agent 提交一个或多个文本/图片/技能条目。
+ * 大多数简单场景应使用 `userInputText`。
  */
 export function userInput(
   items: UserInputItem[],
@@ -74,19 +72,19 @@ export function userInput(
   return { id, op };
 }
 
-/** Convenience: submit a single text message. */
+/** 便捷方法：提交单条文本消息。 */
 export function userInputText(text: string, id = newSubmissionId()): ReflectSubmission {
   return userInput([{ type: 'text', text }], undefined, id);
 }
 
-/** Submit a local image (file path) plus optional caption. */
+/** 提交本地图片（文件路径）及可选说明文字。 */
 export function userInputImage(path: string, text?: string, id = newSubmissionId()): ReflectSubmission {
   const items: UserInputItem[] = [{ type: 'local_image', path }];
   if (text) items.push({ type: 'text', text });
   return userInput(items, undefined, id);
 }
 
-/** Activate a skill (B5: skill mention picker). */
+/** 激活一个技能（B5：技能提及选择器）。 */
 export function userInputSkill(name: string, args?: unknown, id = newSubmissionId()): ReflectSubmission {
   return userInput([{ type: 'skill', name, args }], undefined, id);
 }
@@ -96,22 +94,22 @@ export function compact(id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'compact' }, id);
 }
 
-/** `Op::Interrupt` — cancel the current turn. */
+/** `Op::Interrupt` — 取消当前回合。 */
 export function interrupt(id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'interrupt' }, id);
 }
 
-/** `Op::Rewind` — rewind conversation to a previous turn (or to last user turn if `to_turn_id` is undefined). */
+/** `Op::Rewind` — 回退会话至之前的回合（未传 `to_turn_id` 时回到最后一条用户回合）。 */
 export function rewind(toTurnId?: string | null, id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'rewind', to_turn_id: toTurnId ?? null }, id);
 }
 
-/** `Op::Shutdown` — gracefully shut down the agent. */
+/** `Op::Shutdown` — 优雅关闭 agent。 */
 export function shutdown(id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'shutdown' }, id);
 }
 
-/** `Op::ToolApproval` — approve / deny / approve-for-session a tool call. */
+/** `Op::ToolApproval` — 批准 / 拒绝 / 本次会话内批准某个工具调用。 */
 export function toolApproval(
   id_: string,
   decision: ReviewDecision,
@@ -120,7 +118,7 @@ export function toolApproval(
   return build({ type: 'tool_approval', id: id_, decision }, id);
 }
 
-/** `Op::HookApproval` — approve / deny a hook decision. */
+/** `Op::HookApproval` — 批准 / 拒绝某个钩子决策。 */
 export function hookApproval(
   id_: string,
   decision: ReviewDecision,
@@ -138,32 +136,32 @@ export function planApproval(
   return build({ type: 'plan_approval', id: id_, choice }, id);
 }
 
-/** `Op::EnterPlanMode` — request entry to plan mode. */
+/** `Op::EnterPlanMode` — 请求进入计划模式。 */
 export function enterPlanMode(task: string, id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'enter_plan_mode', task }, id);
 }
 
-/** `Op::ExitPlanMode` — request exit from plan mode. */
+/** `Op::ExitPlanMode` — 请求退出计划模式。 */
 export function exitPlanMode(id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'exit_plan_mode' }, id);
 }
 
-/** `Op::SetEffort` — set reasoning effort. */
+/** `Op::SetEffort` — 设置推理强度。 */
 export function setEffort(effort: ReasoningEffort, id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'set_effort', effort }, id);
 }
 
-/** `Op::SetPermissionMode` — switch to a specific permission mode. */
+/** `Op::SetPermissionMode` — 切换到指定权限模式。 */
 export function setPermissionMode(mode: PermissionMode, id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'set_permission_mode', mode }, id);
 }
 
-/** `Op::CyclePermissionMode` — cycle to the next permission mode in UI cycle. */
+/** `Op::CyclePermissionMode` — 在 UI 循环中切换到下一个权限模式。 */
 export function cyclePermissionMode(id = newSubmissionId()): ReflectSubmission {
   return build({ type: 'cycle_permission_mode' }, id);
 }
 
-/** `Op::AskUserQuestionResponse` — answer a structured question. */
+/** `Op::AskUserQuestionResponse` — 回答结构化问题。 */
 export function askUserQuestionResponse(
   id_: string,
   answers: AskUserAnswer,
@@ -172,7 +170,7 @@ export function askUserQuestionResponse(
   return build({ type: 'ask_user_question_response', id: id_, answers }, id);
 }
 
-/** `Op::AskUserInputResponse` — answer a free-text input question. */
+/** `Op::AskUserInputResponse` — 回答自由文本输入问题。 */
 export function askUserInputResponse(
   id_: string,
   text: string,
@@ -181,5 +179,5 @@ export function askUserInputResponse(
   return build({ type: 'ask_user_input_response', id: id_, text }, id);
 }
 
-// ====== Re-export event constant ======
+// ====== 再导出事件常量 ======
 export { EVENT_ID_NONE };

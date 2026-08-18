@@ -1,11 +1,11 @@
 /**
- * KMS (Knowledge Management System) IPC wrappers.
+ * KMS（知识管理系统）IPC 包装。
  *
- * Phase 3 item 12: grep-based wiki + /dream session mining.
+ * Phase 3 条目 12：基于 grep 的 wiki + /dream 会话挖掘。
  */
 import { invoke } from '@/utils/bridge';
 
-// ── Types (camelCase, matching Rust serde(rename_all = "camelCase")) ──
+// ── 类型（camelCase，对齐 Rust serde(rename_all = "camelCase")）────────────────────
 
 export interface ReflectWikiInfo {
   name: string;

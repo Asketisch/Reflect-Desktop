@@ -1,12 +1,10 @@
 /**
- * src/stores/agentStore.test.ts — reducer coverage for all 33 EventMsg
- * variants (B1-05).
+ * src/stores/agentStore.test.ts —— 全部 EventMsg 变体的 reducer 覆盖测试（B1-05）。
  *
- * Each test constructs a minimal `ReflectEvent` for one variant and
- * asserts the patch returned by `reduceEvent`. The test file does NOT
- * exercise the full store / IPC layer — that's covered by
- * `src/services/agent.test.ts`. The goal here is **reducer correctness
- * per variant**.
+ * 每个测试为单个变体构造最小化的 `ReflectEvent`，并断言 `reduceEvent`
+ * 返回的 patch。本测试文件不演练完整的 store / IPC 层 ——
+ * 那由 `src/services/agent.test.ts` 覆盖。目标是**每个变体的
+ * reducer 正确性**。
  */
 import { describe, it, expect } from 'vitest';
 import { reduceEvent, type AgentState } from './agentStore';
@@ -33,7 +31,7 @@ const emptyState = (): AgentState => ({
   lastRouting: null,
   configReloadedAt: null,
   toasts: [],
-  // Actions (unused in reducer tests; the strict AgentState type requires them).
+  // Actions（reducer 测试中未使用；严格的 AgentState 类型要求它们存在）。
   subscribe: () => () => {},
   submit: async () => {},
   submitItems: async () => {},
@@ -151,7 +149,7 @@ describe('reduceEvent — lifecycle', () => {
   });
 
   it('shutdown_complete sets lastError', () => {
-    // shutdown_complete is a unit variant (no payload fields).
+    // shutdown_complete 是单元变体（无 payload 字段）。
     const patch = reduceEvent(emptyState(), ev('', { type: 'shutdown_complete' } as never));
     expect(patch.lastError).toBe('agent shut down');
   });
@@ -277,7 +275,7 @@ describe('reduceEvent — tool', () => {
     const callItem = items.find((i) => i.kind === 'tool_call');
     expect(callItem && callItem.kind === 'tool_call' && callItem.status).toBe('done');
     const outItem = items.find((i) => i.kind === 'tool_output');
-    // summarizeToolOutput returns JSON-serialized form (string of the ToolOutput object).
+    // summarizeToolOutput 返回 JSON 序列化形式（ToolOutput 对象的字符串）。
     expect(outItem && outItem.kind === 'tool_output').toBeTruthy();
     if (outItem && outItem.kind === 'tool_output') {
       expect(outItem.text).toContain('"ok"');
@@ -285,7 +283,7 @@ describe('reduceEvent — tool', () => {
   });
 });
 
-// ====== Approval / AskUser / Permission bubble ======
+// ====== 审批 / 提问 / 权限气泡 ======
 
 describe('reduceEvent — approval / ask_user / bubble', () => {
   it('approval_request (tool kind) enqueues pending', () => {

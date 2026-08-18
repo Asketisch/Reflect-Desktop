@@ -1,5 +1,4 @@
-//! Side-channel management commands — wraps
-//! `reflect_app_core::side_channel::SideChannelRegistry`.
+//! Side-channel 管理命令 —— 包装 `reflect_app_core::side_channel::SideChannelRegistry`。
 //!
 //! Phase 2 第 1 项:用户驱动的并发 agent。`/agent <name> <prompt>` 在前端
 //! 触发 `reflect_start_side_channel` 拿回独立 id + CancelToken,后续通过
@@ -37,9 +36,8 @@ pub struct StartSideChannelResult {
     pub started_at_ms: i64,
 }
 
-/// Start a new side-channel. Returns its id + the same data the list call
-/// would surface (`started_at_ms` etc.). Emits a `Started` event on the
-/// registry's broadcast channel.
+/// 启动一条新的 side-channel。返回 id 以及与 list 接口一致的数据(`started_at_ms` 等),
+/// 并在 registry 的 broadcast 通道上发出 `Started` 事件。
 #[tauri::command]
 pub async fn reflect_start_side_channel(
     agent: State<'_, MinimalAgent>,
@@ -64,8 +62,7 @@ pub async fn reflect_start_side_channel(
     })
 }
 
-/// Cancel a running side-channel by id. Returns `true` if cancellation took
-/// effect, `false` if the id was not found or already terminal.
+/// 按 id 取消运行中的 side-channel。取消生效返回 `true`,id 不存在或已终止返回 `false`。
 #[tauri::command]
 pub async fn reflect_cancel_side_channel(
     agent: State<'_, MinimalAgent>,
@@ -74,9 +71,8 @@ pub async fn reflect_cancel_side_channel(
     Ok(agent.side_channels().cancel(&id))
 }
 
-/// List all current side-channels. The frontend subscribes via the registry's
-/// broadcast channel for live updates; this command is for ad-hoc snapshots
-/// (e.g. page reload).
+/// 列出当前所有 side-channel。前端通过 registry 的 broadcast 通道订阅实时更新;
+/// 该命令用于按需拉取快照(如页面刷新)。
 #[tauri::command]
 pub async fn reflect_list_side_channels(
     agent: State<'_, MinimalAgent>,
@@ -84,7 +80,7 @@ pub async fn reflect_list_side_channels(
     Ok(agent.side_channels().list())
 }
 
-/// Single-side-channel snapshot.
+/// 获取单条 side-channel 的快照。
 #[tauri::command]
 pub async fn reflect_get_side_channel(
     agent: State<'_, MinimalAgent>,
@@ -98,8 +94,8 @@ pub async fn reflect_get_side_channel(
         })
 }
 
-// `SideChannelRegistry` is re-exported so other modules (event forwarder in
-// particular) can subscribe without depending on reflect-app-core directly.
+// 重新导出 `SideChannelRegistry`,便于其他模块(尤其是事件转发器)
+// 在不直接依赖 reflect-app-core 的情况下订阅事件。
 pub use reflect_app_core::side_channel::SideChannelRegistry as _SideChannelRegistryReexport;
 
 #[cfg(test)]
@@ -142,7 +138,7 @@ mod tests {
         let r = reg();
         let (id, _) = r.start("default".into(), "x".into());
         assert!(r.cancel(&id));
-        // Status now cancelled; duration populated.
+        // 此时状态为 cancelled,且 duration 已被填充。
         let info = r.get(&id).unwrap();
         assert_eq!(info.status, "cancelled");
         assert!(info.duration_ms.is_some());
@@ -161,18 +157,17 @@ mod tests {
         let (b, _) = r.start("default".into(), "b".into());
         let v = r.list();
         assert_eq!(v.len(), 2);
-        // Sorted by started_at_ms ascending.
+        // 按 started_at_ms 升序排序。
         assert!(v[0].started_at_ms <= v[1].started_at_ms);
-        // The two ids should both appear (we don't assert a == a[0] etc.
-        // because started_at_ms uses the registry-level pulse, but a/b
-        // ordering tests that both show up).
+        // 两个 id 都应出现(此处不断言 a == a[0] 等,
+        // 因为 started_at_ms 使用 registry 级别的脉冲;
+        // a/b 顺序已经足以验证两者都被收录)。
         let ids: Vec<_> = v.iter().map(|i| &i.id).collect();
         assert!(ids.contains(&&a));
         assert!(ids.contains(&&b));
     }
 
-    /// `finish` transitions a running side-channel through the runner task's
-    /// outcomes.
+    /// `finish` 把运行中的 side-channel 推过 runner 任务给出的终止状态。
     #[test]
     fn finish_done_and_error_transitions() {
         let r = reg();
@@ -183,7 +178,7 @@ mod tests {
         assert_eq!(info.status, "done");
         assert!(info.duration_ms.is_some());
 
-        // Error path on a fresh handle
+        // 在新句柄上走 error 分支
         let (id2, _) = r.start("default".into(), "y".into());
         r.finish(&id2, SideChannelStatus::Error, Some("boom".into()));
         let info = r.get(&id2).unwrap();

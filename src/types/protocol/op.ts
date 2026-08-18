@@ -1,12 +1,12 @@
 /**
- * Reflect protocol — Submission Op discriminated union.
+ * Reflect protocol —— Submission Op 判别联合。
  *
- * Mirrors `vendor/reflect-protocol/src/op.rs` `Op`. Each variant is
- * tagged with a `type` discriminator matching the Rust
- * `#[serde(rename_all = "snake_case")]` enum. The `OpType` string union
- * below is the primitive list of those discriminators.
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/op.rs` 中的 `Op`。每个变体使用
+ * `type` discriminator 标记,与 Rust 的
+ * `#[serde(rename_all = "snake_case")]` 枚举对齐。下方的 `OpType` 字符串
+ * 联合即为这些 discriminator 的原始列表。
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 import type { AskUserAnswer } from './question';

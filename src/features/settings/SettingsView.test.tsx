@@ -138,10 +138,10 @@ describe('SettingsView', () => {
     // OpenAI
     expect(screen.getByLabelText(/OpenAI API key/)).toBeDefined();
     expect(screen.getByLabelText(/OpenAI model/)).toBeDefined();
-    // Ollama (newly added structured inputs)
+    // Ollama(结构化输入)
     expect(screen.getByLabelText(/Ollama base URL/)).toBeDefined();
     expect(screen.getByLabelText(/Ollama model/)).toBeDefined();
-    // Active provider select (rendered inside structured form)
+    // active provider 下拉(渲染在结构化表单内)
     const providerSelects = screen.getAllByLabelText(/^Active provider$/);
     expect(providerSelects.length).toBeGreaterThanOrEqual(1);
     // Compact / token_budget
@@ -168,7 +168,7 @@ describe('SettingsView', () => {
     expect(screen.getByLabelText(/ACP bind address/)).toBeDefined();
     // Sanitize
     expect(screen.getByLabelText(/Sanitize enabled/)).toBeDefined();
-    // Plugins (textarea)
+    // Plugins(textarea)
     expect(screen.getByLabelText(/Enabled plugins/)).toBeDefined();
   });
 
@@ -213,12 +213,12 @@ describe('SettingsView', () => {
     expect(headings.some((t) => t.includes('Accent color'))).toBe(true);
     expect(headings.some((t) => t.includes('Transparency'))).toBe(true);
     expect(headings.some((t) => t.includes('Background image'))).toBe(true);
-    // Three theme mode buttons present
+    // 三个主题模式按钮都在
     const themeButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
       ['System', 'Dark', 'Light'].some((label) => (b.textContent ?? '').includes(label)),
     );
     expect(themeButtons).toHaveLength(3);
-    // 6+ accent presets + color input + at least two range inputs + URL textbox + file input
+    // 6 个以上 accent 预设 + 取色输入 + 至少两个 range 输入 + URL 文本框 + 文件输入
     const swatches = container.querySelectorAll('button[aria-label^="#"]');
     expect(swatches.length).toBeGreaterThanOrEqual(6);
     expect(container.querySelector('input[type="color"]')).toBeTruthy();

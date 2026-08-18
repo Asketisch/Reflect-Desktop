@@ -12,9 +12,9 @@ describe('invoke', () => {
   });
 
   it('does not throw on unmocked cmd in test env (mock throws synchronously to setup path)', async () => {
-    // Note: test setup wraps invoke() in a mock that throws for unmocked cmds.
-    // Bridge.ts catches non-Tauri errors; mock throws "[mock] invoke(...) not mocked"
-    // which is NOT a Tauri error → bridge rethrows. We assert it rethrows.
+    // 注意：测试环境将 invoke() 包装为 mock，未 mock 的命令会抛错。
+    // Bridge.ts 捕获非 Tauri 错误；mock 抛出 "[mock] invoke(...) not mocked"
+    // 这不是 Tauri 错误 → 桥接层重新抛出。我们断言它会重新抛出。
     await expect(invoke('definitely_not_a_real_cmd_xyz')).rejects.toThrow();
   });
 });

@@ -26,7 +26,7 @@
   border-radius: var(--radius-xs);
 }
 
-/* B13: chat-diff split panel — only active when prefs.chatDiffSplit === true */
+/* B13: chat-diff 分栏面板 —— 仅当 prefs.chatDiffSplit === true 时激活 */
 .root[data-split="on"] {
   display: grid;
   grid-template-rows: 1fr minmax(140px, 38%);

@@ -1,5 +1,5 @@
 /**
- * ToolCells —— per-tool-name rendering for tool_call TurnItems (B7-05).
+ * ToolCells —— 按工具名渲染 tool_call TurnItems（B7-05）。
  *
  * 每个 tool name(shell / file_read / file_write / web_fetch / search …)
  * 都有专属子组件:icon + args 摘要 + 可折叠 raw args。

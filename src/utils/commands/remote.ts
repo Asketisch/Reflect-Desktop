@@ -1,20 +1,19 @@
 /**
- * Remote mode wrappers — Phase 2 item 2 (Tailscale + iOS daemon).
+ * 远程模式封装 —— Phase 2 第 2 项(Tailscale + iOS 守护进程)。
  *
- * Mirrors `src-tauri/src/commands/remote.rs` (which wraps
- * `reflect-app-core::tailscale` + `state::RemoteConfig`).
+ * 对应 `src-tauri/src/commands/remote.rs`(其内部封装
+ * `reflect-app-core::tailscale` + `state::RemoteConfig`)。
  *
- * Out of scope (next rounds):
- *   - Independent TCP JSON-RPC daemon binary (`reflect_daemon`).
- *   - Transport driver that maintains a live connection state.
- *   - `reflect_tailscale_daemon_start / stop / status` are placeholder
- *     commands; they return `"not implemented yet"` so the frontend can
- *     surface a friendly message instead of pretending to start a daemon
- *     that doesn't exist yet.
+ * 暂不在范围内(后续轮次):
+ *   - 独立的 TCP JSON-RPC 守护进程二进制(`reflect_daemon`)。
+ *   - 维护实时连接状态的 transport driver。
+ *   - `reflect_tailscale_daemon_start / stop / status` 目前是占位命令,
+ *     直接返回 `"not implemented yet"`,以便前端展示友好提示,而非假装
+ *     启动一个尚不存在的守护进程。
  */
 import { invoke } from '../bridge';
 
-// ── Types (mirror `state::RemoteConfig` / `state::RemoteStatus` / app-core tailscale) ──
+// ── 类型(对应 `state::RemoteConfig` / `state::RemoteStatus` / app-core tailscale) ──
 
 export interface ReflectRemoteConfigSnapshot {
   host: string;
@@ -32,7 +31,7 @@ export interface ReflectRemoteStatus {
   sinceMs: number | null;
 }
 
-/** Tailscale status (camelCase, mirrors `app_core::tailscale::TailscaleStatus`). */
+/** Tailscale 状态(camelCase,对应 `app_core::tailscale::TailscaleStatus`)。 */
 export interface ReflectTailscaleStatus {
   installed: boolean;
   running: boolean;
@@ -48,12 +47,12 @@ export interface ReflectTailscaleStatus {
 
 // ── Commands ───────────────────────────────────────────────────────────
 
-/** Read the current remote config (host / port / auth_token / auto_connect). */
+/** 读取当前 remote 配置(host / port / auth_token / auto_connect)。 */
 export async function reflect_get_remote_config(): Promise<ReflectRemoteConfigSnapshot> {
   return invoke<ReflectRemoteConfigSnapshot>('reflect_get_remote_config');
 }
 
-/** Overwrite the remote config and return the updated snapshot. */
+/** 覆盖 remote 配置并返回更新后的快照。 */
 export async function reflect_update_remote_config(args: {
   host: string;
   port?: number;
@@ -68,32 +67,32 @@ export async function reflect_update_remote_config(args: {
   });
 }
 
-/** Read the runtime transport state (always `disconnected` until the driver is wired). */
+/** 读取运行时 transport 状态(driver 接入前固定为 `disconnected`)。 */
 export async function reflect_get_remote_status(): Promise<ReflectRemoteStatus> {
   return invoke<ReflectRemoteStatus>('reflect_get_remote_status');
 }
 
-/** Probe the local Tailscale daemon. Returns a degraded status on any failure. */
+/** 探测本地 Tailscale 守护进程。任何失败均返回降级状态。 */
 export async function reflect_tailscale_status(): Promise<ReflectTailscaleStatus> {
   return invoke<ReflectTailscaleStatus>('reflect_tailscale_status');
 }
 
-/** Hint string for the iOS setup card (the command the user runs on the desktop). */
+/** iOS 配对卡片上的提示字符串(用户在桌面端运行的命令)。 */
 export async function reflect_tailscale_daemon_command_preview(): Promise<string> {
   return invoke<string>('reflect_tailscale_daemon_command_preview');
 }
 
-/** Placeholder: start the desktop daemon. Currently returns a `not implemented yet` note. */
+/** 占位命令:启动桌面守护进程。当前返回 `not implemented yet`。 */
 export async function reflect_tailscale_daemon_start(): Promise<string> {
   return invoke<string>('reflect_tailscale_daemon_start');
 }
 
-/** Placeholder: stop the desktop daemon. */
+/** 占位命令:停止桌面守护进程。 */
 export async function reflect_tailscale_daemon_stop(): Promise<string> {
   return invoke<string>('reflect_tailscale_daemon_stop');
 }
 
-/** Placeholder: query the desktop daemon's running state. */
+/** 占位命令:查询桌面守护进程的运行状态。 */
 export async function reflect_tailscale_daemon_status(): Promise<string> {
   return invoke<string>('reflect_tailscale_daemon_status');
 }

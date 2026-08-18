@@ -16,12 +16,11 @@ pub struct WorkspaceInfo {
     pub session_count: usize,
 }
 
-/// List known workspaces (from `~/.reflect/workspaces.json`).
+/// 列出已知 workspace(从 `~/.reflect/workspaces.json` 读取)。
 #[tauri::command]
 pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
-    // Phase 1: read from `~/.reflect/workspaces.json` if present, else
-    // return the current workspace only. The file is a small JSON
-    // `[{ path, label, last_used, session_count }]` array.
+    // 读取 `~/.reflect/workspaces.json`;不存在则仅返回当前 workspace。
+    // 该文件是一个 JSON 数组:`[{ path, label, last_used, session_count }]`。
     let path = dirs::home_dir()
         .map(|h| h.join(".reflect/workspaces.json"))
         .ok_or_else(|| CommandError {

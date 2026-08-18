@@ -1,38 +1,37 @@
 /**
- * Side-channel wrappers — Phase 2 item 1.
+ * Side-channel 封装 —— Phase 2 第 1 项。
  *
- * Mirrors `src-tauri/src/commands/side_channel.rs` (which wraps
- * `reflect-app-core::side_channel::SideChannelRegistry`). The registry holds
- * one entry per side-channel with an independent `CancelToken`; main agent
- * `Cmd+C` does NOT cancel side-channels. Per-side-channel status transitions
- * (`Started` / `Done` / `Cancelled` / `Error`) are streamed to the frontend via
- * the existing `reflect_event` channel (events tagged
- * `kind: "side_channel_*"`); this wrapper file exposes the ad-hoc CRUD for
- * page reloads and slash commands.
+ * 对应 `src-tauri/src/commands/side_channel.rs`(其内部封装
+ * `reflect-app-core::side_channel::SideChannelRegistry`)。注册表为每条
+ * side-channel 持有独立的 `CancelToken`;主 agent 的 `Cmd+C` 不会取消
+ * side-channel。每条 side-channel 的状态迁移(`Started` / `Done` /
+ * `Cancelled` / `Error`)通过现有的 `reflect_event` 通道(事件以
+ * `kind: "side_channel_*"` 标记)推送到前端;本封装文件暴露面向页面刷新
+ * 与 slash 命令的临时 CRUD 接口。
  *
- * Out of scope (next rounds): a driver task that actually runs the side-channel
- * (wires its prompt as `Submission::user_input` into the agent loop and updates
- * the registry entry on completion). The registry + commands are in place
- * so the driver can be added without changing the IPC surface.
+ * 暂不在范围内(后续轮次):真正执行 side-channel 的 driver 任务
+ * (把其 prompt 作为 `Submission::user_input` 接入 agent 循环,并在完成时
+ * 更新注册表条目)。注册表与命令已经就位,可以在不改动 IPC 面的前提下
+ * 后续追加 driver。
  */
 import { invoke } from '../bridge';
 
-// ── Types (mirrors `reflect_app_core::side_channel::{Status, Info}`, camelCase) ──
+// ── 类型(对应 `reflect_app_core::side_channel::{Status, Info}`,camelCase) ──
 
 export type ReflectSideChannelStatus = 'running' | 'done' | 'cancelled' | 'error';
 
 export interface ReflectSideChannelInfo {
-  /** Stable id (`side-<8hex>`). */
+  /** 稳定 id(`side-<8hex>`)。 */
   id: string;
-  /** Agent definition name. */
+  /** agent 定义名称。 */
   agentName: string;
-  /** Initial prompt. */
+  /** 初始 prompt。 */
   prompt: string;
-  /** UNIX epoch milliseconds when the side-channel was registered. */
+  /** side-channel 注册时的 UNIX epoch 毫秒数。 */
   startedAtMs: number;
-  /** Current status. */
+  /** 当前状态。 */
   status: ReflectSideChannelStatus;
-  /** Elapsed milliseconds; `null` while still running. */
+  /** 已运行时长(毫秒);仍在运行时为 `null`。 */
   durationMs: number | null;
 }
 
@@ -46,10 +45,9 @@ export interface ReflectStartSideChannelResult {
 // ── Commands ───────────────────────────────────────────────────────────
 
 /**
- * Start a new side-channel. Returns the assigned id + snapshot fields.
- * Emits a `kind: "side_channel_started"` event on the registry's broadcast
- * channel (forwarded as part of the existing Tauri `reflect_event` stream
- * by the install-time event forwarder).
+ * 启动一条新的 side-channel。返回分配的 id 及快照字段。
+ * 同时在注册表的 broadcast 通道上发出 `kind: "side_channel_started"` 事件
+ * (由安装阶段的事件转发器并入现有的 Tauri `reflect_event` 流)。
  */
 export async function reflect_start_side_channel(args: {
   agent_name: string;
@@ -62,20 +60,20 @@ export async function reflect_start_side_channel(args: {
 }
 
 /**
- * Cancel a running side-channel by id. Returns `true` if cancellation took
- * effect, `false` if not found / already terminal.
+ * 按 id 取消一条运行中的 side-channel。已生效返回 `true`,
+ * 未找到 / 已处于终止态返回 `false`。
  */
 export async function reflect_cancel_side_channel(id: string): Promise<boolean> {
   return invoke<boolean>('reflect_cancel_side_channel', { id });
 }
 
-/** List all current side-channels (snapshot). The frontend relies on the
- * event stream for live updates; this is for ad-hoc reads (e.g. page reload). */
+/** 列出当前所有 side-channel(快照)。前端依赖事件流做实时更新,
+ * 此处用于临时读取(例如页面刷新)。 */
 export async function reflect_list_side_channels(): Promise<ReflectSideChannelInfo[]> {
   return invoke<ReflectSideChannelInfo[]>('reflect_list_side_channels');
 }
 
-/** Single side-channel snapshot. Throws if id not found. */
+/** 单条 side-channel 快照。id 未找到时抛错。 */
 export async function reflect_get_side_channel(id: string): Promise<ReflectSideChannelInfo> {
   return invoke<ReflectSideChannelInfo>('reflect_get_side_channel', { id });
 }

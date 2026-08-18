@@ -1,15 +1,15 @@
 /**
- * SideChannelView —— Phase 2 item 1 user-driven concurrent agent panel.
+ * SideChannelView —— Phase 2 条目 1 用户驱动的并发 agent 面板。
  *
- * Lists side-channels (`reflect_list_side_channels`), supports
- * start / cancel. The driver task that actually executes a side-channel
- * (running its prompt as a `Submission::user_input` against the agent loop)
- * is a follow-up; this view shows the registry state and lets the user
- * create / cancel entries today.
+ * 列出来自 `reflect_list_side_channels` 的侧通道，支持
+ * start / cancel。实际执行侧通道的驱动程序
+ * （将其 prompt 作为 `Submission::user_input` 对 agent 循环运行）
+ * 是后续工作；当前视图展示注册表状态，并允许用户
+ * 创建 / 取消条目。
  *
- * Backend contract: `src/utils/commands/side_channel.ts` ↔
+ * 后端契约：`src/utils/commands/side_channel.ts` ↔
  * `src-tauri/src/commands/side_channel.rs` ↔
- * `reflect-app-core::side_channel::SideChannelRegistry`.
+ * `reflect-app-core::side_channel::SideChannelRegistry`。
  */
 import { Plus, X, GitBranch, XCircle, Loader2 } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';

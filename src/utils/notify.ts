@@ -47,8 +47,8 @@ export function saveNotifyOptions(opts: AgentNotifyOptions): void {
  * Hook:订阅 agent event 总线,在 turn 完成 + options 启用声音时播放 chime。
  *
  * 使用 Web Audio API 生成两短音(chime),不依赖外部音频文件;首次播放需要
- * 用户手势触发 AudioContext(WebView 限制),所以我们在第一次任意 click/keydown
- * 上解锁。
+ * 用户手势触发 AudioContext(WebView 限制),所以在第一次任意 click/keydown
+ * 时解锁。
  */
 export function useAgentNotifications(options: AgentNotifyOptions): void {
   const audioRef = useRef<AudioContext | null>(null);
@@ -93,7 +93,7 @@ export function useAgentNotifications(options: AgentNotifyOptions): void {
           }, 600);
         }
       }
-      // System notification(若授权 + 启用)。
+      // 系统通知（若已授权 + 启用）。
       if (t === 'turn_complete' && options.system) {
         try {
           if ('Notification' in window && Notification.permission === 'granted') {
@@ -133,7 +133,7 @@ function playChime(ctx: AudioContext | null, volume: number): void {
   }
 }
 
-/** Request permission for native notifications. Browser / Tauri WebView decide. */
+/** 请求原生通知权限。由浏览器 / Tauri WebView 自行决定。 */
 export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
   if (Notification.permission !== 'default') return Notification.permission;

@@ -15,7 +15,7 @@ describe('ContextRing', () => {
         ]}
       />,
     );
-    // 1 background + 2 foreground = 3 circles
+    // 1 背景 + 2 前景 = 3 个圆
     expect(container.querySelectorAll('circle').length).toBe(3);
   });
 
@@ -28,14 +28,14 @@ describe('ContextRing', () => {
 
   it('handles empty segments', () => {
     const { container } = render(<ContextRing segments={[]} />);
-    expect(container.querySelectorAll('circle').length).toBe(1); // background only
+    expect(container.querySelectorAll('circle').length).toBe(1); // 只有背景圆
   });
 
   it('clamps segment values to [0, 1]', () => {
     const { container } = render(
       <ContextRing segments={[{ label: 'x', value: 1.5, color: '#000' }]} />,
     );
-    // Just check it renders without throwing
+    // 仅验证它能正常渲染而不抛错
     expect(container.querySelector('svg')).toBeDefined();
   });
 });

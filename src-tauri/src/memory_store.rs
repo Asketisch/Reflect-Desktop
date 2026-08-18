@@ -1,3 +1,11 @@
+//! Memory 存储 —— 将 memory entry 持久化到 `MEMORY.md` 文件。
+//!
+//! 支持两个 scope:
+//! - `project` —— 存储在当前工作区根目录 `.reflect/agent-memory/reflect/MEMORY.md`;
+//! - `user` —— 存储在用户主目录 `~/.reflect/agent-memory/reflect/MEMORY.md`。
+//!
+//! 每条 entry 以 `## <key>` 标题块形式追加到文件中。
+
 use std::path::PathBuf;
 
 use crate::commands::MemoryEntry;
@@ -6,6 +14,7 @@ use crate::commands::MemoryEntry;
 pub(crate) struct MemoryStore;
 
 impl MemoryStore {
+    /// 列出所有 scope 下的 memory 条目。
     pub(crate) fn list(&self) -> anyhow::Result<Vec<MemoryEntry>> {
         let mut entries = Vec::new();
         for (scope, path) in self.scopes()? {
@@ -22,6 +31,7 @@ impl MemoryStore {
         Ok(entries)
     }
 
+    /// 新增 memory entry。
     pub(crate) fn add(&self, scope: &str, key: &str, value: &str) -> anyhow::Result<()> {
         let path = self.path(scope)?;
         if let Some(parent) = path.parent() {

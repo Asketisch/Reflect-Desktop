@@ -1,13 +1,12 @@
 /**
- * Side-channel controller hook (Phase 2 item 1).
+ * Side-channel controller hook（阶段 2 任务 1）。
  *
- * Encapsulates query / mutation orchestration:
- *   - TanStack `useQuery` for `reflect_list_side_channels` (live updates
- *     rely on the broadcast event stream once the driver is wired; for
- *     now this is an ad-hoc snapshot refreshed on focus + every mutation).
- *   - two mutations: start / cancel, with toast + invalidation.
+ * 封装查询 / 突变编排：
+ *   - TanStack `useQuery` 用于 `reflect_list_side_channels`（实时更新
+ *     依赖 broadcast 事件流，目前为焦点恢复 + 每次 mutation 后的快照刷新）。
+ *   - 两个 mutation：start / cancel，带 toast + cache 失效。
  *
- * Mirrors the `useMemoryController` / `useTasksBoardController` precedent.
+ * 参考 `useMemoryController` / `useTasksBoardController` 的模式。
  */
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -24,14 +23,14 @@ export const SIDECHANNEL_QUERY_KEY = ['side-channels'] as const;
 const SIDECHANNEL_STALE_MS = 5_000;
 
 export interface SideChannelController {
-  // Query
+  // 查询
   channels: ReflectSideChannelInfo[];
   runningCount: number;
   loading: boolean;
   error: unknown;
   refetch: () => void;
 
-  // Start form state
+  // 启动表单状态
   showForm: boolean;
   toggleShowForm: () => void;
   agentName: string;
@@ -39,7 +38,7 @@ export interface SideChannelController {
   prompt: string;
   setPrompt: (v: string) => void;
 
-  // Mutations
+  // 突变操作
   start: () => Promise<void>;
   cancel: (id: string) => Promise<void>;
 

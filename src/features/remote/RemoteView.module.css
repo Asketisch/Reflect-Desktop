@@ -1,4 +1,4 @@
-/* RemoteView —— Phase 2 item 2 (Tailscale + iOS daemon). */
+/* RemoteView —— Phase 2 条目 2（Tailscale + iOS 守护进程）。 */
 
 .refreshBtn {
   display: inline-flex;
@@ -61,7 +61,7 @@
   cursor: not-allowed;
 }
 
-/* ── Display (read-only config list) ── */
+/* ── 展示（只读配置列表）────── */
 
 .configList {
   margin: 0;
@@ -161,7 +161,7 @@
   border-color: var(--accent, #5eafe6);
 }
 
-/* ── Code block + status ── */
+/* ── 代码块 + 状态 ── */
 
 .codeBlock {
   margin: 0;

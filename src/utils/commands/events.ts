@@ -1,16 +1,16 @@
 /**
- * Event channel subscription for live agent output.
+ * 实时 agent 输出的事件通道订阅。
  *
- * Mirrors `src-tauri/src/state.rs` `reflect_event` broadcast — payload shape
- * lives in `src/types/protocol.ts`.
+ * 对应 `src-tauri/src/state.rs` 的 `reflect_event` 广播 —— payload 形态
+ * 定义在 `src/types/protocol.ts`。
  */
 import { listen } from '../bridge';
 import type { ReflectEvent } from '@/types/protocol';
 
 /**
- * Subscribe to the global `reflect_event` channel.
+ * 订阅全局 `reflect_event` 通道。
  *
- * The returned function unlistens (Tauri `UnlistenFn`).
+ * 返回的函数用于取消订阅(Tauri `UnlistenFn`)。
  */
 export async function onReflectEvent(handler: (event: ReflectEvent) => void) {
   return listen<ReflectEvent>('reflect_event', (e) => handler(e.payload));

@@ -1,11 +1,10 @@
 /**
- * Reflect protocol — token usage accounting struct.
+ * Reflect protocol —— Token 用量统计结构。
  *
- * Mirrors `vendor/reflect-protocol/src/usage.rs`. Shared by
- * `TurnCompletePayload`, `CollabMessagePayload`, and extended by
- * `TokenCountPayload` (see `./event.ts`).
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/usage.rs`。被 `TurnCompletePayload`、
+ * `CollabMessagePayload` 共享，并被 `TokenCountPayload` 扩展（见 `./event.ts`）。
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 export interface TokenUsagePayload {

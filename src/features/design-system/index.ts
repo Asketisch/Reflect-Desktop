@@ -1,5 +1,5 @@
 /**
- * design-system slice public API barrel.
+ * design-system 切片公共 API 桶。
  */
 
 // ===== Views =====

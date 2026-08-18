@@ -77,7 +77,7 @@ describe('MessageList', () => {
       ],
     });
     render(wrap(<MessageList />));
-    // tool_call row uses <ToolCell> which renders tool name + summary in separate spans.
+    // tool_call 行使用 <ToolCell>，它在独立 span 中渲染工具名与摘要。
     const cell = document.querySelector('[data-tool="bash"]');
     expect(cell).not.toBeNull();
     expect(cell!.getAttribute('data-status')).toBe('done');

@@ -1,16 +1,15 @@
 /**
- * Tasks board —— controller hook (Phase 1 multi-agent UI).
+ * Tasks board —— controller hook（阶段 1 多 agent UI）。
  *
- * Encapsulates query / mutation orchestration so the view stays presentational.
- * Owns:
- *   - TanStack `useQuery` for `reflect_list_tasks` (polls the active list)
- *   - `useQuery` for `reflect_list_teams` (drives the list selector: list id =
- *     team name when a team is picked, free text otherwise)
- *   - four mutations: create / claim / update(status) / delete, each with toast
- *     + cache invalidation
- *   - view-mode (list / board) + active list id + create-form UI state.
+ * 封装查询 / 突变编排，使视图保持纯展示。职责：
+ *   - TanStack `useQuery` 用于 `reflect_list_tasks`（轮询活动列表）
+ *   - `useQuery` 用于 `reflect_list_teams`（驱动列表选择器：选择 team 时
+ *     list id = team 名称，否则为自由文本）
+ *   - 四个 mutation：create / claim / update(status) / delete，各带 toast
+ *     + cache 失效
+ *   - 视图模式（list / board）+ 活动列表 id + 创建表单 UI 状态。
  *
- * Mirrors the `useMemoryController` shape (2026-07-25 refactor precedent).
+ * 参考 `useMemoryController` 的结构（2026-07-25 重构先例）。
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,7 +29,7 @@ export const TASKS_QUERY_KEY_BASE = ['tasks'] as const;
 const TASKS_STALE_MS = 15_000;
 const TEAMS_STALE_MS = 60_000;
 
-/** Default list id when no team / custom list is selected. */
+/** 未选择 team / 自定义列表时的默认列表 ID。 */
 export const DEFAULT_LIST_ID = 'default';
 
 export type BoardView = 'list' | 'board';
@@ -42,7 +41,7 @@ export const STATUS_ORDER: ReflectTaskStatus[] = [
   'deleted',
 ];
 
-/** Legacy - use i18n `tasks.*` keys instead. Kept for backwards compat. */
+/** 旧版 —— 请改用 i18n `tasks.*` key。保留用于向后兼容。 */
 export const STATUS_LABELS: Record<ReflectTaskStatus, string> = {
   pending: 'Pending',
   in_progress: 'In Progress',
@@ -51,24 +50,24 @@ export const STATUS_LABELS: Record<ReflectTaskStatus, string> = {
 };
 
 export interface TasksBoardController {
-  // Task query
+  // 任务查询
   tasks: ReflectTask[];
-  /** Tasks grouped by status (board view). Excludes soft-deleted. */
+  /** 按状态分组（board 视图）。排除软删除的任务。 */
   grouped: Record<ReflectTaskStatus, ReflectTask[]>;
   loading: boolean;
   error: unknown;
   refetch: () => void;
 
-  // Teams query (drives list selector)
+  // Team 查询（驱动列表选择器）
   teamNames: string[];
 
-  // View + list state
+  // 视图 + 列表状态
   view: BoardView;
   setView: (v: BoardView) => void;
   listId: string;
   setListId: (id: string) => void;
 
-  // Create-form state
+  // 创建表单状态
   showForm: boolean;
   toggleShowForm: () => void;
   newSubject: string;
@@ -78,7 +77,7 @@ export interface TasksBoardController {
   newOwner: string;
   setNewOwner: (v: string) => void;
 
-  // Mutations
+  // 突变操作
   create: () => Promise<void>;
   claim: (task: ReflectTask) => Promise<void>;
   advance: (task: ReflectTask, status: ReflectTaskStatus) => Promise<void>;
@@ -210,7 +209,7 @@ export function useTasksBoardController(): TasksBoardController {
 
   const claim = useCallback(
     async (task: ReflectTask) => {
-      // Claim under the task's own list (resilient if user flipped listId).
+      // 在任务自身列表下 claim（即使用户切换了 listId 也能正常工作）。
       const claimer = newOwner.trim() || 'desktop-user';
       try {
         const claimed = await claimMut.mutateAsync({

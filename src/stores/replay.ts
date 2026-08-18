@@ -2,13 +2,13 @@ import type { ReflectRolloutRecord } from '@/utils/types';
 import type { Turn, TurnItem } from './agent/types';
 
 /**
- * Build turn list from a session rollout stream. Walks the records in
- * `seq` order and groups events by `payload.msg.type` against the
- * `turn_id` envelope id (`event.id` per AGENTS.md protocol invariants).
+ * 从会话回放流构建转数列表。按 `seq` 顺序遍历记录，
+ * 并按 `turn_id` 信封 id（`event.id`，见 AGENTS.md 协议不变量）
+ * 依据 `payload.msg.type` 对事件分组。
  *
- * Records are `ReflectRolloutRecord { seq, kind, timestamp, payload }`
- * where `payload` is either a ReflectSubmission or ReflectEvent. The
- * `event.id` is the turn id (or `EVENT_ID_NONE` for session-level events).
+ * 记录为 `ReflectRolloutRecord { seq, kind, timestamp, payload }`，
+ * 其中 `payload` 是 ReflectSubmission 或 ReflectEvent。
+ * `event.id` 即为转数 id（会话级事件为 `EVENT_ID_NONE`）。
  */
 export function turnsFromRollout(records: ReflectRolloutRecord[]): Turn[] {
   const turns: Turn[] = [];

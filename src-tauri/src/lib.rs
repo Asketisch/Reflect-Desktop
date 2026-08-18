@@ -1,4 +1,4 @@
-//! `reflect-desktop` Tauri 2 backend lib。
+//! `reflect-desktop` Tauri 2 后端库。
 //!
 //! ## 里程碑
 //!
@@ -7,7 +7,7 @@
 //!   (stub model + EchoTool,不依赖网络);4 个产品联动 (tray / menu / shortcut / dock) 实装;
 //!   macOS close-to-tray。
 //!
-//! 蓝图（历史）: Reflect-Agent `docs/gui/03-architecture.md` §5 (M1.x 设计沉淀)。
+//! 蓝图:Reflect-Agent `docs/gui/03-architecture.md` §5 (M1.x 设计沉淀)。
 
 pub mod commands;
 pub mod dock;
@@ -72,7 +72,7 @@ struct PingResp {
 /// 4. 在 setup 中:
 ///     - 启动 `forward_agent_events` 把 agent event 推到前端;
 ///     - 注册全局快捷键 + 应用菜单 + 托盘图标;
-///     - 启动 `AgentThread` 的 session event forwarder;
+///     - 启动 `AgentThread` 的 会话事件转发器;
 /// 5. `on_window_event` 拦截 macOS 关闭按钮 → hide (close-to-tray)。
 pub fn run() {
     tracing_subscriber::fmt::init();
@@ -80,7 +80,7 @@ pub fn run() {
     tauri::Builder::default()
         // ====== Plugins ======
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        // ====== State ======
+        // ====== 状态 ======
         .manage(MinimalAgent::new_empty())
         // ====== Menu (在 builder 阶段静态注入) ======
         .enable_macos_default_menu(false)
@@ -114,7 +114,7 @@ pub fn run() {
             reflect_get_config,
             reflect_save_config,
             reflect_list_tools,
-            // B1-07: domain management (B9-06 / B11-*)
+            // 各领域 domain 管理(workspace / skills / memory / hooks / git)
             reflect_list_workspaces,
             reflect_set_workspace,
             reflect_current_workspace,
@@ -127,21 +127,21 @@ pub fn run() {
             reflect_git_status,
     reflect_git_diff,
     reflect_git_log,
-            // B8-01: terminal shell exec + streaming
+            // 终端 shell exec + streaming
             reflect_run_shell,
             reflect_kill_shell,
             reflect_list_shell_sessions,
-            // B9-01: file tree + read_file
+            // 文件树 + read_file
             reflect_list_dir,
             reflect_read_file,
-            // B13-B16: approval allowlist, markdown export, update check, file search
+            // 审批白名单 / Markdown 导出 / 更新检查 / 文件搜索
             reflect_load_allowlist,
             reflect_save_allowlist,
             reflect_check_allowlist,
             reflect_export_session_markdown,
             reflect_check_update,
             reflect_search_files,
-            // Phase 1: Task/Team 管理命令(多 agent 协调,包装 reflect_task::TaskManager)
+            // Task/Team 管理命令(多 agent 协调,包装 reflect_task::TaskManager)
             reflect_list_tasks,
             reflect_create_task,
             reflect_get_task,
@@ -152,24 +152,24 @@ pub fn run() {
             reflect_upsert_team,
             reflect_get_team,
             reflect_delete_team,
-            // Phase 1 第 2 项: Schedule(cron)管理命令(包装 reflect_stream::cron::CronScheduler)
+            // Schedule(cron)管理命令(包装 reflect_stream::cron::CronScheduler)
             reflect_list_schedules,
             reflect_add_schedule,
             reflect_update_schedule,
             reflect_remove_schedule,
             reflect_get_schedule_status,
-            // Phase 1 第 3 项: Agent definition 管理命令(包装 reflect_agent_def)
+            // Agent definition 管理命令(包装 reflect_agent_def)
             reflect_list_agent_defs,
             reflect_get_agent_def,
             reflect_save_agent_def,
             reflect_delete_agent_def,
             reflect_parse_agent_md,
-            // Phase 2 第 1 项: Side-channel(用户驱动的并发 agent)
+            // Side-channel(用户驱动的并发 agent)
             reflect_start_side_channel,
             reflect_cancel_side_channel,
             reflect_list_side_channels,
             reflect_get_side_channel,
-            // Phase 2 第 2 项: Remote mode(Tailscale + iOS daemon)
+            // 远程模式（iOS 远端 daemon）
             reflect_get_remote_config,
             reflect_update_remote_config,
             reflect_get_remote_status,
@@ -178,7 +178,7 @@ pub fn run() {
             reflect_tailscale_daemon_start,
             reflect_tailscale_daemon_stop,
             reflect_tailscale_daemon_status,
-            // Phase 3 第 12 项: KMS(grep-based wiki + /dream)
+            // KMS（基于 grep 的 wiki + /dream）
             reflect_kms_list,
             reflect_kms_create,
             reflect_kms_delete,
@@ -187,23 +187,23 @@ pub fn run() {
             reflect_kms_list_pages,
             reflect_kms_search,
             reflect_dream,
-            // Phase 3 第 10 项: Autopilot(自动任务调度)
+            // Autopilot(自动任务调度)
             reflect_get_autopilot_config,
             reflect_update_autopilot_config,
             reflect_autopilot_history,
-            // Phase 3 第 9 项: Activity timeline(本地事件审计日志)
+            // Activity timeline(本地事件审计日志)
             reflect_list_activity,
             reflect_search_activity,
             reflect_clear_activity,
             reflect_activity_count,
-            // Phase 3 第 11 项: Squad + Leader delegation
+            // Squad + Leader delegation
             reflect_list_squads,
             reflect_create_squad,
             reflect_get_squad,
             reflect_delete_squad,
             reflect_delegate_next,
             reflect_assign_squad_task,
-            // Phase 3 第 13 项: Media Studio + Computer Use(metadata-only backends)
+            // 媒体工作室 + 电脑操控（仅元数据的后端）
             reflect_list_media,
             reflect_image_process,
             reflect_screenshot,
@@ -260,7 +260,7 @@ pub fn run() {
         .expect("error while running reflect-desktop");
 }
 
-/// M1.x 占位 command:验证 IPC 通路。
+/// 占位 command:验证 IPC 通路。
 #[tauri::command]
 fn ping() -> PingResp {
     PingResp {

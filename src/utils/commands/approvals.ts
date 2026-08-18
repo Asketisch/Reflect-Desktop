@@ -1,6 +1,5 @@
 /**
- * Approval/dispatch wrappers — paired with the matching `ReviewRequest` event
- * streams from `onReflectEvent`.
+ * 审批/分发命令封装 —— 与来自 `onReflectEvent` 的 `ReviewRequest` 事件流配对。
  *
  * Tool/hook approval 接收 `ReviewDecision`(approve / deny);
  * plan approval 接收 `PlanApprovalChoice`(auto_mode / manual_approve / revise)——
@@ -9,7 +8,7 @@
 import { invoke } from '../bridge';
 import type { PlanApprovalChoice, ReviewDecision } from '../types';
 
-/** Tool call approval. */
+/** 工具调用审批。 */
 export async function reflect_tool_approval(id: string, decision: ReviewDecision): Promise<string> {
   return invoke<string>('reflect_tool_approval', { id, decision });
 }

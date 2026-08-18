@@ -90,7 +90,7 @@ mod tests {
     use crate::state::MinimalAgent;
 
     /// submit_op 在未 install 时必须返回 Err(instead of panic)。
-    /// 这是 AGENTS.md "fix root cause not band-aids" 的体现:
+    /// 这是 AGENTS.md「修复根因，而非打补丁」的体现:
     /// commands 层依赖此错误路径,前端会展示为 toast。
     #[tokio::test]
     async fn submit_op_returns_err_when_not_installed() {

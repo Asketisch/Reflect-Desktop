@@ -67,7 +67,7 @@ describe('bucketSessions', () => {
     const older = makeSession({ session_id: 'c', started_at: new Date(NOW - 30 * DAY).toISOString() });
     const buckets = bucketSessions([older, now, today], NOW);
     const labels = buckets.map((b) => b.label);
-    // Order: Now → Today → ... → Older
+    // 顺序：当前 → 今天 → … → 更早
     expect(labels).toEqual(['Now', 'Today', 'Older']);
     expect(buckets[0].sessions[0].session_id).toBe('a');
     expect(buckets[1].sessions[0].session_id).toBe('b');

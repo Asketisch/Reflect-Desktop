@@ -372,7 +372,7 @@
   font-size: var(--fs-xs);
 }
 
-/* Structured config form */
+/* 结构化配置表单 */
 .configForm {
   display: flex;
   flex-direction: column;

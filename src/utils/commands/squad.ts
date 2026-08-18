@@ -1,8 +1,8 @@
 /**
- * Squad + Leader delegation IPC wrappers (Phase 3 item 11).
+ * Squad + Leader 委派 IPC 封装(Phase 3 第 11 项)。
  *
- * 薄包装 6 个 squad 命令。与后端 `reflect_app_core::squad::SquadSpec`
- * camelCase 类型对齐;Task 类型复用 `./tasks` 的 `ReflectTask`。
+ * 薄封装 6 个 squad 命令。与后端 `reflect_app_core::squad::SquadSpec`
+ * camelCase 类型对齐;Task 类型复用 `./tasks` 中的 `ReflectTask`。
  */
 import { invoke } from '@/utils/bridge';
 import type { ReflectActor } from './activity';

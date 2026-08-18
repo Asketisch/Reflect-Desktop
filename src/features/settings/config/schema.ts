@@ -1,21 +1,20 @@
 /**
- * Pure structured configuration schema for ReflectConfig.
+ * ReflectConfig 的纯结构化配置 schema。
  *
- * Covers every section exposed by vendor/reflect-config/src/schema.rs
- * (25+ sections incl. mcp_servers / lsp_servers / hooks / routing /
+ * 覆盖 reflect-agent/crates/resources/reflect-config/src/schema.rs 暴露的每个分区
+ * （25+ 个分区，包括 mcp_servers / lsp_servers / hooks / routing /
  * subagent_providers / coordinator / postgres_session / sse_redis /
  * voice / dap / acp / feature_flags / ask_user_question / sanitize /
  * plugins / analytics / notifications / bridge / token_budget /
- * compact / sandbox / model / subagent providers).
+ * compact / sandbox / model / subagent providers）。
  *
- * Pure utility: it reads/writes a TOML string via `readField` /
- * `applyField` so unknown keys remain untouched and the Advanced TOML
- * editor stays as a release valve. Backend validation still happens
- * via `reflect_save_config` -> `ReflectConfig::load_from_str`.
+ * 纯工具：通过 `readField` / `applyField` 读写 TOML 字符串，
+ * 未知键保持不变，高级 TOML 编辑器仍作为出口闸阀。后端校验仍
+ * 通过 `reflect_save_config` -> `ReflectConfig::load_from_str` 完成。
  *
- * **i18n 约定**:`label` / `placeholder` 改为 `labelKey` / `placeholderKey`,渲染时
- * 通过 `t(labelKey)` 拿到当前 locale 文本。技术字段(skills / model / permission
- * mode id)保留原样。
+ * **i18n 约定**：`label` / `placeholder` 改为 `labelKey` / `placeholderKey`，渲染时
+ * 通过 `t(labelKey)` 拿到当前 locale 文本。技术字段（skills / model / permission
+ * mode id）保留原样。
  */
 
 import type { LocaleKey } from '@/utils/i18n';
@@ -23,18 +22,18 @@ import type { LocaleKey } from '@/utils/i18n';
 export type FieldKind = 'text' | 'number' | 'integer' | 'boolean' | 'select' | 'textarea';
 
 export interface FieldSpec {
-  /** Section key, e.g. 'anthropic' or 'compact'. */
+  /** 分区 key，如 'anthropic' 或 'compact'。 */
   section: string;
-  /** Field key inside the section. */
+  /** 分区内的字段 key。 */
   key: string;
-  /** i18n key for the user-facing label. */
+  /** 面向用户标签的 i18n key。 */
   labelKey: LocaleKey;
   kind: FieldKind;
-  /** Options for `select`. */
+  /** `select` 字段的选项。 */
   options?: string[];
-  /** Whether the field represents a secret. */
+  /** 该字段是否为密钥。 */
   secret?: boolean;
-  /** Optional i18n key for placeholder. */
+  /** 占位符的可选 i18n key。 */
   placeholderKey?: LocaleKey;
 }
 
@@ -138,7 +137,7 @@ export const STRUCTURED_SECTIONS: readonly string[] = Array.from(
   new Set([...COMPLEX_SECTIONS, ...Object.keys(SIMPLE_FIELDS_BY_SECTION)]),
 );
 
-/** Read a scalar/array field from a TOML string. */
+/** 从 TOML 字符串读取标量 / 数组字段。 */
 export function readField(toml: string, section: string, key: string): string {
   const lines = toml.split('\n');
   let active: string | null = section === 'config_version' ? '' : null;
@@ -173,7 +172,7 @@ export function readField(toml: string, section: string, key: string): string {
   return '';
 }
 
-/** Apply a field change back into a TOML string. */
+/** 将字段变更写回 TOML 字符串。 */
 export function applyField(toml: string, section: string, key: string, value: string, kind: FieldKind): string {
   if (section === 'config_version' && key === 'version') {
     return replaceOrAppend(toml, /^config_version\s*=\s*\d+?$/m, `config_version = ${value || '1'}`);

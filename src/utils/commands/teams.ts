@@ -1,42 +1,41 @@
 /**
- * Team management wrappers — Phase 1 multi-agent command surface.
+ * Team 管理封装 —— Phase 1 多 agent 命令面。
  *
- * Mirrors the Team half of `src-tauri/src/commands/tasks.rs` (which wraps
- * `vendor/reflect-task::TaskManager`). Task wrappers live alongside in
- * `./tasks.ts`. Team payloads are the vendor types serialized verbatim
- * (snake_case, since `TeamFile` does not derive `rename_all = "camelCase"`).
+ * 对应 `src-tauri/src/commands/tasks.rs` 的 Team 部分(其内部封装
+ * `reflect-agent/crates/orchestration/reflect-task::TaskManager`)。Task 封装并列存放在 `./tasks.ts`。
+ * Team payload 直接使用核心 crate 类型的序列化形态(snake_case,因为 `TeamFile`
+ * 没有派生 `rename_all = "camelCase"`)。
  *
- * Storage reuse: data lives at `~/.reflect/teams/<name>.json`, shared with
- * the TUI/CLI.
+ * 存储复用:数据位于 `~/.reflect/teams/<name>.json`,与 TUI/CLI 共享。
  */
 import { invoke } from '../bridge';
 
-// ── Team member (mirrors `reflect_task::TeamMemberSpec`, snake_case) ────
+// ── Team 成员(对应 `reflect_task::TeamMemberSpec`,snake_case) ──────────
 
 export interface ReflectTeamMember {
-  /** `<role>@<team>`; lead is always `team-lead@<team>`. */
+  /** `<role>@<team>`;lead 始终为 `team-lead@<team>`。 */
   agent_id: string;
-  /** Human-readable label (e.g. `"team-lead"` / `"architect"`). */
+  /** 人类可读的标签(例如 `"team-lead"` / `"architect"`)。 */
   name: string;
-  /** kebab-case role. */
+  /** kebab-case 角色。 */
   role: string;
   model?: string | null;
   system_prompt: string;
-  /** Subset of parent tool names this member can invoke; empty = text-only. */
+  /** 成员可调用的父工具名子集;为空表示纯文本。 */
   allowed_tools: string[];
   color?: string | null;
   joined_at: number | string;
   session_id?: string | null;
-  /** Channels this member subscribes to (M9; Phase 2 leaves empty). */
+  /** 该成员订阅的频道(M9;Phase 2 留空)。 */
   subscriptions: string[];
 }
 
-// ── Team (mirrors `reflect_task::TeamFile`, snake_case) ────────────────
+// ── Team(对应 `reflect_task::TeamFile`,snake_case) ─────────────────────
 
 export interface ReflectTeam {
   name: string;
   description?: string | null;
-  /** Always `team-lead@<name>`; validated by `TaskManager::upsert_team`. */
+  /** 始终为 `team-lead@<name>`;由 `TaskManager::upsert_team` 校验。 */
   lead_agent_id: string;
   lead_session_id?: string | null;
   members: ReflectTeamMember[];
@@ -45,25 +44,25 @@ export interface ReflectTeam {
 
 // ── Commands ───────────────────────────────────────────────────────────
 
-/** List all teams, sorted by name. */
+/** 列出所有 team,按名称排序。 */
 export async function reflect_list_teams(): Promise<ReflectTeam[]> {
   return invoke<ReflectTeam[]>('reflect_list_teams');
 }
 
 /**
- * Idempotent upsert. Validates: `name` is legal (`[a-z0-9_-]+`, 1..=64 chars)
- * and `lead_agent_id === "team-lead@<name>"`.
+ * 幂等 upsert。校验:`name` 合法(`[a-z0-9_-]+`,1..=64 字符),
+ * 且 `lead_agent_id === "team-lead@<name>"`。
  */
 export async function reflect_upsert_team(team: ReflectTeam): Promise<void> {
   return invoke<void>('reflect_upsert_team', { team });
 }
 
-/** Read a single team; throws on not-found. */
+/** 读取单个 team;未找到时抛错。 */
 export async function reflect_get_team(name: string): Promise<ReflectTeam> {
   return invoke<ReflectTeam>('reflect_get_team', { name });
 }
 
-/** Physically delete a team file (does NOT cascade-delete its tasks). */
+/** 物理删除 team 文件(不会级联删除其 task)。 */
 export async function reflect_delete_team(name: string): Promise<void> {
   return invoke<void>('reflect_delete_team', { name });
 }

@@ -1,97 +1,97 @@
-//! Knowledge Management System (KMS) — grep-based wiki for local knowledge.
+//! 知识管理系统 (KMS) —— 基于 grep 的本地知识库 wiki。
 //!
-//! Knowledge bases are stored as Markdown files under `~/.reflect/kms/<name>/`
-//! with individual pages in `pages/*.md`.
+//! 知识库以 Markdown 文件存储于 `~/.reflect/kms/<name>/`
+//! 各页面位于 `pages/*.md`。
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Metadata for a knowledge base.
+/// 知识库的元数据。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WikiInfo {
-    /// Wiki name (directory name).
+    /// Wiki 名称（目录名）。
     pub name: String,
-    /// Optional description.
+    /// 可选描述。
     pub description: Option<String>,
-    /// Path to the wiki directory.
+    /// Wiki 目录的路径。
     pub path: PathBuf,
-    /// Number of pages in the wiki.
+    /// Wiki 中的页面数。
     pub page_count: usize,
-    /// Last modified timestamp (milliseconds since epoch).
+    /// 最后修改时间戳（自 epoch 起的毫秒数）。
     pub modified_at_ms: u64,
 }
 
-/// A single page in a knowledge base.
+/// 知识库中的单个页面。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Page {
-    /// Page name (filename without .md).
+    /// 页面名称（不含 .md 的文件名）。
     pub name: String,
-    /// Wiki this page belongs to.
+    /// 此页面所属的 Wiki。
     pub wiki: String,
-    /// Page content (Markdown).
+    /// 页面内容（Markdown）。
     pub content: String,
-    /// Optional title from frontmatter.
+    /// 来自 frontmatter 的可选标题。
     pub title: Option<String>,
-    /// Optional tags from frontmatter.
+    /// 来自 frontmatter 的可选标签。
     pub tags: Vec<String>,
-    /// Last modified timestamp (milliseconds since epoch).
+    /// 最后修改时间戳（自 epoch 起的毫秒数）。
     pub modified_at_ms: u64,
 }
 
-/// A search result from knowledge base grep.
+/// 知识库 grep 的搜索结果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
-    /// Wiki name.
+    /// Wiki 名称。
     pub wiki: String,
-    /// Page name.
+    /// 页面名称。
     pub page: String,
-    /// Matching lines.
+    /// 匹配的行。
     pub lines: Vec<String>,
-    /// Line count.
+    /// 行数。
     pub line_count: usize,
 }
 
-/// Session mining result for /dream command.
+/// /dream 命令的会话挖掘结果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DreamResult {
-    /// Extracted insights.
+    /// 提取的洞察。
     pub insights: Vec<String>,
-    /// Number of sessions analyzed.
+    /// 已分析的会话数。
     pub sessions_analyzed: usize,
-    /// Wiki name where insights were saved.
+    /// 洞察保存到的 Wiki 名称。
     pub wiki: String,
-    /// Page name where insights were saved.
+    /// 洞察保存到的页面名称。
     pub page: String,
 }
 
-/// Error types for KMS operations.
+/// KMS 操作的错误类型。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum KmsError {
-    /// Wiki not found.
+    /// 未找到 Wiki。
     WikiNotFound {
-        /// Wiki name.
+        /// Wiki 名称。
         name: String,
     },
-    /// Page not found.
+    /// 未找到页面。
     PageNotFound {
-        /// Wiki name.
+        /// Wiki 名称。
         wiki: String,
-        /// Page name.
+        /// 页面名称。
         page: String,
     },
-    /// Wiki already exists.
+    /// Wiki 已存在。
     WikiAlreadyExists {
-        /// Wiki name.
+        /// Wiki 名称。
         name: String,
     },
-    /// I/O error.
+    /// I/O 错误。
     IoError {
-        /// Error message.
+        /// 错误信息。
         message: String,
     },
 }
@@ -115,20 +115,20 @@ impl From<std::io::Error> for KmsError {
     }
 }
 
-/// The KMS manager that handles all knowledge base operations.
+/// 处理所有知识库操作的 KMS 管理器。
 pub struct KnowledgeManager {
-    /// Root directory for all knowledge bases.
+    /// 所有知识库的根目录。
     root: PathBuf,
 }
 
 impl KnowledgeManager {
-    /// Create a new KnowledgeManager with the specified root directory.
+    /// 使用指定的根目录创建新的 KnowledgeManager。
     pub fn new(root: PathBuf) -> Self {
         std::fs::create_dir_all(&root).ok();
         Self { root }
     }
 
-    /// Create a new KnowledgeManager with the default home directory.
+    /// 使用默认主目录创建新的 KnowledgeManager。
     pub fn with_default_home() -> Self {
         let root = dirs::home_dir()
             .map(|h| h.join(".reflect").join("kms"))
@@ -136,17 +136,17 @@ impl KnowledgeManager {
         Self::new(root)
     }
 
-    /// Get the path to a wiki directory.
+    /// 获取 Wiki 目录的路径。
     pub fn wiki_path(&self, name: &str) -> PathBuf {
         self.root.join(name)
     }
 
-    /// Get the path to a page file within a wiki.
+    /// 获取 Wiki 内页面文件的路径。
     pub fn page_path(&self, wiki: &str, page: &str) -> PathBuf {
         self.root.join(wiki).join("pages").join(format!("{}.md", page))
     }
 
-    /// Create a new knowledge base.
+    /// 创建新的知识库。
     pub fn create_wiki(&self, name: &str, description: Option<String>) -> Result<WikiInfo, KmsError> {
         let wiki_path = self.wiki_path(name);
         if wiki_path.exists() {
@@ -174,7 +174,7 @@ impl KnowledgeManager {
         })
     }
 
-    /// Delete a knowledge base.
+    /// 删除知识库。
     pub fn delete_wiki(&self, name: &str) -> Result<(), KmsError> {
         let wiki_path = self.wiki_path(name);
         if !wiki_path.exists() {
@@ -184,7 +184,7 @@ impl KnowledgeManager {
         Ok(())
     }
 
-    /// List all knowledge bases.
+    /// 列出所有知识库。
     pub fn list_wikis(&self) -> Vec<WikiInfo> {
         let mut wikis = Vec::new();
         let Ok(entries) = std::fs::read_dir(&self.root) else {
@@ -223,7 +223,7 @@ impl KnowledgeManager {
         wikis
     }
 
-    /// Save a page to a knowledge base.
+    /// 将页面保存到知识库。
     pub fn save_page(
         &self,
         wiki: &str,
@@ -265,7 +265,7 @@ impl KnowledgeManager {
         })
     }
 
-    /// Get a page from a knowledge base.
+    /// 从知识库获取页面。
     pub fn get_page(&self, wiki: &str, page: &str) -> Result<Page, KmsError> {
         let page_path = self.page_path(wiki, page);
         if !page_path.exists() {
@@ -290,7 +290,7 @@ impl KnowledgeManager {
         })
     }
 
-    /// List all pages in a knowledge base.
+    /// 列出知识库中的所有页面。
     pub fn list_pages(&self, wiki: &str) -> Result<Vec<Page>, KmsError> {
         let wiki_path = self.wiki_path(wiki);
         if !wiki_path.exists() {
@@ -332,7 +332,7 @@ impl KnowledgeManager {
         Ok(pages)
     }
 
-    /// Search for content across all knowledge bases.
+    /// 在所有知识库中搜索内容。
     pub fn search(&self, query: &str) -> Vec<SearchResult> {
         let mut results = Vec::new();
         let Ok(entries) = std::fs::read_dir(&self.root) else {
@@ -389,7 +389,7 @@ impl KnowledgeManager {
         results
     }
 
-    /// Run a dream session - extract insights from recent sessions.
+    /// 运行 dream 会话 - 从最近的会话中提取洞察。
     pub fn dream(
         &self,
         insights: Vec<String>,
@@ -431,7 +431,7 @@ impl KnowledgeManager {
     }
 }
 
-/// Get modified timestamp for a path in milliseconds since epoch.
+/// 获取路径自 epoch 起的修改时间戳（毫秒）。
 fn get_modified_at_ms(path: &Path) -> u64 {
     path.metadata()
         .ok()
@@ -441,7 +441,7 @@ fn get_modified_at_ms(path: &Path) -> u64 {
         .unwrap_or(0)
 }
 
-/// Count .md files in a directory.
+/// 统计目录中的 .md 文件数。
 fn count_md_files(dir: &Path) -> usize {
     std::fs::read_dir(dir)
         .map(|entries| {
@@ -456,7 +456,7 @@ fn count_md_files(dir: &Path) -> usize {
         .unwrap_or(0)
 }
 
-/// Extract description from Markdown frontmatter.
+/// 从 Markdown frontmatter 中提取描述。
 fn extract_description(content: &str) -> Option<String> {
     let mut lines = content.lines();
     let first_line = lines.next().unwrap_or_default();
@@ -477,7 +477,7 @@ fn extract_description(content: &str) -> Option<String> {
     None
 }
 
-/// Extract title from Markdown frontmatter.
+/// 从 Markdown frontmatter 中提取标题。
 fn extract_title(content: &str) -> Option<String> {
     let mut lines = content.lines();
     let first_line = lines.next().unwrap_or_default();
@@ -498,7 +498,7 @@ fn extract_title(content: &str) -> Option<String> {
     None
 }
 
-/// Extract tags from Markdown frontmatter.
+/// 从 Markdown frontmatter 中提取标签。
 fn extract_tags(content: &str) -> Vec<String> {
     let mut tags = Vec::new();
     let mut lines = content.lines();

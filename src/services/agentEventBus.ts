@@ -1,30 +1,29 @@
 /**
- * src/services/agentEventBus.ts — B1-06 fan-out event bus.
+ * src/services/agentEventBus.ts —— B1-06 扇出事件总线。
  *
- * Architecture:
- *   - Single Tauri `reflect_event` subscription lives here (in this module).
- *   - Multiple consumers (agentStore, Inspector, Notifications, DevTools, …)
- *     call `subscribeAgentEvent(callback)` and each receives every event.
- *   - Fan-out is one-to-many: the underlying Tauri `listen` is shared so we
- *     don't open N independent webview listeners for the same channel.
- *   - Consumer callbacks are isolated — a throwing consumer does not affect
- *     other consumers.
+ * 架构:
+ *   - 此模块持有唯一的 Tauri `reflect_event` 订阅。
+ *   - 多个 consumer(agentStore、Inspector、Notifications、DevTools 等)
+ *     调用 `subscribeAgentEvent(callback)`,各自接收每个事件。
+ *   - Fan-out 为一对多:共享底层 Tauri `listen`,避免为同一通道
+ *     开启 N 个独立的 webview 监听器。
+ *   - Consumer 回调彼此隔离 —— 单个 consumer 抛错不会影响其他 consumer。
  *
- * Usage:
- *   // In agentStore:
+ * 用法:
+ *   // agentStore 中:
  *   useEffect(() => {
  *     const un = subscribeAgentEvent((e) => applyPatch(e));
  *     return un;
  *   }, []);
  *
- *   // In a dev/inspector panel:
+ *   // dev / inspector panel 中:
  *   useEffect(() => {
  *     const un = subscribeAgentEvent((e) => recordEvent(e));
  *     return un;
  *   }, []);
  *
- * The first call to `subscribeAgentEvent` opens the Tauri listener (idempotent).
- * The last `unsubscribe` closes it. This is handled by an internal refcount.
+ * 首次调用 `subscribeAgentEvent` 时打开 Tauri listener(幂等);
+ * 最后一个 `unsubscribe` 调用时关闭它。这由内部引用计数处理。
  */
 import { onReflectEvent } from '@/utils/commands';
 import type { ReflectEvent } from '@/types/protocol';
@@ -37,14 +36,14 @@ let __refCount = 0;
 let __opening: Promise<void> | null = null;
 
 /**
- * Subscribe to all `reflect_event` events. Returns an unsubscribe function.
+ * 订阅所有 `reflect_event` 事件。返回取消订阅函数。
  *
- * Lazy-connection: the underlying Tauri `listen` is opened on the first
- * subscribe and held open until every subscriber has unsubscribed.
+ * 延迟连接:首次订阅时才打开底层 Tauri `listen`,并保持打开直到所有
+ * 订阅者都取消订阅。
  */
 export function subscribeAgentEvent(handler: AgentEventHandler): () => void {
   if (__listeners.has(handler)) {
-    // Idempotent: re-subscribing with the same fn returns the same cleanup.
+    // 幂等:用同一函数重新订阅时返回同样的 cleanup。
     return () => unsubscribeAgentEvent(handler);
   }
   __listeners.add(handler);
@@ -67,19 +66,19 @@ function unsubscribeAgentEvent(handler: AgentEventHandler): void {
 async function openListener(): Promise<void> {
   try {
     const un = await onReflectEvent((e) => {
-      // Fan-out: iterate over a snapshot to allow handlers to unsubscribe
-      // themselves synchronously during dispatch without breaking iteration.
+      // Fan-out:遍历快照,允许 handler 在 dispatch 中同步取消自身,
+      // 不会破坏迭代。
       for (const handler of Array.from(__listeners)) {
         try {
           handler(e);
         } catch (err) {
-          // Isolated error: log but don't break other consumers.
+          // 错误隔离:记录日志但不影响其他 consumer。
           // eslint-disable-next-line no-console
           console.error('[agentEventBus] consumer threw', err);
         }
       }
     });
-    // If everyone unsubscribed while we were awaiting, close immediately.
+    // 若等待期间所有订阅者都已取消订阅,立即关闭。
     if (__refCount <= 0) {
       un();
       return;
@@ -105,7 +104,7 @@ function closeListener(): void {
   __listeners.clear();
 }
 
-/** Test-only: reset module state. */
+/** 仅测试使用:重置模块状态。 */
 export function __resetAgentEventBusForTests(): void {
   closeListener();
   __refCount = 0;
@@ -113,7 +112,7 @@ export function __resetAgentEventBusForTests(): void {
   __opening = null;
 }
 
-/** Diagnostics: how many subscribers are currently active. */
+/** 诊断:当前活跃的订阅者数量。 */
 export function agentEventBusSubscriberCount(): number {
   return __refCount;
 }

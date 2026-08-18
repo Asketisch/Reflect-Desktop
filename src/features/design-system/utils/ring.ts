@@ -24,7 +24,7 @@ export function ringGeometry(size: number, strokeWidth: number): RingGeometry {
   };
 }
 
-/** Single segment SVG arc params. */
+/** 单个分段 SVG 弧参数。 */
 export function segmentArc(
   geom: RingGeometry,
   startFraction: number,

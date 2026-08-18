@@ -1,13 +1,13 @@
 /**
- * Pure TOML helpers for complex sections, feature flags, and unknown
- * section detection. These functions operate purely on TOML strings
- * so they can be exercised from focused unit tests without React.
+ * 复杂分区、feature flags 和未知分区检测的纯 TOML 辅助函数。
+ * 这些函数纯粹操作 TOML 字符串，
+ * 因此可以在不依赖 React 的聚焦单元测试中直接使用。
  *
- * Semantics (preserved from ConfigForm.tsx):
- *  - unknown top-level sections are surfaced via `findUnknownSections`
- *    so the UI can hint users to use the Advanced TOML editor
- *  - subsection edits keep unknown keys inside other sections intact
- *  - feature flags are stored as a `flags = { ... }` inline table
+ * 语义（自 ConfigForm.tsx 保留）：
+ *  - 未知顶层分区通过 `findUnknownSections` 暴露，
+ *    以便 UI 提示用户使用高级 TOML 编辑器
+ *  - 子分区编辑保持其他分区内的未知键不变
+ *  - feature flags 以 `flags = { ... }` 内联表形式存储
  */
 
 export interface SubSectionEntry {
@@ -20,7 +20,7 @@ export interface FlagEntry {
   value: boolean;
 }
 
-/** Extract all subsection entries under a given prefix (e.g. `mcp_servers`). */
+/** 提取给定前缀下的所有子分区条目（如 `mcp_servers`）。 */
 export function extractSubSections(toml: string, prefix: string): SubSectionEntry[] {
   const lines = toml.split('\n');
   const out: SubSectionEntry[] = [];
@@ -42,19 +42,19 @@ export function extractSubSections(toml: string, prefix: string): SubSectionEntr
   return out.filter((e) => e.body.length > 0);
 }
 
-/** Replace the body of a subsection (or the bare `[prefix]` section when name is `(default)`). */
+/** 替换子分区内容（当名称为 `(default)` 时替换裸 `[prefix]` 分区）。 */
 export function updateSubSection(toml: string, prefix: string, name: string, body: string): string {
   if (name === '(default)') return setSectionBody(toml, `[${prefix}]`, body);
   return setSectionBody(toml, `[${prefix}.${name}]`, body);
 }
 
-/** Remove a subsection by name. */
+/** 按名称移除子分区。 */
 export function removeSubSection(toml: string, prefix: string, name: string): string {
   const target = name === '(default)' ? `[${prefix}]` : `[${prefix}.${name}]`;
   return removeSection(toml, target);
 }
 
-/** Append a fresh subsection if it does not already exist. */
+/** 若不存在则追加一个新的子分区。 */
 export function addSubSection(toml: string, prefix: string, name: string): string {
   const header = name.includes('.') ? `[${prefix}.${name}]` : `[${prefix}]`;
   if (toml.includes(header)) return toml;
@@ -62,8 +62,8 @@ export function addSubSection(toml: string, prefix: string, name: string): strin
 }
 
 /**
- * Replace the body lines under a header. If the header is not present
- * it is appended. Unknown lines (e.g. other sections) are preserved.
+ * 替换表头下的内容行。如果表头不存在则追加。
+ * 未知行（如其他分区）保持不变。
  */
 export function setSectionBody(toml: string, header: string, body: string): string {
   const lines = toml.split('\n');
@@ -105,7 +105,7 @@ export function setSectionBody(toml: string, header: string, body: string): stri
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-/** Strip a single header and its body from the TOML. */
+/** 从 TOML 中剥离单个表头及其内容。 */
 export function removeSection(toml: string, header: string): string {
   const lines = toml.split('\n');
   const out: string[] = [];
@@ -124,7 +124,7 @@ export function removeSection(toml: string, header: string): string {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-/** Read all boolean flags declared inside `[feature_flags]`. */
+/** 读取 `[feature_flags]` 中声明的全部布尔开关。 */
 export function extractFlags(toml: string): FlagEntry[] {
   const lines = toml.split('\n');
   let inSection = false;
@@ -152,7 +152,7 @@ export function extractFlags(toml: string): FlagEntry[] {
   return out;
 }
 
-/** Set a single feature flag to the given boolean value, creating the section if needed. */
+/** 将单个功能开关设为给定布尔值，必要时创建分区。 */
 export function setFlag(toml: string, key: string, value: boolean): string {
   const lines = toml.split('\n');
   let start = -1;
@@ -187,12 +187,12 @@ export function setFlag(toml: string, key: string, value: boolean): string {
   return [...lines.slice(0, start + 1), ...body, ...lines.slice(end)].join('\n');
 }
 
-/** Add a feature flag (defaults to true). */
+/** 新增功能开关（默认为 true）。 */
 export function addFlag(toml: string, key: string): string {
   return setFlag(toml, key, true);
 }
 
-/** Remove a feature flag from `[feature_flags]` (no-op if the section is missing). */
+/** 从 `[feature_flags]` 移除功能开关（分区不存在时不执行任何操作）。 */
 export function removeFlag(toml: string, key: string): string {
   const lines = toml.split('\n');
   let start = -1;
@@ -211,8 +211,8 @@ export function removeFlag(toml: string, key: string): string {
 }
 
 /**
- * Return the list of `[section]` keys that are not declared in the
- * known structured schema (used by `ConfigForm` to surface hints).
+ * 返回未在已知结构化 schema 中声明的 `[section]` 键列表
+ * （供 `ConfigForm` 提示用户）。
  */
 export function findUnknownSections(toml: string, knownTopLevel: Set<string>): string[] {
   const sections = new Set<string>();

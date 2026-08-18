@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
-  "description": "Main window capabilities. M1.1 baseline + M2.x plugins: global-shortcut.",
+  "description": "主窗口能力配置。M1.1 基线 + M2.x 插件：global-shortcut。",
   "windows": ["main"],
   "permissions": [
     "core:default",

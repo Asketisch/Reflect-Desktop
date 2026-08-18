@@ -40,10 +40,9 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     case 'turn_rewound': {
       const cutoff = msg.to_turn_id;
       if (!cutoff) return {};
-      // Find the cutoff turn by id; keep all turns up to and including it.
-      // We can't lexicographically compare v4 UUIDs, so locate the index
-      // instead. If the id is unknown, leave turns untouched (the backend
-      // is the source of truth — the next replay will re-sync).
+      // 按 id 查找截断 turn;保留所有该 turn 及之前的 turn。
+      // v4 UUID 无法字典序比较,改为查找索引。若 id 未知则保持 turns 不动
+      // (后端是单一事实源,下一次回放会重新对齐)。
       const idx = state.turns.findIndex((turn) => turn.id === cutoff);
       if (idx < 0) return {};
       return { turns: state.turns.slice(0, idx + 1) };
@@ -93,8 +92,7 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         text: summarizeToolOutput(msg.output),
         isError: msg.is_error,
       });
-      // Only rewrite the turn that owns the matching tool_call; other turns
-      // would just be re-allocated for no reason.
+      // 只重写拥有对应 tool_call 的 turn,其他 turn 重写毫无意义。
       const targetTurnIdx = withOutput.findIndex((t) => t.id === turnId);
       if (targetTurnIdx < 0) return { turns: withOutput };
       const target = withOutput[targetTurnIdx];

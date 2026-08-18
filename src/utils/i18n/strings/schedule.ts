@@ -1,5 +1,5 @@
 /**
- * i18n namespace - schedule.*
+ * i18n 命名空间 - schedule.*
  */
 import type { StringEntry } from '../types';
 

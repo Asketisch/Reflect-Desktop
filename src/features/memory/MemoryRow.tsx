@@ -1,9 +1,8 @@
 /**
- * Memory —— MemoryRow (presentational, B11-01 refactor).
+ * Memory —— MemoryRow（纯展示组件，B11-01 重构）。
  *
- * Extracted from MemoryView; behavior preserved. The danger color for the
- * delete button now uses the existing `--danger` token via the
- * `.actionBtnDanger` CSS class instead of an inline hex.
+ * 从 MemoryView 提取，行为保持不变。删除按钮的危险色现在通过
+ * `.actionBtnDanger` CSS 类使用现有的 `--danger` token，而非内联十六进制色值。
  */
 import { Plus, Trash2, Save, X } from 'lucide-react';
 import { Card, Badge, Icon } from '@/features/design-system';
@@ -16,9 +15,9 @@ export interface MemoryRowProps {
   entry: ReflectMemoryEntry;
   isEditing: boolean;
   editValue: string;
-  /** Flip into edit mode for this entry (controller initializes the buffer). */
+  /** 为该条目切换到编辑模式（由控制器初始化缓冲区）。 */
   onEdit: () => void;
-  /** Update the in-progress edit buffer. */
+  /** 更新进行中的编辑缓冲区。 */
   onChangeEdit: (value: string) => void;
   onSave: () => void;
   onCancel: () => void;

@@ -1,4 +1,4 @@
-/* AgentsView —— Phase 1 item 3 agent profile management. */
+/* AgentsView —— Phase 1 条目 3 agent 配置管理。 */
 
 .addBtn {
   display: inline-flex;
@@ -27,7 +27,7 @@
   padding: var(--space-4, 16px);
 }
 
-/* ── List rows ── */
+/* ── 列表行 ── */
 
 .list {
   display: flex;

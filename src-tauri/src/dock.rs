@@ -26,7 +26,7 @@ fn set_dock_badge_impl(label: Option<String>) {
     use objc2_foundation::{MainThreadMarker, NSString};
 
     autoreleasepool(|_| {
-        // SAFETY: 由 Tauri `app.run_on_main_thread` 切到 main thread,
+        // SAFETY: 由 Tauri `app.run_on_main_thread` 切到主线程,
         // 这里 mtm 是有效的 main thread marker。
         let mtm = unsafe { MainThreadMarker::new_unchecked() };
 
@@ -38,7 +38,7 @@ fn set_dock_badge_impl(label: Option<String>) {
         use objc2::msg_send_id;
         use objc2::runtime::AnyObject;
         let app_cls = objc2::class!(NSApplication);
-        // SAFETY: `+sharedApplication` 是 main-thread-only class method.
+        // SAFETY: `+sharedApplication` 是仅主线程可用的类方法。
         let app: Option<objc2::rc::Retained<AnyObject>> =
             unsafe { msg_send_id![app_cls, sharedApplication] };
         if let Some(app) = app {
@@ -51,7 +51,7 @@ fn set_dock_badge_impl(label: Option<String>) {
                 unsafe { tile.setBadgeLabel(ns_label.as_deref()) };
             }
         }
-        // mtm reserved
+        // mtm 占位(未来可能用)
         let _ = mtm;
     });
 }

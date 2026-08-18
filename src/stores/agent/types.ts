@@ -31,7 +31,7 @@ export interface PendingApproval {
   kind: 'tool' | 'hook';
   toolName?: string;
   argsSummary?: string;
-  /** Risk level for permission-bubble approvals (omitted on non-bubble flows). */
+  /** Permission bubble 审批的 risk level(非 bubble 流程省略)。 */
   risk?: RiskLevel;
   turnId: string;
 }

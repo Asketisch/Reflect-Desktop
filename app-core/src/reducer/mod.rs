@@ -1,17 +1,16 @@
-//! `reflect_app_core::reducer` —— Shared reducer (B2-02).
+//! `reflect_app_core::reducer` —— 共享 reducer。
 //!
-//! Pure function `reduce_event(state, event) -> state` consumed by both
-//! TUI and GUI. Mirrors the TS `reduceEvent` in `src/stores/agentStore.ts`.
-//! Returns a new `RenderState` (immutable; `RenderState` derives `Clone`).
+//! 纯函数 `reduce_event(state, event) -> state`,由 TUI 与 GUI 共用。
+//! 对应 TS 端 `src/stores/agentStore.ts` 里的 `reduceEvent`。
+//! 返回新的 `RenderState`(不可变;`RenderState` 已 derive `Clone`)。
 //!
-//! Design:
-//! - No IO, no async, no time-of-day side effects (`SystemTime::now()` is
-//!   an exception; the `at` fields on collab messages and config reload
-//!   use it for diagnostic ordering. Tests can pass a fixed time.)
-//! - `state.apply_event(event)` is the convenience method; the free
-//!   function `apply_event(state, event)` is also exported for external
-//!   consumers (e.g. NAPI binding).
-//! - All 33 `EventMsg` variants are handled.
+//! 设计:
+//! - 不做 IO、不做 async、没有时段相关副作用(`SystemTime::now()` 例外;
+//!   collab 消息和 config reload 上的 `at` 字段用它做诊断排序,
+//!   测试可以注入固定时间)。
+//! - `state.apply_event(event)` 是便捷方法;同时导出自由函数
+//!   `apply_event(state, event)` 给外部消费者使用(如 NAPI 绑定)。
+//! - 处理所有 `EventMsg` 变体。
 
 mod matchers;
 mod state_mut;
@@ -20,10 +19,9 @@ use reflect_protocol::{EVENT_ID_NONE, Event, EventMsg, TurnId};
 
 use crate::state::RenderState;
 
-/// Apply a `reflect_protocol::Event` to a `RenderState`, returning a new state.
+/// 将 `reflect_protocol::Event` 应用到 `RenderState`,返回新状态。
 ///
-/// `event.id == EVENT_ID_NONE` is treated as a session-level event
-/// (lifecycle / no matching submission).
+/// `event.id == EVENT_ID_NONE` 视为会话级事件(生命周期 / 无对应 submission)。
 pub fn apply_event(mut state: RenderState, event: Event) -> RenderState {
     let is_session_event = event.id == EVENT_ID_NONE;
     let turn_id = if is_session_event {
@@ -87,14 +85,14 @@ pub fn apply_event(mut state: RenderState, event: Event) -> RenderState {
 
         // 协议层新增的 event variant,Desktop reducer 暂无专门处理逻辑;
         // 显式列出并 no-op,避免 match 非穷尽编译错误,后续按需接入渲染。
-        EventMsg::PlanStep(_) | EventMsg::PluginLoaded(_) | EventMsg::QuotaExhausted(_) => {}
+        EventMsg::PlanStep(_) | EventMsg::PluginLoaded(_) | EventMsg::QuotaExhausted(_) | EventMsg::PlanDraftUpdated(_) => {}
     }
 
     state
 }
 
 impl RenderState {
-    /// Apply an event to `self`, returning a new `RenderState`.
+    /// 将事件应用到 `self`,返回新的 `RenderState`。
     pub fn apply_event(&self, event: Event) -> Self {
         apply_event(self.clone(), event)
     }

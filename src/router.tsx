@@ -1,5 +1,5 @@
 /**
- * TanStack Router v1 — ReflectDesktop route tree。
+ * TanStack Router v1 —— ReflectDesktop 路由树。
  *
  * 阶段 2：root component 从 AppLayout 切到 IDE 式 AppShell。
  */
@@ -12,7 +12,7 @@ import { ModalStack } from '@/features/modals';
 import { AppShell } from '@/features/shell/AppShell';
 import { I18nProvider } from '@/utils/i18n';
 
-// ====== Route components ======
+// ====== 路由组件 ======
 import { ChatView } from '@/features/messages/ChatView';
 import { SettingsView } from '@/features/settings/SettingsView';
 import { HomeView } from '@/features/home/HomeView';
@@ -46,7 +46,7 @@ import { AutopilotView } from '@/features/autopilot';
 import { SquadView } from '@/features/squad';
 import { MediaView } from '@/features/media';
 
-// ====== Route tree (TanStack Router v1 API) ======
+// ====== 路由树 (TanStack Router v1 API) ======
 
 const rootRoute = new RootRoute({
   component: AppShell,
@@ -123,11 +123,11 @@ const routeTree = rootRoute.addChildren([
   mediaRoute,
 ]);
 
-// ====== Router instance ======
+// ====== 路由实例 ======
 
 export const router = new Router({ routeTree });
 
-// ====== Type inference ======
+// ====== 类型推导 ======
 
 export type AppRouter = typeof router;
 
@@ -153,5 +153,5 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return <I18nProvider><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></I18nProvider>;
 }
 
-// re-export ModalStack for backward compat（旧 import 路径）
+// 为向后兼容再导出 ModalStack(保留旧 import 路径)
 export { ModalStack };

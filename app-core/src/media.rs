@@ -1,16 +1,16 @@
-//! Media Studio + Computer Use 抽象层 (Phase 3 item 13).
+//! Media Studio + Computer Use 抽象层 (Phase 3 条目 13)。
 //!
-//! 提供无外部依赖的 trait + enum + 元数据扫描:
+//! 提供无外部依赖的 trait + enum + 元数据扫描：
 //!
 //! - [`MediaAsset`] / [`ImageProcessSpec`] / [`ImageFormat`] —— 图片元数据与处理
-//!   spec 描述;**真实图片处理留作后续**(需要 `image` crate,加到
-//!   `src-tauri/Cargo.toml`,不进 vendor 镜像)。
-//! - [`ComputerUseAction`] —— 抽象层:鼠标 / 键盘 / 截图动作。
+//!   spec 描述；**真实图片处理留作后续**（需要 `image` crate,加到
+//!   `src-tauri/Cargo.toml`,不进 核心 crate 镜像）。
+//! - [`ComputerUseAction`] —— 抽象层：鼠标 / 键盘 / 截图动作。
 //! - [`ImageBackend`] / [`ComputerBackend`] —— trait 抽象,真实实现落 src-tauri
 //!   (`xcap` / `enigo` + macOS 权限),与 app-core 解耦。
 //!
-//! Computer Use 在没有 xcap/enigo 的环境(如 CI / headless)会统一返回
-//! [`MediaError::Unavailable`] —— graceful degradation,不 panic。
+//! Computer Use 在没有 xcap/enigo 的环境（如 CI / headless）会统一返回
+//! [`MediaError::Unavailable`] —— 优雅降级,不 panic。
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -271,9 +271,9 @@ impl std::fmt::Display for MediaError {
 
 impl std::error::Error for MediaError {}
 
-/// 扫描目录返回 asset 元数据列表(浅扫描,只根目录,不递归)。
+/// 扫描目录返回 asset 元数据列表（浅扫描，仅根目录，不递归）。
 ///
-/// 标准库 `std::fs`,无外部依赖。任何 `path.parent()` is a real dir。
+/// 使用标准库 `std::fs`，无外部依赖。要求 `path` 为真实目录。
 pub fn scan_dir_for_assets(dir: &Path) -> Result<Vec<MediaAsset>, MediaError> {
     if !dir.is_dir() {
         return Err(MediaError::NotFound {
@@ -395,7 +395,7 @@ impl ImageBackend for MetadataOnlyBackend {
     }
 }
 
-/// "Unavailable" computer backend(headless / no native bindings)。
+/// "不可用"的电脑操控后端（无头环境 / 无原生绑定）。
 pub struct UnavailableComputerBackend;
 
 impl UnavailableComputerBackend {

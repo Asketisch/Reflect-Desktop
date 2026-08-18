@@ -1,4 +1,4 @@
-//! Squad + Leader delegation 命令面 (Phase 3 item 11)。
+//! Squad + Leader 委派命令面。
 //!
 //! 薄包装 `reflect_app_core::squad::SquadManager`,在 TaskManager 之上提供
 //! leader 委派语义层。

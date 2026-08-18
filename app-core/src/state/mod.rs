@@ -1,17 +1,17 @@
 //! `reflect_app_core::state` —— UI-agnostic RenderState 共享给 TUI 与 GUI。
 #![allow(missing_docs)]
 //!
-//! **B2-01 alignment**: 从 TUI `app.rs::RenderState` (~80 字段) 抽出全部
-//! UI-agnostic 状态;`Default` 实现;无 IO;不引用 ratatui/crossterm/tauri。
+//! **B2-01 对齐**: 从 TUI `app.rs::RenderState`（约 80 字段）抽出全部
+//! UI-agnostic 状态；`Default` 实现；无 IO；不引用 ratatui/crossterm/tauri。
 //!
-//! 设计原则:
-//! - 不引用 ratatui / crossterm / tauri(纯数据)
-//! - 所有 `id` 用 `String`(transparent UUID,前端可序列化)
+//! 设计原则：
+//! - 不引用 ratatui / crossterm / tauri（纯数据）
+//! - 所有 `id` 用 `String`（transparent UUID，前端可序列化）
 //! - 派生 `Clone` + `Debug` 便于测试
-//! - 公开字段 + 构造器,无 builder 库
+//! - 公开字段 + 构造器，无 builder 库
 //!
 //! 该 `RenderState` 与 `src/stores/agentStore.ts` 的 `AgentState` 字段
-//! 一一对应(B2-08: TUI/GUI 共用同一 reducer);TUI 端的同名字段从
+//! 一一对应（B2-08：TUI/GUI 共用同一 reducer）；TUI 端的同名字段从
 //! 这里 `pub use` 出去以保持 ABI。
 
 use std::path::PathBuf;
@@ -24,100 +24,100 @@ use reflect_protocol::{
 use serde::{Deserialize, Serialize};
 
 // ============================================================================
-// Top-level RenderState
+// 顶层 RenderState
 // ============================================================================
 
-/// UI-agnostic render state. Single source of truth for both TUI and GUI
-/// reducers. The shape is the same as `agentStore.AgentState` minus the
-/// store-bound action functions.
+/// 与 UI 无关的渲染状态，是 TUI 和 GUI reducer 的唯一事实来源。
+/// 其结构与 `agentStore.AgentState` 相同，但去除了
+/// 绑定 store 的 action 函数。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenderState {
-    // ── Session / thread ─────────────────────────────────────────────
-    /// Active thread id (`None` until first `SessionConfigured`).
+    // ── 会话 / thread ─────────────────────────────────────────────
+    /// 活动 thread id（首次 `SessionConfigured` 前为 `None`）。
     pub active_thread: Option<ThreadId>,
 
-    /// Active model spec (e.g. `"anthropic/claude-opus-4-7"`).
+    /// 活动模型 spec（例如 `"anthropic/claude-opus-4-7"`）。
     pub active_model: String,
 
-    /// Active provider name (`"anthropic"` / `"openai"` / …).
+    /// 活动 provider 名称（`"anthropic"` / `"openai"` / …）。
     pub active_provider: String,
 
-    /// Approval + sandbox policy from `SessionConfigured`.
+    /// 来自 `SessionConfigured` 的批准与 sandbox 策略。
     pub approval_policy: ApprovalPolicy,
     pub sandbox_policy: SandboxPolicy,
     pub permission_mode: PermissionMode,
 
-    /// Context window size (tokens). `None` if unknown.
+    /// 上下文窗口大小（token）。未知时为 `None`。
     pub context_window_size: Option<u32>,
 
-    // ── Reasoning ─────────────────────────────────────────────────────
+    // ── 推理 ─────────────────────────────────────────────────────
     pub reasoning_effort: ReasoningEffort,
     pub plan_mode: bool,
 
-    // ── Turn history ─────────────────────────────────────────────────
+    // ── Turn 历史 ─────────────────────────────────────────────────
     pub turns: Vec<Turn>,
 
-    // ── Pending state ────────────────────────────────────────────────
+    // ── 待处理状态 ────────────────────────────────────────────────
     pub pending_approval: Option<PendingApproval>,
     pub pending_question: Option<PendingQuestion>,
     pub pending_ask_user: Option<PendingAskUser>,
     pub pending_plan: Option<PendingPlan>,
 
-    // ── Session-level flags ──────────────────────────────────────────
+    // ── 会话级标志 ──────────────────────────────────────────
     pub busy: bool,
     pub last_error: Option<String>,
     pub shutdown_requested: bool,
 
-    // ── Live streaming ───────────────────────────────────────────────
-    /// Current streaming agent message (multi-delta accumulator).
+    // ── 实时流式输出 ───────────────────────────────────────────────
+    /// 当前流式 agent 消息（多 delta 累加器）。
     pub live_agent_message: String,
     pub live_thinking: String,
     pub streaming_turn: Option<TurnId>,
 
-    // ── Approval history (B7-05) ─────────────────────────────────────
+    // ── 批准历史（B7-05） ─────────────────────────────────────
     pub approval_history: Vec<ApprovalRecord>,
 
-    // ── Token accounting (B1-04 token_count) ─────────────────────────
+    // ── Token 统计（B1-04 token_count） ─────────────────────────
     pub last_token_usage: Option<TokenUsageSnapshot>,
     pub total_cost_usd: f64,
 
-    // ── Routing (B1-04 routing event) ────────────────────────────────
+    // ── 路由（B1-04 routing event） ────────────────────────────────
     pub last_routing: Option<RoutingSnapshot>,
 
-    // ── Collab (B1-04 collab_* events) ───────────────────────────────
+    // ── 协作（B1-04 collab_* event） ───────────────────────────────
     pub collab_sessions: Vec<CollabSession>,
 
-    // ── MCP / LSP server state (B1-04 mcp/lsp_* events) ─────────────
+    // ── MCP / LSP server 状态（B1-04 mcp/lsp_* event） ─────────────
     pub mcp_servers: Vec<ServerState>,
     pub lsp_servers: Vec<ServerState>,
     pub mcp_invocations: Vec<McpInvocation>,
 
-    // ── Config (B1-04 config_reloaded) ───────────────────────────────
+    // ── 配置（B1-04 config_reloaded） ───────────────────────────────
     pub config_reloaded_at: Option<SystemTime>,
 
-    // ── UI-agnostic view state (B2-01 extension) ────────────────────
-    /// Sidebar visibility (B12-02).
+    // ── 与 UI 无关的视图状态（B2-01 扩展） ────────────────────
+    /// 侧栏可见性（B12-02）。
     pub sidebar_visible: bool,
-    /// Inspector visibility.
+    /// Inspector 可见性。
     pub inspector_visible: bool,
-    /// Statusline template.
+    /// Statusline 模板。
     pub statusline_template: String,
-    /// Active theme palette id (B10-01).
+    /// 活动主题调色板 id（B10-01）。
     pub active_theme: String,
-    /// Keymap overrides (B10-03): action name → key combination.
+    /// Keymap 覆盖（B10-03）：action 名称 → 按键组合。
     pub keymap: std::collections::BTreeMap<String, String>,
-    /// Active command palette query (B10-06).
+    /// 当前 command palette 查询（B10-06）。
     pub command_palette_query: String,
     pub command_palette_open: bool,
-    /// Bottom terminal panel (B8-04) open?
+    /// 底部 terminal 面板（B8-04）是否打开。
     pub terminal_panel_open: bool,
-    /// Pending slash command input (B4).
+    /// 待处理的 slash command 输入（B4）。
     pub slash_query: String,
-    /// Workspace cwd (B9-06).
+    /// Workspace cwd（B9-06）。
     pub workspace: PathBuf,
-    /// Vim mode toggle (UI-agnostic since v1.0).
+    /// Vim 模式开关（自 v1.0 起与 UI 无关）。
     pub vim_mode: bool,
-    /// Last error toast message + timestamp.
+    /// 最近一次错误 toast 消息及时间戳。
     pub toast: Option<ToastMessage>,
 }
 
@@ -170,9 +170,10 @@ impl Default for RenderState {
 }
 
 // ============================================================================
-// Sub-types
+// 子类型
 // ============================================================================
 
+/// 批准策略：Auto（自动批准）/ Prompt（提示用户）/ Deny（拒绝）。
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ApprovalPolicy {
@@ -182,6 +183,7 @@ pub enum ApprovalPolicy {
     Deny,
 }
 
+/// 沙箱策略：WorkspaceOnly（仅工作区）/ OsSandbox（系统沙箱）/ FullAccess（完全访问）。
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SandboxPolicy {
@@ -191,6 +193,7 @@ pub enum SandboxPolicy {
     FullAccess,
 }
 
+/// 推理强度等级：Low（低）/ Medium（中）/ High（高）。
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningEffort {
@@ -200,6 +203,7 @@ pub enum ReasoningEffort {
     High,
 }
 
+/// 单次对话轮次的完整记录。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Turn {
     pub id: TurnId,
@@ -213,6 +217,7 @@ pub struct Turn {
     pub started_at: SystemTime,
 }
 
+/// Turn 运行状态：Streaming（流式中）/ Done（完成）/ Aborted（中止）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnStatus {
@@ -221,6 +226,7 @@ pub enum TurnStatus {
     Aborted,
 }
 
+/// 工具调用记录（含调用 ID、工具名、参数、状态）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
     pub call_id: String,
@@ -229,6 +235,7 @@ pub struct ToolCall {
     pub status: ToolStatus,
 }
 
+/// 工具调用状态：Running（执行中）/ Done（完成）/ Error（错误）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolStatus {
@@ -237,6 +244,7 @@ pub enum ToolStatus {
     Error,
 }
 
+/// 工具调用输出（含文本结果与错误标记）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolOutput {
     pub call_id: String,
@@ -244,18 +252,20 @@ pub struct ToolOutput {
     pub is_error: bool,
 }
 
+/// 待处理的审批请求（工具 / Hook / Plan）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingApproval {
     pub id: String,
     pub kind: ApprovalKind,
     pub tool_name: Option<String>,
     pub args_summary: Option<String>,
-    /// Optional risk level for permission-bubble approvals.
+    /// permission-bubble 批准的可选风险等级。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub risk: Option<RiskLevel>,
     pub turn_id: TurnId,
 }
 
+/// 审批类型：Tool（工具）/ Hook（钩子）/ Plan（计划）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ApprovalKind {
@@ -264,6 +274,7 @@ pub enum ApprovalKind {
     Plan,
 }
 
+/// 待处理的用户选择题（由 `AskUserQuestionEvent` 驱动）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingQuestion {
     pub id: String,
@@ -271,6 +282,7 @@ pub struct PendingQuestion {
     pub turn_id: TurnId,
 }
 
+/// 待处理的自由格式用户输入请求。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingAskUser {
     pub id: String,
@@ -278,6 +290,7 @@ pub struct PendingAskUser {
     pub turn_id: TurnId,
 }
 
+/// 待处理的 Plan 请求（含任务描述与可选的 Markdown 计划文本）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingPlan {
     pub id: PlanId,
@@ -286,6 +299,7 @@ pub struct PendingPlan {
     pub turn_id: TurnId,
 }
 
+/// 审批历史记录条目（含 ID、类型、决定、时间）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApprovalRecord {
     pub id: String,
@@ -295,6 +309,7 @@ pub struct ApprovalRecord {
     pub at: SystemTime,
 }
 
+/// 审批决定：Approve（批准本次）/ Deny（拒绝）/ ApproveForSession（批准本次会话）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Decision {
@@ -303,6 +318,7 @@ pub enum Decision {
     ApproveForSession,
 }
 
+/// Token 用量快照（单次 turn 的输入/输出/缓存/总计/费用）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenUsageSnapshot {
     pub input: u32,
@@ -312,6 +328,7 @@ pub struct TokenUsageSnapshot {
     pub cost_usd: Option<f64>,
 }
 
+/// 路由切换快照（记录请求从哪个凭证路由到了哪个凭证）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoutingSnapshot {
     pub kind: RoutingEventKind,
@@ -321,6 +338,7 @@ pub struct RoutingSnapshot {
     pub reason: String,
 }
 
+/// 协作会话记录（含参与者、模式、状态、消息列表）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollabSession {
     pub id: String,
@@ -332,6 +350,7 @@ pub struct CollabSession {
     pub messages: Vec<CollabMessage>,
 }
 
+/// 协作会话状态：Running（进行中）/ Done（完成）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CollabStatus {
@@ -339,6 +358,7 @@ pub enum CollabStatus {
     Done,
 }
 
+/// 协作会话中的单条消息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollabMessage {
     pub from: String,
@@ -348,6 +368,7 @@ pub struct CollabMessage {
     pub at: SystemTime,
 }
 
+/// MCP / LSP server 状态记录。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerState {
     pub name: String,
@@ -355,6 +376,7 @@ pub struct ServerState {
     pub detail: Option<String>,
 }
 
+/// Server 运行状态：Started（已启动）/ Failed（启动失败）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ServerStatus {
@@ -362,6 +384,7 @@ pub enum ServerStatus {
     Failed,
 }
 
+/// MCP 工具调用记录。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpInvocation {
     pub server: String,
@@ -370,6 +393,7 @@ pub struct McpInvocation {
     pub at: SystemTime,
 }
 
+/// Toast 通知消息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToastMessage {
     pub kind: ToastKind,
@@ -377,6 +401,7 @@ pub struct ToastMessage {
     pub at: SystemTime,
 }
 
+/// Toast 类型：Info（信息）/ Success（成功）/ Warning（警告）/ ErrorToast（错误）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ToastKind {
@@ -386,7 +411,7 @@ pub enum ToastKind {
     ErrorToast,
 }
 
-/// Default keymap — matches the actions the TUI/GUI expose.
+/// 默认 keymap——与 TUI/GUI 暴露的 action 一致。
 pub fn default_keymap() -> std::collections::BTreeMap<String, String> {
     let mut m = std::collections::BTreeMap::new();
     m.insert("submit".into(), "Cmd+Enter".into());
@@ -403,17 +428,17 @@ pub fn default_keymap() -> std::collections::BTreeMap<String, String> {
 }
 
 // ============================================================================
-// Re-export for consumers (TUI / GUI / future WASM/NAPI)
+// 为使用方重新导出（TUI / GUI / future WASM/NAPI）
 // ============================================================================
 
-/// Re-export of the protocol types we depend on.
+/// 重新导出所依赖的 protocol 类型。
 pub use reflect_protocol::{Event, EventMsg as ProtocolEventMsg, Submission};
 
-/// Single record stored in the rollout (one per submission or event).
+/// rollout 中存储的单条记录（每个 submission 或 event 一条）。
 pub type RolloutEntry = RolloutRecord;
 
 #[allow(dead_code)]
-fn _force_use(_: AbortReason) {} // keep AbortReason import live for future use
+fn _force_use(_: AbortReason) {} // 保留 AbortReason 导入，供未来使用
 
 #[cfg(test)]
 mod tests {
@@ -428,7 +453,7 @@ mod tests {
         assert!(!s.busy);
         assert!(s.turns.is_empty());
         assert!(s.live_agent_message.is_empty());
-        assert!(s.sidebar_visible); // default = visible
+        assert!(s.sidebar_visible); // 默认值 = 可见
     }
 
     #[test]

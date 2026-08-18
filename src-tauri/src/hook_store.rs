@@ -1,3 +1,8 @@
+//! Hook 状态存储 —— 管理 hook 启用/禁用状态。
+//!
+//! 将 hook 的开关状态持久化到 `~/.reflect/hook_state.json`。
+//! 支持列出所有 hook 以及切换单个 hook 的启用状态。
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -16,6 +21,7 @@ impl Default for HookStore {
 }
 
 impl HookStore {
+    /// 列出所有 hook 及其启用状态。
     pub(crate) fn list(&self) -> anyhow::Result<Vec<HookInfo>> {
         let state = self.load_state();
         Ok(vec![
@@ -23,17 +29,18 @@ impl HookStore {
                 name: "read_before_edit".to_string(),
                 kind: "policy".to_string(),
                 enabled: state.get("read_before_edit").copied().unwrap_or(true),
-                config_summary: "auto-reads file before Edit/Write".to_string(),
+                config_summary: "编辑文件前自动读取".to_string(),
             },
             HookInfo {
                 name: "plan_mode_gate".to_string(),
                 kind: "policy".to_string(),
                 enabled: state.get("plan_mode_gate").copied().unwrap_or(true),
-                config_summary: "blocks mutating tools in Plan mode".to_string(),
+                config_summary: "计划模式下阻断变更型工具".to_string(),
             },
         ])
     }
 
+    /// 切换 hook 启用状态,写入磁盘。
     pub(crate) fn toggle(&self, name: String, enabled: bool) -> anyhow::Result<()> {
         let path = self
             .path

@@ -1,14 +1,14 @@
 /**
- * Plan mode wrappers — enter/exit a plan-only session.
+ * Plan mode 封装 —— 进入/退出 plan-only 会话。
  */
 import { invoke } from '../bridge';
 
-/** Enter plan mode for a given task; returns submission id. */
+/** 为指定任务进入 plan mode;返回 submission id。 */
 export async function reflect_enter_plan_mode(task: string): Promise<string> {
   return invoke<string>('reflect_enter_plan_mode', { task });
 }
 
-/** Exit plan mode; returns submission id. */
+/** 退出 plan mode;返回 submission id。 */
 export async function reflect_exit_plan_mode(): Promise<string> {
   return invoke<string>('reflect_exit_plan_mode');
 }

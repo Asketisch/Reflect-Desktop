@@ -7,7 +7,7 @@ import { useCommandPaletteShortcut } from './useCommandPaletteShortcut';
 
 describe('useCommandPaletteShortcut', () => {
   afterEach(() => {
-    // nothing global to clean — listeners are removed on unmount.
+    // 无全局资源需要清理 —— 监听器在卸载时移除。
   });
 
   it('starts closed', () => {

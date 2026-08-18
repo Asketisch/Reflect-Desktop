@@ -1,17 +1,15 @@
 /**
- * Reflect protocol — barrel re-export.
+ * Reflect protocol —— barrel 再导出。
  *
- * The actual type definitions live in the per-domain modules under
- * `./{event,submission,op,item,question,ask_user_input,rollout,enums,usage}.ts`.
- * This file is the single import target for the rest of the codebase
- * (typically via `@/types/protocol`); the parent `src/types/protocol.ts`
- * file is a thin shim that re-exports everything from here.
+ * 实际类型定义位于各领域模块：
+ * `./{event,submission,op,item,question,ask_user_input,rollout,enums,usage}.ts`。
+ * 本文件是整个代码库的唯一导入入口（通常通过 `@/types/protocol`）；
+ * 父目录 `src/types/protocol.ts` 是从这里再导出的薄 shim。
  *
- * ## Vendor sync warning
+ * ## 协议同步警告
  *
- * This directory is **manually synchronized** with `vendor/reflect-protocol`
- * (the Rust schema for the Tauri IPC envelope). Any drift between the
- * per-domain modules and the Rust types produces a wire-format bug:
+ * 本目录与 `reflect-agent/crates/protocol/reflect-protocol`（Tauri IPC 信封的 Rust 模式）**手动同步**。
+ * 领域模块与 Rust 类型之间的任何偏差会导致 wire-format bug：
  *   - `ReflectEvent` / `ReflectEventMsg` ↔ `serde(rename_all = "snake_case")`
  *   - `ReflectSubmission` / `ReflectSubmissionOp` ↔ `Submission` / `Op`
  *   - `UserInputItem` ↔ `UserInputItem`
@@ -20,31 +18,27 @@
  *   - `AskUserInputPayload` ↔ `AskUserInputMsg`
  *   - `ReflectSessionInfo` / `ReflectRolloutRecord` ↔ `SessionInfo` / `RolloutRecord`
  *
- * ## Update workflow
- * 1. Edit/add the Rust enum/variant in `vendor/reflect-protocol/src/...`.
- * 2. Mirror it here in the relevant per-domain module (preserving
- *    snake_case field names, discriminators, and the `{ deny: { reason } }`
- *    shape of `ReviewDecision::Deny`).
- * 3. If the change touches a new event type, add it to `EventMsgType`,
- *    `EventMsgByType`, and the `ReflectEventMsg` mapped type in `event.ts`.
- * 4. Run `pnpm typecheck` and `pnpm test` — must stay green.
- * 5. The `scripts/dump-ts-types.sh` (Rust `dump_schema` example) can
- *    regenerate these from the JSON Schemas, but for offline dev this
- *    directory is the source of truth.
+ * ## 更新流程
+ * 1. 在 `reflect-agent/crates/protocol/reflect-protocol/src/...` 中编辑/添加 Rust 枚举/变体。
+ * 2. 在对应的领域模块中镜像修改（保留 snake_case 字段名、判别符、
+ *    `ReviewDecision::Deny` 的 `{ deny: { reason } }` 形状）。
+ * 3. 若涉及新事件类型，将其加入 `EventMsgType`、`EventMsgByType`
+ *    及 `event.ts` 中的 `ReflectEventMsg` 映射类型。
+ * 4. 运行 `pnpm typecheck` 和 `pnpm test` —— 必须保持通过。
+ * 5. `scripts/dump-ts-types.sh`（Rust `dump_schema` 示例）可从 JSON Schema
+ *    重新生成这些类型，但离线开发时本目录即为权威源。
  *
- * ## Invariants
- * 1. `id: string` is the per-submission correlation id (`""` for
- *    `EVENT_ID_NONE` lifecycle events).
- * 2. `msg.type` is the snake_case discriminator; TS narrowing is supported
- *    via the `EventMsgByType` map + `ReflectEvent` discriminated union
- *    in `event.ts`.
- * 3. All `UserInputItem` variants match the Rust enum.
- * 4. `ContentBlock` matches the Rust tool-output enum.
- * 5. `ReviewDecision` is a snake_case-tagged enum; `Deny` carries a
- *    `{ reason: string }` payload (NOT PascalCase).
+ * ## 不变量
+ * 1. `id: string` 为每条 submission 的关联 ID（`EVENT_ID_NONE` 生命周期事件为 `""`）。
+ * 2. `msg.type` 为 snake_case 判别符；通过 `EventMsgByType` 映射 + `event.ts` 中的
+ *    `ReflectEvent` 判别联合支持 TS 类型收窄。
+ * 3. 所有 `UserInputItem` 变体与 Rust 枚举匹配。
+ * 4. `ContentBlock` 与 Rust tool-output 枚举匹配。
+ * 5. `ReviewDecision` 为 snake_case 标记枚举；`Deny` 携带 `{ reason: string }` payload
+ *    （非 PascalCase）。
  */
 
-// ----- Wire envelope / EventMsg -----
+// ----- 线束信封 / EventMsg -----
 export {
   EVENT_ID_NONE,
   type EventMsgType,
@@ -129,8 +123,7 @@ export type {
 // ----- Usage -----
 export type { TokenUsagePayload } from './usage';
 
-// ----- Backward-compat aliases (used by older code that imports these
-//       names) -----
+// ----- 向后兼容别名（旧代码仍在导入这些名称） -----
 export type { EventMsgType as ReflectEventType } from './event';
 export type { OpType as ReflectSubmissionOpType } from './op';
 export type { UserInputItem as ReflectUserInputItem } from './item';

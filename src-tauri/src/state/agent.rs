@@ -1,4 +1,4 @@
-//! `MinimalAgentInner` —— 共享 inner state,以及 `new_empty` 与 `AgentStatus`。
+//! `MinimalAgentInner` —— 共享内部状态,以及 `new_empty` 与 `AgentStatus`。
 //!
 //! `state.rs` 只保留 facade;实际的内层结构、构造期常量、诊断快照
 //! 全部由本模块提供。
@@ -25,7 +25,7 @@ pub(crate) const SESSION_BROADCAST_CAPACITY: usize = 1024;
 pub(crate) struct MinimalAgentInner {
     /// `Option` 因为 `new_empty` 时还没建。
     pub(crate) thread: ParkingMutex<Option<Arc<AgentThread>>>,
-    /// Session event broadcast — 多个 Tauri command / webview 可各自订阅。
+    /// 会话事件广播 — 多个 Tauri command / webview 可各自订阅。
     pub(crate) session_tx: broadcast::Sender<Event>,
     /// 共享 config —— 热重载 / settings 读写命令共用。
     pub(crate) cfg: Arc<RwLock<ReflectConfig>>,
@@ -40,32 +40,32 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) shell_sessions: crate::shell_sessions::ShellSessions,
     pub(crate) memory_store: crate::memory_store::MemoryStore,
     pub(crate) hook_store: crate::hook_store::HookStore,
-    /// Task/Team 管理器(Phase 1 多 agent 命令面)。
-    /// 复用 vendor/reflect-task 默认 home(`~/.reflect`),与 TUI/CLI 共享数据。
-    /// Phase 0 形态:无 hook_engine / event_sink;后续阶段把 TaskCreated/Completed
+    /// Task/Team 管理器(供多 agent 命令面调用)。
+    /// 复用 reflect-agent/crates/orchestration/reflect-task 默认 home(`~/.reflect`),与 TUI/CLI 共享数据。
+    /// 初始形态:无 hook_engine / event_sink;后续把 TaskCreated/Completed
     /// 事件推前端时再 `with_event_sink`。
     pub(crate) task_manager: Arc<reflect_task::TaskManager>,
-    /// Cron 调度器(Phase 1 第 2 项)。`None` 直到 `install_agent_thread`
+    /// Cron 调度器。`None` 直到 `install_agent_thread`
     /// 把真 `AgentThread::submission_sender()` 注入(driver 才能真正触发);
     /// 此前 CRUD 仍可用(命令层读 `RwLock`,只是无后台 driver)。
     pub(crate) cron_scheduler: parking_lot::RwLock<Option<reflect_stream::cron::CronScheduler>>,
-    /// Side-channel registry(Phase 2 第 1 项):每个 side-channel 持有独立
+    /// Side-channel registry:每个 side-channel 持有独立
     /// `CancelToken`,主 agent 的 cancel 不会传播到 side-channel。事件流
     /// 经 `subscribe_events()` → Tauri `reflect_event` channel 推前端。
     pub(crate) side_channels: reflect_app_core::side_channel::SideChannelRegistry,
-    /// Remote mode config(Phase 2 第 2 项):iOS / 远端 daemon 连接的目标
+    /// Remote mode config:iOS / 远端 daemon 连接的目标
     /// (host + port + auth_token) 与运行时状态。进程内存储,重启重置
     /// —— 持久化留作后续。
     pub(crate) remote_config: parking_lot::RwLock<RemoteConfig>,
-    /// KMS 知识库管理器(Phase 3 第 12 项):grep-based wiki + /dream。
+    /// KMS 知识库管理器:grep-based wiki + /dream。
     pub(crate) kms_manager: reflect_app_core::kms::KnowledgeManager,
-    /// Autopilot 管理器(Phase 3 第 10 项):自动任务调度。
+    /// Autopilot 管理器:自动任务调度。
     pub(crate) autopilot_manager: reflect_app_core::autopilot::AutopilotManager,
-    /// Activity 日志管理器(Phase 3 第 9 项):本地事件审计 timeline。
+    /// Activity 日志管理器:本地事件审计 timeline。
     /// 由 `install_agent_thread` 订阅 session broadcast 把 `Event` 映射成
     /// `ActivityEvent` 后写入。
     pub(crate) activity_logger: Arc<reflect_app_core::activity::ActivityLogger>,
-    /// Squad 管理器(Phase 3 第 11 项):复用 `task_manager` 的 TeamFile 存储,
+    /// Squad 管理器:复用 `task_manager` 的 TeamFile 存储,
     /// 提供 leader 委派语义层。
     pub(crate) squad_manager: Arc<reflect_app_core::squad::SquadManager>,
 }
@@ -77,7 +77,7 @@ pub struct AgentStatus {
     pub ready: bool,
     /// 是否检测到可用 provider(读到了 API key / 配置)。
     pub has_model: bool,
-    /// active provider 的 model spec(`anthropic/claude-...`),降级时为 `stub/test`。
+    /// 当前 provider 的 model spec(`anthropic/claude-...`),降级时为 `stub/test`。
     pub model: String,
     /// 当前工作区根。
     pub workspace: String,
@@ -92,7 +92,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let (session_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let cfg = reflect_config::load_default();
-    // Task/Team 存储复用 vendor 默认 home(REFLECT_HOME 或 $HOME/.reflect),
+    // Task/Team 存储复用 核心 crate 默认 home(REFLECT_HOME 或 $HOME/.reflect),
     // 与 TUI/CLI 共享 `~/.reflect/tasks/` 与 `~/.reflect/teams/`。
     // home 解析失败时回退到 cwd 下的 `.reflect`,保证进程仍可启动(命令会报 I/O 错)。
     let task_store = Arc::new(

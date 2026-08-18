@@ -1,3 +1,8 @@
+//! 工作区状态管理 —— 维护全局工作区路径覆盖。
+//!
+//! 通过 `once_cell::Lazy` 单例 + `RwLock` 提供跨线程安全的
+//! workspace override 读写。优先级高于启动时捕获的 cwd。
+
 use std::path::PathBuf;
 
 use once_cell::sync::Lazy;

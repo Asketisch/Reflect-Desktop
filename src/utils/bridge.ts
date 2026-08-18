@@ -1,5 +1,5 @@
 /**
- * Tauri IPC bridge primitives —— `invoke` / `listen` + fallback。
+ * Tauri IPC 桥接原语 —— `invoke` / `listen` + 降级回退。
  *
  * 在脱离 Tauri 上下文（浏览器 preview / Storybook / 测试）时静默 fallback
  * 到 `undefined` / noop unlisten，通过 `isMissingTauriInvokeError` 守卫识别。

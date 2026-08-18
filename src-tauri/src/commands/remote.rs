@@ -1,12 +1,12 @@
-//! Remote mode commands — Tailscale + iOS / 远端 daemon 接入控制。
+//! 远程模式命令 — Tailscale + iOS / 远端 daemon 接入控制。
 //!
 //! Phase 2 第 2 项。本轮实现:
-//! - remote config CRUD(host / port / auth_token / auto_connect)
+//! - 远程配置 CRUD（host / port / auth_token / auto_connect）
 //! - tailscale status 探测(shell out `tailscale status --json=true`)
 //! - tailscale daemon command preview(iOS 配置页面给用户看的 hint 字符串)
 //!
 //! 不实现(诚实 scope):
-//! - 独立 TCP JSON-RPC daemon binary(CodexMonitor 那个 `codex_monitor_daemon`):
+//! - 独立 TCP JSON-RPC 守护进程二进制(`codex_monitor_daemon` 作为参考):
 //!   需要独立 workspace + cross-compile + iOS 配对 token 协议,远超本轮 scope。
 //!   IPC 接口先就位,driver 留作后续。
 //! - 自动 connect / 自动 start daemon on launch:同样依赖上述 binary。

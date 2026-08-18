@@ -1,6 +1,6 @@
 //! Task / Team 管理命令 —— 薄包装 `reflect_task::TaskManager`。
 //!
-//! Phase 1 多 agent 命令面:把 vendor 已实现的 TaskManager 全套 CRUD 暴露给
+//! Phase 1 多 agent 命令面:把 核心 crate 已实现的 TaskManager 全套 CRUD 暴露给
 //! 前端。严格对齐 `manager.rs` 的公开方法签名,命令层只做参数转发 + 错误映射,
 //! 不加业务逻辑(遵循 AGENTS.md "Tauri app 是 reflect_core 薄 adapter" 原则)。
 //!
@@ -14,14 +14,14 @@
 //!
 //! ## 存储路径
 //!
-//! 复用 vendor 默认 home(`~/.reflect`),与 TUI/CLI 共享:
+//! 复用 核心 crate 默认 home(`~/.reflect`),与 TUI/CLI 共享:
 //! - Task: `~/.reflect/tasks/<list>/<id>.json`
 //! - Team: `~/.reflect/teams/<name>.json`
 //!
 //! ## 未做(后续阶段)
 //!
 //! - hook_engine / event_sink 注入(Phase 0 形态;Task 生命周期事件推前端留待 UI 阶段)
-//! - Schedule(cron)命令(Phase 1 第 2 项,见 `vendor/reflect-stream/cron.rs`)
+//! - Schedule(cron)命令(Phase 1 第 2 项,见 `reflect-agent/crates/integrations/reflect-stream/cron.rs`)
 //! - Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,但「启用 + 重启 agent」更重)
 
 use reflect_task::{Task, TaskId, TaskPatch, TeamFile};
@@ -33,8 +33,8 @@ use crate::state::MinimalAgent;
 
 /// `reflect_update_task` 的返回值。
 ///
-/// 不直接暴露 vendor 的 `UpdateOutcome`(其 `status_change: (TaskStatus, TaskStatus)`
-/// 元组序列化对前端不友好,且 vendor 类型未 derive `Serialize`)。命令层展平成
+/// 不直接暴露 核心 crate 的 `UpdateOutcome`(其 `status_change: (TaskStatus, TaskStatus)`
+/// 元组序列化对前端不友好,且核心 crate 类型未 derive `Serialize`)。命令层展平成
 /// task + 字段名列表 + 可选 status 变更描述,前端拿到即可直接渲染。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,7 +1,7 @@
-//! Knowledge Management System (KMS) commands.
+//! 知识管理系统(KMS)命令。
 //!
-//! Phase 3 item 12: grep-based wiki + /dream session mining.
-//! Wraps `reflect_app_core::kms::KnowledgeManager`.
+//! 基于 grep 的 wiki + /dream 会话挖掘。
+//! 包装 `reflect_app_core::kms::KnowledgeManager`。
 
 use reflect_app_core::kms::{DreamResult, KmsError, Page, SearchResult, WikiInfo};
 use tauri::State;
@@ -15,13 +15,13 @@ impl From<KmsError> for CommandError {
     }
 }
 
-/// List all knowledge bases.
+/// 列出所有知识库。
 #[tauri::command]
 pub async fn reflect_kms_list(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<WikiInfo>> {
     Ok(agent.kms_manager().list_wikis())
 }
 
-/// Create a new knowledge base.
+/// 创建一个新的知识库。
 #[tauri::command]
 pub async fn reflect_kms_create(
     agent: State<'_, MinimalAgent>,
@@ -34,7 +34,7 @@ pub async fn reflect_kms_create(
         .map_err(CommandError::from)
 }
 
-/// Delete a knowledge base.
+/// 删除一个知识库。
 #[tauri::command]
 pub async fn reflect_kms_delete(
     agent: State<'_, MinimalAgent>,
@@ -46,7 +46,7 @@ pub async fn reflect_kms_delete(
         .map_err(CommandError::from)
 }
 
-/// Save a page to a knowledge base.
+/// 在知识库中保存一个页面。
 #[tauri::command]
 pub async fn reflect_kms_save_page(
     agent: State<'_, MinimalAgent>,
@@ -62,7 +62,7 @@ pub async fn reflect_kms_save_page(
         .map_err(CommandError::from)
 }
 
-/// Get a page from a knowledge base.
+/// 从知识库读取一个页面。
 #[tauri::command]
 pub async fn reflect_kms_get_page(
     agent: State<'_, MinimalAgent>,
@@ -75,7 +75,7 @@ pub async fn reflect_kms_get_page(
         .map_err(CommandError::from)
 }
 
-/// List all pages in a knowledge base.
+/// 列出知识库中的所有页面。
 #[tauri::command]
 pub async fn reflect_kms_list_pages(
     agent: State<'_, MinimalAgent>,
@@ -87,7 +87,7 @@ pub async fn reflect_kms_list_pages(
         .map_err(CommandError::from)
 }
 
-/// Search across all knowledge bases.
+/// 在所有知识库内搜索。
 #[tauri::command]
 pub async fn reflect_kms_search(
     agent: State<'_, MinimalAgent>,
@@ -96,7 +96,7 @@ pub async fn reflect_kms_search(
     Ok(agent.kms_manager().search(&query))
 }
 
-/// Run a /dream session - extract insights from recent sessions.
+/// 运行一次 /dream 会话 —— 从最近的会话中抽取洞察。
 #[tauri::command]
 pub async fn reflect_dream(
     agent: State<'_, MinimalAgent>,

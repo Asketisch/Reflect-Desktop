@@ -139,8 +139,8 @@ export function useDictation(options: DictationOptions = {}): DictationState {
       if (final) {
         setFinalTranscript((prev) => `${prev ? `${prev} ` : ''}${final.trim()}`);
       }
-      // Read the ref (not the captured state) so the freshly-finalized
-      // segment is included in the very same render cycle's transcript.
+      // 读取 ref（而非捕获的状态），以确保刚完成最终化的
+      // segment 已包含在同一个渲染周期的 transcript 中。
       setTranscript(
         `${finalTranscriptRef.current ? `${finalTranscriptRef.current} ` : ''}${final}${interim}`.trim(),
       );

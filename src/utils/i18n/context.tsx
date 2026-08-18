@@ -56,7 +56,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 export function useI18n(): I18nContextValue {
   const value = useContext(I18nContext);
   if (!value) {
-    // Fallback for tests / pre-mount contexts.
+    // 测试/挂载前上下文的回退。
     return {
       locale: DEFAULT_LOCALE,
       setLocale: saveLocale,

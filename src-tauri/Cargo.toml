@@ -3,9 +3,9 @@ name = "reflect-desktop"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "ReflectDesktop: Tauri 2 desktop GUI for Reflect Agent (binary: reflect-desktop)"
+description = "ReflectDesktop：Reflect Agent 的 Tauri 2 桌面 GUI（二进制：reflect-desktop）"
 
-# subdirectory workspace member; tauri-build must be discovered explicitly.
+# 子目录 workspace 成员；必须显式发现 tauri-build。
 build = "build.rs"
 
 [lib]
@@ -43,13 +43,13 @@ reflect-hooks               = { workspace = true }
 # 阶段 3d:MCP / LSP 运行时接入。
 reflect-mcp                 = { workspace = true }
 reflect-lsp                 = { workspace = true }
-# 多 agent 协调:Task/Team/Coordinator(vendor/reflect-task 已实现 TaskManager 全套 API)。
+# 多 agent 协调:Task/Team/Coordinator(reflect-agent/crates/orchestration/reflect-task 已实现 TaskManager 全套 API)。
 # Phase 1 暴露命令面;UI 与 hook/event_sink 注入留后续阶段。
 reflect-task                = { workspace = true }
-# Schedule(cron):vendor/reflect-stream 的 CronScheduler(create/update/delete/tick)。
+# Schedule(cron):reflect-agent/crates/integrations/reflect-stream 的 CronScheduler(create/update/delete/tick)。
 # Phase 1 第 2 项暴露命令面;后台 driver 与持久化留后续。
 reflect-stream              = { workspace = true }
-# Agent definitions:vendor/reflect-agent-def 的 Markdown + frontmatter 解析/加载。
+# Agent definitions:reflect-agent/crates/abilities/reflect-agent-def 的 Markdown + frontmatter 解析/加载。
 # Phase 1 第 3 项:agent profile 管理页(列表/创建/编辑/删除)。
 reflect-agent-def           = { workspace = true }
 # 阶段 1:真实 agent 集成所需 — sanitizer / 工具输出脱敏(默认 10 pattern)。
@@ -60,14 +60,14 @@ dirs                        = "5"
 # 阶段 2:config 读写命令(to_string_pretty / load_from_str 校验)。
 toml                        = { workspace = true }
 once_cell                   = { workspace = true }
-# Phase 3 item 13:Media Studio (image decode / scale / format convert)
-# + Computer Use (xcap screenshot + enigo mouse/keyboard).
-# 纯本地依赖 — vendor/reflect-* 不动。
+# Phase 3 item 13：Media Studio（图像解码 / 缩放 / 格式转换）
+# + Computer Use（xcap 截屏 + enigo 鼠标键盘）。
+# 纯本地依赖 — reflect-agent 核心 crate（submodule）不动。
 image                       = { workspace = true }
 xcap                        = { workspace = true }
 enigo                       = { workspace = true }
 
-# macOS-only dock badge: NSApplication.dockTile.badgeLabel via objc2.
+# 仅 macOS 的 dock 徽标：通过 objc2 设置 NSApplication.dockTile.badgeLabel。
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2            = "0.5"
 objc2-app-kit    = { version = "0.2", features = ["NSApplication", "NSDockTile"] }

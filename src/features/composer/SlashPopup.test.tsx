@@ -34,7 +34,7 @@ describe('SlashPopup', () => {
 
   it('filters by alias prefix', () => {
     const { container } = render(<SlashPopup query="?" onSelect={vi.fn()} visible={true} />);
-    // "?" is alias for "help"
+    // "?" 是 "help" 的别名
     expect(container.textContent).toContain('/help');
   });
 

@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
-# build.sh — Cross-platform build entry for ReflectDesktop.
+# build.sh —— ReflectDesktop 跨平台构建入口。
 #
-# Detects current OS, picks the right Tauri bundle targets, optionally produces
-# a macOS Universal Binary, and prints a summary of artifacts.
+# 检测当前操作系统，选择正确的 Tauri 打包目标，可选地生成
+# macOS 通用二进制，并打印构建产物摘要。
 #
-# Usage:
-#   bash scripts/build.sh                       # current OS, default bundles
-#   bash scripts/build.sh --fast                # release-fast profile (no LTO, faster)
-#   bash scripts/build.sh --universal           # macOS: arm64 + x86_64 universal binary
-#   bash scripts/build.sh --bundles=app,dmg     # override bundle list
-#   bash scripts/build.sh --target=x86_64-apple-darwin  # explicit rustc target
-#   bash scripts/build.sh --no-frontend         # skip frontend rebuild
-#   bash scripts/build.sh --dry-run             # print what would run, don't execute
+# 用法：
+#   bash scripts/build.sh                       # 当前系统，默认打包目标
+#   bash scripts/build.sh --fast                # release-fast 配置（无 LTO，更快）
+#   bash scripts/build.sh --universal           # macOS：arm64 + x86_64 通用二进制
+#   bash scripts/build.sh --bundles=app,dmg     # 覆盖打包目标列表
+#   bash scripts/build.sh --target=x86_64-apple-darwin  # 显式指定 rustc 目标
+#   bash scripts/build.sh --no-frontend         # 跳过前端重新构建
+#   bash scripts/build.sh --dry-run             # 只打印将执行的命令，不实际执行
 #   bash scripts/build.sh --help
 #
-# Default bundle targets per OS:
-#   macOS    → app,dmg        (universal mode → same, but universal binary inside)
+# 各系统默认打包目标：
+#   macOS    → app,dmg        （通用模式 → 相同，但包内是通用二进制）
 #   Linux    → deb,appimage
 #   Windows  → msi
 #
-# Environment overrides:
-#   SIGNING_IDENTITY   macOS codesign identity (default: ad-hoc, no notarization)
-#   NODE_INSTALLER     'pnpm' (default) | 'npm' | 'yarn'
-#   TAURI_CLI_ARGS     extra args appended verbatim to `pnpm tauri build`
+# 环境变量覆盖：
+#   SIGNING_IDENTITY   macOS 代码签名身份（默认：ad-hoc，不做公证）
+#   NODE_INSTALLER     包管理器（默认 'pnpm'）| 'npm' | 'yarn'
+#   TAURI_CLI_ARGS     原样追加到 `pnpm tauri build` 的额外参数
 
 set -euo pipefail
 
@@ -41,7 +41,7 @@ NODE_INSTALLER="${NODE_INSTALLER:-pnpm}"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
 
 # ── Arg parsing ──────────────────────────────────────────────────────────
-# Accept both `--flag value` and `--flag=value` forms for value-taking flags.
+# 带值参数同时支持 `--flag value` 与 `--flag=value` 两种写法。
 while [ $# -gt 0 ]; do
   arg="$1"
   case "$arg" in
@@ -163,8 +163,8 @@ TARGET_ARGS=()
 if [ -n "$TARGET_OVERRIDE" ]; then
   TARGET_ARGS=(--target "$TARGET_OVERRIDE")
 elif $UNIVERSAL; then
-  # Tauri honors universal-apple-darwin via the 'apple' universal target.
-  # Requires both aarch64-apple-darwin + x86_64-apple-darwin toolchains installed.
+  # Tauri 通过 'apple' 通用目标支持 universal-apple-darwin。
+  # 需要同时安装 aarch64-apple-darwin + x86_64-apple-darwin 工具链。
   for t in aarch64-apple-darwin x86_64-apple-darwin; do
     if ! rustup target list --installed 2>/dev/null | grep -q "^$t$"; then
       echo "+ rustup target add $t (required for universal binary)"
@@ -194,8 +194,8 @@ if ! $NO_FRONTEND; then
 fi
 
 # ── Assemble final command ───────────────────────────────────────────────
-# Note: under `set -u`, expanding an empty array errors out. The `${arr[@]+"${arr[@]}"}`
-# idiom expands to nothing when the array is empty and to its elements otherwise.
+# 注意：在 `set -u` 下展开空数组会报错。`${arr[@]+"${arr[@]}"}`
+# 在数组为空时展开为空，非空时展开为其元素。
 # shellcheck disable=SC2206,SC2086
 CMD=("$NODE_INSTALLER" tauri build
   ${TARGET_ARGS[@]+"${TARGET_ARGS[@]}"}
@@ -212,8 +212,8 @@ if $FAST; then
   PROFILE_DIR="release-fast"
 fi
 
-# When --target is used, Tauri nests output under target/<target>/<profile>/bundle.
-# When universal-apple-darwin is used, output is under target/universal-apple-darwin/<profile>/bundle.
+# 使用 --target 时，Tauri 将输出放在 target/<target>/<profile>/bundle 下。
+# 使用 universal-apple-darwin 时，输出在 target/universal-apple-darwin/<profile>/bundle 下。
 TARGET_SUBDIR=""
 if [ -n "$TARGET_OVERRIDE" ]; then
   TARGET_SUBDIR="$TARGET_OVERRIDE/"
@@ -228,8 +228,8 @@ case "$PLATFORM" in
 esac
 
 # ── Artifact summary ─────────────────────────────────────────────────────
-# Human-readable size helper: macOS `du -h` and Linux `du -h` agree; fallback
-# to raw bytes if numfmt/du unavailable.
+# 人类可读的大小辅助函数：macOS 与 Linux 的 `du -h` 行为一致；
+# 若 numfmt/du 不可用则回退到原始字节数。
 human_size() {
   local path="$1"
   if command -v du >/dev/null 2>&1; then
@@ -248,8 +248,8 @@ else
   FOUND=0
   for dir in $BUNDLE_DIR; do
     if [ -d "$dir" ]; then
-      # List top-level entries (skip . ..). Bundles like .app/.dmg/.deb/.msi/
-      # .AppImage all appear as entries directly under the bundle/<type>/ dir.
+      # 列出顶层条目（跳过 . ..）。.app/.dmg/.deb/.msi/.AppImage
+      # 等安装包都直接出现在 bundle/<type>/ 目录下。
       for entry in "$dir"/*; do
         [ -e "$entry" ] || continue   # glob didn't match
         base="$(basename "$entry")"

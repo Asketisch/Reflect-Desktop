@@ -95,7 +95,7 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
       );
 
     case 'tool_call': {
-      // B7-05: per-tool rendering (icon, arg summary, collapsible raw args).
+      // B7-05：按工具渲染（图标、参数摘要、可折叠原始参数）。
       return (
         <ToolCell
           toolName={item.toolName}

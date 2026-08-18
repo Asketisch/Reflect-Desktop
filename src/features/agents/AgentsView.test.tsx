@@ -1,12 +1,12 @@
 /**
- * Vitest — AgentsView (Phase 1 item 3).
+ * Vitest —— AgentsView（Phase 1 条目 3）。
  *
- * Smoke + behavior tests against mocked IPC. Verifies:
- *   - page title + seeded rows render
- *   - New button opens editor
- *   - editor Save forwards to reflect_save_agent_def with the draft
- *   - edit pre-fills the draft from the clicked row
- *   - delete forwards to reflect_delete_agent_def
+ * 基于模拟 IPC 的冒烟 + 行为测试。验证：
+ *   - 页面标题 + 预置行渲染
+ *   - New 按钮打开编辑器
+ *   - 编辑器 Save 将草稿转发到 reflect_save_agent_def
+ *   - 编辑从点击的行预填草稿
+ *   - delete 转发到 reflect_delete_agent_def
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -106,7 +106,7 @@ describe('AgentsView', () => {
     const descInput = screen.getByTestId('agent-editor-description') as HTMLInputElement;
     expect(nameInput.value).toBe('reviewer');
     expect(descInput.value).toBe('Reviews code');
-    // name is disabled when editing (rename would change the file).
+    // 编辑时 name 被禁用（重命名会改变文件名）。
     expect(nameInput.disabled).toBe(true);
   });
 

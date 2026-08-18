@@ -1,4 +1,4 @@
-//! B13: Approval allowlist —— per-prefix "Always allow" 持久化。
+//! Approval allowlist —— per-prefix 「始终允许」持久化。
 //!
 //! 用户在 approval toast 上勾选 "Always allow <prefix>" 后,该 prefix 持久化到
 //! `~/.reflect/approval_allowlist.json`,下一个匹配请求直接 approve。

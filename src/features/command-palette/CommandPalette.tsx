@@ -41,7 +41,7 @@ export function CommandPalette(props: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  // Build items fresh per open (current state matters for `theme.now` etc).
+  // 每次打开时重新构建 items（当前状态影响 `theme.now` 等）。
   const items = useMemo(
     () =>
       buildPaletteItems({
@@ -66,22 +66,22 @@ export function CommandPalette(props: CommandPaletteProps) {
     return r.slice(0, MAX_VISIBLE).map((h) => h.item);
   }, [query, items, t, resolvedTheme]);
 
-  // Reset state on open.
+  // 打开时重置状态。
   useEffect(() => {
     if (open) {
       setQuery('');
       setActiveIdx(0);
-      // Focus the input after the modal paints.
+      // 在 modal 渲染后聚焦输入框。
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
 
-  // Keep activeIdx within bounds.
+  // 保持 activeIdx 在有效范围内。
   useEffect(() => {
     if (activeIdx >= hits.length) setActiveIdx(Math.max(0, hits.length - 1));
   }, [hits, activeIdx]);
 
-  // Scroll active row into view.
+  // 将活动行滚动到可视区域。
   useEffect(() => {
     if (!listRef.current) return;
     const el = listRef.current.querySelector<HTMLElement>(`[data-idx="${activeIdx}"]`);

@@ -51,7 +51,7 @@ img {
   margin: 0 auto;
 }
 
-/* ====== Header ====== */
+/* ====== 页头 ====== */
 .site-header {
   position: sticky;
   top: 0;
@@ -107,7 +107,7 @@ img {
   background: var(--ink);
 }
 
-/* ====== Hero ====== */
+/* ====== 首屏主视觉 ====== */
 .hero {
   padding: 80px 0 40px;
 }
@@ -188,7 +188,7 @@ img {
   display: block;
 }
 
-/* ====== Sections ====== */
+/* ====== 内容分区 ====== */
 section {
   padding: 64px 0;
 }
@@ -202,7 +202,7 @@ section h2 {
   color: var(--muted);
 }
 
-/* ====== Features ====== */
+/* ====== 功能特性 ====== */
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -233,7 +233,7 @@ section h2 {
   font-size: 15px;
 }
 
-/* ====== Screenshots ====== */
+/* ====== 截图 ====== */
 .screenshots {
   background: rgba(16, 22, 41, 0.4);
 }
@@ -264,7 +264,7 @@ section h2 {
   border-top: 1px solid var(--line);
 }
 
-/* ====== Install ====== */
+/* ====== 安装 ====== */
 .install pre {
   background: var(--bg-2);
   border: 1px solid var(--line);
@@ -282,7 +282,7 @@ section h2 {
   font-size: 18px;
 }
 
-/* ====== Docs list ====== */
+/* ====== 文档列表 ====== */
 .docs-list {
   list-style: none;
   display: grid;
@@ -303,7 +303,7 @@ section h2 {
   font-weight: 500;
 }
 
-/* ====== Footer ====== */
+/* ====== 页脚 ====== */
 .site-footer {
   padding: 40px 0;
   border-top: 1px solid var(--line);

@@ -1,5 +1,5 @@
 /**
- * i18n namespace —— about.*
+ * i18n 命名空间 —— about.*
  *
  * 由 strings/index.ts merge 进 STRINGS dict；不要直接 import 此模块 ——
  * 走 `@/utils/i18n` 的统一入口。

@@ -1,12 +1,12 @@
 /**
- * Agents controller hook (Phase 1 item 3).
+ * Agents controller hook（阶段 1 任务 3）。
  *
- * Owns:
- *   - TanStack `useQuery` for `reflect_list_agent_defs`
- *   - three mutations: save / delete / parse-preview
- *   - editor state (draft def + raw markdown mode toggle)
+ * 职责：
+ *   - TanStack `useQuery` 用于 `reflect_list_agent_defs`
+ *   - 三个 mutation：save / delete / parse-preview
+ *   - 编辑器状态（草稿 def + 原始 markdown 模式切换）
  *
- * Mirrors the `useMemoryController` / `useTasksBoardController` precedent.
+ * 参考 `useMemoryController` / `useTasksBoardController` 的模式。
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -23,7 +23,7 @@ import { useAgentStore } from '@/stores/agentStore';
 export const AGENTS_QUERY_KEY = ['agent-defs'] as const;
 const AGENTS_STALE_MS = 30_000;
 
-/** Empty draft for the create form. */
+/** 创建表单的空草稿。 */
 export function emptyAgentDraft(): ReflectAgentDef {
   return {
     name: '',
@@ -41,13 +41,13 @@ export function emptyAgentDraft(): ReflectAgentDef {
 }
 
 export interface AgentsController {
-  // Query
+  // 查询
   defs: ReflectAgentDef[];
   loading: boolean;
   error: unknown;
   refetch: () => void;
 
-  // Editor state
+  // 编辑器状态
   draft: ReflectAgentDef | null;
   isEditing: boolean;
   beginCreate: () => void;
@@ -55,7 +55,7 @@ export interface AgentsController {
   cancelEdit: () => void;
   patchDraft: (patch: Partial<ReflectAgentDef>) => void;
 
-  // Mutations
+  // 突变操作
   save: () => Promise<void>;
   remove: (def: ReflectAgentDef) => Promise<void>;
 
@@ -161,7 +161,7 @@ export function useAgentsController(): AgentsController {
   };
 }
 
-/** Comma-separated helper for the tools/disallowed_tools list editors. */
+/** tools / disallowed_tools 列表编辑器的逗号分隔辅助函数。 */
 export function parseCsv(input: string): string[] {
   return input
     .split(',')

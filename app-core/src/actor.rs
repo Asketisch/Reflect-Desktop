@@ -1,7 +1,7 @@
-//! Polymorphic actor —— 统一「谁做了什么」的语义层模型 (Phase 3 item 8).
+//! Actor 模型 —— 统一「谁做了什么」的语义层 (Phase 3 条目 8)。
 //!
-//! 灵感来自 multica:几乎所有「谁做了什么」字段都用 `actor_type + actor_id`。
-//! ReflectDesktop 不重构 vendor Task schema(避免改 vendor 镜像),而是把
+//! 几乎所有「谁做了什么」字段都用 `actor_type + actor_id`。
+//! ReflectDesktop 不重构 核心 crate Task schema(避免改 核心 crate 镜像),而是把
 //! `Actor` 作为语义层类型,编码进 `Task.metadata.actor`、`ActivityEvent.actor`
 //! 与 Squad 的 `leaderActor` / `SquadMember.actor`。
 //!
@@ -56,7 +56,7 @@ impl std::fmt::Display for ActorType {
 pub enum ActorKind {
     /// 本地用户。
     User,
-    /// Team leader(`team-lead@<team>`)。
+    /// 团队领导（`team-lead@<team>`）。
     Lead,
     /// Team member(非 lead 的 agent)。
     Member,

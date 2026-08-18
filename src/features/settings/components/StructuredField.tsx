@@ -1,8 +1,8 @@
 /**
- * Renders one structured input for a single `FieldSpec`.
+ * 为单个 `FieldSpec` 渲染一个结构化输入框。
  *
- * Lives in `components/` (it is React/DOM-bound) so the pure TOML
- * helpers in `config/` stay unit-testable without React.
+ * 位于 `components/`（与 React/DOM 绑定），使 `config/` 中的纯 TOML
+ * 辅助函数可以不依赖 React 保持可单元测试。
  */
 
 import { Input, Select } from '@/features/design-system';
@@ -13,7 +13,7 @@ export interface StructuredFieldProps {
   spec: FieldSpec;
   toml: string;
   onChange: (value: string) => void;
-  /** Controlled visibility override for secret fields. */
+  /** 密钥字段的受控可见性覆盖。 */
   showSecret?: boolean;
   id?: string;
 }

@@ -1,9 +1,9 @@
 /**
- * src/services/agentEventBus.test.ts — fan-out event bus unit tests (B1-06).
+ * src/services/agentEventBus.test.ts —— 扇出事件总线单元测试（B1-06）。
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// We mock @/utils/commands to capture the onReflectEvent subscribe call.
+// 我们模拟 @/utils/commands 以捕获 onReflectEvent 订阅调用。
 const subscribeMock = vi.fn();
 const unlistenMock = vi.fn();
 vi.mock('@/utils/commands', () => ({
@@ -33,7 +33,7 @@ describe('agentEventBus', () => {
   it('opens a single Tauri listener on first subscribe', async () => {
     const a = vi.fn();
     subscribeAgentEvent(a);
-    // Wait a microtask for the async openListener to resolve.
+    // 等待一个微任务，让异步 openListener 完成解析。
     await new Promise((r) => setTimeout(r, 0));
     expect(subscribeMock).toHaveBeenCalledTimes(1);
     expect(agentEventBusSubscriberCount()).toBe(1);
@@ -55,7 +55,7 @@ describe('agentEventBus', () => {
     subscribeAgentEvent(a);
     subscribeAgentEvent(b);
     await new Promise((r) => setTimeout(r, 0));
-    // Find the registered handler and invoke it.
+    // 找到已注册的 handler 并调用它。
     expect(subscribeMock).toHaveBeenCalledTimes(1);
     const handler = subscribeMock.mock.calls[0][0] as (e: unknown) => void;
     handler({ id: 't1', msg: { type: 'agent_message', text: 'hi' } });
@@ -72,7 +72,7 @@ describe('agentEventBus', () => {
     subscribeAgentEvent(b);
     await new Promise((r) => setTimeout(r, 0));
     const handler = subscribeMock.mock.calls[0][0] as (e: unknown) => void;
-    // Suppress console.error from the bus during this test.
+    // 测试期间抑制总线产生的 console.error。
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     handler({ id: 'x', msg: { type: 'turn_started', turn_id: 'x' } });
     expect(b).toHaveBeenCalled();

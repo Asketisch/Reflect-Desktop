@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ReflectDesktop — Tauri 2 + React 19 GUI for Reflect Agent</title>
-  <meta name="description" content="Standalone Tauri 2 + React 19 desktop GUI for the Reflect Agent. Multi-pane chat, session sidebar, composer with slash popup, approval modals." />
+  <title>ReflectDesktop — Tauri 2 + React 19 Reflect Agent 桌面端</title>
+  <meta name="description" content="独立的 Tauri 2 + React 19 Reflect Agent 桌面 GUI。多栏聊天、会话侧栏、带斜杠弹窗的输入器、审批模态框。" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -19,9 +19,9 @@
         <span class="brand-name">ReflectDesktop</span>
       </a>
       <nav class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#screenshots">Screenshots</a>
-        <a href="#install">Install</a>
+        <a href="#features">功能</a>
+        <a href="#screenshots">截图</a>
+        <a href="#install">安装</a>
         <a href="https://github.com/CNB/ReflectDesktop" class="cta">GitHub →</a>
       </nav>
     </div>
@@ -30,49 +30,49 @@
   <main>
     <section class="hero">
       <div class="container">
-        <span class="eyebrow">v0.1.0 · MVP released</span>
-        <h1>Desktop GUI for the<br/><span class="accent">Reflect Agent</span></h1>
+        <span class="eyebrow">v0.1.0 · MVP 已发布</span>
+        <h1>Reflect Agent 的<br/><span class="accent">桌面端 GUI</span></h1>
         <p class="lead">
-          Tauri&nbsp;2 + React&nbsp;19 · multi-pane chat, session sidebar, slash-popup composer,
-          in-process <code>reflect_core::AgentThread</code> · binary &lt; 20&nbsp;MB · macOS/Linux/Windows.
+          Tauri&nbsp;2 + React&nbsp;19 · 多栏聊天、会话侧栏、斜杠弹窗输入器、
+          进程内 <code>reflect_core::AgentThread</code> · 二进制 &lt; 20&nbsp;MB · macOS/Linux/Windows。
         </p>
         <div class="hero-actions">
-          <a class="btn primary" href="#install">Install</a>
-          <a class="btn ghost" href="./codebase-map.html">Browse docs</a>
+          <a class="btn primary" href="#install">安装</a>
+          <a class="btn ghost" href="./codebase-map.html">浏览文档</a>
         </div>
         <div class="hero-art" aria-hidden="true">
-          <img src="./assets/placeholder.svg" alt="ReflectDesktop screenshot placeholder" />
+          <img src="./assets/placeholder.svg" alt="ReflectDesktop 截图占位" />
         </div>
       </div>
     </section>
 
     <section id="features" class="features">
       <div class="container">
-        <h2>What's in the box</h2>
+        <h2>功能概览</h2>
         <div class="feature-grid">
           <article class="feature-card">
-            <h3>Three-pane layout</h3>
-            <p>Time-bucketed session sidebar (Now / Today / Yesterday / This week / Older) on the left, chat in the middle, tool inspector + cost ring on the right.</p>
+            <h3>三栏布局</h3>
+            <p>左侧时间分桶会话列表（现在 / 今天 / 昨天 / 本周 / 更早），中间聊天区，右侧工具检查器 + 成本环形。</p>
           </article>
           <article class="feature-card">
-            <h3>Streaming chat</h3>
-            <p><code>react-markdown</code> + Shiki for code blocks; tool rows collapse consecutive calls; thinking deltas live in a collapsible panel.</p>
+            <h3>流式聊天</h3>
+            <p><code>react-markdown</code> + Shiki 代码块高亮；工具行折叠连续调用；思考增量在可折叠面板中。</p>
           </article>
           <article class="feature-card">
-            <h3>Composer</h3>
-            <p>Auto-grow textarea, <code>/</code> slash popup (47 commands from TUI), <code>@</code> file mention, drag/drop image attachments, history navigation.</p>
+            <h3>输入器</h3>
+            <p>自动增长文本框，<code>/</code> 斜杠命令弹窗（47 条命令）、<code>@</code> 文件引用、拖放图片附件、历史记录导航。</p>
           </article>
           <article class="feature-card">
-            <h3>Modal suite</h3>
-            <p>Approval (Tool / Hook / Plan), multi-question AskUser with "Other" custom text, free-text AskUser, Plan-Ready markdown review.</p>
+            <h3>模态框套件</h3>
+            <p>审批（工具 / 钩子 / 计划）、多问题 AskUser（带"其他"自定义文本）、自由文本 AskUser、计划就绪 Markdown 审查。</p>
           </article>
           <article class="feature-card">
-            <h3>In-process backend</h3>
-            <p>Direct <code>Arc&lt;AgentThread&gt;</code> sharing with TUI/CLI — zero serialization, identical behavior across frontends.</p>
+            <h3>进程内后端</h3>
+            <p>直接 <code>Arc&lt;AgentThread&gt;</code> 与 TUI/CLI 共享 —— 零序列化，各前端行为一致。</p>
           </article>
           <article class="feature-card">
-            <h3>macOS-native</h3>
-            <p>Overlay titlebar with vibrancy, close-to-tray, dock badge, <code>Cmd+.</code> interrupt, global hotkeys via <code>tauri-plugin-global-shortcut</code>.</p>
+            <h3>macOS 原生</h3>
+            <p>悬浮标题栏 + 光泽效果、关闭到托盘、Dock 徽标、<code>Cmd+.</code> 中断、通过 <code>tauri-plugin-global-shortcut</code> 全局快捷键。</p>
           </article>
         </div>
       </div>
@@ -80,24 +80,24 @@
 
     <section id="screenshots" class="screenshots">
       <div class="container">
-        <h2>Screenshots</h2>
-        <p class="muted">Drop <code>docs/assets/main.png</code> + feature1..6.png to replace placeholders. See <a href="./assets/README.html">assets/README</a> for capture conventions.</p>
+        <h2>截图</h2>
+        <p class="muted">将 <code>docs/assets/main.png</code> 和 feature1..6.png 放入替换占位图。捕获规范见 <a href="./assets/README.html">assets/README</a>。</p>
         <div class="screenshot-grid">
           <figure>
-            <img src="./assets/placeholder.svg" alt="Main UI placeholder" />
-            <figcaption>Main UI (home)</figcaption>
+            <img src="./assets/placeholder.svg" alt="主界面占位" />
+            <figcaption>主界面（首页）</figcaption>
           </figure>
           <figure>
-            <img src="./assets/placeholder.svg" alt="Composer + slash popup placeholder" />
-            <figcaption>Composer + slash popup</figcaption>
+            <img src="./assets/placeholder.svg" alt="输入器 + 斜杠弹窗占位" />
+            <figcaption>输入器 + 斜杠弹窗</figcaption>
           </figure>
           <figure>
-            <img src="./assets/placeholder.svg" alt="Sidebar placeholder" />
-            <figcaption>Session sidebar</figcaption>
+            <img src="./assets/placeholder.svg" alt="侧栏占位" />
+            <figcaption>会话侧栏</figcaption>
           </figure>
           <figure>
-            <img src="./assets/placeholder.svg" alt="Approval modal placeholder" />
-            <figcaption>Approval modal</figcaption>
+            <img src="./assets/placeholder.svg" alt="审批模态框占位" />
+            <figcaption>审批模态框</figcaption>
           </figure>
         </div>
       </div>
@@ -105,36 +105,36 @@
 
     <section id="install" class="install">
       <div class="container">
-        <h2>Install</h2>
+        <h2>安装</h2>
 
-        <h3>From source</h3>
+        <h3>从源码</h3>
 <pre><code>git clone https://github.com/CNB/ReflectDesktop.git
 cd ReflectDesktop
 pnpm install
-bash scripts/vendor-sync.sh /path/to/Reflect-Agent main
+git submodule update --init --recursive
 pnpm tauri build --bundles app
 bash scripts/install.sh
 # → /usr/local/bin/reflect-desktop
 # → ~/Applications/ReflectDesktop.app</code></pre>
 
-        <h3>Dev mode</h3>
+        <h3>开发模式</h3>
 <pre><code>pnpm tauri dev</code></pre>
 
-        <p>See <a href="../README.html">README</a> for platform-specific notes.</p>
+        <p>平台专属说明见 <a href="../README.html">README</a>。</p>
       </div>
     </section>
 
     <section class="docs">
       <div class="container">
-        <h2>Documentation</h2>
+        <h2>文档</h2>
         <ul class="docs-list">
-          <li><a href="./codebase-map.html">codebase-map.md</a> — task-oriented "if you need X, edit Y"</li>
-          <li><a href="./PROTOCOL_BRIDGE.html">PROTOCOL_BRIDGE.md</a> — Tauri ↔ reflect-protocol envelope spec</li>
-          <li><a href="./ARCHITECTURE.html">ARCHITECTURE.md</a> — top-level layout + state flow</li>
-          <li><a href="./CHANGELOG.html">CHANGELOG.md</a> — release notes</li>
-          <li><a href="./USER_GUIDE.html">USER_GUIDE.md</a> — end-user guide</li>
-          <li><a href="../AGENTS.html">AGENTS.md</a> — agent contract for the repo</li>
-          <li><a href="./gui/00-index.html">docs/gui/</a> — historical design docs</li>
+          <li><a href="./codebase-map.html">codebase-map.md</a> — 任务导向「需要 X，编辑 Y」</li>
+          <li><a href="./PROTOCOL_BRIDGE.html">PROTOCOL_BRIDGE.md</a> — Tauri ↔ reflect-protocol 信封规范</li>
+          <li><a href="./ARCHITECTURE.html">ARCHITECTURE.md</a> — 顶层布局 + 状态流</li>
+          <li><a href="./CHANGELOG.html">CHANGELOG.md</a> — 发布说明</li>
+          <li><a href="./USER_GUIDE.html">USER_GUIDE.md</a> — 终端用户指南</li>
+          <li><a href="../AGENTS.html">AGENTS.md</a> — 仓库 agent 契约</li>
+          <li><a href="./gui/00-index.html">docs/gui/</a> — 历史设计文档</li>
         </ul>
       </div>
     </section>
@@ -142,7 +142,7 @@ bash scripts/install.sh
 
   <footer class="site-footer">
     <div class="container">
-      <p>ReflectDesktop is part of the <a href="https://github.com/CNB/Reflect-Agent">Reflect Agent</a> ecosystem · MIT licensed.</p>
+      <p>ReflectDesktop 是 <a href="https://github.com/CNB/Reflect-Agent">Reflect Agent</a> 生态的一部分 · MIT 许可证。</p>
     </div>
   </footer>
 </body>

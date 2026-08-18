@@ -1,15 +1,15 @@
 /**
- * RemoteView —— Phase 2 item 2 (Tailscale + iOS daemon).
+ * RemoteView —— Phase 2 条目 2（Tailscale + iOS 守护进程）。
  *
- * Renders:
- *   - iOS connection setup card (host / port / auth_token form)
- *   - Desktop transport status (currently always "disconnected — driver TBD")
- *   - Tailscale detection card (installed / running / suggested host)
- *   - "Not implemented" notice for the desktop daemon start/stop placeholders.
+ * 渲染：
+ *   - iOS 连接设置卡片（host / port / auth_token 表单）
+ *   - 桌面端传输状态（当前始终为 "disconnected — driver TBD"）
+ *   - Tailscale 检测卡片（已安装 / 运行中 / 建议的 host）
+ *   - 桌面守护进程启动/停止占位符的 "Not implemented" 提示
  *
- * Backend contract: `src/utils/commands/remote.ts` ↔
+ * 后端契约：`src/utils/commands/remote.ts` ↔
  * `src-tauri/src/commands/remote.rs` ↔ `app-core::tailscale` +
- * `state::RemoteConfig`.
+ * `state::RemoteConfig`。
  */
 import { useState } from 'react';
 import { Wifi, Save, X, RefreshCw, Loader2, Info } from 'lucide-react';
@@ -33,7 +33,7 @@ export function RemoteView() {
       setCopyOk(true);
       setTimeout(() => setCopyOk(false), 1500);
     } catch {
-      /* clipboard not available */
+      /* 剪贴板不可用 */
     }
   };
 

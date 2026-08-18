@@ -1,8 +1,7 @@
 /**
- * Memory —— AddForm (presentational, B11-01 refactor).
+ * Memory —— AddForm（纯展示组件，B11-01 重构）。
  *
- * Stateless form for creating a new memory entry. Behavior preserved from
- * the inline form previously rendered inside MemoryView.
+ * 创建新记忆条目的无状态表单。行为与之前在 MemoryView 内渲染的内联表单保持一致。
  */
 import { Save } from 'lucide-react';
 import { Card, Icon } from '@/features/design-system';

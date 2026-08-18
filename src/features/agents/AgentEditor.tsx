@@ -1,8 +1,8 @@
 /**
- * AgentEditor — create/edit form for an AgentDefinition.
+ * AgentEditor —— AgentDefinition 的创建/编辑表单。
  *
- * Presentational; state lives in `useAgentsController.draft` + `patchDraft`.
- * Covers all `AgentDefinition` fields except `mcp_collections` (reserved v1).
+ * 纯展示组件；状态位于 `useAgentsController.draft` + `patchDraft`。
+ * 覆盖除 `mcp_collections`（v1 保留）外的所有 `AgentDefinition` 字段。
  */
 import { Save, X } from 'lucide-react';
 import { Card, Icon, Textarea, Input } from '@/features/design-system';

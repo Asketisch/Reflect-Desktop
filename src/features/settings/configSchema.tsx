@@ -1,13 +1,13 @@
 /**
- * Compatibility re-exports for the legacy `./configSchema` import.
+ * 旧版 `./configSchema` 导入路径的兼容性再导出。
  *
- * The structured configuration schema has been split across:
- *   - `./config/schema.ts`  — pure types + TOML scalar field helpers
- *   - `./config/toml.ts`    — pure TOML section / flag helpers
- *   - `./components/StructuredField.tsx` — React field renderer
+ * 结构化配置模式已拆分到：
+ *   - `./config/schema.ts`  — 纯类型 + TOML 标量字段辅助函数
+ *   - `./config/toml.ts`    — 纯 TOML 分区 / flag 辅助函数
+ *   - `./components/StructuredField.tsx` — React 字段渲染器
  *
- * Existing callers (`import { ... } from '@/features/settings/configSchema'`)
- * keep working unchanged.
+ * 现有调用方（`import { ... } from '@/features/settings/configSchema'`）
+ * 无需改动即可继续工作。
  */
 
 export {

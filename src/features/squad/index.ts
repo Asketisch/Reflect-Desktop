@@ -1,5 +1,5 @@
 /**
- * Squad feature barrel (Phase 3 item 11).
+ * Squad 功能桶（Phase 3 条目 11）。
  */
 export { SquadView } from './SquadView';
 export { useSquadController } from './useSquadController';

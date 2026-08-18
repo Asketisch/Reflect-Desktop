@@ -105,7 +105,7 @@ export function useActiveSession(): UseActiveSessionResult {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Derive sessionId from pathname: matches /chat/:sessionId but not /chat.
+  // 从 pathname 推导 sessionId：匹配 /chat/:sessionId 但不匹配 /chat。
   const activeId = (() => {
     const m = location.pathname.match(/^\/chat\/([^/]+)$/);
     return m ? decodeURIComponent(m[1]) : null;

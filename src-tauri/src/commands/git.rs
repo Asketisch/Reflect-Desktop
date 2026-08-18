@@ -1,4 +1,4 @@
-//! B6: Git integration —— status / diff / log。
+//! Git 集成 —— status / diff / log。
 
 use std::path::PathBuf;
 use std::process::Command as StdCommand;
@@ -55,10 +55,10 @@ fn run_git(args: &[&str]) -> Result<std::process::Output, CommandError> {
         })
 }
 
-/// `git status --porcelain=v1 --branch` → structured status.
+/// `git status --porcelain=v1 --branch` → 结构化 status。
 #[tauri::command]
 pub async fn reflect_git_status() -> CommandResult<GitStatus> {
-    // First, is this even a git repo?
+    // 首先确认这是否真的是 git 仓库。
     let probe = run_git(&["rev-parse", "--is-inside-work-tree"]).map_err(CommandError::from)?;
     let is_repo = String::from_utf8_lossy(&probe.stdout).trim() == "true";
     if !is_repo {
@@ -89,7 +89,7 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
     let mut entries: Vec<GitStatusEntry> = Vec::new();
     for line in raw.lines() {
         if let Some(rest) = line.strip_prefix("## ") {
-            // Branch header: "## <branch>" or "## <branch>...<upstream> [ahead N, behind M]"
+            // 分支头行:"## <branch>" 或 "## <branch>...<upstream> [ahead N, behind M]"
             if let Some((b, after)) = rest.split_once("...") {
                 branch = Some(b.to_string());
                 if let Some((up, ab)) = after.split_once(' ') {
@@ -137,7 +137,7 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
     })
 }
 
-/// `git diff --no-color` → unified diff text (or staged if `staged=true`).
+/// `git diff --no-color` → unified diff 文本(`staged=true` 时为 staged diff)。
 #[tauri::command]
 pub async fn reflect_git_diff(staged: Option<bool>) -> CommandResult<String> {
     let args: Vec<&str> = if staged.unwrap_or(false) {
@@ -154,7 +154,7 @@ pub async fn reflect_git_diff(staged: Option<bool>) -> CommandResult<String> {
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-/// `git log --pretty=format:... -n N` → structured entries.
+/// `git log --pretty=format:... -n N` → 结构化 entry 列表。
 #[tauri::command]
 pub async fn reflect_git_log(limit: Option<usize>) -> CommandResult<Vec<GitLogEntry>> {
     let n = limit.unwrap_or(20).to_string();

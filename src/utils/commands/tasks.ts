@@ -1,22 +1,21 @@
 /**
- * Task management wrappers — Phase 1 multi-agent command surface.
+ * Task 管理封装 —— Phase 1 多 agent 命令面。
  *
- * Mirrors the Task half of `src-tauri/src/commands/tasks.rs` (which wraps
- * `vendor/reflect-task::TaskManager`). Team wrappers live alongside in
- * `./teams.ts`. Task payloads are the vendor types serialized verbatim
- * (snake_case, since `Task` does not derive `rename_all = "camelCase"`);
- * only the `TaskUpdateResult` envelope is camelCase (see `commands/tasks.rs`).
+ * 对应 `src-tauri/src/commands/tasks.rs` 的 Task 部分(其内部封装
+ * `reflect-agent/crates/orchestration/reflect-task::TaskManager`)。Team 封装并列存放在 `./teams.ts`。
+ * Task payload 直接使用核心 crate 类型的序列化形态(snake_case,因为 `Task`
+ * 没有派生 `rename_all = "camelCase"`);只有 `TaskUpdateResult` 信封采用
+ * camelCase(见 `commands/tasks.rs`)。
  *
- * Storage reuse: data lives at `~/.reflect/tasks/<list>/<id>.json`, shared
- * with the TUI/CLI.
+ * 存储复用:数据位于 `~/.reflect/tasks/<list>/<id>.json`,与 TUI/CLI 共享。
  */
 import { invoke } from '../bridge';
 
-// ── Task status (snake_case, mirrors `reflect_task::TaskStatus`) ───────
+// ── Task 状态(snake_case,对应 `reflect_task::TaskStatus`) ──────────────
 
 export type ReflectTaskStatus = 'pending' | 'in_progress' | 'completed' | 'deleted';
 
-// ── Task (mirrors `reflect_task::Task`, snake_case) ────────────────────
+// ── Task(对应 `reflect_task::Task`,snake_case) ────────────────────────
 
 export interface ReflectTask {
   id: number;
@@ -26,25 +25,25 @@ export interface ReflectTask {
   active_form?: string | null;
   owner?: string | null;
   status: ReflectTaskStatus;
-  /** Downstream task ids this task blocks. */
+  /** 该 task 阻塞的下游 task id 列表。 */
   blocks: number[];
-  /** Upstream task ids that must complete before this one can start. */
+  /** 该 task 启动前必须完成的上游 task id 列表。 */
   blocked_by: number[];
   metadata: Record<string, unknown>;
   output_path?: string | null;
-  /** Worker id that atomically claimed the task (`<role>@<team>` or session id). */
+  /** 原子认领该 task 的 worker id(`<role>@<team>` 或 session id)。 */
   claimed_by?: string | null;
   claimed_at?: number | string | null;
   created_at: number | string;
   updated_at: number | string;
 }
 
-// ── TaskPatch (mirrors `reflect_task::TaskPatch`) ──────────────────────
+// ── TaskPatch(对应 `reflect_task::TaskPatch`) ──────────────────────────
 //
-// All fields optional; pass only what you want to change.
-// `Some("")` clears a string field; `undefined` (omitted) leaves it alone.
-// Null inside `active_form` / `owner` / `claimed_by` / `claimed_at` means
-// "clear", matching Rust `Option<Option<T>>` tri-state semantics.
+// 所有字段均可选,只传入需要修改的字段。
+// `Some("")` 表示清空字符串字段;`undefined`(不传)则保持原值。
+// `active_form` / `owner` / `claimed_by` / `claimed_at` 中的 `null` 表示
+// "清空",与 Rust 的 `Option<Option<T>>` 三态语义保持一致。
 
 export interface ReflectTaskPatch {
   subject?: string;
@@ -53,16 +52,16 @@ export interface ReflectTaskPatch {
   owner?: string | null;
   status?: ReflectTaskStatus;
   metadata?: Record<string, unknown>;
-  /** Append downstream task ids this task blocks (unique). */
+  /** 追加该 task 阻塞的下游 task id(去重)。 */
   add_blocks?: number[];
-  /** Append upstream task ids that block this task (unique). */
+  /** 追加阻塞该 task 的上游 task id(去重)。 */
   add_blocked_by?: number[];
-  /** `string` = set, `null` = clear, `undefined` = leave unchanged. */
+  /** `string` = 设置,`null` = 清空,`undefined` = 保持原值。 */
   claimed_by?: string | null;
   claimed_at?: number | string | null;
 }
 
-// ── TaskUpdateResult (camelCase, mirrors `commands/tasks.rs::TaskUpdateResult`) ─
+// ── TaskUpdateResult(camelCase,对应 `commands/tasks.rs::TaskUpdateResult`) ─
 
 export interface ReflectTaskStatusChange {
   from: string;
@@ -70,22 +69,22 @@ export interface ReflectTaskStatusChange {
 }
 
 export interface ReflectTaskUpdateResult {
-  /** The full task object after the update. */
+  /** 更新后的完整 task 对象。 */
   task: ReflectTask;
-  /** Field names that actually changed (e.g. `["status", "subject"]`). */
+  /** 实际发生变更的字段名(例如 `["status", "subject"]`)。 */
   updatedFields: string[];
-  /** Present only when `status` actually changed. */
+  /** 仅当 `status` 实际发生变更时出现。 */
   statusChange?: ReflectTaskStatusChange;
 }
 
 // ── Commands ───────────────────────────────────────────────────────────
 
-/** List tasks under a list (worker view = session id; team view = team name). */
+/** 列出指定 list 下的 tasks(worker 视图 = session id;team 视图 = team 名)。 */
 export async function reflect_list_tasks(list: string): Promise<ReflectTask[]> {
   return invoke<ReflectTask[]>('reflect_list_tasks', { list });
 }
 
-/** Create a task. `metadata` defaults to `{}`. */
+/** 创建一个 task。`metadata` 默认 `{}`。 */
 export async function reflect_create_task(args: {
   list: string;
   subject: string;
@@ -104,15 +103,15 @@ export async function reflect_create_task(args: {
   });
 }
 
-/** Read a single task (excludes soft-deleted). */
+/** 读取单个 task(不包含软删除的)。 */
 export async function reflect_get_task(list: string, id: number): Promise<ReflectTask> {
   return invoke<ReflectTask>('reflect_get_task', { list, id });
 }
 
 /**
- * Update a task. Pass only the fields you want to change.
- * `status = "completed"` fires `TaskCompleted` hook (when a hook engine is
- * wired); other changes fire `TaskUpdated`.
+ * 更新 task。仅传入需要修改的字段。
+ * `status = "completed"` 会触发 `TaskCompleted` hook(在 hook engine 接入后);
+ * 其他变更触发 `TaskUpdated`。
  */
 export async function reflect_update_task(
   list: string,
@@ -123,9 +122,8 @@ export async function reflect_update_task(
 }
 
 /**
- * Atomically claim the next available task in a list: the first task that is
- * `pending` with empty `blocked_by`. Returns `null` when nothing is claimable.
- * Concurrent workers are serialized per-list; no duplicate claims.
+ * 原子认领 list 中下一个可用的 task:第一个 `pending` 且 `blocked_by` 为空的 task。
+ * 无可认领时返回 `null`。同一 list 下的并发 worker 串行化,不会出现重复认领。
  */
 export async function reflect_claim_task(
   list: string,
@@ -134,7 +132,7 @@ export async function reflect_claim_task(
   return invoke<ReflectTask | null>('reflect_claim_task', { list, claimer });
 }
 
-/** Physically delete a task file (distinct from `update_task({ status: "deleted" })` soft-delete). */
+/** 物理删除 task 文件(区别于 `update_task({ status: "deleted" })` 的软删除)。 */
 export async function reflect_delete_task(list: string, id: number): Promise<void> {
   return invoke<void>('reflect_delete_task', { list, id });
 }

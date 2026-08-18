@@ -1,3 +1,8 @@
+//! Reducer 事件分发器 —— 按 `EventMsg` 领域分组处理，调用对应的状态变更逻辑。
+//!
+//! 每个 `apply_*` 函数处理一个事件领域（会话、消息、Token、工具、审批、问题、错误等），
+//! 内部通过 `match msg` 匹配具体的 `EventMsg` 变体并更新 `RenderState`。
+
 use std::time::SystemTime;
 
 use reflect_protocol::{ApprovalKind as ProtoApprovalKind, EventMsg, TurnId};
@@ -12,6 +17,7 @@ use super::state_mut::{
     map_approval_policy, map_permission_mode, map_sandbox_policy, turn_mut, upsert_server,
 };
 
+/// 处理会话级事件：SessionConfigured / TurnStarted / TurnComplete / TurnAborted / TurnRewound / ShutdownComplete。
 pub(super) fn apply_session(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::SessionConfigured(e) => {
@@ -70,6 +76,7 @@ pub(super) fn apply_session(state: &mut RenderState, msg: EventMsg, turn_id: Opt
     }
 }
 
+/// 处理 agent 消息事件：AgentMessage / AgentMessageDelta / ThinkingDelta。
 pub(super) fn apply_message(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::AgentMessage(e) => {
@@ -94,6 +101,7 @@ pub(super) fn apply_message(state: &mut RenderState, msg: EventMsg, turn_id: Opt
     }
 }
 
+/// 处理 Token 计数字件：更新 last_token_usage 与 total_cost_usd。
 pub(super) fn apply_token(state: &mut RenderState, msg: EventMsg) {
     match msg {
         EventMsg::TokenCount(e) => {
@@ -112,6 +120,7 @@ pub(super) fn apply_token(state: &mut RenderState, msg: EventMsg) {
     }
 }
 
+/// 处理工具调用事件：ToolCallBegin（创建 ToolCall 记录）/ ToolCallEnd（更新状态并追加输出）。
 pub(super) fn apply_tool(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::ToolCallBegin(e) => {
@@ -155,6 +164,7 @@ pub(super) fn apply_tool(state: &mut RenderState, msg: EventMsg, turn_id: Option
     }
 }
 
+/// 处理审批请求事件：ApprovalRequest / PermissionBubble → 设置 pending_approval。
 pub(super) fn apply_approval(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::ApprovalRequest(e) => {
@@ -198,6 +208,7 @@ pub(super) fn apply_approval(state: &mut RenderState, msg: EventMsg, turn_id: Op
     }
 }
 
+/// 处理用户选择问题事件：AskUserQuestion → 设置 pending_question。
 pub(super) fn apply_question(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::AskUserQuestion(e) => {
@@ -212,6 +223,7 @@ pub(super) fn apply_question(state: &mut RenderState, msg: EventMsg, turn_id: Op
     }
 }
 
+/// 处理自由格式输入事件：AskUserInput → 设置 pending_ask_user。
 pub(super) fn apply_ask_user(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::AskUserInput(e) => {
@@ -225,6 +237,7 @@ pub(super) fn apply_ask_user(state: &mut RenderState, msg: EventMsg, turn_id: Op
     }
 }
 
+/// 处理上下文压缩事件：ContextCompacted → 在 Turn 中记录压缩摘要。
 pub(super) fn apply_context(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::ContextCompacted(e) => {
@@ -245,6 +258,7 @@ pub(super) fn apply_context(state: &mut RenderState, msg: EventMsg, turn_id: Opt
     }
 }
 
+/// 处理错误事件：Error / StreamError。会话级错误写入 last_error，Turn 级错误写入 Turn.error。
 pub(super) fn apply_error(
     state: &mut RenderState,
     msg: EventMsg,
@@ -267,6 +281,7 @@ pub(super) fn apply_error(
     }
 }
 
+/// 处理配置重载事件：更新 config_reloaded_at 时间戳。
 pub(super) fn apply_config(state: &mut RenderState, msg: EventMsg) {
     match msg {
         EventMsg::ConfigReloaded(_) => state.config_reloaded_at = Some(SystemTime::now()),
@@ -274,6 +289,7 @@ pub(super) fn apply_config(state: &mut RenderState, msg: EventMsg) {
     }
 }
 
+/// 处理路由事件：记录最后一次路由切换快照。
 pub(super) fn apply_routing(state: &mut RenderState, msg: EventMsg) {
     match msg {
         EventMsg::Routing(e) => {
@@ -289,6 +305,7 @@ pub(super) fn apply_routing(state: &mut RenderState, msg: EventMsg) {
     }
 }
 
+/// 处理协作事件：CollabStarted（新建会话）/ CollabMessage（追加消息）/ CollabFinished（标记完成）。
 pub(super) fn apply_collab(state: &mut RenderState, msg: EventMsg) {
     match msg {
         EventMsg::CollabStarted(e) => {
@@ -324,6 +341,7 @@ pub(super) fn apply_collab(state: &mut RenderState, msg: EventMsg) {
     }
 }
 
+/// 处理 MCP server 事件：Started（upsert 状态）/ Failed（标记失败）/ ToolInvoked（记录调用）。
 pub(super) fn apply_mcp(state: &mut RenderState, msg: EventMsg) {
     match msg {
         EventMsg::McpServerStarted(e) => upsert_server(
@@ -354,6 +372,7 @@ pub(super) fn apply_mcp(state: &mut RenderState, msg: EventMsg) {
     }
 }
 
+/// 处理 LSP server 事件：Started（upsert 状态）/ Failed（标记失败）。
 pub(super) fn apply_lsp(state: &mut RenderState, msg: EventMsg) {
     match msg {
         EventMsg::LspServerStarted(e) => upsert_server(
@@ -372,6 +391,7 @@ pub(super) fn apply_lsp(state: &mut RenderState, msg: EventMsg) {
     }
 }
 
+/// 处理 Plan 与权限模式事件：PlanRequest / PlanReady / PlanApproved / PlanRejected / PermissionModeChanged。
 pub(super) fn apply_plan(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
         EventMsg::PlanRequest(e) => {
@@ -383,9 +403,8 @@ pub(super) fn apply_plan(state: &mut RenderState, msg: EventMsg, turn_id: Option
             });
         }
         EventMsg::PlanReady(e) => {
-            // Preserve the user-visible task description from the prior
-            // PlanRequest event so the plan modal can still show what the
-            // agent was asked to do.
+            // 保留此前 PlanRequest 事件中的用户可见任务描述,
+            // 以便 plan modal 仍能展示 agent 被要求执行的任务。
             let prev_task = state
                 .pending_plan
                 .as_ref()

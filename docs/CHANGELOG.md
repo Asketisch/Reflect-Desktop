@@ -1,10 +1,10 @@
-# Changelog
+# 更新日志
 
-All notable changes to ReflectDesktop are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
+ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Changelog](https://keepachangelog.com/)，版本号遵守[语义化版本](https://semver.org/)。
 
-## Unreleased
+## 未发布
 
-### Added — 前端 token usage UI 接通
+### 新增 — 前端 token usage UI 接通
 
 后端 `token_count` 事件（`TokenCountEvent`）早已由 `model_call` 节点每轮 emit，前端
 reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数据。本次接通展示层：
@@ -32,611 +32,610 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
 > 注：未接入 `ContextRing` 圆环——后端无 token **分类**细分（仅有计费维度），硬套
 > 5 段分类会制造虚假精确感；列为未来增强（需后端先提供分类 usage）。
 
-### Added — Phase 3 local-only features batch (KMS + Autopilot + Dictation wiring)
+### 新增 — Phase 3 纯本地功能批次（KMS + Autopilot + 听写接线）
 
-Completes all remaining local-only features that don't require cloud services,
-SSO, or third-party APIs. IM bridging (Phase 2 item 7) and multi-tenant/SSO/cloud
-(Phase 3 item 14) are explicitly skipped as they depend on external services.
+补齐所有剩余的纯本地功能，不依赖云服务、SSO 或第三方 API。IM 桥接（Phase 2 第 7 项）
+与多租户/SSO/云（Phase 3 第 14 项）明确跳过，因为它们依赖外部服务。
 
-- **Phase 2 item 6: Dictation** — UI + hook + i18n + route were already complete;
-  added the missing ActivityBar entry (`/dictation`, Mic icon) + `shell.nav.dictation`
-  i18n key (en/zh-CN).
-- **Phase 3 item 12: KMS (Knowledge Management System)**:
-  - **New `app-core::kms` module** (`app-core/src/kms.rs`): `KnowledgeManager` with
-    grep-based wiki storage (`~/.reflect/kms/<name>/pages/*.md`), frontmatter
-    parsing (title/tags/description), full-text search, and `/dream` session mining.
-    6 unit tests all passing.
-  - **Backend commands** (`src-tauri/src/commands/kms.rs`): 8 commands —
+- **Phase 2 第 6 项：听写（Dictation）** — UI + hook + i18n + 路由此前已完成；
+  补上缺失的 ActivityBar 入口（`/dictation`，Mic 图标）+ `shell.nav.dictation`
+  i18n 键（en/zh-CN）。
+- **Phase 3 第 12 项：KMS（知识管理系统）**：
+  - **新 `app-core::kms` 模块**（`app-core/src/kms.rs`）：`KnowledgeManager`，提供
+    基于 grep 的 wiki 存储（`~/.reflect/kms/<name>/pages/*.md`）、frontmatter
+    解析（title/tags/description）、全文搜索和 `/dream` 会话挖掘。
+    6 个单元测试全部通过。
+  - **后端命令**（`src-tauri/src/commands/kms.rs`）：8 个命令 —
     `reflect_kms_list` / `reflect_kms_create` / `reflect_kms_delete` /
     `reflect_kms_save_page` / `reflect_kms_get_page` / `reflect_kms_list_pages` /
-    `reflect_kms_search` / `reflect_dream`.
-  - **Frontend wrapper** (`src/utils/commands/kms.ts`): 8 functions + 4 types.
-  - **Feature UI** (`src/features/kms/`): `KmsView.tsx` with wiki selector tabs,
-    page list, inline editor, and global search bar.
-  - **State wiring**: `MinimalAgentInner.kms_manager` + facade `kms_manager()`.
-- **Phase 3 item 10: Autopilot**:
-  - **New `app-core::autopilot` module** (`app-core/src/autopilot.rs`):
-    `AutopilotManager` with JSON-based config persistence + run history.
-    `AutopilotConfig` (enabled/schedule/taskTemplate/agent/maxConcurrent) +
-    `AutopilotRun` + `AutopilotRunStatus`. 4 unit tests all passing.
-  - **Backend commands** (`src-tauri/src/commands/autopilot.rs`): 3 commands —
+    `reflect_kms_search` / `reflect_dream`。
+  - **前端包装**（`src/utils/commands/kms.ts`）：8 个函数 + 4 个类型。
+  - **功能 UI**（`src/features/kms/`）：`KmsView.tsx`，含 wiki 选择 tab、
+    页面列表、内联编辑器和全局搜索栏。
+  - **状态接线**：`MinimalAgentInner.kms_manager` + facade `kms_manager()`。
+- **Phase 3 第 10 项：Autopilot**：
+  - **新 `app-core::autopilot` 模块**（`app-core/src/autopilot.rs`）：
+    `AutopilotManager`，基于 JSON 的配置持久化 + 运行历史。
+    `AutopilotConfig`（enabled/schedule/taskTemplate/agent/maxConcurrent）+
+    `AutopilotRun` + `AutopilotRunStatus`。4 个单元测试全部通过。
+  - **后端命令**（`src-tauri/src/commands/autopilot.rs`）：3 个命令 —
     `reflect_get_autopilot_config` / `reflect_update_autopilot_config` /
-    `reflect_autopilot_history`.
-  - **Frontend wrapper** (`src/utils/commands/autopilot.ts`): 3 functions + 2 types.
-  - **Feature UI** (`src/features/autopilot/`): `AutopilotView.tsx` with config
-    editor form (enable/schedule/template/agent/concurrency) + run history panel.
-  - **State wiring**: `MinimalAgentInner.autopilot_manager` + facade `autopilot_manager()`.
-- **Routing + navigation**: `/kms` + `/autopilot` routes registered;
-  `ActivityBar` gains KMS (BookOpen icon) and Autopilot (Zap icon) entries;
-  i18n `shell.nav.kms` + `shell.nav.autopilot` (en/zh-CN).
-- **Verification**: `cargo check` ✅, `cargo test -p reflect-app-core` ✅ (42 passed),
-  `pnpm typecheck` ✅, `pnpm test` ✅ (61 files / 524 tests).
+    `reflect_autopilot_history`。
+  - **前端包装**（`src/utils/commands/autopilot.ts`）：3 个函数 + 2 个类型。
+  - **功能 UI**（`src/features/autopilot/`）：`AutopilotView.tsx`，含配置
+    编辑表单（enable/schedule/template/agent/concurrency）+ 运行历史面板。
+  - **状态接线**：`MinimalAgentInner.autopilot_manager` + facade `autopilot_manager()`。
+- **路由 + 导航**：注册 `/kms` + `/autopilot` 路由；
+  `ActivityBar` 新增 KMS（BookOpen 图标）和 Autopilot（Zap 图标）入口；
+  i18n `shell.nav.kms` + `shell.nav.autopilot`（en/zh-CN）。
+- **验证**：`cargo check` ✅、`cargo test -p reflect-app-core` ✅（42 通过）、
+  `pnpm typecheck` ✅、`pnpm test` ✅（61 文件 / 524 测试）。
 
-### Added — Phase 3 items 8/9/11/13 (Squad + Activity + Actor + Media Studio)
+### 新增 — Phase 3 第 8/9/11/13 项（Squad + Activity + Actor + Media Studio）
 
-Final local-only batch: completes every Phase 3 roadmap item that doesn't
-require cloud services, SSO, third-party APIs, or unverified external
-desktop-automation crates.
+最后一批纯本地功能：补齐 Phase 3 路线图中所有不依赖云服务、SSO、第三方 API
+或未经验证的外部桌面自动化 crate 的条目。
 
-- **Phase 3 item 8: Polymorphic Actor (semantic layer)** —
-  - `app-core/src/actor.rs`: `ActorType` (Human / Agent / System),
-    `ActorKind` (User / Lead / Member / System), `Actor { actor_type,
-    actor_id, kind, display_name, team_name }` (camelCase serde).
-  - Helpers: `Actor::user()` / `system()` / `agent(team, role)` /
+- **Phase 3 第 8 项：多态 Actor（语义层）** —
+  - `app-core/src/actor.rs`：`ActorType`（Human / Agent / System）、
+    `ActorKind`（User / Lead / Member / System）、`Actor { actor_type,
+    actor_id, kind, display_name, team_name }`（camelCase serde）。
+  - 辅助方法：`Actor::user()` / `system()` / `agent(team, role)` /
     `from_agent_id()` + `actor_from_team_member(&TeamMemberSpec)` +
-    `encode_metadata` / `decode_metadata` for round-tripping through
-    `Task.metadata.actor`. Doesn't refactor vendor `Task` schema.
-  - 12 unit tests covering `actor_type` / `actor_kind` serialize, lead
-    role detection, metadata round-trip, default = user.
-- **Phase 3 item 9: Inbox + Activity timeline + @mentions** —
-  - `app-core/src/activity.rs`: `ActivityLogger` with in-memory ring
-    buffer (cap = 500) + JSONL persistence to `~/.reflect/activity/`
-    (1 MB rotate) + `record` / `list(filter)` / `search_mentions(q)` /
-    `clear_memory`. `ActivityEvent { id, ts_ms, kind, actor, summary,
-    task_id?, team_name?, level }`; `ActivityFilter` matches by
-    kind / level / actor_id / team_name / since_ms.
-  - `src-tauri/src/state/activity.rs`: independent broadcast subscriber
-    that maps every `reflect_protocol::Event` to an `ActivityEvent`
-    and writes via the logger. Runs in parallel with
-    `forward_agent_events` (no interference).
-  - `src-tauri/src/commands/activity.rs`: 4 commands —
+    `encode_metadata` / `decode_metadata`，用于经 `Task.metadata.actor`
+    往返序列化。不重构 vendor `Task` schema。
+  - 12 个单元测试覆盖 `actor_type` / `actor_kind` 序列化、lead
+    角色检测、metadata 往返、默认 = user。
+- **Phase 3 第 9 项：Inbox + Activity 时间线 + @提及** —
+  - `app-core/src/activity.rs`：`ActivityLogger`，内存环形缓冲（上限 500）+
+    JSONL 持久化到 `~/.reflect/activity/`（1 MB 轮转）+ `record` /
+    `list(filter)` / `search_mentions(q)` / `clear_memory`。
+    `ActivityEvent { id, ts_ms, kind, actor, summary, task_id?, team_name?,
+    level }`；`ActivityFilter` 按 kind / level / actor_id / team_name /
+    since_ms 匹配。
+  - `src-tauri/src/state/activity.rs`：独立的 broadcast 订阅者，
+    将每条 `reflect_protocol::Event` 映射为 `ActivityEvent`
+    并经 logger 写入。与 `forward_agent_events` 并行运行
+    （互不干扰）。
+  - `src-tauri/src/commands/activity.rs`：4 个命令 —
     `reflect_list_activity` / `reflect_search_activity` /
-    `reflect_clear_activity` / `reflect_activity_count`.
-  - `src/utils/commands/activity.ts`: TypeScript wrappers + `Actor` /
-    `ActivityKind` / `ActivityLevel` types + `extractMentions(text)`
-    helper (regex `@[a-z0-9_@-]+`).
-  - `src/utils/commands/squad.ts`: re-exported.
-  - `src/features/notifications/useActivityController.ts`: TanStack
-    Query controller (activity + mentions sub-queries).
-  - `src/features/notifications/NotificationsView.tsx`: refactored to
-    three tabs via `SegmentedControl` — **Inbox** (existing live
-    store-derived pending items), **Activity** (audit timeline with
-    level filter + clear button), **Mentions** (`@<query>` input +
-    search results).
-  - `ActivityLogger` injected into `MinimalAgentInner` +
-    `subscribe_activity_logger` spawned in `install_agent_thread`
-    (post-thread, before cron scheduler).
-  - 12 activity unit tests (ring eviction, filter, persistence
-    round-trip, mention search).
-- **Phase 3 item 11: Squad + Leader delegation** —
-  - `app-core/src/squad.rs`: `SquadSpec` (name, description,
-    leader_actor, members, created_at_ms) + `SquadMember { actor,
-    role, model, system_prompt, allowed_tools }` + `SquadManager`
-    wrapping `Arc<reflect_task::TaskManager>`. Methods:
-    `create_squad(spec)` upserts as `TeamFile` (`team-lead@<name>`
-    lead + mapped member specs); `list_squads()` / `get_squad(name)` /
-    `delete_squad(name)`; `delegate_next(squad_name, leader_id)`
-    calls vendor `claim_next_available` for atomic first-Pending +
-    unblocked task claim with per-list mutex safety;
-    `assign_task(squad_name, task_id, assignee)` writes `owner` +
-    `metadata.actor` via vendor `TaskPatch`.
-  - Doesn't refactor vendor Team/Task schema; squadrons are stored
-    via existing `~/.reflect/teams/<name>.json` files.
-  - `src-tauri/src/commands/squad.rs`: 6 commands —
+    `reflect_clear_activity` / `reflect_activity_count`。
+  - `src/utils/commands/activity.ts`：TypeScript 包装 + `Actor` /
+    `ActivityKind` / `ActivityLevel` 类型 + `extractMentions(text)`
+    辅助函数（regex `@[a-z0-9_@-]+`）。
+  - `src/utils/commands/squad.ts`：re-export。
+  - `src/features/notifications/useActivityController.ts`：TanStack
+    Query 控制器（activity + mentions 子查询）。
+  - `src/features/notifications/NotificationsView.tsx`：重构为
+    经 `SegmentedControl` 切换的三个 tab — **Inbox**（既有实时
+    store 派生的 pending 项）、**Activity**（带 level 过滤 + 清除
+    按钮的审计时间线）、**Mentions**（`@<query>` 输入框 +
+    搜索结果）。
+  - `ActivityLogger` 注入 `MinimalAgentInner` +
+    `subscribe_activity_logger` 在 `install_agent_thread`
+    中启动（线程之后、cron 调度器之前）。
+  - 12 个 activity 单元测试（环形淘汰、过滤、持久化
+    往返、mention 搜索）。
+- **Phase 3 第 11 项：Squad + Leader 委派** —
+  - `app-core/src/squad.rs`：`SquadSpec`（name、description、
+    leader_actor、members、created_at_ms）+ `SquadMember { actor,
+    role, model, system_prompt, allowed_tools }` + 包装
+    `Arc<reflect_task::TaskManager>` 的 `SquadManager`。方法：
+    `create_squad(spec)` 以 `TeamFile` upsert（`team-lead@<name>`
+    lead + 映射后的 member spec）；`list_squads()` / `get_squad(name)` /
+    `delete_squad(name)`；`delegate_next(squad_name, leader_id)`
+    调用 vendor `claim_next_available`，以 per-list mutex 安全地
+    原子认领首个 Pending + 已解除阻塞的任务；
+    `assign_task(squad_name, task_id, assignee)` 经 vendor `TaskPatch`
+    写入 `owner` + `metadata.actor`。
+  - 不重构 vendor Team/Task schema；squad 通过既有的
+    `~/.reflect/teams/<name>.json` 文件存储。
+  - `src-tauri/src/commands/squad.rs`：6 个命令 —
     `reflect_list_squads` / `reflect_create_squad` /
     `reflect_get_squad` / `reflect_delete_squad` /
-    `reflect_delegate_next` / `reflect_assign_squad_task`.
-  - `src/utils/commands/squad.ts`: wrappers + `ReflectSquadSpec` /
-    `ReflectSquadMember` types.
-  - `src/features/squad/`: `SquadView` (master-detail: squad list
-    + create form on left, selected squad's members + tasks +
-    "Delegate next" button + per-task assignee dropdown on right) +
-    `useSquadController` (TanStack Query with mutations for create /
-    delete / delegate / assign) + CSS module + barrel + 3 tests.
-  - 12 squad unit tests (CRUD, validate, round-trip spec↔TeamFile,
-    delegate, assign with actor metadata round-trip).
-- **Phase 3 item 13: Media Studio + Computer Use (metadata-only
-  scaffold)** —
-  - `app-core/src/media.rs`: `MediaAsset` (path / filename /
-    size_bytes / mime_type / width / height / modified_at_ms) +
+    `reflect_delegate_next` / `reflect_assign_squad_task`。
+  - `src/utils/commands/squad.ts`：包装 + `ReflectSquadSpec` /
+    `ReflectSquadMember` 类型。
+  - `src/features/squad/`：`SquadView`（master-detail：左侧 squad 列表
+    + 创建表单，右侧所选 squad 的 members + tasks + "Delegate next"
+    按钮 + 每任务 assignee 下拉）+ `useSquadController`（TanStack Query，
+    含 create / delete / delegate / assign mutations）+ CSS module +
+    barrel + 3 个测试。
+  - 12 个 squad 单元测试（CRUD、validate、spec↔TeamFile 往返、
+    delegate、带 actor metadata 往返的 assign）。
+- **Phase 3 第 13 项：Media Studio + Computer Use（仅元数据
+  脚手架）** —
+  - `app-core/src/media.rs`：`MediaAsset`（path / filename /
+    size_bytes / mime_type / width / height / modified_at_ms）+
     `ImageProcessSpec` / `ImageProcessResult` + `ImageFormat`
-    (Png / Jpeg / Gif / WebP / Bmp) + `scan_dir_for_assets(dir)`
-    (stdlib-based, no external deps) + `BackendCapability` enum +
+    （Png / Jpeg / Gif / WebP / Bmp）+ `scan_dir_for_assets(dir)`
+    （基于 stdlib，无外部依赖）+ `BackendCapability` enum +
     `ImageBackend` / `ComputerBackend` traits +
-    `ComputerUseAction` (Screenshot / MouseMove / MouseClick /
-    KeyType / KeyCombo / Scroll, `#[serde(tag = "kind")]`).
-  - Default backends: `MetadataOnlyBackend` (read file headers
-    only) + `UnavailableComputerBackend` (returns
-    `MediaError::Unavailable` with capability reason). Commands
-    that require real `image` / `xcap` / `enigo` cargo deps
-    gracefully return `MediaError::Unavailable` instead of panicking,
-    so the feature works in dev / CI / headless.
-  - `src-tauri/src/commands/media.rs`: 5 commands —
+    `ComputerUseAction`（Screenshot / MouseMove / MouseClick /
+    KeyType / KeyCombo / Scroll，`#[serde(tag = "kind")]`）。
+  - 默认后端：`MetadataOnlyBackend`（仅读文件头）+
+    `UnavailableComputerBackend`（返回
+    `MediaError::Unavailable` 并附 capability 原因）。需要真实
+    `image` / `xcap` / `enigo` cargo 依赖的命令会优雅地
+    返回 `MediaError::Unavailable` 而非 panic，
+    因此该功能在 dev / CI / headless 下可用。
+  - `src-tauri/src/commands/media.rs`：5 个命令 —
     `reflect_list_media` / `reflect_image_process` /
-    `reflect_screenshot` (base64-encoded PNG string) /
-    `reflect_computer_use` / `reflect_media_capabilities`.
-  - `src/utils/commands/media.ts`: wrappers + types
-    (`ReflectMediaAsset` / `ReflectImageProcessSpec` /
-    `ReflectComputerUseAction` / `ReflectMediaCapabilities`).
-  - `src/features/media/`: `MediaView` (2 tabs via
-    `SegmentedControl` — **Studio** lists assets in user-entered
-    directory; **Computer Use** has control cards for
-    screenshot / click / move / scroll / keytype / key combo with
-    graceful `MediaError::Unavailable` display) +
-    `useMediaController` (TanStack Query) + CSS module + barrel +
-    3 tests.
-  - 12 media unit tests covering format detection, Asset serialization,
-    action summaries, backend error paths, and `scan_dir` filtering.
-  - **Note**: Real image processing / screen capture / mouse + keyboard
-    control require `image` / `xcap` / `enigo` cargo crates. These are
-    intentionally NOT added to `Cargo.toml` in this batch — the
-    contracts are stable, and swapping the default backends for real
-    implementations is a localized change.
-- **Routing + navigation**: `/squad` + `/media` routes registered;
-  `ActivityBar` adds Squad (Users icon) + Media (Image icon)
-  entries; i18n `shell.nav.media` (en/zh-CN). `shell.nav.squad` was
-  already present from the dictation batch.
-- **Verification**: `cargo check` ✅, `cargo test -p reflect-app-core`
-  ✅ (90 passed; 12 actor + 12 activity + 12 squad + 12 media + 42
-  pre-existing), `pnpm typecheck` ✅, `pnpm test` ✅ (63 files / 530
-  tests).
+    `reflect_screenshot`（base64 编码的 PNG 字符串）/
+    `reflect_computer_use` / `reflect_media_capabilities`。
+  - `src/utils/commands/media.ts`：包装 + 类型
+    （`ReflectMediaAsset` / `ReflectImageProcessSpec` /
+    `ReflectComputerUseAction` / `ReflectMediaCapabilities`）。
+  - `src/features/media/`：`MediaView`（经 `SegmentedControl` 的
+    2 个 tab — **Studio** 列出用户输入目录中的 asset；
+    **Computer Use** 提供 screenshot / click / move / scroll /
+    keytype / key combo 控制卡片，并优雅显示
+    `MediaError::Unavailable`）+ `useMediaController`（TanStack
+    Query）+ CSS module + barrel + 3 个测试。
+  - 12 个 media 单元测试，覆盖格式检测、Asset 序列化、
+    action 摘要、后端错误路径和 `scan_dir` 过滤。
+  - **注**：真实的图像处理 / 截屏 / 鼠标键盘控制需要
+    `image` / `xcap` / `enigo` cargo crate。本批次有意
+    不将它们加入 `Cargo.toml` —— 契约是稳定的，
+    把默认后端换成真实实现只是局部改动。
+- **路由 + 导航**：注册 `/squad` + `/media` 路由；
+  `ActivityBar` 新增 Squad（Users 图标）+ Media（Image 图标）
+  入口；i18n `shell.nav.media`（en/zh-CN）。`shell.nav.squad`
+  已在听写批次中加入。
+- **验证**：`cargo check` ✅、`cargo test -p reflect-app-core`
+  ✅（90 通过；12 actor + 12 activity + 12 squad + 12 media + 42
+  既有）、`pnpm typecheck` ✅、`pnpm test` ✅（63 文件 / 530
+  测试）。
 
-### Added — Phase 2 item 2: Remote daemon / Tailscale helper / iOS config UI
+### 新增 — Phase 2 第 2 项：远程 daemon / Tailscale 助手 / iOS 配置 UI
 
-First Phase 2 item: user-driven concurrent agent orchestration (vs. model-driven
-`Task` subagent). Each side-channel runs concurrently with the main agent on
-its own `CancelToken` — main's `Cmd+C` does not stop it.
+Phase 2 首个条目：用户驱动的并发 agent 编排（相对于模型驱动的 `Task`
+subagent）。每个 side-channel 在自己的 `CancelToken` 上与主 agent 并发
+运行 —— 主 agent 的 `Cmd+C` 不会停止它。
 
-- **New `app-core::side_channel` module** (`app-core/src/side_channel.rs`):
-  - `SideChannelRegistry` (process-level) + `SideChannelHandle` (per-run).
-  - Stable ids `side-<8hex>`, deterministic salt-retry on collision.
-  - `Started` / `Done` / `Cancelled` / `Error` / `Output` events via a
-    `tokio::sync::broadcast::Sender<SideChannelEvent>` — the existing Tauri
-    event forwarder can pick it up and surface to the frontend as
-    `reflect_event` messages tagged `kind: side_channel_*`.
-  - 6 unit tests (start yields id + cancel token / cancel emits events /
-    cancel on already-terminal is noop / finish done/error transition /
-    independent cancels / cancel does not block future starts).
-  - `app-core/Cargo.toml` adds `tokio-util = { workspace = true, features = ["rt"] }`
-    for `CancellationToken`.
-- **Backend wiring**:
-  - `MinimalAgentInner.side_channels` holds `SideChannelRegistry` (built in
-    `build_empty_inner` so it's ready pre-install).
-  - Facade `MinimalAgent::side_channels()` for the command layer.
-  - New commands in `src-tauri/src/commands/side_channel.rs`:
+- **新 `app-core::side_channel` 模块**（`app-core/src/side_channel.rs`）：
+  - `SideChannelRegistry`（进程级）+ `SideChannelHandle`（每次运行）。
+  - 稳定 id `side-<8hex>`，冲突时确定性 salt 重试。
+  - 经 `tokio::sync::broadcast::Sender<SideChannelEvent>` 发出
+    `Started` / `Done` / `Cancelled` / `Error` / `Output` 事件 —— 既有
+    Tauri 事件转发器可接收，并以 `reflect_event` 消息（标记
+    `kind: side_channel_*`）呈现给前端。
+  - 6 个单元测试（start 返回 id + cancel token / cancel 发出事件 /
+    对已终结的取消是 noop / finish done/error 状态迁移 /
+    独立 cancel / cancel 不阻塞后续 start）。
+  - `app-core/Cargo.toml` 新增 `tokio-util = { workspace = true, features = ["rt"] }`
+    以支持 `CancellationToken`。
+- **后端接线**：
+  - `MinimalAgentInner.side_channels` 持有 `SideChannelRegistry`（在
+    `build_empty_inner` 中构建，故安装前即就绪）。
+  - 供命令层使用的 facade `MinimalAgent::side_channels()`。
+  - `src-tauri/src/commands/side_channel.rs` 新命令：
     `reflect_start_side_channel` / `reflect_cancel_side_channel` /
-    `reflect_list_side_channels` / `reflect_get_side_channel`.
-  - 6 unit tests covering start/get/cancel + finish transitions.
-- **Frontend wrapper** (`src/utils/commands/side_channel.ts`):
-  - 4 functions + `ReflectSideChannelInfo` / `ReflectSideChannelStatus` /
-    `ReflectStartSideChannelResult` types.
-  - Index barrel re-export added; `commands.test.ts` gains 3 forwarding
-    assertions (list/get no-args, start forwards `{ agent_name, prompt }`,
-    cancel forwards `{ id }`).
-- **Feature UI** (`src/features/side-channel/`):
-  - `SideChannelView.tsx` — PageShell + running-count badge + Start form
-    (agent name + prompt) + list rows (id / agent / prompt / duration) +
-    cancel button on running rows.
-  - `useSideChannelController.ts` — TanStack Query + start/cancel mutations
-    with toast + 5s poll refetch.
-  - 5 smoke + behavior tests.
-- **Routing + navigation**: `/side-channels` route registered; `ActivityBar`
-  gains a Side-channels entry (`Workflow` icon); i18n
-  `shell.nav.sideChannels` (en/zh-CN).
-- **Honest scope** (planned follow-ups): a runtime driver that actually runs
-  the side-channel (submits prompt as `Submission::user_input` to the agent
-  loop and updates the registry entry on completion) is NOT yet implemented.
-  The view shows the registry state and exposes create/cancel today; the
-  driver is the next Phase 2 sub-item.
-- **Verification**: `cargo check` ✅, `cargo test commands` ✅ (27 passed),
-  `pnpm typecheck` ✅, `pnpm test` ✅ (60 files / 516 tests).
+    `reflect_list_side_channels` / `reflect_get_side_channel`。
+  - 6 个单元测试覆盖 start/get/cancel + finish 状态迁移。
+- **前端包装**（`src/utils/commands/side_channel.ts`）：
+  - 4 个函数 + `ReflectSideChannelInfo` / `ReflectSideChannelStatus` /
+    `ReflectStartSideChannelResult` 类型。
+  - Index barrel 新增 re-export；`commands.test.ts` 增加 3 条转发
+    断言（list/get 无参数、start 转发 `{ agent_name, prompt }`、
+    cancel 转发 `{ id }`）。
+- **功能 UI**（`src/features/side-channel/`）：
+  - `SideChannelView.tsx` — PageShell + 运行计数徽标 + Start 表单
+    （agent 名 + prompt）+ 列表行（id / agent / prompt / 时长）+
+    运行行上的取消按钮。
+  - `useSideChannelController.ts` — TanStack Query + start/cancel
+    mutations，带 toast + 5s 轮询 refetch。
+  - 5 个冒烟 + 行为测试。
+- **路由 + 导航**：注册 `/side-channels` 路由；`ActivityBar`
+  新增 Side-channels 入口（`Workflow` 图标）；i18n
+  `shell.nav.sideChannels`（en/zh-CN）。
+- **范围说明**（后续计划）：真正运行 side-channel 的运行时 driver
+  （把 prompt 作为 `Submission::user_input` 提交到 agent
+  循环并在完成后更新注册表条目）尚未实现。
+  当前视图展示注册表状态并提供 create/cancel；
+  driver 是 Phase 2 下一个子项。
+- **验证**：`cargo check` ✅、`cargo test commands` ✅（27 通过）、
+  `pnpm typecheck` ✅、`pnpm test` ✅（60 文件 / 516 测试）。
 
-### Added — Phase 2 item 2: Remote daemon / Tailscale helper / iOS config UI
+### 新增 — Phase 2 第 2 项：远程 daemon / Tailscale 助手 / iOS 配置 UI
 
-Second Phase 2 item: desktop daemon status surface + Tailscale network helper
-+ iOS configuration entry point. Provides the building blocks for remote clients
-(iOS) to connect to a ReflectDesktop instance over Tailscale.
+Phase 2 第二个条目：桌面 daemon 状态呈现 + Tailscale 网络助手
++ iOS 配置入口。为远程客户端（iOS）经 Tailscale 连接到
+ReflectDesktop 实例提供建设基础。
 
-- **New `app-core::tailscale` module** (`app-core/src/tailscale.rs`):
-  - `TailscaleStatus` struct (installed/running/dns_name/ipv4/ipv6/suggested_remote_host).
-  - `detect()` — shells out `tailscale status --json=true`, parses JSON output,
-    returns degraded status on any failure (missing binary, non-zero exit, parse error).
-  - `daemon_command_preview()` — hint string for headless daemon setup.
-  - `derive_suggested_host()` — prefers DNS name (e.g. `node.tail.net`), falls back to IPv4.
-  - 6 unit tests (4 unit + 2 async): suggested host derivation (DNS/IPv4/none),
-    degraded status shape, daemon command preview includes default port,
-    detect returns status without panicking even when tailscale is absent.
-- **Remote config state** (`src-tauri/src/state/remote_config.rs`):
-  - `RemoteConfig` (host/port/auth_token/auto_connect) + `endpoint()` method
-    that returns `<host>:<port>` string + `is_ready()` checks host is set.
-  - `RemoteStatus` (state/message/endpoint/since_ms) for connection tracking.
-  - Default config: host/port/auth_token/auto_connect all null or empty.
-  - 4 unit tests: default endpoint uses default port, config is_ready with
-    host set, is_ready false with empty host, disconnected status carries since_ms.
-- **Backend wiring**:
-  - `MinimalAgentInner.remote_config: RwLock<RemoteConfig>` (built in
-    `build_empty_inner` with default config).
-  - Facade `MinimalAgent::remote_config()` accessor for command layer.
-  - New commands in `src-tauri/src/commands/remote.rs`:
+- **新 `app-core::tailscale` 模块**（`app-core/src/tailscale.rs`）：
+  - `TailscaleStatus` 结构体（installed/running/dns_name/ipv4/ipv6/suggested_remote_host）。
+  - `detect()` — shell 调用 `tailscale status --json=true`，解析 JSON 输出，
+    任何失败（缺二进制、非零退出码、解析错误）都返回降级状态。
+  - `daemon_command_preview()` — headless daemon 配置的提示字符串。
+  - `derive_suggested_host()` — 优先 DNS 名（如 `node.tail.net`），回退到 IPv4。
+  - 6 个单元测试（4 同步 + 2 异步）：建议 host 推导（DNS/IPv4/无）、
+    降级状态形状、daemon 命令预览含默认端口、
+    即使 tailscale 缺失 detect 也返回状态而不 panic。
+- **远程配置状态**（`src-tauri/src/state/remote_config.rs`）：
+  - `RemoteConfig`（host/port/auth_token/auto_connect）+ 返回
+    `<host>:<port>` 字符串的 `endpoint()` 方法 + 检查 host 是否已设置的
+    `is_ready()`。
+  - `RemoteStatus`（state/message/endpoint/since_ms）用于连接跟踪。
+  - 默认配置：host/port/auth_token/auto_connect 全为 null 或空。
+  - 4 个单元测试：默认 endpoint 使用默认端口、设置 host 后
+    is_ready 为真、host 为空时 is_ready 为假、断开状态携带 since_ms。
+- **后端接线**：
+  - `MinimalAgentInner.remote_config: RwLock<RemoteConfig>`（在
+    `build_empty_inner` 中以默认配置构建）。
+  - 供命令层使用的 facade 访问器 `MinimalAgent::remote_config()`。
+  - `src-tauri/src/commands/remote.rs` 新命令：
     `reflect_get_remote_config` / `reflect_update_remote_config` /
     `reflect_get_remote_status` / `reflect_tailscale_status` /
     `reflect_tailscale_daemon_command_preview` /
     `reflect_tailscale_daemon_start` / `reflect_tailscale_daemon_stop` /
-    `reflect_tailscale_daemon_status`.
-  - `RemoteConfigSnapshot` (camelCase serde) carries endpoint + is_ready flag.
-  - 3 unit tests: snapshot endpoint/ready flag handling, port defaulting,
-    update config round-trip.
-- **Frontend wrapper** (`src/utils/commands/remote.ts`):
-  - 8 functions + `ReflectRemoteConfigSnapshot` / `ReflectRemoteStatus` /
-    `ReflectTailscaleStatus` types.
-  - Index barrel re-export; `commands.test.ts` gains 8 forwarding assertions
-    (config get/update with defaults, tailscale status no-args,
-    daemon command preview/start/stop/status no-args).
-- **Feature UI** (`src/features/remote/`):
-  - `RemoteView.tsx` — PageShell + 4 card sections: iOS config (edit form
-    for host/port/auth/auto_connect with save), Tailscale detection (status
-    badge + DNS name + IPv4 display), Daemon hint (command preview with
-    copy-to-clipboard), Transport status (disconnected/connected state display).
-  - `useRemoteController.ts` — 4 TanStack Query queries (remote config,
-    remote status, tailscale status, daemon command preview) + update mutation
-    + draft editor state for iOS config form.
-  - `RemoteView.module.css` — full token-only styling with card layout.
-  - 5 tests: page title, 4 cards visible, ready badge + endpoint display,
-    tailscale fields rendered, daemon preview text shown, save forwards update.
-- **Routing + navigation**: `/remote` route registered; `ActivityBar`
-  gains a Remote entry (`Wifi` icon); i18n `shell.nav.remote` (en/zh-CN).
-- **Honest scope** (planned follow-ups): actual TCP JSON-RPC daemon binary
-  (`src-tauri/src/bin/reflect_daemon.rs`) NOT yet implemented — would require
-  an independent workspace crate with cross-compilation targets. iOS client
-  app also not started. The current implementation provides the desktop
-  configuration surface and Tailscale network detection as prerequisites.
-- **Verification**: `cargo check` ✅, `cargo test -p reflect-app-core -- tailscale`
-  ✅ (6 passed), `cargo test -p reflect-desktop -- remote` ✅ (7 passed),
-  `pnpm typecheck` ✅, `pnpm test` ✅ (61 files / 524 tests).
+    `reflect_tailscale_daemon_status`。
+  - `RemoteConfigSnapshot`（camelCase serde）携带 endpoint + is_ready 标志。
+  - 3 个单元测试：snapshot endpoint/ready 标志处理、端口默认、
+    更新配置往返。
+- **前端包装**（`src/utils/commands/remote.ts`）：
+  - 8 个函数 + `ReflectRemoteConfigSnapshot` / `ReflectRemoteStatus` /
+    `ReflectTailscaleStatus` 类型。
+  - Index barrel re-export；`commands.test.ts` 增加 8 条转发断言
+    （带默认值的 config get/update、无参数的 tailscale status、
+    无参数的 daemon 命令 preview/start/stop/status）。
+- **功能 UI**（`src/features/remote/`）：
+  - `RemoteView.tsx` — PageShell + 4 个卡片区块：iOS 配置（host/port/auth/
+    auto_connect 编辑表单 + 保存）、Tailscale 检测（状态徽标 + DNS 名 +
+    IPv4 显示）、Daemon 提示（命令预览 + 复制到剪贴板）、传输状态
+    （断开/连接状态显示）。
+  - `useRemoteController.ts` — 4 个 TanStack Query 查询（remote config、
+    remote status、tailscale status、daemon 命令预览）+ update mutation
+    + iOS 配置表单的草稿编辑状态。
+  - `RemoteView.module.css` — 纯 token 卡片布局样式。
+  - 5 个测试：页面标题、4 张卡片可见、ready 徽标 + endpoint 显示、
+    tailscale 字段渲染、daemon 预览文本展示、保存转发 update。
+- **路由 + 导航**：注册 `/remote` 路由；`ActivityBar`
+  新增 Remote 入口（`Wifi` 图标）；i18n `shell.nav.remote`（en/zh-CN）。
+- **范围说明**（后续计划）：真正的 TCP JSON-RPC daemon 二进制
+  （`src-tauri/src/bin/reflect_daemon.rs`）尚未实现 —— 需要
+  独立的 workspace crate 和交叉编译目标。iOS 客户端
+  应用也尚未启动。当前实现先提供桌面配置
+  界面与 Tailscale 网络检测作为前置。
+- **验证**：`cargo check` ✅、`cargo test -p reflect-app-core -- tailscale`
+  ✅（6 通过）、`cargo test -p reflect-desktop -- remote` ✅（7 通过）、
+  `pnpm typecheck` ✅、`pnpm test` ✅（61 文件 / 524 测试）。
 
-### Added — Phase 1 item 3: Agent definition management (profile UI)
+### 新增 — Phase 1 第 3 项：Agent 定义管理（profile UI）
 
-Lands the last slice of Phase 1 item 3: agent profile management end-to-end.
-Agent definitions are now creatable / editable / deletable from the desktop,
-stored as Markdown + YAML frontmatter at `~/.reflect/agents/<name>.md`, shared
-with the TUI/CLI.
+落地 Phase 1 第 3 项的最后一个切片：端到端的 agent profile 管理。
+现在可以在桌面端创建 / 编辑 / 删除 agent 定义，
+以 Markdown + YAML frontmatter 形式存储于 `~/.reflect/agents/<name>.md`，
+与 TUI/CLI 共享。
 
-- **Dependency**: `reflect-agent-def = { workspace = true }` + `serde_yaml`
-  added to `src-tauri/Cargo.toml` (serde_yaml for frontmatter serialization on
-  save; the vendor crate only ships a parser).
-- **Backend commands** (`src-tauri/src/commands/agents.rs`):
+- **依赖**：`src-tauri/Cargo.toml` 新增
+  `reflect-agent-def = { workspace = true }` + `serde_yaml`
+  （serde_yaml 用于保存时的 frontmatter 序列化；
+  vendor crate 仅提供解析器）。
+- **后端命令**（`src-tauri/src/commands/agents.rs`）：
   - `reflect_list_agent_defs` / `reflect_get_agent_def` /
     `reflect_save_agent_def` / `reflect_delete_agent_def` /
-    `reflect_parse_agent_md` (preview/validate without side effects).
-  - Save serializes frontmatter (YAML, omitting empty optionals) + body, then
-    round-trip-validates by re-parsing the written file.
-  - Path-safety: `path_for()` rejects empty / `..` / slashes / backslashes /
-    NUL in names, preventing traversal outside `~/.reflect/agents/`.
-  - Error mapping: `From<AgentDefError> for CommandError`.
-  - 4 unit tests: serialize round-trip, minimal-omits-optional, path
-    traversal rejection, filename building.
-- **Frontend wrapper** (`src/utils/commands/agents.ts`): 5 functions +
-  `ReflectAgentDef` / `ReflectMemoryScope` types. `index.ts` re-export; 4
-  forwarding assertions in `commands.test.ts`.
-- **Feature UI** (`src/features/agents/`):
-  - `AgentsView.tsx` — PageShell + list rows (name / description / model /
-    readonly / spawnable badges) + New button.
-  - `AgentEditor.tsx` — full-field editor: name / description / model /
-    tools (csv) / disallowed_tools (csv) / spawnable / readonly /
-    max_turns / max_result_chars / memory scopes / system_prompt (markdown
-    body). Name locked when editing (rename would change the file).
-  - `useAgentsController.ts` — query + save/delete mutations + draft state.
-  - 5 smoke + behavior tests.
-- **Routing + navigation**: `/agents` route registered; `ActivityBar` gains an
-  Agents entry (`Bot` icon); i18n `shell.nav.agents` (en/zh-CN).
-- **Verification**: `cargo check` ✅, `cargo test commands` ✅ (21 passed),
-  `pnpm typecheck` ✅, `pnpm test` ✅ (59 files / 508 tests).
+    `reflect_parse_agent_md`（无副作用的预览/校验）。
+  - 保存时序列化 frontmatter（YAML，省略空的 optional 字段）+ body，
+    然后重新解析写入的文件做往返校验。
+  - 路径安全：`path_for()` 拒绝名称中的空 / `..` / 斜杠 / 反斜杠 /
+    NUL，防止越出 `~/.reflect/agents/` 的路径穿越。
+  - 错误映射：`From<AgentDefError> for CommandError`。
+  - 4 个单元测试：序列化往返、minimal 省略 optional、
+    路径穿越拒绝、文件名构建。
+- **前端包装**（`src/utils/commands/agents.ts`）：5 个函数 +
+  `ReflectAgentDef` / `ReflectMemoryScope` 类型。`index.ts` re-export；
+  `commands.test.ts` 中 4 条转发断言。
+- **功能 UI**（`src/features/agents/`）：
+  - `AgentsView.tsx` — PageShell + 列表行（name / description / model /
+    readonly / spawnable 徽标）+ New 按钮。
+  - `AgentEditor.tsx` — 全字段编辑器：name / description / model /
+    tools（csv）/ disallowed_tools（csv）/ spawnable / readonly /
+    max_turns / max_result_chars / memory scope / system_prompt（markdown
+    body）。编辑时锁定名称（重命名会改变文件）。
+  - `useAgentsController.ts` — query + save/delete mutations + 草稿状态。
+  - 5 个冒烟 + 行为测试。
+- **路由 + 导航**：注册 `/agents` 路由；`ActivityBar` 新增
+  Agents 入口（`Bot` 图标）；i18n `shell.nav.agents`（en/zh-CN）。
+- **验证**：`cargo check` ✅、`cargo test commands` ✅（21 通过）、
+  `pnpm typecheck` ✅、`pnpm test` ✅（59 文件 / 508 测试）。
 
-### Added — Phase 1 item 2: Schedule (cron) command surface + UI
+### 新增 — Phase 1 第 2 项：Schedule（cron）命令面 + UI
 
-Lands cron-driven autonomous triggers end-to-end (backend → wrapper → UI). The
-vendor `reflect-stream::cron::CronScheduler` is now wired into the desktop:
-`install_agent_thread` injects the real `AgentThread::submission_sender()` and
-spawns a 30s driver tick; due jobs fire their `prompt` as a
-`Submission::user_input` into the agent loop.
+端到端落地 cron 驱动的自主触发（后端 → 包装 → UI）。vendor
+`reflect-stream::cron::CronScheduler` 现已接入桌面端：
+`install_agent_thread` 注入真实的 `AgentThread::submission_sender()` 并
+启动 30s driver tick；到期的 job 会把其 `prompt` 作为
+`Submission::user_input` 发送到 agent 循环。
 
-- **Dependency**: `reflect-stream = { workspace = true }` added to
-  `src-tauri/Cargo.toml`.
-- **State injection**: `MinimalAgentInner.cron_scheduler:
-  RwLock<Option<CronScheduler>>` (None until install). Facade
-  `MinimalAgent::install_cron_scheduler(sender)` constructs a scheduler with the
-  real sender, migrates any pre-existing jobs, starts the 30s driver, and writes
-  it back. `cron_scheduler()` accessor for the command layer.
-- **Backend commands** (`src-tauri/src/commands/schedule.rs`):
+- **依赖**：`src-tauri/Cargo.toml` 新增
+  `reflect-stream = { workspace = true }`。
+- **状态注入**：`MinimalAgentInner.cron_scheduler:
+  RwLock<Option<CronScheduler>>`（安装前为 None）。facade
+  `MinimalAgent::install_cron_scheduler(sender)` 用真实 sender 构建调度器，
+  迁移既有 job，启动 30s driver 并写回。
+  供命令层使用的 `cron_scheduler()` 访问器。
+- **后端命令**（`src-tauri/src/commands/schedule.rs`）：
   - `reflect_list_schedules` / `reflect_add_schedule` /
     `reflect_update_schedule` / `reflect_remove_schedule` /
-    `reflect_get_schedule_status`.
-  - Error mapping: `From<CronParseError> for CommandError` added; `thiserror`
-    `Display` preserves variant info.
-  - 3 unit tests covering the create/list/update/delete chain, bad-expression
-    rejection, and error mapping.
-- **Frontend wrapper** (`src/utils/commands/schedule.ts`): 5 functions +
-  `ReflectCronJob` / `ReflectScheduleStatus` types (snake_case vendor payload;
-  camelCase status envelope, mirroring Rust `rename_all`). `index.ts`
-  re-export added; `commands.test.ts` gains 4 forwarding assertions.
-- **Feature UI** (`src/features/schedule/`):
-  - `ScheduleView.tsx` — PageShell + status badge (`enabled/total active`) +
-    inline create form + job rows (schedule / prompt / next-fire + toggle /
-    remove).
-  - `useScheduleController.ts` — TanStack Query for list + status + 3 mutations
-    (add / toggle / remove) with toast + invalidation.
-  - `ScheduleView.module.css` — design-token-only.
-  - 6 smoke + behavior tests.
-- **Routing + navigation**: `/schedule` route registered; `ActivityBar` gains a
-  Schedule entry (`Clock` icon); i18n `shell.nav.schedule` (en/zh-CN).
-- **Out of scope (next)**: `run_now` (needs vendor `pub async fn run_now(&self)`
-  — `CronScheduler::tick` is public but reads the private `jobs` Arc; a one-line
-  upstream accessor is the clean path), persistence (vendor scheduler is
-  in-memory; restart drops jobs), tick-interval config, one-shot `run_at`.
-- **Verification**: `cargo check` ✅, `cargo test commands::schedule` ✅ (3/3),
-  `pnpm typecheck` ✅, `pnpm test` ✅ (58 files / 499 tests).
+    `reflect_get_schedule_status`。
+  - 错误映射：新增 `From<CronParseError> for CommandError`；`thiserror`
+    `Display` 保留 variant 信息。
+  - 3 个单元测试覆盖 create/list/update/delete 链、非法表达式
+    拒绝和错误映射。
+- **前端包装**（`src/utils/commands/schedule.ts`）：5 个函数 +
+  `ReflectCronJob` / `ReflectScheduleStatus` 类型（snake_case vendor payload；
+  camelCase 状态信封，对应 Rust `rename_all`）。`index.ts`
+  新增 re-export；`commands.test.ts` 增加 4 条转发断言。
+- **功能 UI**（`src/features/schedule/`）：
+  - `ScheduleView.tsx` — PageShell + 状态徽标（`enabled/total active`）+
+    内联创建表单 + job 行（schedule / prompt / next-fire + 开关 /
+    移除）。
+  - `useScheduleController.ts` — list + status 的 TanStack Query + 3 个
+    mutations（add / toggle / remove），带 toast + invalidation。
+  - `ScheduleView.module.css` — 仅用 design token。
+  - 6 个冒烟 + 行为测试。
+- **路由 + 导航**：注册 `/schedule` 路由；`ActivityBar` 新增
+  Schedule 入口（`Clock` 图标）；i18n `shell.nav.schedule`（en/zh-CN）。
+- **范围外（下一步）**：`run_now`（需要 vendor `pub async fn run_now(&self)`
+  —— `CronScheduler::tick` 是 public 但读取私有的 `jobs` Arc；上游一行
+  访问器是干净路径）、持久化（vendor 调度器是
+  内存态；重启丢 job）、tick 间隔配置、一次性 `run_at`。
+- **验证**：`cargo check` ✅、`cargo test commands::schedule` ✅（3/3）、
+  `pnpm typecheck` ✅、`pnpm test` ✅（58 文件 / 499 测试）。
 
-### Added — Phase 1 multi-agent feature UI (Tasks board)
+### 新增 — Phase 1 多 agent 功能 UI（Tasks 看板）
 
-Completes Phase 1 item 1 ("Team/Task/Coordinator command surface") end-to-end:
-the backend commands (previous-previous slice) and the IPC wrappers (previous
-slice) are now drivable from a desktop feature view. Multi-agent task
-coordination is visible and operable in the GUI for the first time.
+端到端补全 Phase 1 第 1 项（「Team/Task/Coordinator 命令面」）：
+后端命令（上上个切片）和 IPC 包装（上个切片）现在可以在桌面功能
+视图中驱动。多 agent 任务协调首次在 GUI 中可见、可操作。
 
-- **New feature** `src/features/tasks-board/`:
-  - `TasksBoardView.tsx` — page shell with List / Board view toggle
-    (`SegmentedControl`), active-list picker (free-text list id + team chips
-    from `reflect_list_teams`), and inline create form.
-  - `useTasksBoardController.ts` — TanStack Query for `reflect_list_tasks` /
-    `reflect_list_teams` + four mutations (create / claim / advance-status /
-    delete) with toast + cache invalidation. Mirrors the
-    `useMemoryController` shape (2026-07-25 refactor precedent).
-  - `TaskRow.tsx` — presentational row with id / subject / claimer / status
-    badge + per-status actions (Claim / Start / Complete / Delete).
-  - `TaskCreateForm.tsx` — inline create form (subject / description / owner).
-  - `TasksBoardView.module.css` — design-token-only styling (no inline hex),
-    board view is a 3-column grid that collapses to 1 column under 900px.
-  - `index.ts` — feature barrel.
-- **Routing**: `tasksRoute` (`/tasks`) registered in `src/router.tsx`.
-- **Navigation**: `ActivityBar` PRIMARY group gains a Tasks entry
-  (`FolderKanban` icon); i18n key `shell.nav.tasks` (en/zh-CN) added.
-- **Tests**: `TasksBoardView.test.tsx` — 8 smoke + behavior cases covering
-  empty state, create form submit, board-view switch, seeded rows with action
-  buttons, and claim / complete / delete forwarding to the right commands.
-  Full suite: 57 files / 489 tests green.
-- **Out of scope (next)**: Phase 1 item 2 — Schedule (cron) command surface
-  (backend `commands/schedule.rs` + wrapper `commands/schedule.ts` + UI).
+- **新功能** `src/features/tasks-board/`：
+  - `TasksBoardView.tsx` — 页面外壳，含 List / Board 视图切换
+    （`SegmentedControl`）、活跃列表选择器（自由文本 list id + 来自
+    `reflect_list_teams` 的 team chip）和内联创建表单。
+  - `useTasksBoardController.ts` — `reflect_list_tasks` /
+    `reflect_list_teams` 的 TanStack Query + 四个 mutations（create /
+    claim / advance-status / delete），带 toast + 缓存失效。沿用
+    `useMemoryController` 的形状（2026-07-25 重构先例）。
+  - `TaskRow.tsx` — 展示性行，含 id / subject / claimer / 状态
+    徽标 + 按状态的操作（Claim / Start / Complete / Delete）。
+  - `TaskCreateForm.tsx` — 内联创建表单（subject / description / owner）。
+  - `TasksBoardView.module.css` — 仅用 design token 的样式（无 inline
+    hex），board 视图是 3 列网格，900px 以下折叠为 1 列。
+  - `index.ts` — feature barrel。
+- **路由**：`tasksRoute`（`/tasks`）注册到 `src/router.tsx`。
+- **导航**：`ActivityBar` PRIMARY 分组新增 Tasks 入口
+  （`FolderKanban` 图标）；新增 i18n 键 `shell.nav.tasks`（en/zh-CN）。
+- **测试**：`TasksBoardView.test.tsx` — 8 个冒烟 + 行为用例，覆盖
+  空态、创建表单提交、board 视图切换、带操作按钮的预置行，
+  以及 claim / complete / delete 转发到正确命令。
+  全套：57 文件 / 489 测试通过。
+- **范围外（下一步）**：Phase 1 第 2 项 —— Schedule（cron）命令面
+  （后端 `commands/schedule.rs` + 包装 `commands/schedule.ts` + UI）。
 
-### Added — Phase 1 multi-agent IPC wrappers (frontend)
+### 新增 — Phase 1 多 agent IPC 包装（前端）
 
-Frontend TypeScript wrappers for the Task/Team commands landed in the
-previous slice. The 10 backend commands are now callable from
-`@/utils/commands` (and the compat barrels `@/utils/commands` /
-`@/utils/tauri`).
+为上个切片落地的 Task/Team 命令提供前端 TypeScript 包装。
+这 10 个后端命令现在可从
+`@/utils/commands`（以及兼容 barrel `@/utils/commands` /
+`@/utils/tauri`）调用。
 
-- **New wrappers**:
+- **新包装**：
   - `src/utils/commands/tasks.ts` — `reflect_list_tasks` /
     `reflect_create_task` / `reflect_get_task` / `reflect_update_task` /
-    `reflect_claim_task` / `reflect_delete_task` + types `ReflectTask`,
-    `ReflectTaskStatus`, `ReflectTaskPatch`, `ReflectTaskUpdateResult`,
-    `ReflectTaskStatusChange`.
+    `reflect_claim_task` / `reflect_delete_task` + 类型 `ReflectTask`、
+    `ReflectTaskStatus`、`ReflectTaskPatch`、`ReflectTaskUpdateResult`、
+    `ReflectTaskStatusChange`。
   - `src/utils/commands/teams.ts` — `reflect_list_teams` /
     `reflect_upsert_team` / `reflect_get_team` / `reflect_delete_team` +
-    types `ReflectTeam`, `ReflectTeamMember`.
-- **Type fidelity**: `Task` / `TeamFile` / `TeamMemberSpec` mirror the
-  vendor serde shape verbatim (snake_case, since the Rust types do not
-  derive `rename_all = "camelCase"`). Only the `TaskUpdateResult` envelope
-  is camelCase (matches the Rust `#[serde(rename_all = "camelCase")]` in
-  `commands/tasks.rs`). `TaskPatch` mirrors the `Option<Option<T>>`
-  tri-state via `T | null | undefined`.
-- **Barrel wiring**: `src/utils/commands/index.ts` re-exports both modules
-  (placed after `hooks`, before `git`). The compat barrels
-  (`src/utils/commands.ts`, `src/utils/tauri.ts`) pick them up
-  automatically via the existing `export * from './commands/index'` chain.
-- **Tests**: `src/utils/commands.test.ts` extended with 8 forwarding
-  assertions that lock the cmd-name + argument-key invariants for all 10
-  new wrappers (mirrors the existing per-domain pattern). Full suite:
-  56 files / 481 tests green.
+    类型 `ReflectTeam`、`ReflectTeamMember`。
+- **类型保真**：`Task` / `TeamFile` / `TeamMemberSpec` 逐字对应
+  vendor serde 形状（snake_case，因为 Rust 类型未
+  derive `rename_all = "camelCase"`）。只有 `TaskUpdateResult` 信封是
+  camelCase（对应 `commands/tasks.rs` 中的 Rust
+  `#[serde(rename_all = "camelCase")]`）。`TaskPatch` 用
+  `T | null | undefined` 镜像 `Option<Option<T>>`
+  三态。
+- **Barrel 接线**：`src/utils/commands/index.ts` re-export 两个模块
+  （置于 `hooks` 之后、`git` 之前）。兼容 barrel
+  （`src/utils/commands.ts`、`src/utils/tauri.ts`）经既有的
+  `export * from './commands/index'` 链自动获得。
+- **测试**：`src/utils/commands.test.ts` 增加 8 条转发断言，
+  锁定全部 10 个新包装的命令名 + 参数键不变量
+  （沿用既有 per-domain 模式）。全套：
+  56 文件 / 481 测试通过。
 
-### Added — Phase 1 multi-agent command surface (Task / Team)
+### 新增 — Phase 1 多 agent 命令面（Task / Team）
 
-Backend `vendor/reflect-task` already implemented the full `TaskManager` API
-(Task/Team CRUD + atomic claim + dependency tracking), but it was neither a
-dependency of the Tauri app nor exposed as commands. This lands the first
-slice of the multi-agent desktop roadmap (`docs/reference-projects-survey.md`
-§10 Phase 1, item 1): wire `TaskManager` into `MinimalAgentInner` and expose
-10 commands so the frontend can observe / drive multi-agent coordination.
+后端 `vendor/reflect-task` 早已实现完整的 `TaskManager` API
+（Task/Team CRUD + 原子认领 + 依赖跟踪），但它既不是 Tauri 应用的
+依赖也未暴露为命令。本次落地多 agent 桌面路线图
+（`docs/reference-projects-survey.md` §10 Phase 1 第 1 项）的
+第一个切片：把 `TaskManager` 接入 `MinimalAgentInner` 并暴露
+10 个命令，让前端可以观察 / 驱动多 agent 协同。
 
-- **Dependency**: `reflect-task = { workspace = true }` added to
-  `src-tauri/Cargo.toml`. Storage reuses the vendor default home
-  (`~/.reflect/tasks/<list>/`, `~/.reflect/teams/<name>.json`), shared with
-  the TUI/CLI — no new config knob, no vendor edits.
-- **State injection**: `MinimalAgentInner` now holds an
-  `Arc<reflect_task::TaskManager>` (Phase 0 form: no `hook_engine` /
-  `event_sink`; those land when the frontend UI subscribes to task lifecycle
-  events). Facade accessor `MinimalAgent::task_manager()` added.
-- **Commands** (`src-tauri/src/commands/tasks.rs`, registered in
-  `src-tauri/src/lib.rs::invoke_handler`):
-  - Task: `reflect_list_tasks` / `reflect_create_task` / `reflect_get_task` /
-    `reflect_update_task` / `reflect_claim_task` / `reflect_delete_task`.
-  - Team: `reflect_list_teams` / `reflect_upsert_team` / `reflect_get_team` /
-    `reflect_delete_team`.
-- **Return type shaping**: `reflect_update_task` returns a flattened
-  `TaskUpdateResult { task, updatedFields, statusChange? }` instead of the
-  vendor `UpdateOutcome` (whose `(TaskStatus, TaskStatus)` tuple is not
-  frontend-friendly and the type lacks `Serialize`). Camel-case serialized
-  to match existing IPC conventions.
-- **Error mapping**: `From<reflect_task::TaskError> for CommandError` added
-  in `commands/error.rs`; `TaskError`'s `thiserror::Display` ensures no
-  variant information is lost.
-- **Tests**: `commands::tasks` covers task create→get→update→list→claim→
-  delete, team upsert→get→list→delete, and the error mapping (3 tests,
-  all green). No Tauri runtime spin-up (mirrors `commands/sessions.rs`).
-- **Out of scope (next rounds)**: frontend IPC wrappers
-  (`src/utils/commands/{tasks,teams}.ts`), feature UI
-  (`src/features/{tasks-board,agents}/`), `hook_engine`/`event_sink`
-  injection for Task lifecycle events, Schedule (cron) commands, Coordinator
-  mode toggle.
+- **依赖**：`src-tauri/Cargo.toml` 新增
+  `reflect-task = { workspace = true }`。存储复用 vendor 默认 home
+  （`~/.reflect/tasks/<list>/`、`~/.reflect/teams/<name>.json`），与
+  TUI/CLI 共享 —— 无新配置项，不改 vendor。
+- **状态注入**：`MinimalAgentInner` 现持有
+  `Arc<reflect_task::TaskManager>`（Phase 0 形态：无 `hook_engine` /
+  `event_sink`；它们在前端 UI 订阅任务生命周期事件时落地）。
+  新增 facade 访问器 `MinimalAgent::task_manager()`。
+- **命令**（`src-tauri/src/commands/tasks.rs`，注册于
+  `src-tauri/src/lib.rs::invoke_handler`）：
+  - Task：`reflect_list_tasks` / `reflect_create_task` / `reflect_get_task` /
+    `reflect_update_task` / `reflect_claim_task` / `reflect_delete_task`。
+  - Team：`reflect_list_teams` / `reflect_upsert_team` / `reflect_get_team` /
+    `reflect_delete_team`。
+- **返回类型整形**：`reflect_update_task` 返回扁平化的
+  `TaskUpdateResult { task, updatedFields, statusChange? }` 而非
+  vendor `UpdateOutcome`（其 `(TaskStatus, TaskStatus)` 元组对前端
+  不友好且类型缺 `Serialize`）。以 camelCase 序列化
+  以匹配既有 IPC 约定。
+- **错误映射**：`commands/error.rs` 新增
+  `From<reflect_task::TaskError> for CommandError`；`TaskError` 的
+  `thiserror::Display` 确保不丢失
+  variant 信息。
+- **测试**：`commands::tasks` 覆盖 task create→get→update→list→claim→
+  delete、team upsert→get→list→delete 和错误映射（3 个测试，
+  全绿）。不启动 Tauri 运行时（沿用 `commands/sessions.rs` 模式）。
+- **范围外（后续轮次）**：前端 IPC 包装
+  （`src/utils/commands/{tasks,teams}.ts`）、功能 UI
+  （`src/features/{tasks-board,agents}/`）、Task 生命周期事件的
+  `hook_engine`/`event_sink` 注入、Schedule（cron）命令、Coordinator
+  模式开关。
 
-### Changed — Structural refactor (canonical live state docs)
+### 变更 — 结构重构（规范化实时状态文档）
 
-Canonical-live-state documentation pass after the structural refactor. No code or
-runtime behaviour changes; only docs are updated. Module layout is rewritten to
-match the post-refactor file tree. Stale hardcoded counts (number of Tauri
-commands, namespace count, etc.) are removed in favour of "domain-split" wording.
+结构重构后的规范化实时状态文档整理。无代码或
+运行时行为变更；仅更新文档。模块布局重写为
+与重构后的文件树一致。移除过时的硬编码计数（Tauri 命令
+数、命名空间数等），改用「按域拆分」表述。
 
-- **Backend `src-tauri/src/commands/`**: each `#[tauri::command]` body now lives
-  in a per-domain module under `src-tauri/src/commands/<domain>.rs`; the thin
-  `src-tauri/src/commands/mod.rs` re-exports them. Shared error helpers live in
-  `src-tauri/src/commands/error.rs` (`CommandError` / `CommandResult`). Domain
-  modules cover agent / allowlist / config / export / files / git / hooks /
-  memory / search / sessions / shell / skills / update / workspaces. The full
-  command list is enumerated in `docs/PROTOCOL_BRIDGE.md` §2.0 and registered in
-  `src-tauri/src/lib.rs::invoke_handler`.
+- **后端 `src-tauri/src/commands/`**：每个 `#[tauri::command]` 函数体现在位于
+  `src-tauri/src/commands/<domain>.rs` 的按域模块中；薄壳
+  `src-tauri/src/commands/mod.rs` re-export 它们。共享错误助手位于
+  `src-tauri/src/commands/error.rs`（`CommandError` / `CommandResult`）。域
+  模块涵盖 agent / allowlist / config / export / files / git / hooks /
+  memory / search / sessions / shell / skills / update / workspaces。完整
+  命令清单枚举于 `docs/PROTOCOL_BRIDGE.md` §2.0 并注册在
+  `src-tauri/src/lib.rs::invoke_handler`。
 
-- **Backend `src-tauri/src/` support modules**: private helpers split off from
-  `state.rs` now live alongside it as `hook_store.rs`, `memory_store.rs`,
-  `shell_sessions.rs`, and `workspace_state.rs`. Public modules remain
-  `state.rs`, `events.rs`, `dock.rs`, `menu.rs`, `shortcut.rs`, `tray.rs`, and
-  `mcp.rs`.
+- **后端 `src-tauri/src/` 支撑模块**：从
+  `state.rs` 拆出的私有助手现与其并列：`hook_store.rs`、`memory_store.rs`、
+  `shell_sessions.rs` 和 `workspace_state.rs`。public 模块仍为
+  `state.rs`、`events.rs`、`dock.rs`、`menu.rs`、`shortcut.rs`、`tray.rs` 和
+  `mcp.rs`。
 
-- **Frontend agent store**: the Zustand store implementation is now a module at
-  `src/stores/agent/` (`store.ts`, `reducer.ts`, `turns.ts`, `toast.ts`,
-  `servers.ts`, `types.ts`, `useAgent.ts`, `index.ts`). `src/stores/agentStore.ts`
-  is retained as a thin compatibility facade that re-exports `useAgentStore`,
-  `reduceEvent`, `useAgent`, and the type union from `./agent`. New code should
-  import directly from `@/stores/agentStore` (or from `./agent` for finer
-  granularity); the legacy `src/services/agent.ts` re-export continues to work.
+- **前端 agent store**：Zustand store 实现现为
+  `src/stores/agent/` 模块（`store.ts`、`reducer.ts`、`turns.ts`、`toast.ts`、
+  `servers.ts`、`types.ts`、`useAgent.ts`、`index.ts`）。`src/stores/agentStore.ts`
+  保留为薄兼容 facade，re-export `useAgentStore`、
+  `reduceEvent`、`useAgent` 和来自 `./agent` 的类型联合。新代码应
+  直接从 `@/stores/agentStore` 导入（或从 `./agent` 获得更细
+  粒度）；旧 `src/services/agent.ts` re-export 继续可用。
 
-- **Composer ownership**: `Composer` is now owned by `src/features/composer/`
-  (`Composer.tsx`, `SlashPopup.tsx`, `MentionPicker.tsx`, `AttachmentBar.tsx`,
-  `slashCommands.ts`, `slashEngine.ts`, `useComposerInput.ts`,
-  `useComposerSubmission.ts`, `useAttachments.ts`, `usePromptHistory.ts`). The
-  previous `src/features/messages/Composer.tsx` is now a thin re-export shim —
-  `export { Composer } from '@/features/composer/Composer'` — so existing
-  imports continue to work.
+- **Composer 归属**：`Composer` 现由 `src/features/composer/` 持有
+  （`Composer.tsx`、`SlashPopup.tsx`、`MentionPicker.tsx`、`AttachmentBar.tsx`、
+  `slashCommands.ts`、`slashEngine.ts`、`useComposerInput.ts`、
+  `useComposerSubmission.ts`、`useAttachments.ts`、`usePromptHistory.ts`）。原先的
+  `src/features/messages/Composer.tsx` 现为薄 re-export 垫片 ——
+  `export { Composer } from '@/features/composer/Composer'` —— 因此既有
+  导入继续可用。
 
-- **Settings decomposition**: `src/features/settings/` is split into:
-  - top-level shell — `SettingsView.tsx`, `ConfigForm.tsx`, `configSchema.tsx`
-  - `sections/` — `DisplaySection.tsx`, `NotificationsSection.tsx`,
-    `UpdatesSection.tsx` (each with its own `.ssr.test.tsx` where applicable)
-  - `components/` — `StructuredField.tsx`, `ComplexEditors.tsx`, `index.ts`
-    (shared form atoms + complex-section editors)
-  - `config/` — `schema.ts` (FieldSpec catalogue per `ReflectConfig` section),
-    `toml.ts` (pure read/edit helpers keeping unknown keys intact), `index.ts`
-    (barrel), `toml.test.ts`
+- **Settings 拆分**：`src/features/settings/` 拆为：
+  - 顶层外壳 —— `SettingsView.tsx`、`ConfigForm.tsx`、`configSchema.tsx`
+  - `sections/` —— `DisplaySection.tsx`、`NotificationsSection.tsx`、
+    `UpdatesSection.tsx`（各自带适用的 `.ssr.test.tsx`）
+  - `components/` —— `StructuredField.tsx`、`ComplexEditors.tsx`、`index.ts`
+    （共享表单原子 + 复杂区块编辑器）
+  - `config/` —— `schema.ts`（按 `ReflectConfig` 区块的 FieldSpec 目录）、
+    `toml.ts`（保持未知键完整的纯读/写助手）、`index.ts`
+    （barrel）、`toml.test.ts`
 
-- **Frontend IPC wrappers**: per-domain wrappers now live under
-  `src/utils/commands/<domain>.ts` and are aggregated by
-  `src/utils/commands/index.ts`. `src/utils/tauri.ts` and `src/utils/commands.ts`
-  remain as compatibility barrels that re-export from `./bridge` + `./commands`
-  + `./types`. `src/utils/bridge.ts` is the low-level `invoke` / `listen` + Tauri
-  context-fallback layer with `isMissingTauriInvokeError` guard.
+- **前端 IPC 包装**：按域包装现在位于
+  `src/utils/commands/<domain>.ts`，由
+  `src/utils/commands/index.ts` 聚合。`src/utils/tauri.ts` 和 `src/utils/commands.ts`
+  保留为兼容 barrel，从 `./bridge` + `./commands`
+  + `./types` re-export。`src/utils/bridge.ts` 是底层 `invoke` / `listen` + Tauri
+  上下文回退层，带 `isMissingTauriInvokeError` 守卫。
 
-- **i18n decomposition**: runtime split into
-  `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}`;
-  the `STRINGS` dict is composed in `src/utils/i18n/strings/index.ts` by
-  merging per-namespace catalog modules under `src/utils/i18n/strings/`
-  (about / app / apps / chat / collaboration / common / composer / debug /
+- **i18n 拆分**：运行时拆为
+  `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}`；
+  `STRINGS` 字典在 `src/utils/i18n/strings/index.ts` 中由
+  `src/utils/i18n/strings/` 下的按命名空间目录模块合并组成
+  （about / app / apps / chat / collaboration / common / composer / debug /
   design / dictation / files / git / home / inspector / memory / mobile /
   modal / models / notifications / palette / permissionMode / plan / prompts /
   settings / shell / sidebar / skills / slash / terminal / threads / toast /
-  update / workspaces). `src/utils/i18n.ts` is the compatibility barrel that
-  re-exports the runtime API plus the merged `STRINGS` / `ALL_KEYS`.
+  update / workspaces）。`src/utils/i18n.ts` 是兼容 barrel，
+  re-export 运行时 API 及合并后的 `STRINGS` / `ALL_KEYS`。
 
-- **Modal decomposition**: `src/features/modals/` now contains one `.tsx` per
-  modal body — `ApprovalModal.tsx`, `QuestionModal.tsx`, `AskUserModal.tsx`,
-  `PlanReadyModal.tsx`, `ApprovalHistory.tsx` — plus the shared `ModalShell.tsx`
-  and the `index.tsx` `ModalStack` orchestrator.
+- **Modal 拆分**：`src/features/modals/` 现在每个 modal body 一个
+  `.tsx` —— `ApprovalModal.tsx`、`QuestionModal.tsx`、`AskUserModal.tsx`、
+  `PlanReadyModal.tsx`、`ApprovalHistory.tsx` —— 外加共享的 `ModalShell.tsx`
+  和 `index.tsx` 的 `ModalStack` 编排器。
 
-- **Terminal / memory / shell decomposition**: stateful orchestration extracted
-  into co-located controllers:
-  - `src/features/terminal/TerminalView.tsx` (presentational) +
-    `src/features/terminal/useTerminalController.ts` (sessions / lines /
-    run / kill / clear)
-  - `src/features/memory/MemoryView.tsx` (presentational, with `MemoryRow.tsx`
-    and `MemoryAddForm.tsx`) + `src/features/memory/useMemoryController.ts`
-    (TanStack query + mutations + filter/edit/new-form state)
+- **Terminal / memory / shell 拆分**：有状态编排抽为
+  同目录的 controller：
+  - `src/features/terminal/TerminalView.tsx`（展示层）+
+    `src/features/terminal/useTerminalController.ts`（sessions / lines /
+    run / kill / clear）
+  - `src/features/memory/MemoryView.tsx`（展示层，含 `MemoryRow.tsx`
+    和 `MemoryAddForm.tsx`）+ `src/features/memory/useMemoryController.ts`
+    （TanStack query + mutations + 过滤/编辑/新表单状态）
   - `src/features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts`
-    for shell-level interactions.
+    承担 shell 层交互。
 
-- **Docs updates**: `AGENTS.md`, `README.md`, `docs/codebase-map.md`,
-  `docs/ARCHITECTURE.md`, `docs/PROTOCOL_BRIDGE.md`, and `docs/CHANGELOG.md` are
-  rewritten to describe the post-refactor layout as canonical live state. No
-  past commentary appears outside the changelog. All referenced paths exist.
+- **文档更新**：`AGENTS.md`、`README.md`、`docs/codebase-map.md`、
+  `docs/ARCHITECTURE.md`、`docs/PROTOCOL_BRIDGE.md` 和 `docs/CHANGELOG.md`
+  重写为以重构后布局为规范的实时状态。changelog 之外无
+  历史评注。所有引用路径均存在。
 
-### Fixed — Core UX
+### 修复 — 核心 UX
 
-- **Window drag region**: TitleBar `-webkit-app-region: drag` now actually fires. Hardened
-  `[data-tauri-drag-region]` in `src/styles/base.css` with `position: relative; z-index: 1;
-  user-select: none` so flex/transform ancestors don't trap the drag. Explicitly declared
-  `-webkit-app-region: drag` on `.bar` / `.left` / `.right` / `.title` / `.sessionStatus`
-  in `src/features/shell/TitleBar.module.css` as belt-and-suspenders. Loosened
-  `AppShell.module.css` `.shell { overflow: clip }` (was `hidden`) so the drag element
-  actually receives mousedown. Added `onMouseDown` guard on TitleBar to prevent webview
-  focus stealing from breaking native drag.
+- **窗口拖拽区**：TitleBar 的 `-webkit-app-region: drag` 现在真正生效。在
+  `src/styles/base.css` 中加固 `[data-tauri-drag-region]`（`position: relative; z-index: 1;
+  user-select: none`），避免 flex/transform 祖先截获拖拽。在
+  `src/features/shell/TitleBar.module.css` 中对 `.bar` / `.left` / `.right` / `.title` / `.sessionStatus`
+  显式声明 `-webkit-app-region: drag` 作为双保险。放宽
+  `AppShell.module.css` 的 `.shell { overflow: clip }`（原为 `hidden`），让拖拽元素
+  真正收到 mousedown。TitleBar 增加 `onMouseDown` 守卫，防止 webview
+  抢焦点破坏原生拖拽。
 
-- **Full project i18n (English + Simplified Chinese)**: Expanded `src/utils/i18n.ts` from
-  32 keys to **280+ keys** across 24 namespaces (`common`, `app`, `shell`, `sidebar`,
-  `threads`, `composer`, `chat`, `settings`, `palette`, `modal`, `home`, `files`, `git`,
-  `terminal`, `skills`, `workspaces`, `models`, `plan`, `prompts`, `notifications`,
-  `about`, `apps`, `collaboration`, `debug`, `mobile`, `update`, `memory`, `dictation`,
-  `design`, `toast`, `slash`, `permissionMode`, `inspector`). All 43 components previously
-  with hardcoded English strings now render via `useI18n()`. Titles, aria-labels,
-  toasts, command palette entries, slash commands, dictation language (`zh-CN` /
-  `en-US`), permission mode descriptions, configuration schema field labels and
-  placeholders, all four modals (Approval / Question / AskUser / PlanReady), every
-  ConfigForm section, every route view (Home / Files / Search / Git / Terminal / Skills
+- **全项目 i18n（英语 + 简体中文）**：`src/utils/i18n.ts` 从
+  32 个键扩展到 **280+ 个键**、覆盖 24 个命名空间（`common`、`app`、`shell`、`sidebar`、
+  `threads`、`composer`、`chat`、`settings`、`palette`、`modal`、`home`、`files`、`git`、
+  `terminal`、`skills`、`workspaces`、`models`、`plan`、`prompts`、`notifications`、
+  `about`、`apps`、`collaboration`、`debug`、`mobile`、`update`、`memory`、`dictation`、
+  `design`、`toast`、`slash`、`permissionMode`、`inspector`）。此前硬编码英文文案的 43 个组件
+  全部改为经 `useI18n()` 渲染。标题、aria-label、
+  toast、命令面板条目、slash 命令、听写语言（`zh-CN` /
+  `en-US`）、权限模式描述、配置 schema 字段标签与
+  占位符、全部四个 modal（Approval / Question / AskUser / PlanReady）、
+  ConfigForm 每个区块、每个路由视图（Home / Files / Search / Git / Terminal / Skills
   / Workspaces / Models / Plan / Prompts / Notifications / About / Apps / Collaboration
-  / Debug / Mobile / Update / Memory / Dictation / DesignSystem) all localize. Catalog
-  parity enforced by `src/utils/i18n.test.ts` (parity + interpolation + plural +
-  fallback). Persisted to `localStorage` and synced to `<html lang>` on switch.
+  / Debug / Mobile / Update / Memory / Dictation / DesignSystem）全部本地化。目录
+  一致性由 `src/utils/i18n.test.ts` 保证（一致性 + 插值 + 复数 +
+  回退）。持久化到 `localStorage` 并在切换时同步到 `<html lang>`。
 
-- Added persisted English/Simplified Chinese localization with a Settings language selector for core shell, chat, session, and settings UI.
-- Replaced the narrow provider-only settings form with a fully structured form that renders a direct input for every supported section in `vendor/reflect-config/src/schema.rs`: `active`, `anthropic`, `openai`, `ollama`, `compact`, `token_budget`, `sandbox`, `routing.{main,compact,subagent}`, `coordinator`, `ask_user_question`, `model`, `analytics`, `notifications`, `postgres_session`, `sse_redis`, `bridge`, `voice`, `dap`, `acp`, `sanitize`, `plugins`, `feature_flags`, `mcp_servers`, `lsp_servers`, `hooks`, `subagent_providers`, `config_version`. Each input edits and serializes TOML in-place; the Advanced raw TOML editor remains the release valve.
-- Session selection now replays the selected rollout, replaces stale chat turns, and displays localized loading, empty, retry, and error states. Race-protected via a request id ref.
+- 新增持久化的英/简体中文本地化，Settings 中提供语言选择器，覆盖核心 shell、聊天、会话和设置 UI。
+- 用全结构化表单取代仅覆盖 provider 的窄表单，为 `vendor/reflect-config/src/schema.rs` 支持的每个区块渲染直接输入项：`active`、`anthropic`、`openai`、`ollama`、`compact`、`token_budget`、`sandbox`、`routing.{main,compact,subagent}`、`coordinator`、`ask_user_question`、`model`、`analytics`、`notifications`、`postgres_session`、`sse_redis`、`bridge`、`voice`、`dap`、`acp`、`sanitize`、`plugins`、`feature_flags`、`mcp_servers`、`lsp_servers`、`hooks`、`subagent_providers`、`config_version`。每个输入项就地编辑并序列化 TOML；高级 raw TOML 编辑器仍作为兜底出口。
+- 会话选择现在会重放所选 rollout、替换过期聊天轮次，并显示本地化的加载、空态、重试和错误状态。通过 request id ref 做竞态保护。
 
-### Added
+### 新增
 
-- **Appearance customization**: Settings → Display now exposes system/dark/light themes, custom accent colors, adjustable surface transparency, persistent local or URL background images, and background image strength. Appearance preferences are safely migrated from existing `reflect.uiprefs.v1` data and applied through shared design tokens; Reduce Transparency now forces opaque surfaces and hides the wallpaper.
-- `ConfigForm` component (`src/features/settings/ConfigForm.tsx`) and `configSchema` helpers (`src/features/settings/configSchema.tsx`).
-- `src/features/messages/ChatView.test.tsx` covering loading, empty, error, retry, locale switching, and session-clearing flows (5 cases).
-- Extended `SettingsView.test.tsx` covering all 25+ structured inputs and `configSchema` helpers (5 new cases).
+- **外观定制**：Settings → Display 现提供 system/dark/light 主题、自定义强调色、可调表面透明度、持久的本地或 URL 背景图以及背景图强度。外观偏好从既有 `reflect.uiprefs.v1` 数据安全迁移并经共享 design token 应用；开启「减少透明度」时强制不透明表面并隐藏壁纸。
+- `ConfigForm` 组件（`src/features/settings/ConfigForm.tsx`）与 `configSchema` 助手（`src/features/settings/configSchema.tsx`）。
+- `src/features/messages/ChatView.test.tsx` 覆盖加载、空态、错误、重试、语言切换和会话清除流程（5 个用例）。
+- 扩展 `SettingsView.test.tsx`，覆盖全部 25+ 个结构化输入和 `configSchema` 助手（5 个新用例）。
 
-### Added — Batch 12 (Native menu wiring + docs polish)
+### 新增 — Batch 12（原生菜单接线 + 文档打磨）
 
-- **Native menu infrastructure**: `src-tauri/src/menu.rs` already provides 5 submenus
-  (Reflect / Edit / Composer / View / Window) with 12 menu items including accelerators:
-  - Reflect: About / Check for Updates / Settings (Cmd+,) / Quit
-  - Edit: Undo / Redo / Cut / Copy / Paste / Select All (Predefined)
-  - Composer: Cycle Model (Cmd+M) / Cycle Reasoning (Cmd+R) / New Agent (Cmd+N) / Interrupt (Cmd+.)
-  - View: Toggle Sidebar (Cmd+B) / Toggle Terminal (Cmd+T)
-  - Window: Minimize / Zoom / Close
-- **Menu event forwarding**: `handle_menu_event` emits `menu-*` events to frontend for
-  Settings navigation, Cycle Reasoning, New Agent, Interrupt, Toggle Sidebar, Toggle Terminal.
-  Menu event listeners were added to AppShell to handle these events via `listen()`.
-- **Dictation stub**: `DictationView` displays "Voice input coming soon" with Mic icon
-  and Web Speech API / macOS Speech Recognition roadmap.
-- **Update view**: `UpdateView` shows current version from ping query, manual update
-  instructions via `bash scripts/install.sh`, and notes about tauri-plugin-updater integration.
-- **TitleBar ⌘K hint**: Search icon + "⌘K" kbd hint on the right side with tooltip,
-  making the CommandPalette discoverable.
-- **StatusBar session count**: MessagesSquare icon + session count from `reflect_list_sessions`,
-  tooltip "N sessions on disk".
-- **Documentation**: CHANGELOG.md + PROTOCOL_BRIDGE.md + codebase-map.md updated for
-  all B1-B12 changes. All 342/342 tests pass; tsc clean; cargo check clean.
+- **原生菜单基础设施**：`src-tauri/src/menu.rs` 已提供 5 个子菜单
+  （Reflect / Edit / Composer / View / Window），含 12 个带快捷键的菜单项：
+  - Reflect：About / Check for Updates / Settings (Cmd+,) / Quit
+  - Edit：Undo / Redo / Cut / Copy / Paste / Select All（Predefined）
+  - Composer：Cycle Model (Cmd+M) / Cycle Reasoning (Cmd+R) / New Agent (Cmd+N) / Interrupt (Cmd+.)
+  - View：Toggle Sidebar (Cmd+B) / Toggle Terminal (Cmd+T)
+  - Window：Minimize / Zoom / Close
+- **菜单事件转发**：`handle_menu_event` 向前端发出 `menu-*` 事件，覆盖
+  Settings 导航、Cycle Reasoning、New Agent、Interrupt、Toggle Sidebar、Toggle Terminal。
+  AppShell 增加 menu 事件监听器，经 `listen()` 处理这些事件。
+- **听写 stub**：`DictationView` 显示 "Voice input coming soon"，带 Mic 图标
+  及 Web Speech API / macOS Speech Recognition 路线图。
+- **更新视图**：`UpdateView` 显示来自 ping 查询的当前版本、经
+  `bash scripts/install.sh` 的手动更新说明，以及 tauri-plugin-updater 集成备注。
+- **TitleBar ⌘K 提示**：右侧 Search 图标 + "⌘K" 键盘提示（带 tooltip），
+  让 CommandPalette 更易被发现。
+- **StatusBar 会话计数**：来自 `reflect_list_sessions` 的 MessagesSquare 图标 + 会话数，
+  tooltip 为 "N sessions on disk"。
+- **文档**：CHANGELOG.md + PROTOCOL_BRIDGE.md + codebase-map.md 更新覆盖
+  全部 B1-B12 变更。342/342 测试全部通过；tsc 无错；cargo check 无错。
 
-### Added — Batch 1 (协议层 + app-core 基础)
+### 新增 — Batch 1 (协议层 + app-core 基础)
 
 - **协议类型生成 (B1-01)**:给 `vendor/reflect-protocol` 的 `EventMsg` / `Op` /
   `Submission` / `UserInputItem` / `ContentBlock` / `Question` 等所有
@@ -691,7 +690,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 
 
 
-### Fixed — 顶栏贯通 + 红绿灯避让 + drag region
+### 修复 — 顶栏贯通 + 红绿灯避让 + drag region
 
 - **根因**:`tauri.conf.json` 已设 `titleBarStyle: "Overlay"`(红绿灯按钮浮在
   webview 之上),但 React 树**没有任何元素为红绿灯预留避让空间**,
@@ -710,7 +709,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **回归保护**:`AppShell.test.tsx` 新增断言 TitleBar 是 `.shell` 的第一个子元素
   且挂了 `data-tauri-drag-region`。
 
-### Fixed — 主内容区永久空白（critical regression）
+### 修复 — 主内容区永久空白（严重回归）
 
 - **根因**:`AppShell` 用 `children` prop 渲染主内容,但 TanStack Router v1 的
   root route component 不会收到 children —— 必须渲染 `<Outlet />` 才能把
@@ -726,7 +725,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **TitleBar session 文案**:`session: (waiting...)` → `(waiting…)`(排版),
   并在 statusQuery 有 model 时显示真实 model 名,而不是永远 "waiting"。
 
-### Changed — UI 全面重建收尾（polish + a11y + 测试 + 文档）
+### 变更 — UI 全面重建收尾（打磨 + a11y + 测试 + 文档）
 
 #### 功能性 bug 修复
 - **`AppShell.Sidebar` 接线**:`onNewChat` 接入 → 导航 `/chat` 并清 active；`onSelect`
@@ -786,7 +785,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 
 **全套 210 测试绿,生产 build 成功(CSS 76KB / JS 627KB)。**
 
-### Added — Batch 7 (per-tool ToolCells + Approval history)
+### 新增 — Batch 7（按工具 ToolCells + 审批历史）
 
 - **ToolCells (B7-05)**:新增 `src/features/messages/ToolCells.tsx`,
   per-tool 渲染 `tool_call` TurnItem。`ICON_MAP` 把
@@ -806,22 +805,22 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **jsdom polyfill**:`Element.prototype.scrollIntoView = noop`，
   让 autoscroll 组件在测试环境不报错。
 
-### Added — Batch 11 (Memory management view)
+### 新增 — Batch 11（记忆管理视图）
 
 - **MemoryView (B11-01)**: 新 `src/features/memory/MemoryView.tsx`,
   通过 `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory`
   与后端同步持久记忆。
-  - Scope filter: All / Global / Project / Session 四个 tab,
+  - Scope 过滤: All / Global / Project / Session 四个 tab,
     实时计数;`filterBar` + `addBtn` 一行完成。
   - 新增表单: scope select + key + value input + Save button,
     点击 Add 展开,Cancel 收起。
   - 内联编辑: 点击 edit → textarea + Save/Cancel; delete → Trash2。
-  - Empty state: "Add a key above or let the agent learn your preferences."
+  - 空态: "Add a key above or let the agent learn your preferences."
 - **router**: 新增 `/memory` → `MemoryView` 路由。
 - **测试**: MemoryView 5 个 vitest (title/filters/add toggle/form/empty state)。
   342/342 tests pass; tsc clean; cargo check clean。
 
-### Added — Batch 10 (CommandPalette + ⌘K Keymap + StatusBar session count)
+### 新增 — Batch 10（CommandPalette + ⌘K 键映射 + StatusBar 会话计数）
 
 - **CommandPalette (B10-01)**:新 `src/features/command-palette/` 目录
   - `CommandPalette.tsx`: 模态浮层 + 输入框 + 模糊匹配列表; ↑↓ 选择,
@@ -844,7 +843,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **测试**: fuzzy 7 + CommandPalette 6 = 13 个新 vitest。337/337 tests pass;
   tsc clean; cargo check clean(无 Rust 变更)。
 
-### Added — Batch 9 (File tree + Code editor + workspace switcher)
+### 新增 — Batch 9（文件树 + 代码编辑器 + 工作区切换器）
 
 - **Backend (B9-01)**:新 `reflect_list_dir(path?, maxDepth=4)` 返回
   `DirListing { root, entries, truncated }`,跳过 dotfile + node_modules /
@@ -871,7 +870,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **测试**:FileTree 5 + CodeEditor 5 = 10 个新 vitest。324/324 tests pass;
   tsc clean;cargo check clean。
 
-### Added — Batch 8 (Terminal: real shell exec + streaming)
+### 新增 — Batch 8（Terminal：真实 shell 执行 + 流式输出）
 
 - **Backend (B8-01)**:`reflect_run_shell(cmd) -> ShellSession { id, command, cwd }`
   用 `tokio::process::Command` 启动 `/bin/zsh -lc` (macOS) / `/bin/sh -lc`。
@@ -890,7 +889,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **测试**:TerminalView 4 个 presentational tests;`scripts/dump-ts-types.sh`
   重新生成。
 
-### Changed — UI/UX 全面重建（阶段 4：剩余视图统一外壳 + stub 美化）
+### 变更 — UI/UX 全面重建（阶段 4：剩余视图统一外壳 + stub 美化）
 - **新增 `shell/PageShell`**:非 Chat 视图统一外壳(图标 + 标题 + 副标题 + 右侧操作 +
   滚动内容容器,sm/md/lg 三档宽度)。
 - **剩余 13 个视图全部 CSS Modules 重写**:
@@ -914,7 +913,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
   emoji 图标全部替换为 lucide-react;M1.x scaffold 字样全部移除。
 - **测试**:全套 170/170 绿,生产 build 成功(CSS 74KB / JS 625KB)。
 
-### Changed — UI/UX 全面重建（阶段 3：高频视图精修）
+### 变更 — UI/UX 全面重建（阶段 3：高频视图精修）
 - **新增 primitive `SegmentedControl`**:分段选择控件(low/medium/high 互斥切换),
   支持 stacked 卡片式 + hint。
 - **`SettingsView` 重写为 IDE 式二级导航 + 卡片**:
@@ -943,7 +942,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **测试**:`SettingsView.test.tsx` 的 section 断言改 getAllByText(nav + section 同名)。
   全套 170/170 绿,生产 build 成功(CSS 51KB / JS 611KB)。
 
-### Changed — UI/UX 全面重建（阶段 2：IDE 式 Shell + 核心三件套）
+### 变更 — UI/UX 全面重建（阶段 2：IDE 式 Shell + 核心三件套）
 - **新建 `src/features/shell/` IDE 三栏布局**:
   - `AppShell`:ActivityBar(56px) + Sidebar(可折叠) + Main + Inspector(可折叠) + StatusBar
     五区布局,取代旧的 Topbar/三栏/BottomBar 脚手架。
@@ -976,7 +975,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
   `app.smoke.test.tsx`(AppLayout → AppShell 断言 + 补 useLocation/useMatches mock)。
   全套 170/170 绿,生产 build 成功(CSS 37KB / JS 600KB)。
 
-### Changed — UI/UX 全面重建（阶段 1：设计系统地基）
+### 变更 — UI/UX 全面重建（阶段 1：设计系统地基）
 - **`tokens.css` 深色优先重写**:`:root` 即深色主题(IDE 风,4 级背景层次
   `--bg-app/surface/elevated/input`),`[data-theme="light"]` 覆盖为浅色,
   `prefers-color-scheme` 媒体查询支持 system 模式。语义色(success/warning/danger/info)
@@ -1001,7 +1000,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
   删除 `buttonStyles.test.ts`(工具已废弃);`app.smoke.test.tsx` 同步更新 barrel/token 断言。
   全套 170/170 绿。
 
-### Added
+### 新增
 - **跨平台打包脚本 `scripts/build.sh`**:自动检测 OS(macOS/Linux/Windows),
   输出对应原生包(macOS→app+dmg / Linux→deb+appimage / Windows→msi)。
   支持 `--universal`(macOS arm64+x86_64 合一)、`--fast`(release-fast profile)、
@@ -1015,7 +1014,7 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
   downloadBootstrapper`(用户无 WebView2 时自动下载);`linux.deb.depends` 对齐
   README 文档化的 webkit2gtk-4.1 / libayatana-appindicator3 / librsvg2 依赖。
 
-### Added
+### 新增
 - **真实 agent 集成(阶段 1)**:`MinimalAgent` 不再用空 `ModelRegistry` +
   `EchoTool` stub。现在经 `reflect_config::load_default()` 读 `~/.reflect/config.toml`
   + 环境变量(`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OLLAMA_HOST` /
@@ -1053,61 +1052,61 @@ commands, namespace count, etc.) are removed in favour of "domain-split" wording
 - **STUB view 真实化(阶段 5)**:Skills/Notifications/Collaboration 接 store 真实数据;
   Workspaces 从 sessions 聚合;Prompts/Files/Git/Terminal 改为"发送到对话"快捷面板;
   About/Update 用真实 `ping` + `agent_status`。
-- **Docs**: `docs/codebase-map.md` — task-oriented navigation.
-- **Docs**: `docs/PROTOCOL_BRIDGE.md` — Tauri ↔ reflect-protocol envelope spec.
+- **Docs**: `docs/codebase-map.md` — 任务导向导航。
+- **Docs**: `docs/PROTOCOL_BRIDGE.md` — Tauri ↔ reflect-protocol 信封规范。
 
-### Changed
+### 变更
 - `ReviewDecision` TS 类型对齐 Rust `#[serde(rename_all = "snake_case")]`:
   从 `'approve'|'deny'|'abort'` 改为 `'approve'|'approve_for_session'|{deny:{reason}}`。
 - `reflect_*` Op 命令返回类型从 `void` 改为 `string`(submission id,供 pairing)。
 - `services/agent.ts` 改为 `stores/agentStore.ts` 的兼容 re-export 层。
 
-### Removed
+### 移除
 - `src/App.tsx`(死代码入口,真根是 `main.tsx` → `router.tsx`)。
 - `commands/mod.rs::all_commands()`(dead code)。
 - 所有 view 的硬编码 `STUB_*` 数组 + phantom `invoke()`(Files/Git/Terminal/About/Update
   曾 invoke 不存在的命令,违反 AGENTS.md 规则 5)。
 
-### Fixed
+### 修复
 - 修复 `useAgent()` 各组件持独立 turns 副本的结构 bug(改用 Zustand 单 store)。
 - 修复 `handle_event` 只处理 4/33 事件类型、丢弃工具调用/思考/审批/错误的问题。
 - 修复 Files/Git/Terminal/About/Update 调用不存在的后端命令的问题。
 
-### Security
+### 安全
 - 工具输出经 `Sanitizer::with_defaults()`(10 个默认密钥脱敏 pattern)。
 
 ---
 
-## 0.1.0 — 2026-07-07 (initial MVP)
+## 0.1.0 — 2026-07-07（初始 MVP）
 
-First public-able milestone. App launches, three-pane layout renders, session list works, Tauri command bridge round-trips.
+首个可对外发布的里程碑。应用可启动，三栏布局正常渲染，会话列表可用，Tauri 命令桥往返打通。
 
-### Added
-- **M1.1 Scaffold** (commit `2c73335`): Tauri 2 + React 19 + Vite + TS workspace; `reflect-desktop` binary name; 5 icons; capabilities.
-- **M1.2 Protocol Bridge** (M1.2): 14 Tauri commands + 1 push event (`reflect_event`); `forward_agent_events` loop; 4/4 E2E tests.
-- **M1.3 Three-pane Layout** (M1.3): left sidebar + chat + right panel + footer status bar; session list placeholder.
-- **M1.4 Chat Render** (M1.4): `MessageList`, `MessageRow`, `Composer` — placeholder for streaming / Markdown / tool rows.
-- **M1.5 Composer + Slash Popup** (M1.5): `/` popup, `slashCommands.ts` catalog.
-- **M1.6 Modal Suite** (M1.6): `ModalShell` + `index.tsx` covering approval / question / plan / ask_user.
-- **M1.7 Status Bar + Settings** (M1.7): top + bottom bars; `SettingsView` skeleton with Display/Editor/Provider sections.
-- **M1.8 Polish** (M1.8): macOS overlay titlebar (`titleBarStyle: "Overlay"`), `macOSPrivateApi: true`, USER_GUIDE.
-- **M2.x Real Backend** (commit `65bff4b`): `MinimalAgent` replaced with real `reflect_core::AgentThread` (M2.x = stub model + `EchoTool`; no network deps). Session event broadcast via `tokio::sync::broadcast` (fan-out).
-- **4 product linkages**: `tray.rs`, `menu.rs`, `shortcut.rs`, `dock.rs` (macOS close-to-tray).
-- **Routing** (commit `29044a4`): TanStack Router v1 + TanStack Query v5.
-- **B1..B6 feature slices** (commits `d7ddb03`, `1dee7c1`, `3a85fce`, `76d7717`): Home / Threads / Models / Settings / Files / Git / Skills / Workspaces / Plan / Prompts / Notifications / Terminal views all rendered.
-- **Tests** (commit `2ed587c`): Vitest config + initial tests (`SettingsView`, `MessageList`, `ThreadsView`, `useSessions`, `agent`).
+### 新增
+- **M1.1 脚手架** (commit `2c73335`): Tauri 2 + React 19 + Vite + TS 工作区；`reflect-desktop` 二进制名；5 个图标；capabilities。
+- **M1.2 协议桥** (M1.2): 14 个 Tauri 命令 + 1 个推送事件（`reflect_event`）；`forward_agent_events` 循环；4/4 E2E 测试。
+- **M1.3 三栏布局** (M1.3): 左侧栏 + 聊天 + 右侧面板 + 底部状态栏；会话列表占位。
+- **M1.4 聊天渲染** (M1.4): `MessageList`、`MessageRow`、`Composer` —— 流式 / Markdown / 工具行的占位实现。
+- **M1.5 Composer + Slash 弹层** (M1.5): `/` 弹层、`slashCommands.ts` 目录。
+- **M1.6 Modal 套件** (M1.6): `ModalShell` + `index.tsx`，覆盖 approval / question / plan / ask_user。
+- **M1.7 状态栏 + 设置** (M1.7): 顶部 + 底部栏；`SettingsView` 骨架，含 Display/Editor/Provider 区块。
+- **M1.8 打磨** (M1.8): macOS overlay 标题栏（`titleBarStyle: "Overlay"`）、`macOSPrivateApi: true`、USER_GUIDE。
+- **M2.x 真实后端** (commit `65bff4b`): `MinimalAgent` 换成真实 `reflect_core::AgentThread`（M2.x = stub 模型 + `EchoTool`；无网络依赖）。会话事件经 `tokio::sync::broadcast` 广播（fan-out）。
+- **4 项产品联动**: `tray.rs`、`menu.rs`、`shortcut.rs`、`dock.rs`（macOS 关闭到托盘）。
+- **路由** (commit `29044a4`): TanStack Router v1 + TanStack Query v5。
+- **B1..B6 功能切片** (commits `d7ddb03`, `1dee7c1`, `3a85fce`, `76d7717`): Home / Threads / Models / Settings / Files / Git / Skills / Workspaces / Plan / Prompts / Notifications / Terminal 视图全部渲染。
+- **测试** (commit `2ed587c`): Vitest 配置 + 初始测试（`SettingsView`、`MessageList`、`ThreadsView`、`useSessions`、`agent`）。
 
-### Notes
-- The M2.x backend is intentionally **stubbed** (single `EchoTool`, empty `ModelRegistry`). Network-backed LLM clients and the remaining 21 builtin tools land in M3.x.
-- `reflect_delete_session` returns `delete not implemented in M1; use archive in M2.4` to prevent accidental data loss.
-- All events use `snake_case` discriminator on the wire (`#[serde(tag = "type", rename_all = "snake_case")]`); Rust `PascalCase` struct variants are an internal detail.
+### 说明
+- M2.x 后端有意保持 **stub**（单个 `EchoTool`、空 `ModelRegistry`）。网络 LLM 客户端和其余 21 个内置工具在 M3.x 落地。
+- `reflect_delete_session` 返回 `delete not implemented in M1; use archive in M2.4`，以防误删数据。
+- 所有事件在线上使用 `snake_case` 判别符（`#[serde(tag = "type", rename_all = "snake_case")]`）；Rust 的 `PascalCase` 结构体 variant 是内部细节。
 
 ---
 
-## Versioning Policy
+## 版本策略
 
-- **Major**: protocol-level breaking changes (`Op` / `EventMsg` shape changes).
-- **Minor**: new feature slices, new Tauri commands, new event variants (always **additive**).
-- **Patch**: bug fixes, doc updates, internal refactors.
+- **Major**: 协议级破坏性变更（`Op` / `EventMsg` 形状变更）。
+- **Minor**: 新功能切片、新 Tauri 命令、新事件 variant（始终**增量**）。
+- **Patch**: bug 修复、文档更新、内部重构。
 
-GUI follows Reflect-Agent's main version cadence; minor versions may ship independently (protocol is additive-stable).
+GUI 跟随 Reflect-Agent 的主版本节奏；minor 版本可独立发布（协议是增量稳定的）。

@@ -1,11 +1,11 @@
 /**
- * Terminal —— 真实 shell exec panel (B8-01).
+ * Terminal —— 真实 shell 执行面板（B8-01）。
  *
- * 通过 `reflect_run_shell` 启动命令,按行流式输出 stdout/stderr,
- * 支持 kill、history 自动滚动、ANSI-safe 显示 (基础 SGR 颜色 → CSS class)。
+ * 通过 `reflect_run_shell` 启动命令，按行流式输出 stdout/stderr，
+ * 支持 kill、history 自动滚动、ANSI-safe 显示（基础 SGR 颜色 → CSS class）。
  *
- * Refactored 2026-07-25: state + event orchestration lives in
- * `useTerminalController`; this component is purely presentational.
+ * 2026-07-25 重构：状态 + 事件编排位于 `useTerminalController`；
+ * 此组件为纯展示组件。
  */
 import { useEffect, useRef } from 'react';
 import { Terminal as TerminalIcon, CornerDownLeft, Square, Trash2 } from 'lucide-react';
@@ -20,7 +20,7 @@ export function TerminalView() {
   const { state, activeLines, activeSession } = ctrl;
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // autoscroll on new lines for the active session.
+  // 活动 session 的新行自动滚动。
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [activeLines, state.activeId]);

@@ -1,5 +1,5 @@
 /**
- * tasks-board feature barrel (Phase 1 multi-agent UI).
+ * tasks-board 功能桶（Phase 1 多 agent UI）。
  */
 export { TasksBoardView } from './TasksBoardView';
 export { useTasksBoardController } from './useTasksBoardController';

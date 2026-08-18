@@ -1,70 +1,70 @@
 /**
- * Agent definition wrappers — Phase 1 item 3.
+ * Agent 定义封装 —— Phase 1 第 3 项。
  *
- * Mirrors `src-tauri/src/commands/agents.rs` (which wraps
- * `vendor/reflect-agent-def`). Each agent is a Markdown file with YAML
- * frontmatter at `~/.reflect/agents/<name>.md`, shared with the TUI/CLI.
+ * 对应 `src-tauri/src/commands/agents.rs`(其内部封装
+ * `reflect-agent/crates/abilities/reflect-agent-def`)。每个 agent 是一个带 YAML frontmatter 的
+ * Markdown 文件,位于 `~/.reflect/agents/<name>.md`,与 TUI/CLI 共享。
  *
- * Payloads mirror the vendor `AgentDefinition` serde shape (snake_case).
+ * payload 形态与 核心 crate 的 `AgentDefinition` serde shape 一致(snake_case)。
  */
 import { invoke } from '../bridge';
 
-// ── Types (mirror `reflect_agent_def::AgentDefinition`, snake_case) ────
+// ── 类型(对应 `reflect_agent_def::AgentDefinition`,snake_case) ──────────
 
 export type ReflectMemoryScope = 'project' | 'user' | 'session';
 
 export interface ReflectAgentDef {
-  /** Stable identifier; also the filename (`<name>.md`). */
+  /** 稳定标识,同时作为文件名(`<name>.md`)。 */
   name: string;
-  /** Human-readable description (required). */
+  /** 人类可读的描述(必填)。 */
   description: string;
-  /** Whether other agents may spawn this one. */
+  /** 是否允许其他 agent 派生本 agent。 */
   spawnable: boolean;
-  /** Mark as read-only (no write/edit tools). */
+  /** 标记为只读(无 write/edit 工具)。 */
   readonly: boolean;
-  /** Tool whitelist; empty = all builtins. */
+  /** 工具白名单;为空表示允许全部内置工具。 */
   tools: string[];
-  /** Tool denylist. */
+  /** 工具黑名单。 */
   disallowed_tools: string[];
-  /** `Some("inherit")` = use caller model; `Some(other)` = override; `null` = caller. */
+  /** `Some("inherit")` = 使用调用方模型;`Some(other)` = 覆盖;`null` = 跟随调用方。 */
   model: string | null;
-  /** Hard cap on iterations per turn. */
+  /** 单轮迭代次数硬上限。 */
   max_turns: number | null;
-  /** Memory scopes to load and inject. */
+  /** 需要加载并注入的 memory 范围。 */
   memory: ReflectMemoryScope[];
-  /** Reserved for v1 MCP support. */
+  /** 预留给 v1 MCP 支持。 */
   mcp_collections: string[];
-  /** Markdown body (the system prompt). */
+  /** Markdown 正文(即 system prompt)。 */
   system_prompt: string;
 }
 
 // ── Commands ───────────────────────────────────────────────────────────
 
-/** List all agent definitions (sorted by name). */
+/** 列出所有 agent 定义(按名称排序)。 */
 export async function reflect_list_agent_defs(): Promise<ReflectAgentDef[]> {
   return invoke<ReflectAgentDef[]>('reflect_list_agent_defs');
 }
 
-/** Read a single agent definition by name. Throws on not-found. */
+/** 按名称读取单个 agent 定义,未找到时抛错。 */
 export async function reflect_get_agent_def(name: string): Promise<ReflectAgentDef> {
   return invoke<ReflectAgentDef>('reflect_get_agent_def', { name });
 }
 
 /**
- * Create or update an agent definition. Serializes to
- * `~/.reflect/agents/<name>.md` and round-trip validates. `name` and
- * `description` are required.
+ * 创建或更新 agent 定义。序列化到
+ * `~/.reflect/agents/<name>.md` 并做往返校验。
+ * `name` 与 `description` 为必填项。
  */
 export async function reflect_save_agent_def(def: ReflectAgentDef): Promise<ReflectAgentDef> {
   return invoke<ReflectAgentDef>('reflect_save_agent_def', { def });
 }
 
-/** Delete an agent definition file. Returns `true` if deleted, `false` if not found. */
+/** 删除 agent 定义文件。返回 `true` 表示已删除,`false` 表示未找到。 */
 export async function reflect_delete_agent_def(name: string): Promise<boolean> {
   return invoke<boolean>('reflect_delete_agent_def', { name });
 }
 
-/** Parse / validate a markdown string as an agent definition (no side effects). */
+/** 将 markdown 字符串解析/校验为 agent 定义(无副作用)。 */
 export async function reflect_parse_agent_md(text: string): Promise<ReflectAgentDef> {
   return invoke<ReflectAgentDef>('reflect_parse_agent_md', { text });
 }

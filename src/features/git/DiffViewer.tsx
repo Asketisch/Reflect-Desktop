@@ -52,7 +52,7 @@ function classify(raw: string): DiffLine[] {
     } else if (line.startsWith(' ')) {
       out.push({ kind: 'context', text: line, oldNum: oldNum++, newNum: newNum++ });
     } else if (line.length === 0) {
-      // skip trailing newline
+      // 跳过末尾换行符
     } else {
       out.push({ kind: 'meta', text: line });
     }

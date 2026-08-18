@@ -51,21 +51,21 @@ export type PaletteItemKind =
 export interface PaletteItem {
   id: string;
   labelKey: LocaleKey;
-  /** Optional one-line description. */
+  /** 可选的一行描述。 */
   hintKey?: LocaleKey;
   kind: PaletteItemKind;
   icon: ComponentType;
-  /** Free-text keywords for fuzzy search. */
+  /** 用于模糊搜索的自由文本关键词。 */
   keywords?: string[];
-  /** Activation — exactly one of these is set. */
+  /** 激活方式 —— 这些字段有且只有一个被设置。 */
   to?: string;
   slash?: string;
   run?: () => void;
-  /** Lower = earlier in the list. */
+  /** 数值越小列表越靠前。 */
   weight?: number;
 }
 
-/** Build a snapshot of available palette items at the moment of opening. */
+/** 在打开时刻构建可用面板条目的快照。 */
 export interface BuildPaletteArgs {
   navigate: (to: string) => void;
   cycleTheme: () => void;

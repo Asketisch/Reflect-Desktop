@@ -38,7 +38,7 @@ pub(crate) fn subscribe_session(agent: &MinimalAgent) -> broadcast::Receiver<Eve
     agent.inner.session_tx.subscribe()
 }
 
-/// session broadcast sender 句柄(MCP/LSP lifecycle event 反向推送用)。
+/// 会话广播发送方句柄（MCP/LSP 生命周期事件反向推送用）。
 pub(crate) fn session_tx(agent: &MinimalAgent) -> broadcast::Sender<Event> {
     agent.inner.session_tx.clone()
 }

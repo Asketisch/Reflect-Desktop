@@ -1,5 +1,5 @@
 /**
- * i18n namespace - agents.*
+ * i18n 命名空间 - agents.*
  */
 import type { StringEntry } from '../types';
 

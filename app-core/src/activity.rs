@@ -1,25 +1,25 @@
-//! Activity timeline —— 本地事件审计日志 (Phase 3 item 9).
+//! Activity 时间线 —— 本地事件审计日志（Phase 3 条目 9）。
 //!
-//! 记录「谁(actor)在何时(ts)做了什么事(kind + summary)」,供 Inbox / Activity
-//! timeline / @mention 搜索消费。灵感来自 multica 的 `activity_log` 表,但
-//! ReflectDesktop 无 DB,落 JSONL 文件 + 内存环形缓冲。
+//! 记录“谁（actor）在何时（ts）做了什么事（kind + summary）”，供 Inbox / Activity
+//! timeline / @mention 搜索使用。参考通用 activity_log 设计，但
+//! ReflectDesktop 无 DB，写入 JSONL 文件和内存环形缓冲。
 //!
 //! ## 数据源
 //!
-//! `ActivityLogger` 不主动订阅事件;由调用方(`install_agent_thread`)把
-//! `reflect_protocol::Event` 映射成 [`ActivityEvent`] 后调 [`ActivityLogger::record`]。
+//! `ActivityLogger` 不主动订阅事件；由调用方（`install_agent_thread`）把
+//! `reflect_protocol::Event` 映射成 [`ActivityEvent`] 后调用 [`ActivityLogger::record`]。
 //! 这样保持 app-core 对 tokio runtime / tauri 的零依赖。
 //!
 //! ## 存储
 //!
-//! - 内存: `VecDeque` 环形缓冲,cap = [`CAP_INMEMORY`],LRU 驱逐最旧。
-//! - 磁盘: `~/.reflect/activity/activity.jsonl`,追加写;单文件超过
-//!   [`ROTATE_BYTES`] 时 rotate 成 `activity.<ts>.jsonl` 并开新文件。
+//! - 内存：`VecDeque` 环形缓冲，cap = [`CAP_INMEMORY`]，LRU 驱逐最旧。
+//! - 磁盘：`~/.reflect/activity/activity.jsonl` 追加写入；单文件超过
+//!   [`ROTATE_BYTES`] 时 rotate 为 `activity.<ts>.jsonl` 并开启新文件。
 //!
 //! ## 线程安全
 //!
-//! 全部 `Send + Sync`,内部 `parking_lot::Mutex`。`record` 非阻塞(磁盘写
-//! 在持有锁期间同步完成,但单条 JSONL < 1KB,可接受)。
+//! 全部实现 `Send + Sync`，内部使用 `parking_lot::Mutex`。`record` 非阻塞（磁盘写
+//! 在持有锁期间同步完成，但单条 JSONL < 1KB，可接受）。
 
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
@@ -305,7 +305,7 @@ impl ActivityLogger {
 
     /// 记录一条事件(同步写磁盘 + 推入环形缓冲)。
     ///
-    /// 磁盘写失败仅 `tracing::warn!`,不影响内存缓冲(磁盘是 best-effort)。
+    /// 磁盘写失败仅 `tracing::warn!`，不影响内存缓冲（磁盘尽力而为）。
     pub fn record(&self, mut event: ActivityEvent) -> ActivityResult<()> {
         let mut inner = self.inner.lock();
         // 分配 id(若调用方没填)。
@@ -317,14 +317,14 @@ impl ActivityLogger {
                 inner.next_seq = n + 1;
             }
         }
-        // 磁盘 best-effort:目录可能为空串(in_memory 模式)→ 跳过。
-        // 先 persist(借 event 引用),再 move 进缓冲,避免无谓 clone。
+        // 磁盘尽力而为：目录可能为空串（in_memory 模式）→ 跳过。
+        // 先持久化（借 event 引用），再 move 进缓冲，避免无谓 clone。
         if !self.root.as_os_str().is_empty() {
             if let Err(e) = self.persist_locked(&mut inner, &event) {
                 tracing::warn!("[activity] persist failed: {e}");
             }
         }
-        // 推入环形缓冲(驱逐最旧)。move event,无需 clone。
+        // 推入环形缓冲（驱逐最旧）。move event，无需 clone。
         if inner.buf.len() >= CAP_INMEMORY {
             inner.buf.pop_front();
         }
@@ -344,7 +344,7 @@ impl ActivityLogger {
             .take(limit)
             .cloned()
             .collect();
-        // 返回时按 ts 升序(旧 → 新),UI 可自行 reverse。
+        // 返回时按 ts 升序（旧 → 新），UI 可自行 reverse。
         out.reverse();
         Ok(out)
     }
@@ -392,13 +392,13 @@ impl ActivityLogger {
 
     /// 把单条事件 append 到 JSONL 文件(持锁内调用)。
     ///
-    /// - lazy open:`create_dir_all(root)` + `OpenOptions::append`。
-    /// - rotate:当前文件 > [`ROTATE_BYTES`] 时,rename 成 `activity.<ts>.jsonl`
+    /// - 延迟打开：`create_dir_all(root)` + `OpenOptions::append`。
+    /// - 轮转：当前文件超过 [`ROTATE_BYTES`] 时，rename 为 `activity.<ts>.jsonl`
     ///   并开新文件。
     fn persist_locked(&self, inner: &mut Inner, event: &ActivityEvent) -> ActivityResult<()> {
-        // rotate 判定(先于 open,确保新事件进新文件)。
+        // 轮转判定（先于 open，确保新事件进新文件）。
         if inner.file.is_some() && inner.written_bytes >= ROTATE_BYTES {
-            // flush + drop 旧 writer,然后 rename。
+            // flush 并 drop 旧 writer，然后 rename。
             if let Some(mut w) = inner.file.take() {
                 let _ = w.flush();
             }
@@ -409,7 +409,7 @@ impl ActivityLogger {
             let _ = std::fs::rename(&cur, &backup);
             inner.written_bytes = 0;
         }
-        // lazy open。
+        // 延迟打开。
         if inner.file.is_none() {
             std::fs::create_dir_all(&self.root).map_err(ActivityError::io)?;
             let f = OpenOptions::new()

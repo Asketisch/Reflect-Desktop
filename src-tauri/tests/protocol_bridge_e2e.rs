@@ -80,7 +80,7 @@ async fn real_agent_thread_emits_error_for_stub_model() {
         return;
     }
 
-    // 没注册 model client → 提交 UserInput 后应 emit Error event (no panic)。
+    // 没注册 model client → 提交 UserInput 后应 emit Error event（不应 panic）。
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread();
     let mut rx = agent.subscribe_session();
@@ -123,7 +123,7 @@ async fn interrupt_token_cancels_in_flight_turn() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread();
     let _ = agent.subscribe_session();
-    // Before interrupt: token is not cancelled.
+    // interrupt 之前:cancel token 尚未取消。
     // 通过 MinimalAgent::cancel_token() 公开 getter 访问(替代私有 inner.thread)。
     let token_before = agent.cancel_token();
     assert!(
@@ -172,8 +172,7 @@ async fn model_spec_and_workspace_accessors() {
         ws.is_absolute() || !ws.as_os_str().is_empty(),
         "workspace should be a non-empty absolute path or at least a real path"
     );
-    // After set_workspace, the accessor must reflect the override, not the
-    // original cwd captured at startup.
+    // set_workspace 之后访问器必须返回覆盖值,而不是启动时捕获的原 cwd。
     let original = ws.clone();
     let override_path = std::path::PathBuf::from("/tmp/reflect-workspace-override-test");
     std::fs::create_dir_all(&override_path).expect("create override dir");

@@ -1,43 +1,43 @@
-# Protocol Bridge (Tauri ↔ Reflect-Protocol)
+# 协议桥（Tauri ↔ Reflect-Protocol）
 
-> **Wire format = `reflect_protocol::Event` / `Submission` directly (snake_case JSON).** No custom serializers, no DTO layer. The same envelope is shared with the TUI and `reflect exec`.
+> **线格式 = `reflect_protocol::Event` / `Submission` 直接传递（snake_case JSON）。** 无自定义序列化器，无 DTO 层。同一信封与 TUI 和 `reflect exec` 共享。
 >
-> Reading order: §1 envelope → §2 submission (UI → backend) → §3 event (backend → UI) → §4 id pairing → §5 version compatibility → §6 generated TS types.
+> 阅读顺序：§1 信封 → §2 提交（UI → 后端）→ §3 事件（后端 → UI）→ §4 ID 配对 → §5 版本兼容性 → §6 生成的 TS 类型。
 
 ---
 
-## 1. Envelope
+## 1. 信封
 
 ```rust
-// vendor/reflect-protocol/src/event.rs
+// reflect-agent/crates/protocol/reflect-protocol/src/event.rs
 pub struct Event {
     pub id: String,     // matches Submission.id; EVENT_ID_NONE = "" for lifecycle
     pub msg: EventMsg,  // serde-tagged enum (snake_case)
 }
 ```
 
-Two channels:
+两条通道：
 
-- **UI → backend**: `invoke('reflect_submit', { submission })` where `submission: Submission = { id, op, ... }`.
-- **Backend → UI**: `listen('reflect_event', handler)` where payload is `Event`. **Single channel name**; dispatch by `msg.type` (snake_case discriminator).
+- **UI → 后端**：`invoke('reflect_submit', { submission })` 其中 `submission: Submission = { id, op, ... }`。
+- **后端 → UI**：`listen('reflect_event', handler)` 载荷为 `Event`。**单一通道名**；按 `msg.type`（snake_case 鉴别器）分派。
 
-> Frontend never wraps in an envelope. The Tauri command name is the only framing.
+> 前端从不使用信封包装。Tauri 命令名是唯一框架。
 
 ---
 
-## 2. Submission (UI → Backend)
+## 2. 提交（UI → 后端）
 
-`Op` variants are listed in `vendor/reflect-protocol/src/op.rs`; each maps 1:1 to a Tauri command whose body lives in `src-tauri/src/commands/<domain>.rs` (re-exported by `src-tauri/src/commands/mod.rs`). The full set is enumerated in the §2.0 table below; the canonical Op→command mapping is the single source of truth and should be regenerated whenever `vendor/reflect-protocol/src/op.rs` changes.
+`Op` 变体列在 `reflect-agent/crates/protocol/reflect-protocol/src/op.rs` 中；每个 1:1 映射到一个 Tauri 命令，其主体位于 `src-tauri/src/commands/<domain>.rs`（由 `src-tauri/src/commands/mod.rs` re-export）。完整集合见下方 §2.0 表格；规范的 Op→命令映射是唯一真相源，应在 `reflect-protocol/src/op.rs` 变更时重新生成。
 
 > **注**:除 `UserInput` 经 `reflect_submit` 接受完整 `Submission` 外,其余 Op 命令
 > 后端在 `commands/<domain>.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递。
 > 所有 Op 命令返回 `string`(submission id,供前端 pairing/调试)。
 
-### 2.0 Commands outside Op (diagnostic / config / domain I/O)
+### 2.0 Op 之外的命令（诊断 / 配置 / 域 I/O）
 
-These commands do not correspond to an `Op` variant; they live alongside Op-derived commands in the same per-domain modules:
+这些命令不对应 `Op` 变体；它们与 Op 派生的命令共存于相同的域模块中：
 
-| Command | Payload | Returns | Where (Rust) / Where (TS) |
+| 命令 | 负载 | 返回 | 位置（Rust）/ 位置（TS）|
 |---|---|---|---|
 | `ping` | `null` | `{ msg, version }` | `src-tauri/src/commands/agent.rs` (barrel) / `src/utils/commands/health.ts` |
 | `reflect_agent_status` | `null` | `{ ready, has_model, model, workspace, degraded_reason }` | `commands/agent.rs` / `commands/agent.ts` |
@@ -93,34 +93,34 @@ pub struct Submission {
 }
 ```
 
-### 2.1 `UserInputItem` (`vendor/reflect-protocol/src/item.rs`)
+### 2.1 `UserInputItem`（`reflect-agent/crates/protocol/reflect-protocol/src/item.rs`）
 
-| Variant | Fields | Frontend source |
+| 变体 | 字段 | 前端来源 |
 |---|---|---|
-| `Text` | `text: String` | Composer textarea |
-| `Image` | `data: Vec<u8>, mime_type: String` | Drag/drop or paste (base64-decoded on frontend) |
-| `LocalImage` | `path: PathBuf` | File picker (backend reads from disk) |
-| `Skill` | `name: String, args: Option<JSON>` | `/skill name` or Skill picker |
-| `QuestionAnswer` | `request_id, answers` | LLM-asked question reply (alt to `AskUserQuestionResponse`) |
+| `Text` | `text: String` | 输入框文本 |
+| `Image` | `data: Vec<u8>, mime_type: String` | 拖拽或粘贴（前端 base64 解码） |
+| `LocalImage` | `path: PathBuf` | 文件选择器（后端从磁盘读取） |
+| `Skill` | `name: String, args: Option<JSON>` | `/skill name` 或技能选择器 |
+| `QuestionAnswer` | `request_id, answers` | LLM 提问的回复（`AskUserQuestionResponse` 的替代路径） |
 
-### 2.2 Submission ID lifecycle
+### 2.2 提交 ID 生命周期
 
-- Frontend generates UUID v4 → `Submission.id`.
-- Backend returns same id from `reflect_submit` (echo).
-- Frontend correlates inbound `Event.id` to the originating `Submission.id` to unlock composer / mark turn done.
-- `EVENT_ID_NONE = ""` events (lifecycle: `SessionConfigured`, `ShutdownComplete`, `PermissionModeChanged`, …) have no matching submission.
+- 前端生成 UUID v4 → `Submission.id`。
+- 后端从 `reflect_submit` 返回相同 id（回显）。
+- 前端将入站 `Event.id` 与原始 `Submission.id` 关联以解锁输入器 / 标记 turn 完成。
+- `EVENT_ID_NONE = ""` 事件（生命周期：`SessionConfigured`、`ShutdownComplete`、`PermissionModeChanged` …）没有对应的提交。
 
 ---
 
-## 3. Event (Backend → UI)
+## 3. 事件（后端 → UI）
 
-`EventMsg` is `#[serde(tag = "type", rename_all = "snake_case")]` (the variant list lives in `vendor/reflect-protocol/src/event_msg.rs`).
+`EventMsg` 使用 `#[serde(tag = "type", rename_all = "snake_case")]`（变体列表位于 `reflect-agent/crates/protocol/reflect-protocol/src/event_msg.rs`）。
 
-> **Naming**: Rust `enum` uses **PascalCase struct variants** (e.g. `TurnStarted(TurnStartedEvent)`), but serde emits **snake_case** discriminators (`turn_started`) for the frontend. Frontend TypeScript uses the snake_case form.
+> **命名**：Rust `enum` 使用 **PascalCase 结构变体**（如 `TurnStarted(TurnStartedEvent)`），但 serde 发出 **snake_case** 鉴别器（`turn_started`）供前端使用。前端 TypeScript 使用 snake_case 形式。
 
 ### 3.1 Lifecycle (5)
 
-| Variant | Triggered by | UI impact |
+| 变体 | 触发方 | UI 影响 |
 |---|---|---|
 | `session_configured` | First turn of a thread | Show banner; persist `session_id` |
 | `turn_started` | `Op::UserInput` accepted | Spinner on; clear composer draft |
@@ -131,7 +131,7 @@ pub struct Submission {
 
 ### 3.2 LLM output (4)
 
-| Variant | Fields | UI |
+| 变体 | 字段 | UI |
 |---|---|---|
 | `agent_message` | `text: String` | Non-streaming final bubble |
 | `agent_message_delta` | `delta: String` | Stream chunk → append to last assistant bubble |
@@ -140,14 +140,14 @@ pub struct Submission {
 
 ### 3.3 Tools (2)
 
-| Variant | Fields | UI |
+| 变体 | 字段 | UI |
 |---|---|---|
 | `tool_call_begin` | `ToolCallBeginEvent` | Tool row running indicator |
 | `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled |
 
 ### 3.4 Approvals / AskUser (4)
 
-| Variant | Frontend reaction | Pairing Op |
+| 变体 | 前端响应 | 配对 Op |
 |---|---|---|
 | `approval_request` (Tool/Hook/Plan) | Open `ApprovalModal` | `tool_approval` / `hook_approval` |
 | `ask_user_question` | Open `QuestionModal` (multi-Q) | `ask_user_question_response` (id = sub_id) |
@@ -197,42 +197,42 @@ pub struct Submission {
 
 ---
 
-## 4. Id Pairing Rules
+## 4. ID 配对规则
 
-| Event | Trigger Op | Field | Notes |
+| 事件 | 触发 Op | 字段 | 备注 |
 |---|---|---|---|
-| `approval_request` (Tool) | `tool_approval` | `id = request_id` | |
-| `approval_request` (Hook) | `hook_approval` | `id = request_id` | |
-| `approval_request` (Plan) | `plan_approval` | `id = request_id` | |
-| `ask_user_question` | `ask_user_question_response` | `id = sub_id` | Each question has its own sub_id (per-question waiter) |
+| `approval_request` (工具) | `tool_approval` | `id = request_id` | |
+| `approval_request` (钩子) | `hook_approval` | `id = request_id` | |
+| `approval_request` (计划) | `plan_approval` | `id = request_id` | |
+| `ask_user_question` | `ask_user_question_response` | `id = sub_id` | 每个问题有独立的 sub_id（每问题等待器） |
 | `ask_user_input` | `ask_user_input_response` | `id = sub_id` | |
-| `plan_request` | `enter_plan_mode` | `task` echoed | Client confirms before sending |
+| `plan_request` | `enter_plan_mode` | `task` 回显 | 客户端发送前确认 |
 | `plan_ready` | `plan_approval` | `id = plan_id` | |
-| `*_delta` / `*_complete` | (any user op) | `id = submission.id` | Stream chunks share submission id |
+| `*_delta` / `*_complete` | （任何用户操作） | `id = submission.id` | 流式块共享提交 id |
 
 ---
 
-## 5. Version Compatibility
+## 5. 版本兼容性
 
-- **Additive-only evolution**: new variants are non-breaking (deserializer ignores unknown).
-- **Snake_case tag** protects against Rust rename refactors leaking to wire.
-- **`#[serde(default)]`** on optional fields shields frontends from missing keys during rollout.
-- **Frontend type regeneration**: when `reflect-protocol` changes, run:
+- **仅追加式演化**：新变体不会破坏现有代码（反序列化器忽略未知字段）。
+- **Snake_case 标签**防止 Rust 重命名重构泄漏到线格式。
+- 可选字段上的 **`#[serde(default)]`**在发布期间保护前端免受缺失键的影响。
+- **前端类型重新生成**：当 `reflect-protocol` 变更时，运行：
 
   ```bash
-  # In Reflect-Agent repo:
+  # 在 Reflect-Agent 仓库中：
   cargo run -p reflect-protocol --example dump_schema > /tmp/reflect-schema.json
-  # In ReflectDesktop:
+  # 在 ReflectDesktop 中：
   npx json2ts /tmp/reflect-schema.json -o src/types/protocol.ts
   ```
 
-- **Vendor sync**: `bash scripts/vendor-sync.sh /path/to/Reflect-Agent main` mirrors crates. After sync, re-run the dump → json2ts pipeline.
+- **子模块升级**：`git submodule update --remote reflect-agent` 拉取最新核心 crate（见 `SUBMODULE.md`）。升级后，重新运行 dump → json2ts 流水线。
 
 ---
 
-## 6. Frontend TypeScript Surface
+## 6. 前端 TypeScript 接口
 
-`src/types/protocol.ts` is the canonical mirror. Two halves:
+`src/types/protocol.ts` 是规范的镜像。分为两部分：
 
 ```ts
 // Submission side (UI → backend)
@@ -271,13 +271,13 @@ export type ReflectEventMsg =
   | { type: 'permission_mode_changed'; from: PermissionMode; to: PermissionMode };
 ```
 
-### 6.1 Bridging pattern
+### 6.1 桥接模式
 
-The frontend IPC layer is split into three roles:
+前端 IPC 层分为三个角色：
 
-1. **Low-level bridge** — `src/utils/bridge.ts` exports `invoke` / `listen` with Tauri-context fallback and an `isMissingTauriInvokeError` guard.
-2. **Per-domain wrappers** — `src/utils/commands/{health,agent,approvals,plan,permissions,questions,config,sessions,events,workspaces,skills,memory,hooks,git,terminal,files,allowlist,updates,search}.ts` re-export typed wrappers. The `src/utils/commands/index.ts` barrel aggregates them.
-3. **Compatibility barrels** — `src/utils/tauri.ts` and `src/utils/commands.ts` re-export from `./bridge`, `./commands`, `./types` so existing `@/utils/tauri` and `@/utils/commands` imports continue to work. **New code should import directly from `@/utils/commands/{domain}` or from `@/utils/bridge` instead.**
+1. **底层桥接** — `src/utils/bridge.ts` 导出 `invoke` / `listen`，带 Tauri 上下文回退和 `isMissingTauriInvokeError` 防护。
+2. **域包装器** — `src/utils/commands/{health,agent,approvals,plan,permissions,questions,config,sessions,events,workspaces,skills,memory,hooks,git,terminal,files,allowlist,updates,search}.ts` re-export 类型化包装器。`src/utils/commands/index.ts` 桶文件聚合它们。
+3. **兼容桶文件** — `src/utils/tauri.ts` 和 `src/utils/commands.ts` 从 `./bridge`、`./commands`、`./types` re-export，使现有的 `@/utils/tauri` 和 `@/utils/commands` 导入继续工作。**新代码应直接从 `@/utils/commands/{domain}` 或 `@/utils/bridge` 导入。**
 
 ```ts
 // src/utils/bridge.ts (low-level)
@@ -303,36 +303,36 @@ export async function onReflectEvent(handler: (e: ReflectEvent) => void) {
 }
 ```
 
-### 6.2 Reducer pattern
+### 6.2 Reducer 模式
 
-`src/services/agentEventBus.ts` (refcounted bus) forwards into `src/stores/agent/reducer.ts` — the canonical reducer for `ReflectEventMsg`. `src/services/agent.ts` remains a compatibility re-export that forwards `useAgent` / `handle_event` to the store. `src/stores/agentStore.ts` is the user-facing compat facade that re-exports `useAgentStore` / `reduceEvent` / types from `./agent`. New variants:
+`src/services/agentEventBus.ts`（引用计数总线）转发至 `src/stores/agent/reducer.ts` —— `ReflectEventMsg` 的规范 reducer。`src/services/agent.ts` 保留为兼容性 re-export，将 `useAgent` / `handle_event` 转发到 store。`src/stores/agentStore.ts` 是用户可见的兼容门面，从 `./agent` re-export `useAgentStore` / `reduceEvent` / 类型。新增变体：
 
-1. Add the `ReflectEventMsg` arm in `src/types/protocol.ts`.
-2. Add a `case 'new_variant':` in `src/stores/agent/reducer.ts`.
-3. Cover with a unit test in `src/stores/agentStore.test.ts` and / or the bus test.
+1. 在 `src/types/protocol.ts` 添加 `ReflectEventMsg` 分支。
+2. 在 `src/stores/agent/reducer.ts` 添加 `case 'new_variant':`。
+3. 在 `src/stores/agentStore.test.ts` 和/或总线测试中覆盖单元测试。
 
 ---
 
-## 7. Failure Modes
+## 7. 故障模式
 
-| Symptom | Cause | Fix |
+| 症状 | 原因 | 修复 |
 |---|---|---|
-| Frontend gets `unknown variant` | Protocol added but TS not regenerated | Re-run `dump_schema` + `json2ts` |
-| Submission silently dropped | Backend deserialization error | Check `tracing` log in `src-tauri/src/commands/<domain>.rs` |
-| Event arrives with stale id | Submission id was overridden | Use `crypto.randomUUID()` only |
-| Approval modal won't close | Frontend forgot to dispatch `*_approval` Op | Check `src/features/modals/ModalShell.tsx` `onSubmit` |
-| `EVENT_ID_NONE` paired as submission | Lifecycle event matched by id | Filter `e.id === ''` in `src/stores/agent/reducer.ts` |
+| 前端收到 `unknown variant` | 协议已添加但 TS 未重新生成 | 重新运行 `dump_schema` + `json2ts` |
+| 提交被静默丢弃 | 后端反序列化错误 | 检查 `src-tauri/src/commands/<domain>.rs` 中的 `tracing` 日志 |
+| 事件携带过时 id | 提交 id 被覆盖 | 仅使用 `crypto.randomUUID()` |
+| 审批模态框不关闭 | 前端忘记派发 `*_approval` Op | 检查 `src/features/modals/ModalShell.tsx` `onSubmit` |
+| `EVENT_ID_NONE` 配对为提交 | 生命周期事件按 id 匹配 | 在 `src/stores/agent/reducer.ts` 过滤 `e.id === ''` |
 
 ---
 
-## 8. Reference
+## 8. 参考
 
-- Rust source of truth: `vendor/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
-- TS mirror: `src/types/protocol.ts`
-- Tauri command registry: `src-tauri/src/lib.rs` (handler list) + `src-tauri/src/commands/mod.rs` (barrel) + per-domain bodies in `src-tauri/src/commands/<domain>.rs`
-- Event forwarder: `src-tauri/src/events.rs::forward_agent_events`
-- Frontend event fanout: `src/services/agentEventBus.ts` → `src/stores/agent/reducer.ts`; compat re-export in `src/services/agent.ts`
-- IPC low-level bridge: `src/utils/bridge.ts`
-- IPC wrappers (canonical, per-domain): `src/utils/commands/<domain>.ts` aggregated by `src/utils/commands/index.ts`
-- IPC compat barrels: `src/utils/tauri.ts`, `src/utils/commands.ts`
-- Agent store: `src/stores/agent/` (canonical impl) with compat facade `src/stores/agentStore.ts`
+- Rust 真相源：`reflect-agent/crates/protocol/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
+- TS 镜像：`src/types/protocol.ts`
+- Tauri 命令注册表：`src-tauri/src/lib.rs`（处理程序列表）+ `src-tauri/src/commands/mod.rs`（桶文件）+ `src-tauri/src/commands/<domain>.rs` 中各域主体
+- 事件转发器：`src-tauri/src/events.rs::forward_agent_events`
+- 前端事件扇出：`src/services/agentEventBus.ts` → `src/stores/agent/reducer.ts`；`src/services/agent.ts` 中的兼容 re-export
+- IPC 底层桥接：`src/utils/bridge.ts`
+- IPC 包装器（规范，按域）：`src/utils/commands/<domain>.ts` 由 `src/utils/commands/index.ts` 聚合
+- IPC 兼容桶文件：`src/utils/tauri.ts`、`src/utils/commands.ts`
+- Agent store：`src/stores/agent/`（规范实现）带兼容门面 `src/stores/agentStore.ts`

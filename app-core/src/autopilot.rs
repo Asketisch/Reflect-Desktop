@@ -1,25 +1,25 @@
-//! Autopilot configuration and state.
+//! Autopilot 配置与状态。
 //!
-//! The Autopilot allows automatic task scheduling based on cron-like triggers.
-//! It integrates with the existing Schedule system to automatically create and
-//! execute tasks based on configurable templates.
+//! Autopilot 支持基于类 cron 触发器的任务自动调度。
+//! 它与现有 Schedule 系统集成，根据可配置模板自动创建并
+//! 执行任务。
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// Configuration for the Autopilot system.
+/// Autopilot 系统配置。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AutopilotConfig {
-    /// Whether the Autopilot is enabled.
+    /// 是否启用 Autopilot。
     pub enabled: bool,
-    /// Cron schedule for automatic task creation.
+    /// 自动创建任务的 cron 调度。
     pub schedule: String,
-    /// Template prompt for automatically created tasks.
+    /// 自动创建任务使用的模板 prompt。
     pub task_template: String,
-    /// Agent to use for executing tasks.
+    /// 执行任务所用的 agent。
     pub agent: Option<String>,
-    /// Maximum number of concurrent autopilot tasks.
+    /// Autopilot 任务的最大并发数。
     pub max_concurrent: usize,
 }
 
@@ -35,46 +35,46 @@ impl Default for AutopilotConfig {
     }
 }
 
-/// A history entry for Autopilot runs.
+/// Autopilot 运行历史记录。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AutopilotRun {
-    /// Unique run identifier.
+    /// 唯一的运行标识符。
     pub id: String,
-    /// Timestamp when the run was executed.
+    /// 运行执行时的时间戳。
     pub executed_at_ms: u64,
-    /// Task ID that was created.
+    /// 创建的任务 ID。
     pub task_id: Option<String>,
-    /// Status of the run.
+    /// 运行状态。
     pub status: AutopilotRunStatus,
-    /// Optional error message.
+    /// 可选的错误消息。
     pub error: Option<String>,
 }
 
-/// Status of an Autopilot run.
+/// Autopilot 运行状态。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AutopilotRunStatus {
-    /// The run completed successfully.
+    /// 运行成功完成。
     Success,
-    /// The run failed with an error.
+    /// 运行因错误失败。
     Failed,
-    /// The run is still in progress.
+    /// 运行仍在进行中。
     InProgress,
-    /// The run was skipped (max concurrent reached).
+    /// 运行已跳过（已达到最大并发数）。
     Skipped,
 }
 
-/// Autopilot manager that handles configuration and history.
+/// 处理配置与历史记录的 Autopilot 管理器。
 pub struct AutopilotManager {
-    /// Path to the configuration file.
+    /// 配置文件路径。
     config_path: PathBuf,
-    /// Path to the history file.
+    /// 历史记录文件路径。
     history_path: PathBuf,
 }
 
 impl AutopilotManager {
-    /// Create a new AutopilotManager with the default paths.
+    /// 使用默认路径创建 AutopilotManager。
     pub fn new() -> Self {
         let root = dirs::home_dir()
             .map(|h| h.join(".reflect").join("autopilot"))
@@ -82,7 +82,7 @@ impl AutopilotManager {
         Self::new_with_root(root)
     }
 
-    /// Create a new AutopilotManager with an explicit root directory (test-only).
+    /// 使用指定根目录创建 AutopilotManager（仅用于测试）。
     ///
     /// `root` 不需要预先存在;`save_*` 会 `create_dir_all`。
     pub fn new_with_root(root: PathBuf) -> Self {
@@ -93,7 +93,7 @@ impl AutopilotManager {
         }
     }
 
-    /// Load or create default configuration.
+    /// 加载配置；不存在或无效时创建默认配置。
     pub fn load_config(&self) -> AutopilotConfig {
         if self.config_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&self.config_path) {
@@ -105,14 +105,14 @@ impl AutopilotManager {
         AutopilotConfig::default()
     }
 
-    /// Save configuration to disk.
+    /// 将配置保存到磁盘。
     pub fn save_config(&self, config: &AutopilotConfig) -> Result<(), std::io::Error> {
         let content = serde_json::to_string_pretty(config)?;
         std::fs::write(&self.config_path, content)?;
         Ok(())
     }
 
-    /// Load run history.
+    /// 加载运行历史。
     pub fn load_history(&self) -> Vec<AutopilotRun> {
         if self.history_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&self.history_path) {
@@ -124,25 +124,25 @@ impl AutopilotManager {
         Vec::new()
     }
 
-    /// Save run history.
+    /// 保存运行历史。
     pub fn save_history(&self, history: &[AutopilotRun]) -> Result<(), std::io::Error> {
         let content = serde_json::to_string_pretty(history)?;
         std::fs::write(&self.history_path, content)?;
         Ok(())
     }
 
-    /// Add a new run to history.
+    /// 向历史记录添加一次新运行。
     pub fn add_run(&self, run: AutopilotRun) -> Result<(), std::io::Error> {
         let mut history = self.load_history();
         history.insert(0, run);
-        // Keep only last 100 runs
+        // 仅保留最近 100 次运行。
         if history.len() > 100 {
             history.truncate(100);
         }
         self.save_history(&history)
     }
 
-    /// Check if a run should execute based on current config.
+    /// 根据当前配置检查是否应执行运行。
     pub fn should_run(&self) -> bool {
         let config = self.load_config();
         config.enabled && !config.schedule.is_empty()
@@ -156,7 +156,7 @@ mod tests {
     /// 每个测试用独立 tempdir,避免污染真实 `~/.reflect/autopilot/`(生产态)。
     fn fresh_manager() -> AutopilotManager {
         let dir = tempfile::tempdir().expect("tempdir");
-        // leak the tempdir so the files survive the test (test 进程退出时清理)。
+        // 泄漏 tempdir 使文件在测试期间存活（test 进程退出时清理）。
         let path = dir.into_path();
         AutopilotManager::new_with_root(path)
     }

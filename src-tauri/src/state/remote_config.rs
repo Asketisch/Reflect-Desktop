@@ -1,26 +1,25 @@
-//! Remote mode config (Phase 2 item 2: Tailscale + iOS daemon).
+//! Remote mode config:连接 iOS / 远端 daemon 的目标与运行时状态。
 //!
-//! Mirrors CodexMonitor's `RemoteBackendSettings` shape but lives in `state/`
-//! (vendor is read-only). Process-in-memory only — restart drops config;
-//! persistence (keyring or `~/.reflect/remote.toml`) is a follow-up.
+//! 仅进程内存储 —— 重启丢失配置;持久化(keyring 或 `~/.reflect/remote.toml`)
+//! 留作后续。
 
 use serde::{Deserialize, Serialize};
 
-/// User-editable remote daemon target. Field names are snake_case (matches the
-/// Rust defaults — the IPC layer relies on the same shape).
+/// 用户可编辑的远端 daemon 目标。字段名采用 snake_case(与 Rust 默认
+/// 命名一致,IPC 层依赖同一形态)。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RemoteConfig {
-    /// `host:port` of the remote daemon (iOS or another machine).
+    /// 远端 daemon 的 `host:port`(iOS 或其他机器)。
     pub host: String,
-    /// Optional port override; defaults to 4732 (the desktop daemon's
-    /// `DEFAULT_DAEMON_PORT` constant in `app-core::tailscale`).
+    /// 可选 port 覆盖;默认 4732(对应 desktop daemon 在 `app-core::tailscale`
+    /// 中的 `DEFAULT_DAEMON_PORT` 常量)。
     pub port: u16,
-    /// Shared bearer token for the line-delimited JSON-RPC link.
+    /// 行分隔 JSON-RPC 链路的共享 bearer token。
     #[serde(default)]
     pub auth_token: Option<String>,
-    /// Whether to auto-connect on launch. Currently advisory; the actual
-    /// "connect on launch" hook is wired in a follow-up.
+    /// 是否在启动时自动连接。当前仅为标记位,"启动时连接" 的实际 hook
+    /// 留作后续接入。
     #[serde(default)]
     pub auto_connect: bool,
 }
@@ -37,8 +36,7 @@ impl Default for RemoteConfig {
 }
 
 impl RemoteConfig {
-    /// Render as `host:port` (matches what the desktop daemon's TCP
-    /// transport expects).
+    /// 渲染为 `host:port` 字符串(与 desktop daemon TCP 传输层期望的格式一致)。
     pub fn endpoint(&self) -> String {
         if self.host.contains(':') {
             self.host.clone()
@@ -47,25 +45,23 @@ impl RemoteConfig {
         }
     }
 
-    /// True when both host and auth_token are populated (minimum viable
-    /// connection).
+    /// 当 host 和 auth_token 都已设置时返回 true(满足最低可连接条件)。
     pub fn is_ready(&self) -> bool {
         !self.host.is_empty() && self.auth_token.as_deref().is_some_and(|t| !t.is_empty())
     }
 }
 
-/// Runtime status of the desktop side (transport up/down, last error…).
-/// Mirrors the read-side of CodexMonitor's `RemoteBackendStatus`.
+/// desktop 侧的运行时状态(传输 up/down、最近一次错误等)。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteStatus {
-    /// `connected` | `disconnected` | `error`.
+    /// `connected` | `disconnected` | `error`。
     pub state: String,
-    /// Free-form diagnostic message (last error / connection note).
+    /// 自由格式的诊断信息(最近一次错误 / 连接提示)。
     pub message: Option<String>,
-    /// When `state == connected`, the host we are connected to.
+    /// 当 `state == connected` 时,表示当前连接到的 host。
     pub endpoint: Option<String>,
-    /// Unix epoch milliseconds when the current state was entered.
+    /// 进入当前状态的 Unix 毫秒时间戳。
     pub since_ms: Option<i64>,
 }
 

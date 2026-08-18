@@ -1,16 +1,15 @@
-//! Agent definition management commands — wraps `vendor/reflect-agent-def`.
+//! Agent 定义管理命令 —— 包装 `reflect_agent_def` crate。
 //!
-//! Phase 1 item 3: agent profile management UI backing. Each agent is a
-//! Markdown file with YAML frontmatter at `~/.reflect/agents/<name>.md`,
-//! shared with the TUI/CLI.
+//! agent profile 管理 UI 的后端。每个 agent 是位于 `~/.reflect/agents/<name>.md`
+//! 的 Markdown 文件(带 YAML frontmatter),与 TUI/CLI 共享。
 //!
 //! ## 命令清单
 //!
-//! - `reflect_list_agent_defs` — list all definitions (sorted by name)
-//! - `reflect_get_agent_def(name)` — single definition
-//! - `reflect_save_agent_def(def)` — create / update (serializes to `.md`)
-//! - `reflect_delete_agent_def(name)` — delete file
-//! - `reflect_parse_agent_md(text)` — preview / validate a markdown string
+//! - `reflect_list_agent_defs` — 列出所有定义(按 name 排序)
+//! - `reflect_get_agent_def(name)` — 单条定义
+//! - `reflect_save_agent_def(def)` — 创建 / 更新(序列化为 `.md`)
+//! - `reflect_delete_agent_def(name)` — 删除文件
+//! - `reflect_parse_agent_md(text)` — 预览 / 校验 markdown 字符串
 //!
 //! ## 序列化
 //!
@@ -37,7 +36,7 @@ fn agents_dir() -> CommandResult<PathBuf> {
     Ok(home.join(".reflect/agents"))
 }
 
-/// 把 `AgentDefinition` 序列化为 markdown(frontmatter + body)。
+/// 把 `AgentDefinition` 序列化为 markdown（frontmatter + 正文）。
 ///
 /// 手动实现而非 `serde_yaml::to_string` 整个结构,因为 `system_prompt` 字段
 /// 必须作为 body(在 frontmatter 之后),不能出现在 YAML 块里。
@@ -114,7 +113,7 @@ fn path_for(name: &str, dir: &Path) -> CommandResult<PathBuf> {
     Ok(dir.join(format!("{name}.md")))
 }
 
-/// List all agent definitions (sorted by name).
+/// 列出所有 agent 定义(按 name 排序)。
 #[tauri::command]
 pub async fn reflect_list_agent_defs(
     _agent: State<'_, MinimalAgent>,
@@ -126,7 +125,7 @@ pub async fn reflect_list_agent_defs(
     Ok(v)
 }
 
-/// Read a single agent definition by name. Throws on not-found.
+/// 按 name 读取单条 agent 定义。未找到时抛错。
 #[tauri::command]
 pub async fn reflect_get_agent_def(
     _agent: State<'_, MinimalAgent>,
@@ -140,7 +139,7 @@ pub async fn reflect_get_agent_def(
     parse_agent_str(&raw).map_err(CommandError::from)
 }
 
-/// Create or update an agent definition. Serializes to `<agents_dir>/<name>.md`.
+/// 创建或更新一条 agent 定义。序列化为 `<agents_dir>/<name>.md`。
 #[tauri::command]
 pub async fn reflect_save_agent_def(
     _agent: State<'_, MinimalAgent>,
@@ -167,7 +166,7 @@ pub async fn reflect_save_agent_def(
     Ok(back)
 }
 
-/// Delete an agent definition file. Returns `true` if deleted, `false` if not found.
+/// 删除一条 agent 定义文件。删除成功返回 `true`,不存在返回 `false`。
 #[tauri::command]
 pub async fn reflect_delete_agent_def(
     _agent: State<'_, MinimalAgent>,
@@ -182,8 +181,8 @@ pub async fn reflect_delete_agent_def(
     Ok(true)
 }
 
-/// Parse / validate a markdown string as an agent definition (no side effects).
-/// Used by the editor for live preview / validation before save.
+/// 把 markdown 字符串解析 / 校验为 agent 定义(无副作用)。
+/// 编辑器在保存前做实时预览 / 校验时使用。
 #[tauri::command]
 pub async fn reflect_parse_agent_md(
     _agent: State<'_, MinimalAgent>,
@@ -272,8 +271,7 @@ mod tests {
     #[test]
     fn path_for_allows_inner_dots() {
         let dir = Path::new("/tmp");
-        // `..` only mid-name does NOT escape the directory; the join stays
-        // inside `dir`.
+        // `..` 仅出现在 name 中段时不会逃出目录;join 后的路径仍在 `dir` 内。
         assert!(path_for("foo..bar", dir).is_ok());
         assert!(path_for("..foo", dir).is_ok());
         assert!(path_for("foo..", dir).is_ok());

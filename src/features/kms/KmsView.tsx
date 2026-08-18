@@ -1,8 +1,8 @@
 /**
- * KMS — Knowledge Management System view.
+ * KMS —— 知识管理系统视图。
  *
- * Phase 3 item 12: grep-based wiki + /dream session mining.
- * Lists knowledge bases, allows creating/editing/searching pages.
+ * Phase 3 条目 12：基于 grep 的 wiki + /dream 会话挖掘。
+ * 列出知识库，支持创建/编辑/搜索页面。
  */
 import { useState } from 'react';
 import { BookOpen, Plus, Search, Trash2, FileText } from 'lucide-react';

@@ -1,5 +1,5 @@
 /**
- * Git integration wrappers — status/diff/log.
+ * Git 集成封装 —— status/diff/log。
  */
 import { invoke } from '../bridge';
 
@@ -27,17 +27,17 @@ export interface ReflectGitLogEntry {
   subject: string;
 }
 
-/** Get the active repository status (branch, upstream, entries, raw porcelain). */
+/** 获取当前仓库状态(branch、upstream、entries、原始 porcelain 输出)。 */
 export async function reflect_git_status(): Promise<ReflectGitStatus> {
   return invoke<ReflectGitStatus>('reflect_git_status');
 }
 
-/** Get the diff text (`staged=false` for working tree, `true` for staged). */
+/** 获取 diff 文本(`staged=false` 为工作区,`true` 为暂存区)。 */
 export async function reflect_git_diff(staged = false): Promise<string> {
   return invoke<string>('reflect_git_diff', { staged });
 }
 
-/** Get the last N log entries (default 20). */
+/** 获取最近 N 条 log(默认 20)。 */
 export async function reflect_git_log(limit = 20): Promise<ReflectGitLogEntry[]> {
   return invoke<ReflectGitLogEntry[]>('reflect_git_log', { limit });
 }

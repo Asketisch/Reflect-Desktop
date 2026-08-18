@@ -1,4 +1,4 @@
-/* ReflectDesktop design tokens — single source of truth.
+/* ReflectDesktop 设计 token —— 单一事实来源。
  *
  * 深色优先：`:root` 即深色主题（默认），`[data-theme="light"]` 覆盖为浅色。
  * `data-theme="system"`（或未设置）时，由 `prefers-color-scheme` 决定。
@@ -10,7 +10,7 @@
 :root {
   color-scheme: dark;
 
-  /* ===== Spacing (4pt grid) ===== */
+  /* ===== 间距（4pt 网格）===== */
   --space-0: 0px;
   --space-1: 4px;
   --space-2: 8px;
@@ -22,14 +22,14 @@
   --space-8: 48px;
   --space-9: 64px;
 
-  /* ===== Window chrome（macOS Overlay 标题栏专用）=====
+  /* ===== 窗口装饰（macOS Overlay 标题栏专用）=====
    * `titleBarStyle: "Overlay"` 下红绿灯按钮浮在 webview 之上，
    * React 必须为它预留避让空间（见 TitleBar.module.css）。
    */
   --titlebar-height: 40px;        /* 贯通顶栏高度（macOS 标准）*/
   --traffic-light-gutter: 80px;   /* 红绿灯避让宽度（3 个 14px 圆 + 间距 + 左 padding）*/
 
-  /* ===== Typography ===== */
+  /* ===== 排版 ===== */
   --font-sans: "Inter", "DM Sans", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas,
@@ -54,7 +54,7 @@
   --fw-semibold: 600;
   --fw-bold: 700;
 
-  /* ===== Radii ===== */
+  /* ===== 圆角 ===== */
   --radius-xs: 3px;
   --radius-sm: 5px;
   --radius-md: 8px;
@@ -62,7 +62,7 @@
   --radius-xl: 16px;
   --radius-pill: 9999px;
 
-  /* ===== Z-index ===== */
+  /* ===== 层级 ===== */
   --z-base: 0;
   --z-sticky: 100;
   --z-overlay: 1000;
@@ -70,7 +70,7 @@
   --z-toast: 1200;
   --z-tooltip: 1300;
 
-  /* ===== Transition ===== */
+  /* ===== 过渡 ===== */
   --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 280ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -142,7 +142,7 @@
   --scrollbar-track: transparent;
 }
 
-/* ===== Light theme ===== */
+/* ===== 亮色主题 ===== */
 [data-theme="light"] {
   color-scheme: light;
 

@@ -1,14 +1,13 @@
 /**
- * Terminal —— controller hook (B8-01 refactor).
+ * Terminal —— controller hook (B8-01 重构)。
  *
- * Encapsulates state + event orchestration so the view component can stay
- * presentational. Owns:
+ * 封装状态 + 事件编排，使视图组件保持纯展示。职责：
  *   - sessions[] / lines{} / activeId / input / busy
- *   - one-shot `onTerminalOutput` subscription, with safe cleanup if the
- *     component unmounts while the `listen` promise is still resolving.
- *   - run / kill / clear actions.
+ *   - 一次性 `onTerminalOutput` 订阅，如果组件在 `listen` promise
+ *     解析前卸载，则安全清理。
+ *   - run / kill / clear 动作。
  *
- * Extracted from TerminalView (2026-07-25); behavior preserved.
+ * 从 TerminalView 抽取（2026-07-25）；行为已保留。
  */
 import {
   useCallback,
@@ -34,7 +33,7 @@ export type TerminalLineStream =
   | 'input';
 
 export interface TerminalLine {
-  /** Monotonic sequence per session; rendered as a stable key. */
+  /** 每次 session 的单调递增序列号；作为稳定 key 渲染。 */
   seq: number;
   stream: TerminalLineStream;
   text: string;
@@ -52,7 +51,7 @@ export const MAX_LINES_PER_SESSION = 5_000;
 
 export interface TerminalState {
   sessions: TerminalSession[];
-  /** Keyed by session id; each list is capped at MAX_LINES_PER_SESSION. */
+  /** 以 session id 为键；每个列表上限为 MAX_LINES_PER_SESSION。 */
   lines: Record<string, TerminalLine[]>;
   activeId: string | null;
   input: string;
@@ -135,35 +134,35 @@ export interface TerminalController {
   activeSession: TerminalSession | null;
   setInput: (value: string) => void;
   selectSession: (id: string) => void;
-  /** Run a command; creates a synthetic error session if the backend fails. */
+  /** 运行命令；如果后端失败则创建合成错误 session。 */
   run: (command: string) => Promise<void>;
-  /** Kill the active session if it is still running. */
+  /** 终止仍在运行的活动会话。 */
   killActive: () => Promise<void>;
-  /** Clear visible output for the active session. */
+  /** 清除活动会话的可见输出。 */
   clearActive: () => void;
   /**
-   * Append an output chunk — useful for tests and for replaying buffered
-   * output. Pass the raw chunk shape returned by `onTerminalOutput`.
+   * 追加一个输出块 —— 用于测试和回放缓冲输出。
+   * 传入 `onTerminalOutput` 返回的原始块结构。
    */
   appendChunk: (chunk: ReflectShellOutputChunk) => void;
 }
 
 export interface UseTerminalControllerOptions {
-  /** Override for tests. */
+  /** 供测试覆盖。 */
   runShell?: typeof reflect_run_shell;
-  /** Override for tests. */
+  /** 供测试覆盖。 */
   killShell?: typeof reflect_kill_shell;
-  /** Override for tests. */
+  /** 供测试覆盖。 */
   subscribe?: (handler: (chunk: ReflectShellOutputChunk) => void) => Promise<() => void>;
 }
 
 /**
- * Stateful controller for the Terminal view.
+ * Terminal 视图的有状态控制器。
  *
- * The `listen` call returns a Promise — if the component unmounts before it
- * resolves, we still unlisten via the captured cleanup function. Both the
- * "already resolved" and "pending then resolved after unmount" paths are
- * handled by stashing the unlisten in a ref and clearing on teardown.
+ * `listen` 调用返回一个 Promise —— 如果组件在它 resolve 前卸载，
+ * 我们仍会通过捕获的清理函数 unlisten。
+ * “已 resolve” 和 “卸载后才 resolve” 两条路径
+ * 都通过将 unlisten 暂存到 ref 并在拆除时清理来处理。
  */
 export function useTerminalController(opts: UseTerminalControllerOptions = {}): TerminalController {
   const runShell = opts.runShell ?? reflect_run_shell;
@@ -175,7 +174,7 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
   const unlistenRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
 
-  // Subscribe once on mount; tear down on unmount, regardless of resolution order.
+  // 挂载时订阅一次；无论解析顺序如何，卸载时都要拆除。
   useEffect(() => {
     mountedRef.current = true;
     let cancelled = false;
@@ -209,9 +208,9 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
     };
 
     void subscribe(handler).then((un) => {
-      // The component may have unmounted while listen() was in flight.
-      // Hold the unlisten only if we're still mounted; otherwise immediately
-      // release so the subscription is dropped.
+      // listen() 进行期间组件可能已经卸载。
+      // 仅当组件仍挂载时才保留 unlisten；否则立即
+      // 释放资源，让订阅被丢弃。
       if (cancelled) {
         try { un(); } catch { /* noop — best effort */ }
         return;
@@ -260,7 +259,7 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
           ],
         });
       } catch (e) {
-        // Synthetic error session so the user sees the failure inline.
+        // 合成错误会话，让用户就地看到失败信息。
         const errId = `err-${Date.now()}`;
         const message = e instanceof Error ? e.message : String(e);
         dispatch({

@@ -1,14 +1,14 @@
 /**
- * AgentsView —— Phase 1 item 3 agent profile management.
+ * AgentsView —— 阶段 1 任务 3 agent 配置文件管理。
  *
- * Lists agent definitions from `reflect_list_agent_defs`, supports
- * create / edit / delete. The editor form covers name / description /
+ * 列出 `reflect_list_agent_defs` 的 agent 定义，支持
+ * 创建 / 编辑 / 删除。编辑器表单覆盖 name / description /
  * model / system_prompt / tools / disallowed_tools / spawnable / readonly /
- * max_turns / memory scopes.
+ * max_turns / memory scopes。
  *
- * Backend contract: `src/utils/commands/agents.ts` ↔
- * `src-tauri/src/commands/agents.rs` ↔ `vendor/reflect-agent-def`.
- * Storage: `~/.reflect/agents/<name>.md`, shared with TUI/CLI.
+ * 后端契约：`src/utils/commands/agents.ts` ↔
+ * `src-tauri/src/commands/agents.rs` ↔ `reflect-agent/crates/abilities/reflect-agent-def`。
+ * 存储：`~/.reflect/agents/<name>.md`，与 TUI/CLI 共享。
  */
 import { Bot, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
@@ -137,5 +137,5 @@ function AgentRow({
   );
 }
 
-// Re-export for test convenience.
+// 为测试方便再导出。
 export { joinCsv, parseCsv };

@@ -1,5 +1,5 @@
 /**
- * Find-in-files wrappers — grep the workspace.
+ * Find-in-files 封装 —— 在工作区内做 grep 搜索。
  */
 import { invoke } from '../bridge';
 
@@ -17,11 +17,11 @@ export interface ReflectFileSearchResult {
 }
 
 /**
- * Substring search across the workspace.
+ * 在工作区内做子串搜索。
  *
- * @param query  text to search for
- * @param path   root path, or `null` for the active workspace
- * @param maxResults  caps results (defaults to 200)
+ * @param query  待搜索文本
+ * @param path   根路径,或 `null` 表示当前工作区
+ * @param maxResults  结果上限(默认 200)
  */
 export async function reflect_search_files(
   query: string,

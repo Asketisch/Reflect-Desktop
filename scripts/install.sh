@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# install.sh — install ReflectDesktop binary and macOS .app
-# Usage:
-#   bash scripts/install.sh                  # default: /usr/local/bin, ~/Applications
-#   bash scripts/install.sh --dry-run      # print actions without executing
+# install.sh —— 安装 ReflectDesktop 二进制与 macOS .app
+# 用法：
+#   bash scripts/install.sh                  # 默认安装到 /usr/local/bin 与 ~/Applications
+#   bash scripts/install.sh --dry-run      # 仅打印动作，不实际执行
 #   bash scripts/install.sh --prefix=$HOME/.local
 
 set -euo pipefail
@@ -18,12 +18,12 @@ for arg in "$@"; do
     --app-dir=*) APP_DIR="${arg#--app-dir=}" ;;
     -h|--help)
       cat <<EOF
-Usage: install.sh [--dry-run] [--prefix=PATH] [--app-dir=PATH]
+用法：install.sh [--dry-run] [--prefix=PATH] [--app-dir=PATH]
 
-  --prefix=PATH   Where to copy the binary (default: /usr/local/bin)
-  --app-dir=PATH  Where to copy the .app bundle on macOS (default: ~/Applications)
-  --dry-run       Print what would happen without modifying the system
-  -h, --help      Show this help
+  --prefix=PATH   二进制安装位置（默认：/usr/local/bin）
+  --app-dir=PATH  macOS 上 .app 包安装位置（默认：~/Applications）
+  --dry-run       仅打印将执行的操作，不修改系统
+  -h, --help      显示本帮助
 
 EOF
       exit 0 ;;
@@ -31,7 +31,7 @@ EOF
   esac
 done
 
-# Resolve repository root (parent of scripts/).
+# 解析仓库根目录（scripts/ 的父目录）。
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 

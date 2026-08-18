@@ -17,7 +17,7 @@ pub struct SkillInfo {
 
 #[tauri::command]
 pub async fn reflect_list_skills() -> CommandResult<Vec<SkillInfo>> {
-    // Phase 1: scan `~/.reflect/skills/**/SKILL.md` and `<cwd>/.reflect/skills/**/SKILL.md`.
+    // 扫描 `~/.reflect/skills/**/SKILL.md` 与 `<cwd>/.reflect/skills/**/SKILL.md`。
     let mut out = Vec::new();
     let search_dirs: Vec<PathBuf> = [
         dirs::home_dir().map(|h| h.join(".reflect/skills")),
@@ -58,7 +58,7 @@ fn collect_skills_in(dir: &PathBuf, out: &mut Vec<SkillInfo>) -> CommandResult<(
 }
 
 fn parse_skill_frontmatter(content: &str, path: &PathBuf) -> Option<SkillInfo> {
-    // Minimal YAML-frontmatter parser: extract the first `---\n...\n---` block.
+    // 极简 YAML frontmatter 解析器:抽取首个 `---\n...\n---` 块。
     let stripped = content.strip_prefix("---")?;
     let rest = stripped.trim_start_matches('\n');
     let end = rest.find("\n---")?;
@@ -76,7 +76,7 @@ fn parse_skill_frontmatter(content: &str, path: &PathBuf) -> Option<SkillInfo> {
     let tools = extract_yaml_list(yaml, "tools");
     let triggers = extract_yaml_list(yamml_safe(yaml), "triggers");
 
-    let _ = body; // body unused in summary; surfaced in future `/skills/<name>` detail.
+    let _ = body; // body 在 summary 中暂未使用,留给未来 `/skills/<name>` 详情页。
 
     Some(SkillInfo {
         name,
@@ -110,7 +110,7 @@ fn extract_yaml_list(yaml: &str, key: &str) -> Vec<String> {
     for line in yaml.lines() {
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix(&format!("{key}:")) {
-            // inline [a, b, c]
+            // 行内列表 `[a, b, c]`
             if rest.trim_start().starts_with('[') {
                 let inside = rest
                     .trim_start()
@@ -126,7 +126,7 @@ fn extract_yaml_list(yaml: &str, key: &str) -> Vec<String> {
             } else if rest.trim().is_empty() {
                 in_list = true;
             } else {
-                return out; // single value, not a list
+                return out; // 单值,不算列表
             }
             continue;
         }

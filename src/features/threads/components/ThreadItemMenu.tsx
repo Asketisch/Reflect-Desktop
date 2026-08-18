@@ -19,8 +19,8 @@ export interface ThreadItemMenuProps {
 export function ThreadItemMenu({ session, onRename, onDelete, onExport }: ThreadItemMenuProps) {
   const { t } = useI18n();
   const [renameOpen, setRenameOpen] = useState(false);
-  // `ReflectSessionInfo` (backend `SessionInfo`) only carries `session_id` —
-  // there is no `display_name` field, so the rename input starts empty.
+  // `ReflectSessionInfo`（后端 `SessionInfo`）仅携带 `session_id` ——
+  // 没有 `display_name` 字段，因此重命名输入框初始为空。
   const [renameValue, setRenameValue] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);

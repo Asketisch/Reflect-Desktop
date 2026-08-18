@@ -14,7 +14,7 @@ describe('uuid', () => {
 
   it('uses crypto.randomUUID when available', () => {
     const id = uuid();
-    // crypto.randomUUID returns 36-char UUID with hyphens
+    // crypto.randomUUID 返回带连字符的 36 字符 UUID
     expect(id.length).toBeGreaterThanOrEqual(36);
   });
 });

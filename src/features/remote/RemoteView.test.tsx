@@ -1,12 +1,12 @@
 /**
- * Vitest — RemoteView (Phase 2 item 2).
+ * Vitest —— RemoteView（Phase 2 条目 2）。
  *
- * Smoke + behavior tests against mocked IPC:
- *   - page title + 4 cards render
- *   - iOS setup card: ready badge when config.is_ready, opens form on click
- *   - form Save forwards to reflect_update_remote_config
- *   - Tailscale card renders detected status fields
- *   - Daemon hint card renders the preview text
+ * 基于模拟 IPC 的冒烟 + 行为测试：
+ *   - 页面标题 + 4 张卡片渲染
+ *   - iOS 设置卡片：config.is_ready 时显示就绪徽标，点击打开表单
+ *   - 表单 Save 转发到 reflect_update_remote_config
+ *   - Tailscale 卡片渲染检测到的状态字段
+ *   - 守护进程提示卡片渲染预览文本
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -96,8 +96,8 @@ describe('RemoteView', () => {
     await waitFor(() => {
       expect(screen.getByText('ready')).toBeDefined();
     });
-    // Endpoint appears in both the iOS card and the Tailscale card;
-    // assert at least one match exists.
+    // Endpoint 同时出现在 iOS 卡片和 Tailscale 卡片中；
+    // 断言至少存在一个匹配。
     const matches = screen.getAllByText('node.tail.net:4732');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
@@ -105,7 +105,7 @@ describe('RemoteView', () => {
   it('renders Tailscale fields', async () => {
     render(wrap(<RemoteView />));
     await waitFor(() => {
-      // The tailnet name "tail.net" is unique to the Tailscale card.
+      // tailnet 名称 "tail.net" 是 Tailscale 卡片独有的。
       expect(screen.getByText('tail.net')).toBeDefined();
     });
     const ips = screen.getAllByText('100.64.0.1');

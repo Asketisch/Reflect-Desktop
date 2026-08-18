@@ -1,4 +1,4 @@
-/* TasksBoardView —— Phase 1 multi-agent task board. */
+/* TasksBoardView —— Phase 1 多 agent 任务看板。 */
 
 .addBtn,
 .listBtn {
@@ -92,7 +92,7 @@
   padding: var(--space-4, 16px);
 }
 
-/* ── List view ── */
+/* ── 列表视图 ── */
 
 .list {
   display: flex;
@@ -172,7 +172,7 @@
   border-color: var(--danger, #f87171);
 }
 
-/* ── Board view ── */
+/* ── 看板视图 ── */
 
 .board {
   display: grid;
@@ -214,7 +214,7 @@
   padding: var(--space-2, 8px);
 }
 
-/* Board view rows are stacked vertically and wrap less compactly. */
+/* 看板视图的行垂直堆叠，换行排布更松散。 */
 .board .row {
   flex-direction: column;
   align-items: stretch;

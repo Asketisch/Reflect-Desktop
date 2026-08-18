@@ -1,12 +1,12 @@
 /**
- * Reflect protocol — UserInputItem discriminated union.
+ * Reflect protocol —— UserInputItem 判别联合。
  *
- * Mirrors `vendor/reflect-protocol/src/item.rs` `UserInputItem`. Each
- * variant is tagged with a `type` discriminator matching the Rust
- * `#[serde(rename_all = "snake_case")]` enum. The `question_answer`
- * variant references `AskUserAnswer` (see `./question.ts`).
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/item.rs` 中的 `UserInputItem`。每个
+ * 变体使用 `type` discriminator 标记,与 Rust 的
+ * `#[serde(rename_all = "snake_case")]` 枚举对齐。`question_answer` 变体
+ * 引用 `AskUserAnswer`(见 `./question.ts`)。
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 import type { AskUserAnswer } from './question';

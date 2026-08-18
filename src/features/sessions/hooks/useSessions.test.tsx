@@ -15,8 +15,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { mockInvoke, resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
 
-// Module-level mocks for router hooks used by useActiveSession.
-// The pathname can be flipped per-test via `__mockPathname`.
+// 供 useActiveSession 使用的 router hooks 模块级模拟。
+// 可通过 `__mockPathname` 在每个测试中切换路径名。
 const __mockPathname: { current: string } = { current: '/chat' };
 const __mockNavigate = vi.fn().mockResolvedValue(undefined);
 

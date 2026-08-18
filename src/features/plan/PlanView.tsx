@@ -1,5 +1,5 @@
 /**
- * Plan —— Plan mode viewer + approval workflow（CSS Modules 版）。
+ * Plan —— 计划模式查看器 + 审批工作流（CSS Modules 版）。
  *
  * Plan 审批三选一(对齐 `reflect_protocol::PlanApprovalChoice`):
  *   - Auto Mode(auto_mode):切到 AcceptEdits,自动批准编辑/写入类。

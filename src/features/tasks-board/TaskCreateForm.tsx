@@ -1,7 +1,7 @@
 /**
- * TaskCreateForm —— inline form for creating a task in the active list.
+ * TaskCreateForm —— 在活动列表中创建任务的内联表单。
  *
- * Presentational; state lives in `useTasksBoardController`.
+ * 纯展示组件；状态位于 `useTasksBoardController`。
  */
 import { Plus } from 'lucide-react';
 import { Icon } from '@/features/design-system';

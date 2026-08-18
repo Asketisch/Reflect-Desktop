@@ -2,20 +2,20 @@
  * App-level smoke test —— 端到端验证用户可见功能。
  *
  * 覆盖：
- * 1. 路由模块结构 —— 21 routes 注册，AppRouter type 存在
+ * 1. 路由模块结构 —— 注册 21 个路由,AppRouter type 存在
  * 2. 顶层 AppLayout 接线 —— Sidebar / ChatView 渲染
- * 3. ReflectEvent dispatch —— useAgent turns 累积 + session 配置
+ * 3. ReflectEvent dispatch —— useAgent 累积 turns + session 配置
  * 4. useSessions —— 真实 TanStack Query + bucket 分类 + rename IPC
- * 5. SettingsView —— reflect_set_permission_mode mutation
- * 6. DesignSystemView —— 6 个 section 全部渲染 + 4 primitives 可见
- * 7. Barrel exports —— features/<slice>/index.ts 全部能 import
+ * 5. SettingsView —— reflect_set_permission_mode 变更
+ * 6. DesignSystemView —— 6 个 section 全部渲染 + 4 个 primitive 可见
+ * 7. Barrel exports —— features/<slice>/index.ts 全部可 import
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '@/features/shell/AppShell';
 
-// Tiny typed wrappers around node:fs to avoid @types/node dep.
+// node:fs 的类型化小封装，避免引入 @types/node 依赖。
 declare const require: (id: string) => unknown;
 function nodeRead(p: string, enc: string = 'utf8'): string {
   return (require('node:fs') as { readFileSync: (p: string, enc: string) => string }).readFileSync(p, enc);
@@ -52,8 +52,8 @@ import {
 } from '@/test/setup';
 import type { ReactNode } from 'react';
 
-// Mock @tanstack/react-router so Link/useNavigate resolve to plain <a>/noop.
-// This avoids needing a fully initialized router for views that import Link.
+// 模拟 @tanstack/react-router,让 Link/useNavigate 退化为普通 <a>/noop。
+// 这样使用 Link 的视图就不需要完整初始化的 router。
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-router')>(
     '@tanstack/react-router',
@@ -102,7 +102,7 @@ function wrap(node: ReactNode) {
 }
 
 // ===========================================================================
-// 1. Router module structure
+// 1. Router 模块结构
 // ===========================================================================
 
 describe('Router module structure', () => {
@@ -115,13 +115,13 @@ describe('Router module structure', () => {
 
   it('AppProviders is a valid React component', async () => {
     const { AppProviders } = await import('@/router');
-    // Should accept children prop and render QueryClientProvider
+    // 应接受 children prop 并渲染 QueryClientProvider
     expect(AppProviders.length).toBeGreaterThanOrEqual(1);
   });
 });
 
 // ===========================================================================
-// 2. AppLayout wiring
+// 2. AppLayout 接线
 // ===========================================================================
 
 describe('AppShell (IDE-style top-level shell)', () => {
@@ -129,7 +129,7 @@ describe('AppShell (IDE-style top-level shell)', () => {
 
   it('mounts with Sidebar + ActivityBar + StatusBar', () => {
     render(wrap(<AppShell />));
-    // Sidebar header
+    // 侧边栏头部
     expect(screen.getByText('Sessions')).toBeDefined();
     // ActivityBar nav label（IconButton aria-label）
     expect(screen.getByLabelText('Chat')).toBeDefined();
@@ -164,7 +164,7 @@ describe('Event-driven agent flow', () => {
     }
     render(wrap(<Capture />));
 
-    // 1. User submits
+    // 1. 用户提交
     await act(async () => {
       await agentHook!.submit('hello');
     });
@@ -175,7 +175,7 @@ describe('Event-driven agent flow', () => {
     expect(turn0.status).toBe('streaming');
     const submissionId = turn0.id;
 
-    // 2. Stream delta 1
+    // 2. 第一个流式 delta
     await act(async () => {
       emitMockEvent('reflect_event', {
         id: submissionId,
@@ -184,7 +184,7 @@ describe('Event-driven agent flow', () => {
     });
     expect(assistantText(agentHook!, submissionId)).toBe('Hi');
 
-    // 3. Stream delta 2
+    // 3. 第二个流式 delta
     await act(async () => {
       emitMockEvent('reflect_event', {
         id: submissionId,
@@ -193,7 +193,7 @@ describe('Event-driven agent flow', () => {
     });
     expect(assistantText(agentHook!, submissionId)).toBe('Hi there');
 
-    // 4. Turn complete
+    // 4. turn 完成
     await act(async () => {
       emitMockEvent('reflect_event', {
         id: submissionId,
@@ -243,7 +243,7 @@ describe('Event-driven agent flow', () => {
 });
 
 // ===========================================================================
-// 4. useSessions → real TanStack Query with mock backend
+// 4. useSessions → 真实 TanStack Query + mock 后端
 // ===========================================================================
 
 describe('Sessions pipeline (useSessions + rename)', () => {
@@ -276,7 +276,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
         display_name: 'Older chat',
       },
     ]);
-    // commands.ts sends { id, newName } as the args object
+    // commands.ts 以 { id, newName } 作为 args 对象发送
     mockInvoke('reflect_rename_session', async (_cmd: string, args: { id: string; newName: string }) => {
       (globalThis as { __lastRename?: { id: string; newName: string } }).__lastRename = args;
     });
@@ -321,7 +321,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
     await act(async () => {
       await result.current.rename('s-A', 'X');
     });
-    // rename success → invalidateQueries → refetch
+    // rename 成功 → invalidateQueries → refetch
     await waitFor(() => expect(callCount).toBeGreaterThanOrEqual(2));
   });
 });
@@ -362,7 +362,7 @@ describe('Settings save flow', () => {
 });
 
 // ===========================================================================
-// 6. DesignSystemView —— 6 sections + 4 primitives
+// 6. DesignSystemView —— 6 个 section + 4 个 primitive
 // ===========================================================================
 
 describe('DesignSystemView catalog', () => {
@@ -401,7 +401,7 @@ describe('DesignSystemView catalog', () => {
 
   it('KeyHint primitive renders platform-aware shortcuts', () => {
     const { container } = render(wrap(<DesignSystemView />));
-    // KeyHint renders <kbd> elements
+    // KeyHint 渲染 <kbd> 元素
     const kbds = container.querySelectorAll('kbd');
     expect(kbds.length).toBeGreaterThanOrEqual(4);
   });
@@ -484,7 +484,7 @@ describe('Feature barrel exports', () => {
 });
 
 // ===========================================================================
-// 8. IPC parity: frontend wrappers ↔ backend commands
+// 8. IPC 一致性:前端 wrapper ↔ 后端命令
 // ===========================================================================
 
 function readBackendCommandSources(): string {
@@ -501,13 +501,13 @@ describe('IPC parity (frontend ↔ backend)', () => {
     const frontend = await import('@/utils/commands');
     const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('reflect_'));
 
-    // All 19 frontend commands must appear in backend source
+    // 所有 19 个前端命令都必须出现在后端源码中
     const missing = frontendNames.filter(
       (n) => !backendSrc.includes(`pub async fn ${n}`),
     );
     expect(missing).toEqual([]);
 
-    // And every reflect_ fn in backend must have a frontend wrapper
+    // 后端的每个 reflect_ fn 也必须有对应的前端 wrapper
     const backendMatches: RegExpMatchArray[] = [...backendSrc.matchAll(/pub async fn (reflect_\w+)/g)];
     const backendNames: string[] = backendMatches.map((m: RegExpMatchArray) => m[1]);
     const orphan = backendNames.filter((n: string) => !frontendNames.includes(n));
@@ -519,7 +519,7 @@ describe('IPC parity (frontend ↔ backend)', () => {
     const frontend = await import('@/utils/commands');
     const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('reflect_'));
 
-    // extract handler list
+    // 提取 handler 列表
     const match = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]/);
     expect(match).not.toBeNull();
     const handlerBody = match![1];
@@ -529,12 +529,12 @@ describe('IPC parity (frontend ↔ backend)', () => {
 });
 
 // ===========================================================================
-// 9. CSS design tokens injected
+// 9. 注入 CSS 设计 token
 // ===========================================================================
 
 describe('Design tokens', () => {
   it('tokens.css is importable', async () => {
-    // Vitest doesn't bundle CSS; just confirm file exists at expected path
+    // Vitest 不会 bundle CSS;这里只确认文件存在
     expect(nodeExists('src/styles/tokens.css')).toBe(true);
   });
 
@@ -554,7 +554,7 @@ describe('Design tokens', () => {
 });
 
 // ===========================================================================
-// 10. Per-route mountability (without RouterProvider)
+// 10. 各路由可独立挂载 (无需 RouterProvider)
 // ===========================================================================
 
 describe('Per-route views (no RouterProvider)', () => {
@@ -565,13 +565,13 @@ describe('Per-route views (no RouterProvider)', () => {
 
   it('HomeView mounts standalone with RouterProvider', () => {
     render(wrap(<HomeView />));
-    // HomeView shows session-aware content
+    // HomeView 显示与 session 相关的内容
     expect(document.body.textContent).toBeTruthy();
   });
 
   it('ThreadsView mounts standalone with RouterProvider', () => {
     render(wrap(<ThreadsView />));
-    // ThreadsView uses useSessions → mock returns 3 sessions → "Now" header rendered
+    // ThreadsView 调用 useSessions → mock 返回 3 个 sessions → 渲染 "Now" 标题
     expect(document.body.textContent).toBeTruthy();
   });
 });

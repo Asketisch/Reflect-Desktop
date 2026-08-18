@@ -1,9 +1,9 @@
 /**
- * Agent status / config TOML / tool registry wrappers.
+ * Agent 状态 / config TOML / 工具注册表 封装。
  *
- * `ReflectAgentStatus` powers the status badge and degraded-mode CTA.
- * The TOML commands wrap raw `~/.reflect/config.toml` read/write — the
- * backend still validates and parses before flushing to disk.
+ * `ReflectAgentStatus` 驱动状态徽标与降级模式 CTA。
+ * TOML 命令封装 `~/.reflect/config.toml` 的原始读写 —— 后端在写入磁盘前
+ * 仍会进行合法性校验与解析。
  */
 import { invoke } from '../bridge';
 

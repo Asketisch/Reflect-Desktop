@@ -13,7 +13,7 @@
 export interface FuzzyHit<T> {
   item: T;
   score: number;
-  /** Indices into the source text that matched, for highlighting. */
+  /** 匹配的源文本索引，用于高亮显示。 */
   matches: number[];
 }
 
@@ -66,7 +66,7 @@ function scoreOne(q: string, text: string): { score: number; matches: number[] }
   if (text.startsWith(q)) {
     return { score: 50, matches: Array.from({ length: q.length }, (_, i) => i) };
   }
-  // subsequence
+  // 子序列匹配
   const matches: number[] = [];
   let qi = 0;
   let run = 0;
@@ -85,7 +85,7 @@ function scoreOne(q: string, text: string): { score: number; matches: number[] }
     }
   }
   if (qi < q.length) return { score: -1, matches: [] };
-  // bonus for compact matches
+  // 紧凑匹配的额外加分
   if (bestRun === q.length) score += 8;
   if (matches.length > 0 && matches[matches.length - 1] - matches[0] === q.length - 1) score += 4;
   return { score, matches };

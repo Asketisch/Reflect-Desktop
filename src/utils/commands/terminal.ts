@@ -1,8 +1,8 @@
 /**
- * Terminal / shell exec wrappers — spawn/kill/list + output subscription.
+ * 终端 / shell 执行包装 —— spawn/kill/list + 输出订阅。
  *
- * Output chunks stream over the `reflect_terminal_output` event. The front-end
- * subscribes once per session via `onTerminalOutput` and filters by `session_id`.
+ * 输出块通过 `reflect_terminal_output` 事件流式送达。前端
+ * 通过 `onTerminalOutput` 每个会话订阅一次，并按 `session_id` 过滤。
  */
 import { invoke, listen } from '../bridge';
 
@@ -20,22 +20,22 @@ export interface ReflectShellOutputChunk {
   seq: number;
 }
 
-/** Spawn a shell command; output streams as `reflect_terminal_output` events. */
+/** 启动 shell 命令；输出以 `reflect_terminal_output` 事件流式返回。 */
 export async function reflect_run_shell(cmd: string): Promise<ReflectShellSession> {
   return invoke<ReflectShellSession>('reflect_run_shell', { cmd });
 }
 
-/** Kill a running shell session by id. Idempotent. */
+/** 按 id 终止运行中的 shell 会话。幂等。 */
 export async function reflect_kill_shell(session_id: string): Promise<void> {
   return invoke<void>('reflect_kill_shell', { session_id });
 }
 
-/** Diagnostic: list active shell session ids. */
+/** Diagnostic：列出活动 shell 会话的 id。 */
 export async function reflect_list_shell_sessions(): Promise<string[]> {
   return invoke<string[]>('reflect_list_shell_sessions');
 }
 
-/** Subscribe to terminal output events for any session. */
+/** 订阅任意会话的终端输出事件。 */
 export async function onTerminalOutput(handler: (chunk: ReflectShellOutputChunk) => void) {
   return listen<ReflectShellOutputChunk>('reflect_terminal_output', (e) => handler(e.payload));
 }

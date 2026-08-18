@@ -1,86 +1,81 @@
-# Multi-Agent / Vendor Sync Runbook
+# 多 Agent / 核心子模块升级运行手册
 
-> Canonical checklist for syncing `vendor/reflect-*` from upstream `Reflect-Agent`.
+> 升级 `reflect-agent/` submodule 到上游 `Reflect-Agent` 新版本的权威清单。
+> （历史说明：本仓库曾用 `vendor/` + `scripts/vendor-sync.sh` 同步核心 crate，
+> 已迁移为 git submodule，旧 vendor 流程不再适用。）
 
-## When to sync
+## 何时升级
 
-- Reflect-Agent publishes a new release (tag `v*`).
-- A bug fix lands in `reflect-protocol` / `reflect-core` / `reflect-rollout` / etc. that affects GUI behavior.
-- A new `Op` / `EventMsg` variant is added (frontend types need regeneration).
+- Reflect-Agent 发布新版本（标签 `v*`）。
+- `reflect-protocol` / `reflect-core` / `reflect-rollout` 等落地了影响 GUI 行为的修复。
+- 新增了 `Op` / `EventMsg` 变体（前端类型需要重新生成）。
 
-## Pre-flight
+## 预检
 
-1. Confirm the upstream commit is on a branch we want to track (`main` by default).
-2. Run the local test suite **before** the sync to record the baseline:
+1. 确认上游提交在我们想要跟踪的分支上（默认 `main`）。
+2. 升级前运行本地测试套件，记录基线：
 
    ```bash
    pnpm test
    cd src-tauri && cargo test --workspace
    ```
 
-## Sync procedure
+## 升级流程
 
 ```bash
-# 1. Pull latest from a local clone or fork
-bash scripts/vendor-sync.sh /Users/admin/Code/CNB/Reflect-Agent main
-# OR supply a tag
-bash scripts/vendor-sync.sh /Users/admin/Code/CNB/Reflect-Agent v1.2.0
+# 1. 拉取最新核心（submodule 跟踪 Reflect-Agent 默认分支）
+git submodule update --remote reflect-agent
 
-# 2. Review the diff
-git diff --stat vendor/
-git diff vendor/reflect-protocol/src/
+# 2. 审查差异
+git diff --submodule reflect-agent
+git diff reflect-agent/crates/protocol/reflect-protocol/src/
 
-# 3. Regenerate frontend types if reflect-protocol changed
-cd /path/to/Reflect-Agent
-cargo run -p reflect-protocol --example dump_schema > /tmp/reflect-schema.json
-cd /Users/admin/Code/CNB/ReflectDesktop
-npx json2ts /tmp/reflect-schema.json -o src/types/protocol.ts
+# 3. 如果 reflect-protocol 有变更，重新生成前端类型
+bash scripts/dump-ts-types.sh
 
-# 4. Rebuild
+# 4. 重建验证
 pnpm install
 cd src-tauri && cargo check
 pnpm test
 pnpm typecheck
 pnpm tauri build --bundles app
 
-# 5. Commit
-git add vendor/ src/types/protocol.ts
-git commit -m "sync vendor: <reason> (Reflect-Agent <tag>)"
+# 5. 提交
+git add reflect-agent src/types/protocol.ts
+git commit -m "chore: bump reflect-agent submodule (<原因>)"
 ```
 
-## Conflict policy
+## 冲突策略
 
-- **vendor/**: never edit directly. If a hot-fix is needed, patch upstream first, then re-sync.
-- **src/types/protocol.ts**: regenerate from schema; do not hand-edit unless absolutely necessary.
-- **app-core/**: shared between GUI and Tauri shim; coordinate with upstream if changing.
+- **reflect-agent/**：submodule 只读镜像，绝不直接编辑。如果需要热修复，
+  先在 Reflect-Agent 仓库打补丁，再 `git submodule update --remote` 升级。
+- **src/types/protocol.ts**：从 schema 重新生成；除非绝对必要否则不手工编辑。
+- **app-core/**：GUI 和 Tauri 适配层共享；如有变更需与上游协调。
 
-## What can break
+## 什么可能出问题
 
-| Symptom | Cause | Fix |
+| 症状 | 原因 | 修复 |
 |---|---|---|
-| `cargo check` fails with "missing field" | `reflect-protocol` added a new variant | Update `src/types/protocol.ts` via `json2ts` |
-| Frontend discards events | Frontend reducer lacks new variant | Add `case` to `src/services/agent.ts::handle_event` |
-| `invoke('reflect_submit')` errors | Tauri command signature drift | Sync `src-tauri/src/commands/mod.rs` with new `Op` variants |
-| Binary size jumps | New vendored crate pulled in | Check `scripts/vendor-sync.sh` `CRATES` list |
+| `cargo check` 报 match 不穷尽 | `reflect-protocol` 新增 `EventMsg` / `RolloutRecord` 变体 | 在 `app-core/src/reducer/mod.rs` 与 `src-tauri/src/state/activity.rs` 补全 match 分支 |
+| `cargo check` 报 "missing field" | 协议结构体新增字段 | 适配 `app-core/src/protocol.rs` 的构造函数 |
+| 前端丢弃事件 | 前端 reducer 缺少新变体 | 运行 `bash scripts/dump-ts-types.sh` 后在 reducer 补全 |
+| `invoke('reflect_submit')` 报错 | Tauri 命令签名漂移 | 将 `src-tauri/src/commands/` 与新 `Op` 变体同步 |
 
-## Rollback
+## 回滚
 
-If the sync breaks the GUI:
+如果升级破坏了 GUI：
 
 ```bash
-git revert <sync-commit-sha>
+git revert <升级提交-sha>
 pnpm install
 cd src-tauri && cargo check
 ```
 
-Then file an issue upstream describing the breakage.
+然后在上游提交 issue 描述问题。
 
-## CRATES list
+## 相关文档
 
-`scripts/vendor-sync.sh` controls which crates get mirrored. To add or remove a crate, edit the `CRATES=(...)` array at the top of the script and rerun the sync. The full current set is documented in [`codebase-map.md`](codebase-map.md#vendor-crates).
-
-## Related docs
-
-- Architecture (vendor mirror rationale): [`ARCHITECTURE.md`](ARCHITECTURE.md#5-vendor-mirror)
-- Codebase map (paths): [`codebase-map.md`](codebase-map.md)
-- Protocol envelope: [`PROTOCOL_BRIDGE.md`](PROTOCOL_BRIDGE.md)
+- submodule 复用指南（克隆/初始化/本地联调）：[`../SUBMODULE.md`](../SUBMODULE.md)
+- 架构（submodule 原理）：[`ARCHITECTURE.md`](ARCHITECTURE.md)
+- 代码库地图（路径）：[`codebase-map.md`](codebase-map.md)
+- 协议信封：[`PROTOCOL_BRIDGE.md`](PROTOCOL_BRIDGE.md)

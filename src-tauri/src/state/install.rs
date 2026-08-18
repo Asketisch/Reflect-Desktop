@@ -93,21 +93,21 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     *agent.inner.thread.lock() = Some(thread.clone());
     *agent.inner.model_spec.write() = model_spec.clone();
 
-    // 6. 启动 session event forwarder。
+    // 6. 启动会话事件转发器。
     super::session::start_forwarder(agent);
 
-    // 6a. 启动 Activity logger 订阅(Phase 3 第 9 项):独立 broadcast receiver
+    // 6a. 启动 Activity logger 订阅:独立 broadcast receiver
     //     把每个 Event 映射成 ActivityEvent 写入本地 timeline,与 forwarder
     //     互不阻塞。
     super::activity::subscribe_activity_logger(agent);
 
-    // 6b. 注入 Cron 调度器(Phase 1 第 2 项):拿 AgentThread 的 submission
+    // 6b. 注入 Cron 调度器:拿 AgentThread 的 submission
     //     sender,构造带真 sender 的 CronScheduler,启动后台 driver(30s tick)。
     //     driver 与命令层共享 jobs,到期把 prompt 作为 UserInput 注入 agent loop。
     let cron_sender = thread.submission_sender();
     agent.install_cron_scheduler(cron_sender);
 
-    // 7. MCP / LSP bootstrap(阶段 3d)—— 读 cfg 的 [mcp_servers]/[lsp_servers],
+    // 7. MCP / LSP bootstrap—— 读 cfg 的 [mcp_servers]/[lsp_servers],
     //    启动 server + 注册 tool。lifecycle event 经 session broadcast 推前端。
     //    在 async runtime 里跑(bootstrap 内部 tokio::spawn + 网络 I/O)。
     let cfg_for_bootstrap = cfg_snapshot.clone();

@@ -27,7 +27,7 @@ describe('segmentArc', () => {
     const g = ringGeometry(40, 4);
     const arc = segmentArc(g, 0, 0.5);
     expect(arc.dasharray.startsWith(arc.dasharray.split(' ')[0])).toBe(true);
-    // First token should be half of circumference
+    // 第一个 token 应为圆周长的一半
     const visible = parseFloat(arc.dasharray.split(' ')[0]);
     expect(visible).toBeCloseTo(g.circumference / 2, 3);
   });

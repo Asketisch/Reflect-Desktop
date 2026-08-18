@@ -1,12 +1,12 @@
 /**
- * Vitest — useTerminalController (B8-01 refactor).
+ * Vitest —— useTerminalController（B8-01 重构）。
  *
- * Focused tests covering:
- *   - output routing (chunk goes to the right session, with the right stream)
- *   - exit/error chunk transitions the session status
- *   - line cap (MAX_LINES_PER_SESSION) is enforced
- *   - kill action transitions running → killed
- *   - safe cleanup when the component unmounts before `subscribe` resolves
+ * 聚焦测试覆盖：
+ *   - 输出路由（块进入正确的会话、正确的流）
+ *   - exit/error 块切换会话状态
+ *   - 行数上限（MAX_LINES_PER_SESSION）生效
+ *   - kill 动作将状态从 running 切换到 killed
+ *   - 组件在 `subscribe` resolve 前卸载时的安全清理
  */
 import { describe, it, expect, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
@@ -40,7 +40,7 @@ function makeSubscribe(deferred: boolean) {
     handlers.push(handler);
     if (deferred) {
       return new Promise<() => void>((resolve) => {
-        // The test will resolve this via `pendingResolvers`.
+        // 测试将通过 `pendingResolvers` 解决该请求。
         pendingResolvers.push(() => resolve(noopUnlisten));
       });
     }
@@ -241,7 +241,7 @@ describe('useTerminalController — kill', () => {
     );
 
     await act(async () => {
-      // controller swallows backend error and creates a synthetic errored session
+      // 控制器吞掉后端错误并创建一个合成的错误会话
       await result.current.run('whatever');
     });
 
@@ -275,9 +275,9 @@ describe('useTerminalController — safe listener cleanup', () => {
       }),
     );
 
-    // Unmount before subscribe resolves.
+    // 在订阅 resolve 之前卸载。
     unmount();
-    // Wait long enough for the deferred resolve to fire.
+    // 等待足够长时间，让延迟的 resolve 触发。
     await new Promise((r) => setTimeout(r, 10));
 
     expect(unlisten).toHaveBeenCalledTimes(1);
@@ -299,7 +299,7 @@ describe('useTerminalController — safe listener cleanup', () => {
       }),
     );
 
-    // let the microtask resolve
+    // 让微任务完成解析
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();

@@ -1,5 +1,5 @@
 /**
- * useSquadController —— Squad + Leader delegation 控制器 (Phase 3 item 11).
+ * useSquadController —— Squad + Leader 委派控制器 (Phase 3 条目 11).
  *
  * 数据源:
  * - `reflect_list_squads` —— 所有 squad 列表(主列表)。

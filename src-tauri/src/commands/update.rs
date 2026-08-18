@@ -1,4 +1,4 @@
-//! Update checker (release manifest probe).
+//! 更新检查(release manifest 探测)。
 
 use serde::{Deserialize, Serialize};
 
@@ -63,7 +63,7 @@ async fn probe_release(url: &str) -> anyhow::Result<(String, Option<String>, Opt
         body: Option<String>,
     }
 
-    // Keep the existing curl-based probe to avoid adding a native TLS dependency.
+    // 继续沿用现有的 curl 探测,避免增加原生 TLS 依赖。
     let out = tokio::process::Command::new("curl")
         .args([
             "-fsSL",

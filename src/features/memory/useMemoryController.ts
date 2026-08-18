@@ -1,14 +1,13 @@
 /**
- * Memory —— controller hook (B11-01 refactor).
+ * Memory —— controller hook（B11-01 重构）。
  *
- * Encapsulates query / mutation orchestration so the view component can stay
- * presentational. Owns:
- *   - the TanStack `useQuery` for `reflect_list_memory`
- *   - the three mutations (`handleRemove` / `handleEditSave` / `handleAddNew`)
- *     including toasts and cache invalidation
- *   - filter + edit + new-form UI state.
+ * 封装查询 / 突变编排，使视图组件保持纯展示。职责：
+ *   - TanStack `useQuery` 用于 `reflect_list_memory`
+ *   - 三个 mutation（`handleRemove` / `handleEditSave` / `handleAddNew`），
+ *     包含 toast + cache 失效
+ *   - 过滤 + 编辑 + 新建表单 UI 状态。
  *
- * Extracted from MemoryView (2026-07-25); behavior preserved.
+ * 从 MemoryView 抽取（2026-07-25）；行为已保留。
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -43,7 +42,7 @@ export interface MemoryCounts {
 }
 
 export interface MemoryController {
-  // Query
+  // 查询
   entries: ReflectMemoryEntry[];
   filtered: ReflectMemoryEntry[];
   counts: MemoryCounts;
@@ -51,18 +50,18 @@ export interface MemoryController {
   error: unknown;
   refetch: () => void;
 
-  // Filter state
+  // 过滤状态
   filter: Scope;
   setFilter: (s: Scope) => void;
 
-  // Edit state
+  // 编辑状态
   editingKey: string | null;
   editValue: string;
   beginEdit: (entry: ReflectMemoryEntry) => void;
   setEditValue: (v: string) => void;
   cancelEdit: () => void;
 
-  // New-entry form state
+  // 新建条目表单状态
   showForm: boolean;
   toggleShowForm: () => void;
   newScope: 'user' | 'project';
@@ -72,12 +71,12 @@ export interface MemoryController {
   newValue: string;
   setNewValue: (v: string) => void;
 
-  // Mutations
+  // 突变操作
   remove: (entry: ReflectMemoryEntry) => Promise<void>;
   saveEdit: (entry: ReflectMemoryEntry) => Promise<void>;
   addNew: () => Promise<void>;
 
-  // In-flight mutation state (used by callers to disable controls).
+  // 进行中 mutation 状态（调用方用于禁用控件）。
   isMutating: boolean;
 }
 

@@ -1,3 +1,3 @@
-/** Barrel re-exports for the SettingsView UI components. */
+/** 设置视图 UI 组件的桶文件再导出。 */
 export { StructuredField, type StructuredFieldProps } from './StructuredField';
 export { ComplexSection, UnknownSection } from './ComplexEditors';

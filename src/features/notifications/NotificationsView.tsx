@@ -1,5 +1,5 @@
 /**
- * Notifications —— 三标签 Inbox + Activity timeline + @mentions (Phase 3 item 9).
+ * Notifications —— 三标签 Inbox + Activity timeline + @mentions (Phase 3 条目 9).
  *
  * - **Inbox**:运行时事件通知(派生自 agentStore)。All / Error / Pending 过滤。
  * - **Activity**:本地事件审计 timeline(reflect_list_activity + level 过滤)。
@@ -297,7 +297,7 @@ function MentionsTab({ ctrl }: { ctrl: ReturnType<typeof useActivityController> 
   );
 }
 
-// ── Row components ────────────────────────────────────────────────
+// ── 行组件 ────────────────────────────────────────────────
 
 function FilterBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -365,5 +365,5 @@ function ActivityRow({ event }: { event: ReflectActivityEvent }) {
   );
 }
 
-// suppress unused warning for the Inbox icon (kept for future Card adornment)
+// 抑制 Inbox 图标未使用警告（为未来 Card 装饰保留）
 void Inbox;

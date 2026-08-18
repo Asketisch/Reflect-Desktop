@@ -1,68 +1,67 @@
 /**
- * Schedule (cron) wrappers — Phase 1 item 2.
+ * Schedule (cron) 封装 —— Phase 1 第 2 项。
  *
- * Mirrors `src-tauri/src/commands/schedule.rs` (which wraps
- * `vendor/reflect-stream::cron::CronScheduler`). Payloads are the vendor types
- * serialized verbatim (snake_case, since `CronJobSpec` does not derive
- * `rename_all = "camelCase"`); only the `ScheduleStatus` envelope is camelCase
- * (matches the Rust `#[serde(rename_all = "camelCase")]`).
+ * 对应 `src-tauri/src/commands/schedule.rs`(其内部封装
+ * `reflect-agent/crates/integrations/reflect-stream::cron::CronScheduler`)。payload 直接使用核心 crate 类型
+ * 的序列化形态(snake_case,因为 `CronJobSpec` 没有派生
+ * `rename_all = "camelCase"`);只有 `ScheduleStatus` 信封使用 camelCase
+ * (与 Rust 的 `#[serde(rename_all = "camelCase")]` 保持一致)。
  *
- * Lifecycle: the scheduler starts empty; `install_agent_thread` injects the
- * real `AgentThread::submission_sender()` and spawns a 30s driver tick. Before
- * install completes, CRUD still works (the command reads the `RwLock`), but no
- * background firing happens. The driver fires a due job by injecting its
- * `prompt` as a `Submission::user_input` into the agent loop.
+ * 生命周期:调度器启动时为空;`install_agent_thread` 会注入真正的
+ * `AgentThread::submission_sender()` 并启动一个 30s 的驱动 tick。在安装
+ * 完成前,CRUD 仍然可用(命令读取 `RwLock`),但不会有后台触发。驱动触发
+ * 到期的 job 时,把其 `prompt` 以 `Submission::user_input` 注入 agent 循环。
  *
- * Out of scope (next rounds): `run_now` (needs a vendor `pub async fn
- * run_now(&self)`), persistence (vendor scheduler is in-memory), tick-interval
- * config, one-shot `run_at`.
+ * 暂不在范围内(后续轮次):`run_now`(需要 核心 crate 提供 `pub async fn
+ * run_now(&self)`)、持久化(核心 crate 调度器为内存态)、tick 间隔配置、
+ * 一次性 `run_at`。
  */
 import { invoke } from '../bridge';
 
-// ── CronJobSpec (mirrors `reflect_stream::cron::CronJobSpec`, snake_case) ──
+// ── CronJobSpec(对应 `reflect_stream::cron::CronJobSpec`,snake_case) ──
 
 export interface ReflectCronJob {
-  /** Stable uuid; used for update / remove. */
+  /** 稳定 uuid,用于 update / remove。 */
   id: string;
-  /** 5-field cron expression (min hour dom month dow). */
+  /** 5 段 cron 表达式(min hour dom month dow)。 */
   schedule: string;
-  /** Prompt injected as `Submission::user_input` when the job fires. */
+  /** job 触发时作为 `Submission::user_input` 注入的 prompt。 */
   prompt: string;
-  /** Optional human-readable name; defaults to first 24 chars of prompt. */
+  /** 可选的人类可读名称;缺省时取 prompt 的前 24 个字符。 */
   name?: string | null;
-  /** Disabled jobs stay in the list but are not fired by the driver. */
+  /** 禁用的 job 仍保留在列表中,但驱动不会触发。 */
   enabled: boolean;
-  /** Creation time (UTC, ISO 8601). */
+  /** 创建时间(UTC,ISO 8601)。 */
   created_at: string;
-  /** Last fired time; `null` = never. */
+  /** 最近触发时间; `null` 表示尚未触发。 */
   last_fired?: string | null;
-  /** Computed next fire time; `null` if the expression has no solution. */
+  /** 计算出的下次触发时间;表达式无解时为 `null`。 */
   next_fire?: string | null;
 }
 
-// ── ScheduleStatus (camelCase, mirrors `commands/schedule.rs::ScheduleStatus`) ─
+// ── ScheduleStatus(camelCase,对应 `commands/schedule.rs::ScheduleStatus`) ─
 
 export interface ReflectScheduleStatus {
-  /** `idle` = no enabled job; `has_jobs` = at least one enabled job. */
+  /** `idle` = 无启用中的 job;`has_jobs` = 至少有一个启用中的 job。 */
   status: 'idle' | 'has_jobs';
-  /** Human-readable status line (for status badge). */
+  /** 状态徽标使用的一句话。 */
   line: string;
-  /** Total job count. */
+  /** job 总数。 */
   total: number;
-  /** Enabled job count. */
+  /** 启用的 job 数。 */
   enabled: number;
 }
 
 // ── Commands ───────────────────────────────────────────────────────────
 
-/** List all cron jobs (sorted by created_at ascending). */
+/** 列出所有 cron job(按 created_at 升序)。 */
 export async function reflect_list_schedules(): Promise<ReflectCronJob[]> {
   return invoke<ReflectCronJob[]>('reflect_list_schedules');
 }
 
 /**
- * Register a new job. Validates the 5-field cron expression; throws on parse
- * error. `name` defaults to the first 24 chars of `prompt` when omitted.
+ * 注册一个新 job。会校验 5 段 cron 表达式,解析失败时抛错。
+ * 未传入 `name` 时,默认取 `prompt` 的前 24 个字符。
  */
 export async function reflect_add_schedule(args: {
   schedule: string;
@@ -77,9 +76,8 @@ export async function reflect_add_schedule(args: {
 }
 
 /**
- * Update a job (by id). Pass only the fields you want to change; changing
- * `schedule` recomputes `next_fire`. Throws if the id is not found or the
- * new schedule fails to parse.
+ * 按 id 更新 job。仅传入需要修改的字段;修改 `schedule` 会重算
+ * `next_fire`。id 未找到或新 schedule 解析失败时抛错。
  */
 export async function reflect_update_schedule(args: {
   id: string;
@@ -97,12 +95,12 @@ export async function reflect_update_schedule(args: {
   });
 }
 
-/** Delete a job (by id). Returns `true` if deleted, `false` if id not found. */
+/** 按 id 删除 job。已删除返回 `true`,id 未找到返回 `false`。 */
 export async function reflect_remove_schedule(id: string): Promise<boolean> {
   return invoke<boolean>('reflect_remove_schedule', { id });
 }
 
-/** Scheduler status snapshot (idle / has_jobs + counts). */
+/** 调度器状态快照(idle / has_jobs + 计数)。 */
 export async function reflect_get_schedule_status(): Promise<ReflectScheduleStatus> {
   return invoke<ReflectScheduleStatus>('reflect_get_schedule_status');
 }

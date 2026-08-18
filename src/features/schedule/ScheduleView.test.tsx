@@ -1,13 +1,13 @@
 /**
- * Vitest — ScheduleView (Phase 1 item 2).
+ * Vitest —— ScheduleView（Phase 1 条目 2）。
  *
- * Smoke + behavior tests against mocked IPC. Verifies:
- *   - page title + empty state render
- *   - status badge renders when status query resolves
- *   - create form opens + submits with the right args
- *   - job rows render with toggle / remove buttons
- *   - toggle forwards to reflect_update_schedule with enabled flipped
- *   - remove forwards to reflect_remove_schedule
+ * 基于模拟 IPC 的冒烟 + 行为测试。验证：
+ *   - 页面标题 + 空态渲染
+ *   - 状态查询解析后状态徽标渲染
+ *   - 创建表单打开并以正确的参数提交
+ *   - 任务行渲染带切换 / 移除按钮
+ *   - 切换转发到 reflect_update_schedule，enabled 取反
+ *   - remove 转发到 reflect_remove_schedule
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';

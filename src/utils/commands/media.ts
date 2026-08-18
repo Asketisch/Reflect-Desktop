@@ -1,5 +1,5 @@
 /**
- * Media Studio + Computer Use IPC wrappers (Phase 3 item 13).
+ * Media Studio + Computer Use IPC 包装器（Phase 3 条目 13）。
  *
  * 5 个命令:list_media / image_process / screenshot / computer_use /
  * media_capabilities。

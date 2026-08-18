@@ -1,69 +1,69 @@
-//! Tailscale detection + remote-host suggestion helper.
+//! Tailscale 检测与远程主机建议辅助工具。
 //!
-//! Mirrors `CodexMonitor`'s `src-tauri/src/tailscale/` shape but lives in
-//! `app-core` (vendor is a read-only mirror — see AGENTS.md). The helper shells
-//! out to the local `tailscale` CLI to read its status; on any failure it
-//! returns a `degraded_status` so the frontend can still render a "not
-//! installed" / "not running" card.
+//! 参考既有 Tauri Tailscale 模块的结构，但位于
+//! `app-core`（核心 crate 是只读镜像——见 AGENTS.md）。该辅助工具调用本地
+//! `tailscale` CLI 读取状态；发生任何失败时，它
+//! 返回 `degraded_status`，使前端仍能渲染“未
+//! 安装”/“未运行”卡片。
 //!
-//! ## On `suggested_remote_host`
+//! ## 关于 `suggested_remote_host`
 //!
-//! The dashboard builds the iOS-side `Remote backend host` field from this
-//! (e.g. `your-mac.your-tailnet.ts.net:4732`). It joins `dns_name` (when
-//! present) with the default daemon port `4732`.
+//! dashboard 根据此值构建 iOS 侧的 `Remote backend host` 字段
+//!（例如 `your-mac.your-tailnet.ts.net:4732`）。它将 `dns_name`（如果
+//! 存在）与默认 daemon 端口 `4732` 拼接。
 //!
-//! ## Behaviour
+//! ## 行为
 //!
-//! - `tailscale status --json=true` is the canonical machine-readable probe.
-//! - If `tailscale` is missing / errors, return `installed = false`.
-//! - If status JSON parse fails, return `installed = true, running = false`
-//!   plus a human-readable `message`.
+//! - `tailscale status --json=true` 是标准的机器可读探测方式。
+//! - 如果缺少 `tailscale` 或命令出错，返回 `installed = false`。
+//! - 如果 status JSON 解析失败，返回 `installed = true, running = false`，
+//!   并附带便于人类阅读的 `message`。
 
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::process::Command;
 
-/// Default listen port the desktop daemon binds to. Mirrors CodexMonitor's
-/// `DEFAULT_DAEMON_LISTEN_ADDR` constant.
+/// 桌面 daemon 绑定的默认监听端口。参考既有实现中的
+/// `DEFAULT_DAEMON_LISTEN_ADDR` 常量。
 pub const DEFAULT_DAEMON_PORT: u16 = 4732;
 
-/// Maximum time the CLI probe is allowed to run.
+/// CLI 探测允许运行的最长时间。
 const PROBE_TIMEOUT: Duration = Duration::from_millis(1500);
 
-/// Snapshot of the local Tailscale daemon's view of itself.
+/// 本地 Tailscale daemon 的自身状态快照。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TailscaleStatus {
-    /// Whether the `tailscale` CLI binary was located on `$PATH`.
+    /// 是否在 `$PATH` 中找到 `tailscale` CLI 二进制文件。
     pub installed: bool,
-    /// Whether the daemon reports itself as running (BackendState == "Running").
+    /// daemon 是否报告自身正在运行（BackendState == "Running"）。
     pub running: bool,
-    /// `tailscale version` short string when discoverable.
+    /// 可获取时的 `tailscale version` 简短字符串。
     pub version: Option<String>,
-    /// Full MagicDNS name (e.g. `node.tailnet.ts.net`).
+    /// 完整的 MagicDNS 名称（例如 `node.tailnet.ts.net`）。
     pub dns_name: Option<String>,
-    /// Short host name (e.g. `node`).
+    /// 短主机名（例如 `node`）。
     pub host_name: Option<String>,
-    /// Tailnet display name.
+    /// Tailnet 显示名称。
     pub tailnet_name: Option<String>,
-    /// IPv4 addresses the daemon reports.
+    /// daemon 报告的 IPv4 地址。
     pub ipv4: Vec<String>,
-    /// IPv6 addresses the daemon reports.
+    /// daemon 报告的 IPv6 地址。
     pub ipv6: Vec<String>,
-    /// `host:port` derived from `dns_name` (or `ipv4[0]`) + the default port.
-    /// `None` when neither name nor IP is available.
+    /// 由 `dns_name`（或 `ipv4[0]`）与默认端口拼出的 `host:port`。
+    /// 名称和 IP 均不可用时为 `None`。
     pub suggested_remote_host: Option<String>,
-    /// Free-form diagnostic message (probe error, parse error, etc).
+    /// 自由格式的诊断消息（探测错误、解析错误等）。
     pub message: Option<String>,
 }
 
-/// Probe the local Tailscale daemon. Always returns `Ok` — failures are
-/// surfaced as a degraded `TailscaleStatus`.
+/// 探测本地 Tailscale daemon。始终返回 `Ok`——失败会
+/// 通过降级的 `TailscaleStatus` 暴露。
 pub async fn detect() -> TailscaleStatus {
     match run_probe().await {
         Ok(mut status) => {
-            // Derive suggested_remote_host if we have a name or IP.
+            // 如果有名称或 IP，则派生 suggested_remote_host。
             status.suggested_remote_host = derive_suggested_host(&status);
             status
         }
@@ -71,12 +71,12 @@ pub async fn detect() -> TailscaleStatus {
     }
 }
 
-/// Probe + return the exact command the desktop would run to start the
-/// daemon (used by the iOS-side setup card as a copy hint).
+/// 探测，并返回桌面启动
+/// daemon 的确切命令（供 iOS 侧设置卡片复制提示使用）。
 pub async fn daemon_command_preview() -> String {
-    // CodexMonitor renders a hint string showing what shell command the
-    // user would invoke. We mirror the minimum useful surface:
-    // `tailscale up` + the listen port (so the user can see what binds).
+    // 显示 shell 命令提示，说明用户将执行的命令。
+    // 这里保留最小但有用的信息：
+    // `tailscale up` 与监听端口（便于用户查看绑定端口）。
     format!(
         "tailscaled --tun=userspace-networking --state=mem: --socket=/var/run/tailscale/tailscaled.sock &\nlisten 0.0.0.0:{}",
         DEFAULT_DAEMON_PORT
@@ -84,7 +84,7 @@ pub async fn daemon_command_preview() -> String {
 }
 
 async fn run_probe() -> std::result::Result<TailscaleStatus, String> {
-    // 1. Try `tailscale version` (cheap, no network).
+    // 1. 尝试 `tailscale version`（开销低且无需网络）。
     let version_output = Command::new("tailscale")
         .arg("version")
         .stdout(Stdio::piped())
@@ -100,7 +100,7 @@ async fn run_probe() -> std::result::Result<TailscaleStatus, String> {
         .nth(1)
         .map(|s| s.trim_start_matches('v').to_string());
 
-    // 2. Try `tailscale status --json=true`.
+    // 2. 尝试 `tailscale status --json=true`。
     let status_output = tokio::time::timeout(
         PROBE_TIMEOUT,
         Command::new("tailscale")
@@ -163,7 +163,7 @@ async fn run_probe() -> std::result::Result<TailscaleStatus, String> {
         tailnet_name,
         ipv4,
         ipv6,
-        suggested_remote_host: None, // filled by caller
+        suggested_remote_host: None, // 由调用方填充
         message: None,
     })
 }
@@ -235,16 +235,16 @@ mod tests {
 
     #[tokio::test]
     async fn detect_returns_status_without_panicking() {
-        // Local dev machines usually have tailscale installed; CI usually
-        // does not. The contract is: detect() must always return Ok with
-        // a well-formed status (no panic, no Result error).
+        // 本地开发机通常已安装 tailscale；CI 通常
+        // 未安装。契约是：detect() 必须始终返回格式正确的状态，
+        // 不 panic，也不返回 Result 错误。
         let s = detect().await;
-        // `suggested_remote_host` is either Some or None — never invalid.
+        // `suggested_remote_host` 只能是 Some 或 None，不会无效。
         let _ = s.suggested_remote_host;
-        // When installed == true we must have version + something useful;
-        // when installed == false we must have a diagnostic message.
+        // installed == true 时必须有 version 和有用信息；
+        // installed == false 时必须有诊断消息。
         if s.installed {
-            // Nothing else to assert; the function ran end-to-end.
+            // 无需断言其他内容；函数已完整运行。
         } else {
             assert!(s.message.is_some());
         }

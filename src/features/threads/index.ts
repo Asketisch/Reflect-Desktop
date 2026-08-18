@@ -1,5 +1,5 @@
 /**
- * threads slice public API barrel.
+ * threads 切片公共 API 桶。
  */
 export { ThreadsView } from './ThreadsView';
 export { ThreadItem } from './components/ThreadItem';

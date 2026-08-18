@@ -1,15 +1,15 @@
 /**
- * Vitest — TasksBoardView (Phase 1 multi-agent UI).
+ * Vitest —— TasksBoardView（Phase 1 多 agent UI）。
  *
- * Smoke + behavior tests against mocked IPC. Verifies:
- *   - page title + empty state render
- *   - view toggle (list ↔ board)
- *   - create form opens + submits with the right args
- *   - list rows render with action buttons
- *   - claim / complete / delete forward to the right commands
+ * 基于模拟 IPC 的冒烟 + 行为测试。验证：
+ *   - 页面标题 + 空态渲染
+ *   - 视图切换（list ↔ board）
+ *   - 创建表单打开并以正确的参数提交
+ *   - 列表行渲染带操作按钮
+ *   - claim / complete / delete 转发到正确的命令
  *
- * Real CRUD is exercised against a Tauri backend in integration tests; this
- * suite locks the controller→view wiring + IPC call shapes.
+ * 真实 CRUD 在集成测试中对 Tauri 后端执行；本套件锁定
+ * 控制器→视图连线 + IPC 调用形状。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -17,7 +17,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { TasksBoardView } from './TasksBoardView';
 import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
 
-// Track calls so assertions can inspect cmd + args.
+// 跟踪调用，以便断言可以检查 cmd + args。
 const calls: Array<{ cmd: string; args: unknown }> = [];
 
 vi.mock('@/utils/commands', async () => {
@@ -121,10 +121,10 @@ describe('TasksBoardView', () => {
 
   it('switches to board view when the list has tasks', async () => {
     render(wrap(<TasksBoardView />));
-    // Default list "default" is empty → empty state, not the board container.
+    // 默认列表 "default" 为空 → 显示空状态，而非看板容器。
     expect(screen.queryByTestId('tasks-board-view')).toBeNull();
 
-    // Switch to the seeded list so rows exist, then flip to board view.
+    // 切换到预置列表使行记录存在，再切换到看板视图。
     fireEvent.click(screen.getByTestId('tasks-list-picker-toggle'));
     fireEvent.change(screen.getByTestId('tasks-list-id-input'), {
       target: { value: 'seeded' },
@@ -142,7 +142,7 @@ describe('TasksBoardView', () => {
   });
 
   it('renders rows + action buttons for a seeded list', async () => {
-    // Switch the active list to "seeded" before the query fires.
+    // 在查询触发前将活动列表切换到 "seeded"。
     render(wrap(<TasksBoardView />));
     fireEvent.click(screen.getByTestId('tasks-list-picker-toggle'));
     const listInput = screen.getByTestId('tasks-list-id-input') as HTMLInputElement;
@@ -153,10 +153,10 @@ describe('TasksBoardView', () => {
       expect(screen.getByText('Ship it')).toBeDefined();
     });
 
-    // Pending task exposes Claim + Delete.
+    // 待处理任务暴露 Claim + Delete 操作。
     expect(screen.getByTestId('task-claim-1')).toBeDefined();
     expect(screen.getByTestId('task-delete-1')).toBeDefined();
-    // In-progress task exposes Complete + Delete.
+    // 进行中的任务暴露 Complete + Delete 操作。
     expect(screen.getByTestId('task-complete-2')).toBeDefined();
   });
 

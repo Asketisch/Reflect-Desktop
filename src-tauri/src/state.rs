@@ -70,7 +70,7 @@ impl MinimalAgent {
         session::subscribe_session(self)
     }
 
-    /// session broadcast sender 句柄(MCP/LSP lifecycle event 反向推送用)。
+    /// 会话广播发送方句柄（MCP/LSP 生命周期事件反向推送用）。
     pub fn session_tx(&self) -> broadcast::Sender<Event> {
         session::session_tx(self)
     }
@@ -113,27 +113,27 @@ impl MinimalAgent {
         Arc::clone(&self.inner.tools)
     }
 
-    /// Task/Team 管理器(Phase 1 多 agent 命令面)。
+    /// Task/Team 管理器(供多 agent 命令面调用)。
     /// 命令层 `commands/tasks.rs` 通过本句柄调用 `TaskManager` 的 create/get/
     /// update/list/claim/upsert_team/list_teams 等方法。
     pub fn task_manager(&self) -> Arc<reflect_task::TaskManager> {
         Arc::clone(&self.inner.task_manager)
     }
 
-    /// Cron 调度器句柄(Phase 1 第 2 项)。
+    /// Cron 调度器句柄。
     /// 返回当前 scheduler 的 clone(若已 install);未 install 时返回 `None`。
     /// 命令层 `commands/schedule.rs` 据此决定走真 scheduler 还是空响应。
     pub fn cron_scheduler(&self) -> Option<reflect_stream::cron::CronScheduler> {
         self.inner.cron_scheduler.read().clone()
     }
 
-    /// Side-channel 注册表句柄(Phase 2 第 1 项)。命令层
+    /// Side-channel 注册表句柄。命令层
     /// `commands/side_channel.rs` 用它 start / cancel / list。
     pub fn side_channels(&self) -> reflect_app_core::side_channel::SideChannelRegistry {
         self.inner.side_channels.clone()
     }
 
-    /// Remote mode config(Phase 2 第 2 项):host + port + auth_token + auto_connect。
+    /// 远程模式配置：host + port + auth_token + auto_connect。
     /// 命令层 `commands/remote.rs` 用它持久化配置(进程内);连接状态(传输 up/down)
     /// 留作后续 driver 任务。
     pub fn remote_config(&self) -> RemoteConfig {
@@ -146,24 +146,24 @@ impl MinimalAgent {
         cfg
     }
 
-    /// KMS 知识库管理器(Phase 3 第 12 项)。
+    /// KMS 知识库管理器。
     pub fn kms_manager(&self) -> &reflect_app_core::kms::KnowledgeManager {
         &self.inner.kms_manager
     }
 
-    /// Autopilot 管理器(Phase 3 第 10 项)。
+    /// Autopilot 管理器。
     pub fn autopilot_manager(&self) -> &reflect_app_core::autopilot::AutopilotManager {
         &self.inner.autopilot_manager
     }
 
-    /// Activity 日志管理器(Phase 3 第 9 项)。
+    /// Activity 日志管理器。
     /// `install_agent_thread` 会 spawn 一个 task 订阅 session broadcast,
     /// 把 `Event` 映射成 `ActivityEvent` 写入。
     pub fn activity_logger(&self) -> Arc<reflect_app_core::activity::ActivityLogger> {
         Arc::clone(&self.inner.activity_logger)
     }
 
-    /// Squad 管理器(Phase 3 第 11 项):复用 task_manager 的 team 存储。
+    /// Squad 管理器:复用 task_manager 的 team 存储。
     pub fn squad_manager(&self) -> Arc<reflect_app_core::squad::SquadManager> {
         Arc::clone(&self.inner.squad_manager)
     }
@@ -192,7 +192,7 @@ impl MinimalAgent {
         *self.inner.cron_scheduler.write() = Some(scheduler);
     }
 
-    /// B8-01: register a shell session; returns the kill handle to put in the map.
+    /// 注册一个 shell session,返回 kill handle 放入 map。
     pub fn register_shell_session(
         &self,
         id: String,
@@ -201,7 +201,7 @@ impl MinimalAgent {
         self.inner.shell_sessions.register(id, child);
     }
 
-    /// B8-01: remove + return the kill handle for a shell session.
+    /// 移除并返回 shell session 的 kill handle。
     pub fn take_shell_session(
         &self,
         id: &str,
@@ -209,7 +209,7 @@ impl MinimalAgent {
         self.inner.shell_sessions.take(id)
     }
 
-    /// B8-01: list active shell session ids.
+    /// 列出当前活跃的 shell session id。
     pub fn list_shell_sessions(&self) -> Vec<String> {
         self.inner.shell_sessions.list()
     }
@@ -228,9 +228,9 @@ impl MinimalAgent {
         }
     }
 
-    // ====== B1-07 / B9-06 / B11-* domain APIs ======
+    // ====== 各领域 domain API ======
 
-    /// Update the active workspace (B9-06). The change is in-memory.
+    /// 更新当前 active workspace(仅在内存中生效)。
     pub fn set_workspace(&self, path: PathBuf) {
         crate::workspace_state::WorkspaceState::set(path);
     }
@@ -239,28 +239,28 @@ impl MinimalAgent {
         crate::workspace_state::WorkspaceState::get()
     }
 
-    /// List memory entries across all scopes (B11-01).
+    /// 列出所有 scope 下的 memory entry。
     pub fn list_memory(&self) -> anyhow::Result<Vec<crate::commands::MemoryEntry>> {
         self.inner.memory_store.list()
     }
 
-    /// Add a memory entry (B11-01). Appends `## <key>\n<value>` to the
-    /// matching scope's `MEMORY.md`.
+    /// 新增 memory entry。向对应 scope 的 `MEMORY.md` 追加
+    /// `## <key>\n<value>`。
     pub fn add_memory(&self, scope: String, key: String, value: String) -> anyhow::Result<()> {
         self.inner.memory_store.add(&scope, &key, &value)
     }
 
-    /// Remove a memory entry (B11-01). Strips the `## <key>` block.
+    /// 删除 memory entry,移除对应的 `## <key>` 块。
     pub fn remove_memory(&self, scope: String, key: String) -> anyhow::Result<()> {
         self.inner.memory_store.remove(&scope, &key)
     }
 
-    /// List known hooks (B11-02).
+    /// 列出已注册的 hook。
     pub fn list_hooks(&self) -> anyhow::Result<Vec<crate::commands::HookInfo>> {
         self.inner.hook_store.list()
     }
 
-    /// Toggle a hook (B11-02).
+    /// 切换 hook 的启用状态。
     pub fn toggle_hook(&self, name: String, enabled: bool) -> anyhow::Result<()> {
         self.inner.hook_store.toggle(name, enabled)
     }

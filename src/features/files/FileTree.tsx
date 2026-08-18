@@ -1,8 +1,8 @@
 /**
- * FileTree —— 折叠式目录树 (B9-01).
+ * FileTree —— 折叠式目录树（B9-01）。
  *
- * Backend returns a flat list of entries with `depth` (preorder walk).
- * We group by parent path and render as a collapsible list.
+ * 后端以前序遍历的扁平列表返回条目（带 `depth`）。
+ * 我们按父路径分组，渲染为可折叠列表。
  */
 import { useMemo, useState } from 'react';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, FileCode2, File } from 'lucide-react';
@@ -28,11 +28,11 @@ function iconForEntry(entry: ReflectDirEntry) {
 
 export interface FileTreeProps {
   entries: ReflectDirEntry[];
-  /** Currently selected file path. */
+  /** 当前选中的文件路径。 */
   selectedPath?: string | null;
-  /** Called when the user clicks a file entry. */
+  /** 用户点击文件条目时回调。 */
   onSelectFile?: (path: string) => void;
-  /** Called when the user clicks a directory entry. */
+  /** 用户点击目录条目时回调。 */
   onSelectDir?: (path: string) => void;
 }
 
@@ -41,9 +41,9 @@ interface TreeNode {
   children: TreeNode[];
 }
 
-/** Build a tree from the flat entry list (each entry's path is its full path). */
+/** 由扁平条目列表构建树（每个条目的 path 即其完整路径）。 */
 function buildTree(entries: ReflectDirEntry[]): TreeNode[] {
-  // Group entries by parent directory path.
+  // 按父目录路径分组。
   const childrenByDir = new Map<string, ReflectDirEntry[]>();
   for (const e of entries) {
     const parent = parentDir(e.path);
@@ -54,7 +54,7 @@ function buildTree(entries: ReflectDirEntry[]): TreeNode[] {
       childrenByDir.set(parent, [e]);
     }
   }
-  // Root of the tree is the entries whose parent matches the root path.
+  // 树的根节点是父目录与根路径匹配的条目。
   const root = entries.length > 0 ? parentDir(entries[0].path) : null;
   function build(parentPath: string): TreeNode[] {
     const kids = childrenByDir.get(parentPath) ?? [];
@@ -85,7 +85,7 @@ function basename(p: string): string {
 
 export function FileTree({ entries, selectedPath, onSelectFile, onSelectDir }: FileTreeProps) {
   const tree = useMemo(() => buildTree(entries), [entries]);
-  // Track per-path expanded state; dirs default-open only at depth 0 to keep view tight.
+  // 跟踪每个路径的展开状态；目录仅在深度 0 时默认打开，以保持视图紧凑。
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
     for (const e of entries) {

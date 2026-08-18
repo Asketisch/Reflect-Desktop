@@ -1,4 +1,4 @@
-//! Tauri command surface, split by domain.
+//! Tauri command 入口,按领域拆分。
 
 mod agent;
 mod agents;

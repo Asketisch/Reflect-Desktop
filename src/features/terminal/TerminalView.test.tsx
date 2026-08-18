@@ -1,9 +1,8 @@
 /**
- * Vitest — TerminalView (B8-01).
+ * Vitest —— TerminalView（B8-01）。
  *
- * Smoke tests: render empty state + verify the form/input are present.
- * Streaming + kill are exercised by manual integration tests against a real
- * Tauri runtime.
+ * 冒烟测试：渲染空状态 + 验证表单/输入框存在。
+ * 流式输出 + kill 由针对真实 Tauri 运行时的手动集成测试覆盖。
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -11,7 +10,7 @@ import { TerminalView } from './TerminalView';
 
 describe('TerminalView', () => {
   beforeEach(() => {
-    // nothing — tests are presentational; backend calls are mocked via setup.tsx.
+    // 无 —— 测试为纯展示；后端调用通过 setup.tsx 模拟。
   });
 
   it('renders the empty state when no sessions', () => {

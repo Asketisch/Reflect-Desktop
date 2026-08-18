@@ -1,5 +1,5 @@
 /**
- * Vitest — CommandPalette component (B10-01).
+ * Vitest —— CommandPalette 组件（B10-01）。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -33,7 +33,7 @@ describe('CommandPalette', () => {
   it('renders the modal with input + nav items when open', () => {
     render(<CommandPalette {...baseProps} />);
     expect(screen.getByTestId('command-palette-input')).toBeDefined();
-    // built-in nav items
+    // 内置导航项
     expect(screen.getByTestId('command-palette-item-nav.home')).toBeDefined();
     expect(screen.getByTestId('command-palette-item-nav.settings')).toBeDefined();
   });

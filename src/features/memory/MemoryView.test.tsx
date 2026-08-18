@@ -1,8 +1,8 @@
 /**
- * Vitest — MemoryView (B11-01).
+ * Vitest —— MemoryView（B11-01）。
  *
- * Smoke tests: render empty state + verify filters/form are present.
- * Real CRUD is exercised against a Tauri backend in integration tests.
+ * 冒烟测试：渲染空状态 + 验证过滤器/表单存在。
+ * 真实 CRUD 在集成测试中针对 Tauri 后端执行。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
@@ -10,7 +10,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryView } from './MemoryView';
 import { createTestQueryClient } from '@/test/setup.tsx';
 
-// Mock backend calls
+// 模拟后端调用
 vi.mock('@/utils/commands', () => {
   const actual = vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
@@ -57,7 +57,7 @@ describe('MemoryView', () => {
 
   it('displays empty state when no memory entries', async () => {
     render(wrap(<MemoryView />));
-    // useQuery fires async — wait for the empty text to appear
+    // useQuery 异步触发 —— 等待空文本出现
     const el = await screen.findByText(/No memory entries/i, {}, { timeout: 3000 });
     expect(el).toBeDefined();
   });

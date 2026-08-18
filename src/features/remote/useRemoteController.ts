@@ -1,15 +1,14 @@
 /**
- * Remote controller hook (Phase 2 item 2).
+ * Remote controller hook（阶段 2 任务 2）。
  *
- * Owns TanStack queries + mutations:
+ * 拥有 TanStack 查询 + 突变：
  *   - `reflect_get_remote_config` / `reflect_update_remote_config`
  *   - `reflect_get_remote_status`
  *   - `reflect_tailscale_status`
  *   - `reflect_tailscale_daemon_command_preview`
  *
- * The `start/stop/status` daemon commands are present so the iOS setup
- * card can surface their "not implemented yet" placeholders without a
- * TypeScript error; the controller does not call them automatically.
+ * `start/stop/status` daemon 命令已存在，以便 iOS 设置卡片可以展示
+ * "尚未实现" 的占位符而不产生 TypeScript 错误；controller 不会自动调用它们。
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +28,7 @@ export const REMOTE_QUERY_KEY = ['remote'] as const;
 const REMOTE_STALE_MS = 15_000;
 
 export interface RemoteController {
-  // Query
+  // 查询
   config: ReflectRemoteConfigSnapshot | null;
   status: ReflectRemoteStatus | null;
   tailscale: ReflectTailscaleStatus | null;
@@ -38,13 +37,13 @@ export interface RemoteController {
   error: unknown;
   refetch: () => void;
 
-  // Editor state
+  // 编辑器状态
   showForm: boolean;
   toggleShowForm: () => void;
   draft: RemoteConfigDraft;
   patchDraft: (patch: Partial<RemoteConfigDraft>) => void;
 
-  // Mutations
+  // 突变操作
   save: () => Promise<void>;
   resetForm: () => void;
 
@@ -111,7 +110,7 @@ export function useRemoteController(): RemoteController {
 
   const toggleShowForm = useCallback(() => setShowForm((v) => !v), []);
 
-  // When toggling the form open, hydrate the draft from the current config.
+  // 切换表单打开时，从当前配置填充草稿。
   useEffect(() => {
     if (showForm) {
       setDraft(emptyRemoteDraft(cfgQ.data));

@@ -1,5 +1,5 @@
 /**
- * Activity timeline IPC wrappers (Phase 3 item 9).
+ * 活动时间线 IPC 包装（Phase 3 条目 9）。
  *
  * 薄包装 `reflect_list_activity` / `reflect_search_activity` /
  * `reflect_clear_activity` / `reflect_activity_count` 四个命令。

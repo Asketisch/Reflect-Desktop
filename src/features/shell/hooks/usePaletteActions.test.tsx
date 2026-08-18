@@ -63,7 +63,7 @@ describe('usePaletteActions', () => {
     );
     act(() => result.current.newSession());
     expect(onNewChat).toHaveBeenCalledTimes(1);
-    // toast pushed to store
+    // toast 已推入 store
     const toasts = useAgentStore.getState().toasts;
     expect(toasts.length).toBeGreaterThan(0);
     expect(toasts[toasts.length - 1].kind).toBe('info');
@@ -104,7 +104,7 @@ describe('usePaletteActions', () => {
     await act(async () => {
       await result.current.exportActive();
     });
-    // Bridge forwards both cmd + args to handler; verify id was passed.
+    // 桥接层将 cmd + args 一并转给 handler；验证 id 已传入。
     expect(spy).toHaveBeenCalledWith(
       'reflect_export_session',
       expect.objectContaining({ id: 'sess-1' }),
@@ -206,7 +206,7 @@ describe('usePaletteActions', () => {
   });
 
   it('clearAllSessions: fetches sessions and deletes each', async () => {
-    // Each test starts with resetMockInvoke() — register our own reflect_list_sessions.
+    // 每个测试以 resetMockInvoke() 开始 —— 注册我们自己的 reflect_list_sessions。
     mockInvoke('reflect_list_sessions', async () => [
       { session_id: 'sess-1' },
       { session_id: 'sess-2' },
@@ -237,10 +237,10 @@ describe('usePaletteActions', () => {
       expect.objectContaining({ id: 'sess-2' }),
     );
 
-    // success toast contains count
+    // 成功 toast 包含计数
     const toasts = useAgentStore.getState().toasts;
     expect(toasts[toasts.length - 1].message).toBe('Cleared 3 session(s).');
-    // query invalidated by hook
+    // hook 使查询失效
     await waitFor(() => {
       const state = qc.getQueryState(['sessions']);
       expect(state?.isInvalidated).toBe(true);

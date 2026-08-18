@@ -25,25 +25,25 @@ import {
 } from '@/utils/commands';
 
 export interface PaletteToasts {
-  /** "New session started." */
+  /** "新会话已启动。" */
   newSession: string;
-  /** "No sessions to clear." */
+  /** "没有可清除的会话。" */
   noSessionsToClear: string;
-  /** "Delete failed: {msg}" */
+  /** "删除失败：{msg}" */
   deleteFailed: (msg: string) => string;
-  /** "Cleared N session(s)." (plural-aware) */
+  /** "已清除 N 个会话。"（支持复数） */
   clearedSessions: (count: number) => string;
-  /** "No active session to export." */
+  /** "没有可导出的活动会话。" */
   noActiveToExport: string;
-  /** "Exported → {path}" */
+  /** "已导出 → {path}" */
   exported: (path: string) => string;
-  /** "Exported → (no path)" */
+  /** "已导出 →（无路径）" */
   exportedNoPath: string;
-  /** "Export failed: {msg}" */
+  /** "导出失败：{msg}" */
   exportFailed: (msg: string) => string;
-  /** "Config reloaded." */
+  /** "配置已重新加载。" */
   configReloaded: string;
-  /** "Save failed: {msg}" */
+  /** "保存失败：{msg}" */
   saveFailed: (msg: string) => string;
 }
 
@@ -119,8 +119,8 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
 
   const runSlash = useCallback(
     (slash: string) => {
-      // palette triggers fire-and-forget via submit; this lets e.g. /compact work
-      // without forcing the user to type into the composer.
+      // palette 触发 fire-and-forget 式 submit；这使得 /compact 等命令
+      // 无需用户输入 composer 即可工作。
       void submit(slash);
     },
     [submit],

@@ -1,4 +1,4 @@
-//! Activity logger 订阅 task (Phase 3 item 9)。
+//! Activity logger 订阅 task。
 //!
 //! `install_agent_thread` 调 [`subscribe_activity_logger`],spawn 一个独立
 //! task 拿 `subscribe_session()` 的 receiver,把每个 `Event` 映射成
@@ -195,6 +195,8 @@ fn map_event(event: &Event) -> Option<ActivityEvent> {
         // PlanStep 高频进度更新 + PluginLoaded(暂无合适 ActivityKind)忽略;
         // 类型完整性已在 src/types/protocol/event.ts 补全。
         | EventMsg::PlanStep(_)
+        // PlanDraftUpdated:计划草稿增量更新(高频,暂无对应 ActivityKind)忽略。
+        | EventMsg::PlanDraftUpdated(_)
         | EventMsg::PluginLoaded(_)
         | EventMsg::ShutdownComplete => return None,
 

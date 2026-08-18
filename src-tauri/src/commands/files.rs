@@ -1,4 +1,4 @@
-//! B9-01: 文件树 (`reflect_list_dir`) + 文本读 (`reflect_read_file`)。
+//! 文件树 (`reflect_list_dir`) + 文本读 (`reflect_read_file`)。
 //!
 //! 共享的过滤 / 排序辅助函数给 `search.rs` 复用。
 
@@ -10,20 +10,20 @@ use tauri::State;
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
 
-/// Directory entry returned to the frontend.
+/// 返回给前端的目录条目。
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DirEntry {
-    /// File/dir name (not full path).
+    /// 文件 / 目录名(非完整路径)。
     pub name: String,
-    /// Absolute path.
+    /// 绝对路径。
     pub path: String,
-    /// "file" | "dir" | "symlink".
+    /// 取值 `"file" | "dir" | "symlink"`。
     pub kind: String,
-    /// File size in bytes (0 for dirs).
+    /// 文件字节数(目录时为 0)。
     pub size: u64,
-    /// Unix mtime in seconds since epoch.
+    /// Unix mtime,自 epoch 起秒数。
     pub mtime: i64,
-    /// Depth from the requested root (0 = root contents).
+    /// 距所请求根目录的层级(0 表示根目录的直接内容)。
     pub depth: usize,
 }
 
@@ -34,8 +34,8 @@ pub struct DirListing {
     pub truncated: bool,
 }
 
-/// List a directory. Skips dotfiles/hidden + common heavy dirs (node_modules, .git, target).
-/// `max_depth` defaults to 4; caps returned entries at 2_000 to keep payloads small.
+/// 列出目录内容。跳过隐藏文件 / 常见重型目录(`node_modules`、`.git`、`target` 等)。
+/// `max_depth` 默认 4,返回条目上限 2_000,避免 payload 过大。
 #[tauri::command]
 pub async fn reflect_list_dir(
     agent: State<'_, MinimalAgent>,
@@ -163,8 +163,8 @@ pub struct FileReadResult {
 
 const FILE_READ_MAX: u64 = 1_048_576; // 1 MiB
 
-/// Read a text file. Rejects files larger than `FILE_READ_MAX` and detects
-/// binary by looking for NUL bytes in the first 8 KiB.
+/// 读取文本文件。超过 `FILE_READ_MAX` 的文件会被拒绝,通过前 8 KiB 内是否
+/// 含 NUL 字节判断是否为二进制。
 #[tauri::command]
 pub async fn reflect_read_file(
     agent: State<'_, MinimalAgent>,
@@ -201,8 +201,8 @@ pub async fn reflect_read_file(
     })
 }
 
-/// Ensure `path` resolves under the configured workspace, defending against
-/// `..` escapes and absolute paths outside the workspace.
+/// 确保 `path` 解析后位于已配置的工作区之下,
+/// 防止 `..` 逃逸以及指向工作区外的绝对路径。
 pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandResult<PathBuf> {
     let p = Path::new(path);
     let joined = if p.is_absolute() {

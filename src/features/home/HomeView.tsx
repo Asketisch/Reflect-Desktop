@@ -37,9 +37,9 @@ export function HomeView() {
   const { t } = useI18n();
 
   const recent = useMemo(() => {
-    // `ReflectSessionInfo` only carries `session_id`, `model`, `started_at`,
-    // `message_count` — no display_name / token_total. Label falls back to
-    // the id prefix; tokens are surfaced via message_count in the card meta.
+    // `ReflectSessionInfo` 仅携带 `session_id`, `model`, `started_at`,
+    // `message_count` —— 无 display_name / token_total。标签回退到
+    // id 前缀；token 通过 card meta 中的 message_count 展示。
     const all: Array<{ id: string; label: string; started_at: string; messages: number }> = [];
     for (const b of buckets) {
       for (const sess of b.sessions) {

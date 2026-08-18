@@ -1,5 +1,5 @@
 /**
- * agents feature barrel (Phase 1 item 3).
+ * agents 功能桶（Phase 1 条目 3）。
  */
 export { AgentsView } from './AgentsView';
 export { AgentEditor } from './AgentEditor';

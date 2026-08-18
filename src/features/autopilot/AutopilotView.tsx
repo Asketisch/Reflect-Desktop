@@ -1,7 +1,7 @@
 /**
- * Autopilot — automatic task scheduling view.
+ * Autopilot —— 自动任务调度视图。
  *
- * Phase 3 item 10: cron-based automatic task creation and execution.
+ * Phase 3 条目 10：基于 cron 的自动任务创建与执行。
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Zap, Clock, History } from 'lucide-react';

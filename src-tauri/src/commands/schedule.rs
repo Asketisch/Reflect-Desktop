@@ -1,6 +1,6 @@
 //! Schedule(cron)管理命令 —— 薄包装 `reflect_stream::cron::CronScheduler`。
 //!
-//! Phase 1 第 2 项:把 vendor 已实现的 CronScheduler CRUD 暴露给前端。严格
+//! Phase 1 第 2 项:把 核心 crate 已实现的 CronScheduler CRUD 暴露给前端。严格
 //! 对齐 `cron.rs` 的公开方法签名,命令层只做参数转发 + 错误映射。
 //!
 //! ## 命令清单
@@ -20,9 +20,9 @@
 //!
 //! ## 未做(后续阶段)
 //!
-//! - `run_now`(立即触发):vendor `CronScheduler::tick` 需访问私有 jobs Arc,
-//!   命令层无法复用;待 vendor 加公开 `pub async fn run_now(&self)` 后补。
-//! - 持久化(vendor CronScheduler 当前是内存态;进程重启丢 jobs)。
+//! - `run_now`(立即触发):核心 crate `CronScheduler::tick` 需访问私有 jobs Arc,
+//!   命令层无法复用;待 核心 crate 加公开 `pub async fn run_now(&self)` 后补。
+//! - 持久化(核心 crate CronScheduler 当前是内存态;进程重启丢 jobs)。
 //! - 后台 driver tick 间隔配置。
 //! - 一次性 schedule(`run_at` 时间点)。
 
@@ -155,7 +155,7 @@ mod tests {
         assert_eq!(s.list().len(), 1);
         assert_eq!(s.status(), CronStatus::HasJobs);
 
-        // update enabled=false
+        // 更新 enabled=false
         let updated = s.update(&job.id, None, None, None, Some(false)).unwrap();
         assert!(!updated.enabled);
         assert_eq!(s.status(), CronStatus::Idle);

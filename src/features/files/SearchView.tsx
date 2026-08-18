@@ -1,5 +1,5 @@
 /**
- * SearchView —— Settings > Files or dedicated page: Find-in-Files。
+ * SearchView —— 设置 > 文件，或独立页面：全仓库查找。
  *
  * 通过后端 `reflect_search_files` 搜索工作区文本,跳过 .git / node_modules 等。
  *
@@ -27,8 +27,7 @@ export function SearchView() {
   const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
-  // Monotonic request token: out-of-order responses are dropped so a slow
-  // older query can never overwrite a fresher one.
+  // 单调递增的请求令牌：乱序响应会被丢弃，这样较慢的旧查询永远不会覆盖较新的查询结果。
   const seqRef = useRef(0);
 
   const runSearch = useCallback(async (q: string) => {
@@ -43,12 +42,12 @@ export function SearchView() {
     setLoading(true);
     try {
       const res = await reflect_search_files(trimmed, null, 200);
-      if (seq !== seqRef.current) return; // stale
+      if (seq !== seqRef.current) return; // 已过时
       setHits(res?.hits ?? []);
       setTruncated(res?.truncated ?? false);
       setError(null);
     } catch (e) {
-      if (seq !== seqRef.current) return; // stale
+      if (seq !== seqRef.current) return; // 已过时
       setHits([]);
       setTruncated(false);
       setError((e as Error).message);

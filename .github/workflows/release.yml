@@ -1,12 +1,10 @@
-# Cross-platform release builder for ReflectDesktop.
+# ReflectDesktop 跨平台发布构建器。
 #
-# Triggered only by `git push --tags v*`. Builds native bundles on all three
-# OSes in parallel, uploads artifacts to the workflow run, and (if the tag
-# looks like a release) attaches them to a GitHub Release.
+# 仅由 `git push --tags v*` 触发。在三个操作系统上并行构建原生安装包，
+# 上传产物到 workflow run，并（若 tag 形如发布版本）附加到 GitHub Release。
 #
-# Local one-shot builds do NOT need this — use `bash scripts/build.sh` instead.
-# This workflow is intentionally kept disabled for branch pushes: daily work
-# never triggers it.
+# 本地一次性构建不需要它 —— 请改用 `bash scripts/build.sh`。
+# 本 workflow 有意对分支推送保持禁用：日常工作不会触发它。
 
 name: release
 
@@ -14,16 +12,16 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:    # manual trigger from Actions tab
+  workflow_dispatch:    # 从 Actions 页签手动触发
 
 permissions:
-  contents: write       # required by softprops/action-gh-release to upload assets
+  contents: write       # softprops/action-gh-release 上传资产所需
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────
-  # Single matrix job covering all three OSes. Each runner produces only
-  # the bundles native to its OS — no cross-compilation (Tauri doesn't
-  # support it reliably).
+  # 覆盖三个操作系统的单一 matrix job。每个 runner 只产出
+  # 自己系统的原生安装包 —— 不做交叉编译（Tauri 无法
+  # 可靠支持交叉编译）。
   # ─────────────────────────────────────────────────────────────────────
   build:
     name: build (${{ matrix.os }} / ${{ matrix.bundles }})
@@ -68,8 +66,8 @@ jobs:
         with:
           workspaces: '. -> target'
 
-      # Linux: Tauri runtime deps (webkit2gtk-4.1, appindicator, librsvg).
-      # Names align with src-tauri/tauri.conf.json bundle.linux.deb.depends.
+      # Linux：Tauri 运行时依赖（webkit2gtk-4.1、appindicator、librsvg）。
+      # 名称与 src-tauri/tauri.conf.json bundle.linux.deb.depends 对齐。
       - name: Install Linux system deps
         if: runner.os == 'Linux'
         run: |
@@ -83,16 +81,15 @@ jobs:
 
       - name: Install frontend deps
         run: pnpm install
-        # NOTE: pnpm-lock.yaml is gitignored in this repo, so we intentionally
-        # do NOT pass --frozen-lockfile. The lockfile will be regenerated.
+        # 注意：本仓库 gitignore 了 pnpm-lock.yaml，因此有意
+        # 不传 --frozen-lockfile。lockfile 将被重新生成。
 
       - name: Build native bundles
-        # --no-frontend: pnpm tauri build's beforeBuildCommand already runs
-        # `pnpm build`; passing it twice is wasteful on CI runners.
+        # --no-frontend：pnpm tauri build 的 beforeBuildCommand 已运行
+        # `pnpm build`；在 CI runner 上跑两次是浪费。
         run: bash scripts/build.sh --bundles=${{ matrix.bundles }} --no-frontend
-        # Windows runners don't have bash by default in GHA, but Git Bash is
-        # preinstalled on windows-latest and is the default shell for `run:`
-        # steps with `bash` prefix.
+        # Windows runner 在 GHA 中默认没有 bash，但 windows-latest
+        # 预装了 Git Bash，是带 `bash` 前缀的 `run:` 步骤的默认 shell。
 
       - name: Locate artifacts
         id: artifacts
@@ -100,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          # Collect every bundle file Tauri produced into a flat staging dir.
+          # 将 Tauri 产出的所有安装包文件收集到扁平暂存目录。
           find target/release/bundle -type f \( \
             -name '*.dmg' -o \
             -name '*.app' -o \
@@ -108,7 +105,7 @@ jobs:
             -name '*.AppImage' -o \
             -name '*.msi' -o \
             -name '*.exe' \) -print -exec cp {} artifacts/ \;
-          echo "List of staged artifacts:"
+          echo "暂存产物列表："
           ls -la artifacts/
 
       - name: Upload artifacts
@@ -120,8 +117,8 @@ jobs:
           retention-days: 30
 
   # ─────────────────────────────────────────────────────────────────────
-  # Release upload: only runs after all matrix jobs succeed, and only if
-  # this was triggered by a tag push. Manual dispatch just stages artifacts.
+  # 发布上传：仅在所有 matrix job 成功后运行，且仅在
+  # 由 tag 推送触发时。手动 dispatch 只暂存产物。
   # ─────────────────────────────────────────────────────────────────────
   release:
     name: attach to release

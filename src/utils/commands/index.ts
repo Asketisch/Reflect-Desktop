@@ -1,8 +1,8 @@
 /**
- * Domain-split barrel for IPC wrappers.
+ * 按领域拆分的 IPC 封装 barrel。
  *
- * `src/utils/commands.ts` remains the public compatibility re-export —
- * prefer importing from `@/utils/commands/{domain}` directly in new code.
+ * `src/utils/commands.ts` 保留为公共兼容再导出 —— 新代码推荐直接从
+ * `@/utils/commands/{domain}` 导入。
  */
 export * from './health';
 export * from './agent';

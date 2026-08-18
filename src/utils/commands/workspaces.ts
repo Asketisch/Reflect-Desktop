@@ -1,5 +1,5 @@
 /**
- * Workspace I/O — list / set / query the active workspace.
+ * Workspace I/O —— 列出 / 设置 / 查询当前 workspace。
  */
 import { invoke } from '../bridge';
 
@@ -10,17 +10,17 @@ export interface ReflectWorkspaceInfo {
   session_count: number;
 }
 
-/** List known workspaces. */
+/** 列出已知 workspace。 */
 export async function reflect_list_workspaces(): Promise<ReflectWorkspaceInfo[]> {
   return invoke<ReflectWorkspaceInfo[]>('reflect_list_workspaces');
 }
 
-/** Set the active workspace by absolute path. */
+/** 按绝对路径设置当前 workspace。 */
 export async function reflect_set_workspace(path: string): Promise<void> {
   return invoke<void>('reflect_set_workspace', { path });
 }
 
-/** Return the absolute path of the active workspace. */
+/** 返回当前 workspace 的绝对路径。 */
 export async function reflect_current_workspace(): Promise<string> {
   return invoke<string>('reflect_current_workspace');
 }

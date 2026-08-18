@@ -1,5 +1,5 @@
 /**
- * Update checker wrapper.
+ * 更新检查器封装。
  */
 import { invoke } from '../bridge';
 
@@ -14,8 +14,7 @@ export interface ReflectUpdateInfo {
 }
 
 /**
- * Probe the upstream releases for an update. Returns `null` if the probe
- * couldn't complete at all.
+ * 向上游 releases 探测更新。探测完全失败时返回 `null`。
  */
 export async function reflect_check_update(): Promise<ReflectUpdateInfo | null> {
   return invoke<ReflectUpdateInfo | null>('reflect_check_update');

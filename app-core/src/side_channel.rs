@@ -1,33 +1,32 @@
-//! Side-channel agent orchestration.
+//! Side-channel agent 编排。
 //!
-//! A **side-channel** is a user-driven concurrent agent run independent of the
-//! main agent's turn lifecycle. Concept reference: thClaws
-//! `crates/core/src/side_channel.rs` (M6.34+).
+//! **Side-channel** 是由用户驱动、独立于
+//! 主 agent 轮次生命周期的并发 agent 运行。
 //!
-//! ## Differences from `Task` tool (model-driven subagent, `reflect-subagent`)
+//! ## 与 `Task` 工具的区别（模型驱动的子 agent、`reflect-subagent`）
 //!
 //! | | Side-channel | Subagent (`Task`) |
 //! |---|---|---|
-//! | Trigger | User types `/agent <name> <prompt>` | Model calls `Task` tool |
-//! | Concurrency | Runs concurrently with main agent | Blocks main's turn |
-//! | Main's history | Not affected | Tool result lands in main's history |
-//! | Cancel | Independent `CancelToken` — main `Cmd-C` does NOT kill it | Inherits parent's cancel |
-//! | UI | `chat_side_channel_*` events on a dedicated tab | Single `Task` tool indicator |
+//! | 触发方式 | 用户输入 `/agent <name> <prompt>` | 模型调用 `Task` 工具 |
+//! | 并发性 | 与主 agent 并发运行 | 阻塞主轮次 |
+//! | 主历史 | 不受影响 | 工具结果写入主历史 |
+//! | 取消 | 独立的 `CancelToken`——主窗口 `Cmd-C` 不会终止它 | 继承父级取消信号 |
+//! | UI | 专用标签页中的 `chat_side_channel_*` event | 单个 `Task` 工具指示器 |
 //!
-//! ## Registry shape
+//! ## Registry 结构
 //!
-//! This module ships a `SideChannelRegistry` (process-level) plus a lightweight
-//! `SideChannelHandle` (per-run). The registry maps stable ids
-//! (`side-<8-hex>`) to handles. Handles own their own `CancelToken`, so
-//! `main`'s cancel token never reaches a side-channel.
+//! 本模块提供进程级的 `SideChannelRegistry` 和轻量级的
+//! `SideChannelHandle`（每次运行一个）。Registry 将稳定 id
+//!（`side-<8-hex>`）映射到 handle。每个 handle 拥有独立的 `CancelToken`，因此
+//! 主 agent 的取消 token 不会传递到 side-channel。
 //!
-//! ## View-side emission
+//! ## 视图侧发送
 //!
-//! The GUI layer can subscribe via `subscribe_events()` — a `broadcast::Receiver`
-//! that yields `SideChannelEvent` per state change (`Started` / `Output` /
-//! `Done` / `Error` / `Cancelled`). The current desktop Tauri shell wires the
-//! receiver through the existing session-event forwarder so the frontend gets
-//! the same `reflect_event` channel it already consumes.
+//! GUI 层可通过 `subscribe_events()` 订阅——这是一个 `broadcast::Receiver`，
+//! 每次状态变化（`Started` / `Output` /
+//! `Done` / `Error` / `Cancelled`）都会产生一个 `SideChannelEvent`。当前桌面 Tauri 外壳将该
+//! receiver 接入现有的 session-event 转发器，使前端获得
+//! 已在使用的同一 `reflect_event` 通道。
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -38,25 +37,25 @@ use std::time::Instant;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
-/// Stable handle identifier (`side-<8 hex>`).
+/// 稳定的 handle 标识符（`side-<8 hex>`）。
 pub type SideChannelId = String;
 
-/// Lifecycle status of a side-channel.
+/// side-channel 的生命周期状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SideChannelStatus {
-    /// Side-channel is currently executing.
+    /// side-channel 正在执行。
     Running,
-    /// Side-channel completed naturally (success or empty result).
+    /// side-channel 自然完成（成功或结果为空）。
     Done,
-    /// Side-channel was cancelled by user.
+    /// side-channel 已被用户取消。
     Cancelled,
-    /// Side-channel exited with an error.
+    /// side-channel 因错误退出。
     Error,
 }
 
 impl SideChannelStatus {
-    /// `"running"` / `"done"` / `"cancelled"` / `"error"`.
+    /// `"running"` / `"done"` / `"cancelled"` / `"error"`。
     pub fn as_str(self) -> &'static str {
         match self {
             SideChannelStatus::Running => "running",
@@ -67,89 +66,88 @@ impl SideChannelStatus {
     }
 }
 
-/// One entry in the registry's event stream.
+/// Registry event 流中的一项。
 ///
-/// Sent to all subscribers when state changes (Started / Done / Cancelled /
-/// Error). `Output` events are emitted by the runner task as the side-channel
-/// produces content (currently emitted at done time only — see `run_once`
-/// notes; future work streams incremental output).
+/// 状态变化（Started / Done / Cancelled /
+/// Error）时发送给所有订阅者。runner task 会在 side-channel
+/// 产生内容时发送 `Output` event（目前仅在完成时发送——见 `run_once`
+/// 的说明；后续将支持增量输出流）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SideChannelEvent {
-    /// Side-channel started; carries its id and the agent name it picked.
+    /// side-channel 已启动；包含其 id 和所选 agent 名称。
     Started {
-        /// Side-channel id (`side-<8hex>`).
+        /// 侧通道 id（`side-<8hex>`）。
         id: SideChannelId,
-        /// Agent definition name chosen by the user.
+        /// 用户选择的 agent 定义名称。
         agent_name: String,
-        /// Initial prompt submitted to the side-channel.
+        /// 提交给 side-channel 的初始 prompt。
         prompt: String,
-        /// UNIX epoch milliseconds when the side-channel was registered.
+        /// side-channel 注册时的 UNIX epoch 毫秒时间戳。
         started_at_ms: i64,
     },
-    /// Side-channel finished cleanly. Optional short `summary` line for the
-    /// chats UI to render in the channel header.
+    /// side-channel 已正常完成。可选的简短 `summary` 行用于
+    /// chats UI 在频道标题中显示。
     Done {
-        /// Side-channel id.
+        /// side-channel id。
         id: SideChannelId,
-        /// UNIX epoch milliseconds when the run finished.
+        /// 运行完成时的 UNIX epoch 毫秒时间戳。
         finished_at_ms: i64,
-        /// Optional summary line (last assistant message or empty).
+        /// 可选的 summary 行（最后一条 assistant 消息，或为空）。
         summary: Option<String>,
     },
-    /// Side-channel was cancelled (`reflect_cancel_side_channel` or its own
-    /// token fired).
+    /// side-channel 已被取消（`reflect_cancel_side_channel` 或其自身的
+    /// token 触发）。
     Cancelled {
-        /// Side-channel id.
+        /// side-channel id。
         id: SideChannelId,
-        /// UNIX epoch milliseconds when cancellation took effect.
+        /// 取消生效时的 UNIX epoch 毫秒时间戳。
         finished_at_ms: i64,
     },
-    /// Side-channel exited with an error (message preserved).
+    /// side-channel 因错误退出（保留错误消息）。
     Error {
-        /// Side-channel id.
+        /// side-channel id。
         id: SideChannelId,
-        /// UNIX epoch milliseconds when the error was recorded.
+        /// 记录错误时的 UNIX epoch 毫秒时间戳。
         finished_at_ms: i64,
-        /// Human-readable error message.
+        /// 便于人类阅读的错误消息。
         message: String,
     },
 }
 
-/// Public-view snapshot of a side-channel (sent to the frontend / IPC).
+/// side-channel 的公开视图快照（发送到前端 / IPC）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SideChannelInfo {
-    /// Stable id.
+    /// 稳定的 id。
     pub id: SideChannelId,
-    /// Agent definition name.
+    /// agent 定义名称。
     pub agent_name: String,
-    /// Initial prompt (truncated by snapshot size, not by storage).
+    /// 初始 prompt（按快照大小截断，不影响存储）。
     pub prompt: String,
-    /// UNIX epoch milliseconds when the side-channel was registered.
+    /// side-channel 注册时的 UNIX epoch 毫秒时间戳。
     pub started_at_ms: i64,
-    /// Current status (`"running"` / `"done"` / `"cancelled"` / `"error"`).
+    /// 当前状态（`"running"` / `"done"` / `"cancelled"` / `"error"`）。
     pub status: String,
-    /// Duration in milliseconds; `null` while still running.
+    /// 持续时间（毫秒）；运行中为 `null`。
     pub duration_ms: Option<i64>,
 }
 
-/// Per-side-channel state held in the registry. Cloned for IPC snapshots.
+/// Registry 中保存的单个 side-channel 状态。会克隆用于 IPC 快照。
 pub(crate) struct SideChannelHandle {
-    /// Agent definition name.
+    /// agent 定义名称。
     pub agent_name: String,
-    /// Initial prompt.
+    /// 初始 prompt。
     pub prompt: String,
-    /// Monotonic start time for duration math.
+    /// 用于计算持续时间的单调时钟起始时间。
     pub started_at: Instant,
-    /// Wall-clock start time (UNIX_EPOCH ms) for IPC serialization. Computed
-    /// once on creation so the frontend gets a stable epoch timestamp even if
-    /// it snapshots long after the run finished.
+    /// 用于 IPC 序列化的墙上时钟起始时间（UNIX_EPOCH 毫秒）。创建时
+    /// 计算一次，确保即使前端在运行结束很久后获取快照，也能得到稳定的 epoch 时间戳。
     pub started_at_epoch_ms: i64,
-    /// Current status.
+    /// 当前状态。
     pub status: SideChannelStatus,
-    /// Independent cancel token (NOT a child of main's). Caller may fire
-    /// `cancel.cancel()` to stop just this side-channel.
+    /// 独立的取消 token（不是主 token 的子级）。调用方可触发
+    /// `cancel.cancel()`，仅停止此 side-channel。
     pub cancel: CancellationToken,
 }
 
@@ -171,14 +169,13 @@ impl SideChannelHandle {
     }
 }
 
-/// Process-level registry of all side-channels.
+/// 所有 side-channel 的进程级 Registry。
 #[derive(Clone)]
 pub struct SideChannelRegistry {
     inner: Arc<Mutex<HashMap<SideChannelId, SideChannelHandle>>>,
     events: broadcast::Sender<SideChannelEvent>,
-    /// Process-wide counter to guarantee unique ids even when two starts
-    /// happen in the same wall-clock millisecond. Pairs with the timestamp
-    /// portion of the id so we can still derive ordering from `started_at_ms`.
+    /// 进程级计数器，确保即使两次启动发生在同一墙上时钟毫秒内，id 也唯一。
+    /// 它与 id 中的时间戳部分配合，使我们仍可根据 `started_at_ms` 推导顺序。
     next_seq: Arc<AtomicU32>,
 }
 
@@ -197,12 +194,12 @@ impl std::fmt::Debug for SideChannelRegistry {
 }
 
 impl SideChannelRegistry {
-    /// Construct a new registry with default broadcast capacity.
+    /// 使用默认 broadcast 容量构造 Registry。
     pub fn new() -> Self {
         Self::with_capacity(256)
     }
 
-    /// Construct a registry with the given broadcast channel capacity.
+    /// 使用指定的 broadcast channel 容量构造 Registry。
     pub fn with_capacity(cap: usize) -> Self {
         let (events, _) = broadcast::channel(cap);
         Self {
@@ -212,19 +209,19 @@ impl SideChannelRegistry {
         }
     }
 
-    /// Subscribe to the event stream.
+    /// 订阅 event 流。
     pub fn subscribe_events(&self) -> broadcast::Receiver<SideChannelEvent> {
         self.events.subscribe()
     }
 
-    /// Insert a new side-channel. Returns the assigned id and a cancel handle
-    /// the caller must hold for cancellation. Emits a `Started` event.
+    /// 插入新的 side-channel。返回分配的 id 和
+    /// 调用方必须持有的取消 handle，并发送 `Started` event。
     pub fn start(
         &self,
         agent_name: String,
         prompt: String,
     ) -> (SideChannelId, CancellationToken) {
-        // Compute a fresh id; on collision, retry with a process-unique seq.
+        // 计算新的 id；发生冲突时使用进程唯一的 seq 重试。
         let epoch_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
@@ -241,15 +238,15 @@ impl SideChannelRegistry {
         let cancel = handle.cancel.clone();
         let mut g = self.inner.lock();
         if g.contains_key(&id) {
-            // Rare: two starts in the same ms produced the same hash. Salt
-            // with the next sequence number (process-unique, monotonic) so
-            // we never collide regardless of how tight the timing is.
+            // 极少见：同一毫秒内的两次启动产生了相同哈希。使用
+            // 下一个序列号（进程唯一且单调递增）加盐，从而
+            // 无论时序多紧密都不会冲突。
             let seq = self.next_seq.fetch_add(1, Ordering::Relaxed);
             id = format!("side-{:08x}", (epoch_ms as u32).wrapping_add(seq));
             handle.started_at_epoch_ms += seq as i64;
         } else {
-            // Normal path still bumps the seq so concurrent collisions see
-            // strictly-increasing salts on their retry.
+            // 正常路径也递增 seq，使并发冲突重试时得到
+            // 严格递增的盐值。
             self.next_seq.fetch_add(1, Ordering::Relaxed);
         }
         g.insert(id.clone(), handle);
@@ -263,8 +260,8 @@ impl SideChannelRegistry {
         (id, cancel)
     }
 
-    /// Cancel a side-channel by id. Fires the cancel token and updates
-    /// status. Returns `true` if a side-channel was found and cancelled.
+    /// 按 id 取消 side-channel。触发取消 token 并更新状态。
+    /// 找到并取消 side-channel 时返回 `true`。
     pub fn cancel(&self, id: &str) -> bool {
         let (started_at_epoch_ms,) = {
             let mut g = self.inner.lock();
@@ -292,8 +289,8 @@ impl SideChannelRegistry {
         }
     }
 
-    /// Mark a side-channel as done (`Done` or `Error` based on result).
-    /// Called by the runner task when the underlying work completes.
+    /// 将 side-channel 标记为完成（根据结果设为 `Done` 或 `Error`）。
+    /// runner task 完成底层工作时调用。
     pub fn finish(&self, id: &str, status: SideChannelStatus, summary: Option<String>) {
         let (started_at_epoch_ms,) = {
             let mut g = self.inner.lock();
@@ -335,8 +332,8 @@ impl SideChannelRegistry {
         }
     }
 
-    /// List all side-channels (snapshot). Sorted by started_at ascending so
-    /// the UI shows oldest first.
+    /// 列出所有 side-channel（快照）。按 started_at 升序排列，使
+    /// UI 最先显示最早的项。
     pub fn list(&self) -> Vec<SideChannelInfo> {
         let g = self.inner.lock();
         let mut v: Vec<(SideChannelId, SideChannelInfo)> = g
@@ -347,13 +344,13 @@ impl SideChannelRegistry {
         v.into_iter().map(|(_, info)| info).collect()
     }
 
-    /// Lookup a single side-channel by id.
+    /// 按 id 查找单个 side-channel。
     pub fn get(&self, id: &str) -> Option<SideChannelInfo> {
         let g = self.inner.lock();
         g.get(id).map(|h| h.snapshot(id))
     }
 
-    /// Number of currently-running side-channels.
+    /// 当前正在运行的 side-channel 数量。
     pub fn running_count(&self) -> usize {
         self.inner
             .lock()
@@ -378,7 +375,7 @@ mod tests {
         let r = reg();
         let (id, cancel) = r.start("default".into(), "hello".into());
         assert!(id.starts_with("side-"));
-        assert_eq!(id.len(), 13); // "side-" + 8 hex
+        assert_eq!(id.len(), 13); // “side-”加 8 位十六进制字符
         assert!(!cancel.is_cancelled());
         assert_eq!(r.list().len(), 1);
         assert_eq!(r.running_count(), 1);
@@ -390,12 +387,12 @@ mod tests {
         let mut sub = r.subscribe_events();
         let (id, token) = r.start("default".into(), "x".into());
         assert!(r.cancel(&id), "should cancel running side-channel");
-        // Cancel token fired
+        // 取消 token 已触发。
         assert!(token.is_cancelled());
         let status = r.get(&id).unwrap().status;
         assert_eq!(status, "cancelled");
         assert_eq!(r.running_count(), 0);
-        // Drain the channel: Started + Cancelled
+        // 清空 channel：Started + Cancelled。
         let evt1 = sub.try_recv().expect("started event");
         assert!(matches!(evt1, SideChannelEvent::Started { .. }));
         let evt2 = sub.try_recv().expect("cancelled event");
@@ -407,7 +404,7 @@ mod tests {
         let r = reg();
         let (id, _) = r.start("default".into(), "x".into());
         r.finish(&id, SideChannelStatus::Done, Some("ok".into()));
-        // Already terminal; cancel returns false.
+        // 已处于终态；取消返回 false。
         assert!(!r.cancel(&id));
     }
 
@@ -417,7 +414,7 @@ mod tests {
         let mut sub = r.subscribe_events();
         let (id, _) = r.start("default".into(), "hi".into());
         r.finish(&id, SideChannelStatus::Done, Some("bye".into()));
-        // Drain Started
+        // 清空 Started。
         let _ = sub.try_recv();
         let evt = sub.try_recv().expect("done event");
         match evt {
@@ -434,7 +431,7 @@ mod tests {
         let (id1, t1) = r.start("default".into(), "x".into());
         let (id2, t2) = r.start("default".into(), "y".into());
         assert_ne!(id1, id2);
-        // Cancelling id1 must not affect id2.
+        // 取消 id1 不得影响 id2。
         r.cancel(&id1);
         assert!(t1.is_cancelled());
         assert!(!t2.is_cancelled());
@@ -443,14 +440,14 @@ mod tests {
     #[test]
     fn cancel_does_not_block_future_starts() {
         let r = reg();
-        // Stress a tiny bit to confirm the registry isn't permanently
-        // wedged by cancelled entries (smoke check; no correctness leak).
+        // 稍作压力测试，确认 Registry 不会因已取消条目而永久
+        // 卡住（冒烟检查；不涉及正确性泄漏）。
         for i in 0..20 {
             let (id, _) = r.start("default".into(), format!("p-{i}"));
             r.cancel(&id);
         }
         assert_eq!(r.running_count(), 0);
-        // After a quick sleep, registry can still emit events on new subs.
+        // 短暂休眠后，Registry 仍可向新订阅者发送 event。
         std::thread::sleep(Duration::from_millis(1));
         let mut sub = r.subscribe_events();
         let _ = r.start("default".into(), "fresh".into());

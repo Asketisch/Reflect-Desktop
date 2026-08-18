@@ -48,7 +48,7 @@ describe('relativeTime', () => {
 describe('clockTime', () => {
   it('formats HH:MM:SS', () => {
     const d = new Date('2026-01-01T09:05:07Z');
-    // Locale-dependent; just check it returns non-empty of length 8
+    // 依赖 locale；仅检查返回长度为 8 的非空字符串
     const out = clockTime(d);
     expect(out).toMatch(/^\d{2}:\d{2}:\d{2}$/);
   });

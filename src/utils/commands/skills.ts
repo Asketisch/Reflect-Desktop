@@ -1,5 +1,5 @@
 /**
- * Skill registry wrappers — list installed skills and their triggers.
+ * Skill 注册表封装 —— 列出已安装 skill 及其触发词。
  */
 import { invoke } from '../bridge';
 
@@ -11,7 +11,7 @@ export interface ReflectSkillInfo {
   triggers: string[];
 }
 
-/** List all installed skills. */
+/** 列出全部已安装 skill。 */
 export async function reflect_list_skills(): Promise<ReflectSkillInfo[]> {
   return invoke<ReflectSkillInfo[]>('reflect_list_skills');
 }

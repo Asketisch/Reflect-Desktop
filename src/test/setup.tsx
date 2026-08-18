@@ -5,7 +5,7 @@
  * `invoke('reflect_rename_session', ...)`;
  * useAgent hook 依赖 `invoke('reflect_submit', ...)` + `listen('reflect_event', ...)`。
  *
- * 我们用 fake timers + 手动 resolve 来模拟后端响应。
+ * 使用 fake timers + 手动 resolve 来模拟后端响应。
  */
 
 import { afterEach, beforeEach, vi } from 'vitest';
@@ -27,7 +27,7 @@ export function resetMockInvoke() {
   invokeHandlers.clear();
 }
 
-// Default handlers
+// 默认 handler
 beforeEach(() => {
   resetMockInvoke();
 
@@ -80,8 +80,8 @@ beforeEach(() => {
   // reflect_submit
   mockInvoke('reflect_submit', async (submission: { id: string }) => submission.id);
 
-  // Phase 2 item 2 — remote daemon placeholders (default no-op for tests
-  // that don't override via vi.mock; specific tests override these).
+  // Phase 2 条目 2 — remote daemon 占位实现(对未通过 vi.mock 覆盖的测试
+  // 默认 no-op;具体测试可自行 override)。
   mockInvoke('reflect_tailscale_daemon_command_preview', async () => '');
   mockInvoke('reflect_tailscale_daemon_start', async () => '');
   mockInvoke('reflect_tailscale_daemon_stop', async () => '');
@@ -97,7 +97,7 @@ beforeEach(() => {
   mockInvoke('ping', async () => ({ msg: 'pong', version: '0.1.0' }));
 });
 
-// ====== Mock @tauri-apps/api/core ======
+// ====== 模拟 @tauri-apps/api/core ======
 
 vi.mock('@tauri-apps/api/core', () => {
   const actual = vi.importActual('@tauri-apps/api/core');
@@ -111,7 +111,7 @@ vi.mock('@tauri-apps/api/core', () => {
   };
 });
 
-// ====== Mock @tauri-apps/api/event ======
+// ====== 模拟 @tauri-apps/api/event ======
 
 type EventHandler = (payload: any) => void;
 const eventHandlers = new Map<string, Set<EventHandler>>();
@@ -149,14 +149,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// jsdom doesn't implement scrollIntoView; stub it for components that autoscroll.
+// jsdom 没有实现 scrollIntoView,这里为需要自动滚动的组件做 stub。
 if (typeof window !== 'undefined' && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function () {
-    /* noop for jsdom */
+    /* jsdom 下无需操作 */
   };
 }
 
-// ====== Test utilities ======
+// ====== 测试工具 ======
 
 /**
  * 创建用于测试的 QueryClient。

@@ -1,8 +1,8 @@
-//! Autopilot commands.
+//! Autopilot 命令。
 //!
-//! Phase 3 item 10: automatic task scheduling.
-//! Thin wrapper around `reflect_app_core::autopilot::AutopilotManager`,
-//! exposing its config + run history to the frontend.
+//! 自动任务调度。
+//! `reflect_app_core::autopilot::AutopilotManager` 的薄包装,
+//! 把配置和运行历史暴露给前端。
 //!
 //! ## 命令清单
 //!
@@ -16,7 +16,7 @@ use tauri::State;
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
 
-/// Get current autopilot configuration.
+/// 读取当前 autopilot 配置。
 #[tauri::command]
 pub async fn reflect_get_autopilot_config(
     agent: State<'_, MinimalAgent>,
@@ -24,7 +24,7 @@ pub async fn reflect_get_autopilot_config(
     Ok(agent.autopilot_manager().load_config())
 }
 
-/// Update autopilot configuration.
+/// 更新 autopilot 配置。
 #[tauri::command]
 pub async fn reflect_update_autopilot_config(
     agent: State<'_, MinimalAgent>,
@@ -36,7 +36,7 @@ pub async fn reflect_update_autopilot_config(
         .map_err(|e| CommandError { msg: e.to_string() })
 }
 
-/// Get autopilot run history.
+/// 读取 autopilot 的运行历史。
 #[tauri::command]
 pub async fn reflect_autopilot_history(
     agent: State<'_, MinimalAgent>,

@@ -1,15 +1,14 @@
 /**
- * Ask-user wrappers — respond to questions raised by the agent via the
- * `reflect_event` stream.
+ * 询问用户封装 —— 响应 agent 通过 `reflect_event` 流提出的问题。
  */
 import { invoke } from '../bridge';
 
-/** Answer a multi-choice question. Shape of `answers` is defined per question. */
+/** 回答一道多选题。`answers` 的形态由每道题自行定义。 */
 export async function reflect_ask_user_question_response(id: string, answers: unknown): Promise<string> {
   return invoke<string>('reflect_ask_user_question_response', { id, answers });
 }
 
-/** Free-text answer to a clarification request. */
+/** 以自由文本回答一个澄清请求。 */
 export async function reflect_ask_user_input_response(id: string, text: string): Promise<string> {
   return invoke<string>('reflect_ask_user_input_response', { id, text });
 }

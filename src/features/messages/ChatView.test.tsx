@@ -1,8 +1,8 @@
 /**
- * ChatView component tests — verify session loading/empty/error/retry states.
+ * ChatView 组件测试 —— 验证会话加载 / 空态 / 错误 / 重试状态。
  *
- * Mocks @tanstack/react-router `useParams` to control the active sessionId
- * and `reflect_replay_session` to drive loading / error / success flows.
+ * 模拟 @tanstack/react-router 的 `useParams` 控制活动 sessionId，
+ * 并模拟 `reflect_replay_session` 驱动加载 / 错误 / 成功流程。
  */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -74,12 +74,12 @@ describe('ChatView', () => {
       renderWithProviders(<ChatView />);
     });
 
-    // Loading banner should appear while the replay is pending.
+    // 回放挂起期间应显示加载横幅。
     await waitFor(() => {
       expect(screen.getByText(/^Loading session…$/)).toBeDefined();
     });
 
-    // Resolve the replay and verify hydration.
+    // 解决回放并验证本地状态水合。
     await act(async () => {
       resolveReplay(SAMPLE_RECORDS);
     });
@@ -89,7 +89,7 @@ describe('ChatView', () => {
       expect(state.turns.length).toBeGreaterThan(0);
     });
 
-    // After hydration, the Viewing banner must render and loading must clear.
+    // 水合后，Viewing 横幅必须渲染，加载状态必须清除。
     await waitFor(() => {
       expect(screen.getByText(/Viewing session/)).toBeDefined();
     });

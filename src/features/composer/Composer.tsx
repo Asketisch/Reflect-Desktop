@@ -48,8 +48,8 @@ export function Composer() {
 
   const onSlashSelect = useCallback((command: string) => {
     setText((previous) => {
-      // Strip any existing `/<word>` token (and any args the user typed after
-      // it) so a click on a popup entry always yields a clean `/<command> `.
+      // 清除已有的 `/<word>` token（以及用户输入的参数），
+      // 使点击弹层条目始终产生干净的 `/<command> `。
       const replaced = previous.replace(/\/\w*(?:\s+.*)?$/, `/${command} `);
       requestAnimationFrame(() => {
         const element = textareaRef.current;

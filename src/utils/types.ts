@@ -1,17 +1,17 @@
 /**
- * Shared Tauri types —— reflect-protocol 镜像 + ReflectAgent 特定类型。
+ * 共享 Tauri 类型 —— reflect-protocol 镜像 + ReflectAgent 特定类型。
  *
- * Source of truth:
- * - Rust: `vendor/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
+ * 权威来源：
+ * - Rust: `reflect-agent/crates/protocol/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
  * - TS:   `src/types/protocol.ts`（事件/Submission 判别联合）
  */
 
 export interface ReflectSessionInfo {
   /**
-   * Mirrors `reflect_protocol::SessionInfo` as returned by
-   * `reflect_list_sessions` (`vendor/reflect-protocol/src/recorder.rs::SessionInfo`).
-   * 4 fields only — anything richer (provider, cwd, tool_count, …) must be
-   * surfaced through a separate command, not retrofitted here.
+   * 镜像 `reflect_protocol::SessionInfo`，与 `reflect_list_sessions`
+   * 返回的结构一致（`reflect-agent/crates/protocol/reflect-protocol/src/recorder.rs::SessionInfo`）。
+   * 仅 4 个字段 —— 更丰富的信息（provider、cwd、tool_count 等）必须
+   * 通过单独的命令暴露，而不是在这里追加。
    */
   session_id: string;
   model: string;

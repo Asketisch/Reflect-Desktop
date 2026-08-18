@@ -1,4 +1,4 @@
-//! Real Media Studio + Computer Use backends (Phase 3 item 13 complete impl).
+//! 真实的 Media Studio + Computer Use backend 实现。
 //!
 //! 用 `image` crate (`ImageBackend`) + `xcap`/`enigo` (`ComputerBackend`)
 //! 替换默认的 metadata-only / unavailable 实现。
@@ -31,7 +31,7 @@ use reflect_app_core::media::{
 };
 
 
-/// `image` crate-backed image processor。
+/// 基于 `image` crate 的图像处理器。
 ///
 /// Pure-local,不依赖 native binding。读取文件 → 解码为
 /// [`image::DynamicImage`] → 缩放 → 写回为指定格式。
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn real_image_backend_load_metadata_includes_dimensions() {
-        // Create a 4x4 PNG in-memory and write to tempdir.
+        // 在内存中创建 4x4 PNG 并写入临时目录。
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("test.png");
         let img = image::RgbImage::from_fn(4, 4, |_, _| image::Rgb([255, 0, 0]));
@@ -376,12 +376,12 @@ mod tests {
         assert_eq!(result.height, 2);
         assert_eq!(result.format, ImageFormat::Jpeg);
         assert!(result.bytes > 0);
-        // Verify it's a real JPEG: read magic bytes.
+        // 校验确实生成了 JPEG:读取魔数。
         let mut f = std::fs::File::open(&output).unwrap();
         let mut buf = [0u8; 2];
         use std::io::Read;
         f.read_exact(&mut buf).unwrap();
-        assert_eq!(buf, [0xff, 0xd8]); // JPEG SOI marker.
+        assert_eq!(buf, [0xff, 0xd8]); // JPEG SOI 标记。
     }
 
     #[test]

@@ -33,7 +33,7 @@ describe('ToolCell', () => {
   it('handles unparseable args gracefully', () => {
     render(<ToolCell toolName="shell" argsSummary="not-json" status="error" />);
     const cell = screen.getByTestId('tool-cell-shell');
-    // unparseable → summary = name
+    // 无法解析时，摘要回退为工具名
     expect(cell.querySelector('[class*="summary"]')?.textContent).toBe('shell');
     fireEvent.click(cell.querySelector('button')!);
     expect(screen.getByTestId('tool-args-shell').textContent).toBe('not-json');

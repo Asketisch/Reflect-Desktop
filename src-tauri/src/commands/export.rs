@@ -1,4 +1,4 @@
-//! B14: Session export as Markdown (`reflect_export_session_markdown`)。
+//! Session 导出为 Markdown (`reflect_export_session_markdown`)。
 //!
 //! 把 session replay flatten 成 markdown transcript,写到 `~/.reflect/exports/<id>.md`。
 
@@ -15,8 +15,8 @@ pub struct MarkdownExportResult {
     pub bytes: u64,
 }
 
-/// Replay the session, flatten to a Markdown transcript, and write to
-/// `~/.reflect/exports/<id>.md`. Returns the absolute path.
+/// 回放 session,flatten 成 Markdown 转写稿,写入
+/// `~/.reflect/exports/<id>.md`,返回绝对路径。
 #[tauri::command]
 pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<MarkdownExportResult> {
     use reflect_protocol::RolloutRecord;
@@ -51,7 +51,7 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
                 content,
             } => {
                 count += 1;
-                // `content` is a serde_json::Value; we treat plain-string as text.
+                // `content` 是 serde_json::Value;字符串直接当作文本。
                 let text = match content {
                     serde_json::Value::String(s) => s.clone(),
                     other => other.to_string(),
@@ -122,6 +122,12 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
             // Markdown 导出不渲染 token 统计 —— 显式忽略以保证 match 穷尽
             // (新增 RolloutRecord variant 不会再次打破编译)。
             RolloutRecord::TokenCount { .. } => {}
+            // Plan 工作流与权限模式变更记录:Markdown 转写稿不渲染,
+            // 显式忽略以保证 match 穷尽。
+            RolloutRecord::PlanRequest { .. }
+            | RolloutRecord::PlanReady { .. }
+            | RolloutRecord::PlanRejected { .. }
+            | RolloutRecord::PermissionModeChanged { .. } => {}
         }
     }
 

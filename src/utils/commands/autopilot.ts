@@ -1,11 +1,11 @@
 /**
- * Autopilot IPC wrappers.
+ * Autopilot IPC 包装。
  *
- * Phase 3 item 10: automatic task scheduling.
+ * Phase 3 条目 10：自动任务调度。
  */
 import { invoke } from '@/utils/bridge';
 
-// ── Types ──
+// ── 类型 ──
 
 export interface ReflectAutopilotConfig {
   enabled: boolean;

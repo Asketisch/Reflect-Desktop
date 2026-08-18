@@ -1,4 +1,4 @@
-//! Activity timeline 命令面 (Phase 3 item 9)。
+//! Activity timeline 命令面。
 //!
 //! 薄包装 `reflect_app_core::activity::ActivityLogger`,供前端 Inbox /
 //! Activity timeline / @mention 搜索消费。

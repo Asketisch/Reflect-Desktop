@@ -133,7 +133,7 @@
 }
 .actionBtn:hover { border-color: var(--accent, #5eafe6); color: var(--accent, #5eafe6); }
 
-/* Danger variant — uses the existing --danger token instead of inline hex. */
+/* 危险变体 —— 使用现有 --danger token，而非内联十六进制色值。 */
 .actionBtnDanger {
   color: var(--danger);
 }

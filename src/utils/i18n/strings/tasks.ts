@@ -1,5 +1,5 @@
 /**
- * i18n namespace - tasks.*
+ * i18n 命名空间 - tasks.*
  */
 import type { StringEntry } from '../types';
 

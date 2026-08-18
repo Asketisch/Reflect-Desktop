@@ -1,18 +1,17 @@
 /**
- * Reflect protocol — Tauri `reflect_event` envelope.
+ * Reflect protocol —— Tauri `reflect_event` 信封。
  *
- * Mirrors `vendor/reflect-protocol/src/event.rs` and `event_msg.rs`.
- * Outer envelope shape is `{ id: string; msg: ReflectEventMsg }`. The
- * `EventMsgByType` map is the type-level analog of the Rust `EventMsg`
- * enum, letting TS narrow via `event.msg.type`.
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/event.rs` 和 `event_msg.rs`。
+ * 外层信封形状为 `{ id: string; msg: ReflectEventMsg }`。`EventMsgByType` 映射
+ * 是 Rust `EventMsg` 枚举的类型层镜像,允许 TS 通过 `event.msg.type` 收窄类型。
  *
- * Helpers / constants re-exported from the barrel:
- *   - `EVENT_ID_NONE` → `''` (empty string — id of session-level events)
- *   - `EventMsgType` → string literal union of all discriminator values
- *   - `ReflectEventMsg` → discriminated union over `EventMsgType`
- *   - `ReflectEvent` → outer envelope
+ * 从 barrel 再导出的辅助/常量:
+ *   - `EVENT_ID_NONE` → `''`(空字符串,session 级事件的 id)
+ *   - `EventMsgType` → 所有 discriminator 值的字符串字面量联合
+ *   - `ReflectEventMsg` → 跨 `EventMsgType` 的判别联合
+ *   - `ReflectEvent` → 外层信封
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 import type { ApprovalPolicy, RiskLevel, SandboxPolicy, PermissionMode } from './enums';
@@ -20,47 +19,46 @@ import type { AskUserInputPayload } from './ask_user_input';
 import type { Question } from './question';
 import type { TokenUsagePayload } from './usage';
 
-/** Submission id `"EVENT_ID_NONE"` = session-level event, no matching submission. */
+/** Submission id `"EVENT_ID_NONE"` = session 级事件,没有对应的 submission。 */
 export const EVENT_ID_NONE = '';
 
 /**
- * Outer envelope: Tauri event `reflect_event` payload is exactly
- * `{ id: string; msg: EventMsgByType[T] }`.  The `Event` interface uses
- * TypeScript's discriminated union over `msg.type` so consumers can
- * narrow payload shape with `switch (event.msg.type)`.
+ * 外层信封:Tauri `reflect_event` 事件的 payload 形如
+ * `{ id: string; msg: EventMsgByType[T] }`。`Event` 接口基于 `msg.type` 使用
+ * TypeScript 的判别联合,使消费者可以用 `switch (event.msg.type)` 收窄 payload 形状。
  */
 export type EventMsgType =
-  // Lifecycle (6)
+  // 生命周期 (6)
   | 'session_configured'
   | 'turn_started'
   | 'turn_complete'
   | 'turn_aborted'
   | 'turn_rewound'
   | 'shutdown_complete'
-  // LLM output (4)
+  // LLM 输出 (4)
   | 'agent_message'
   | 'agent_message_delta'
   | 'thinking_delta'
   | 'token_count'
-  // Tool (2)
+  // 工具 (2)
   | 'tool_call_begin'
   | 'tool_call_end'
-  // Approval (1)
+  // 审批 (1)
   | 'approval_request'
-  // AskUser (2)
+  // 用户提问 (2)
   | 'ask_user_question'
   | 'ask_user_input'
-  // Permission bubble (1)
+  // 权限气泡 (1)
   | 'permission_bubble'
-  // Compaction (1)
+  // 上下文压缩 (1)
   | 'context_compacted'
-  // Error (2)
+  // 错误 (2)
   | 'error'
   | 'stream_error'
-  // Config / routing (2)
+  // 配置 / 路由 (2)
   | 'config_reloaded'
   | 'routing'
-  // Collab (3)
+  // 协作 (3)
   | 'collab_started'
   | 'collab_message'
   | 'collab_finished'
@@ -71,19 +69,19 @@ export type EventMsgType =
   // LSP (2)
   | 'lsp_server_started'
   | 'lsp_server_failed'
-  // Plan mode (5)
+  // Plan 模式 (5)
   | 'plan_request'
   | 'plan_ready'
   | 'plan_approved'
   | 'plan_rejected'
   | 'plan_step'
   | 'permission_mode_changed'
-  // Plugin / quota
+  // 插件 / 配额
   | 'plugin_loaded'
   | 'quota_exhausted';
 
 // ============================================================================
-// EventMsg payload structs
+// EventMsg payload 结构体
 // ============================================================================
 
 export interface SessionConfiguredPayload {
@@ -134,7 +132,7 @@ export interface ThinkingDeltaPayload {
 }
 
 export interface TokenCountPayload extends TokenUsagePayload {
-  // identical to TokenUsagePayload
+  // 与 TokenUsagePayload 结构一致
 }
 
 export interface ToolCallBeginPayload {
@@ -159,18 +157,18 @@ export interface ToolOutput {
 
 export interface ContentBlock {
   type: 'text' | 'image' | 'diff' | 'tool_use' | 'tool_result';
-  // text
+  // 文本
   text?: string;
-  // image
+  // 图像
   data?: string; // base64
   mime_type?: string;
-  // diff
+  // 差异
   unified_diff?: string;
-  // tool_use
+  // 工具调用
   id?: string;
   name?: string;
   args?: unknown;
-  // tool_result
+  // 工具结果
   call_id?: string;
   output?: ToolOutput;
 }
@@ -222,7 +220,7 @@ export interface StreamErrorPayload {
 export interface ConfigReloadedPayload {
   path: string;
   sections_changed: string[];
-  at: number; // unix seconds
+  at: number; // Unix 时间戳（秒）
 }
 
 export interface RoutingPayload {
@@ -309,7 +307,7 @@ export interface PermissionModeChangedPayload {
   to: PermissionMode;
 }
 
-/** PlanStepStatus — snake_case(对齐 Rust `PlanStepStatus`)。 */
+/** PlanStepStatus —— snake_case(对齐 Rust `PlanStepStatus`)。 */
 export type PlanStepStatus = 'pending' | 'in_progress' | 'done' | 'skipped';
 
 /** `plan_step` —— plan 执行进度(单 step 状态变更)。 */
@@ -341,43 +339,43 @@ export interface QuotaExhaustedPayload {
 }
 
 // ============================================================================
-// EventMsgByType — discriminated union
+// EventMsgByType —— 判别联合
 // ============================================================================
 
 /**
- * Map of `EventMsgType` → payload shape. This is the type-level analog of
- * the Rust `EventMsg` enum, allowing TS to narrow via `event.msg.type`.
+ * `EventMsgType` → payload 形状的映射。这是 Rust `EventMsg` 枚举的类型层镜像,
+ * 让 TS 可以通过 `event.msg.type` 收窄。
  */
 export interface EventMsgByType {
-  // Lifecycle
+  // 生命周期
   session_configured: SessionConfiguredPayload;
   turn_started: TurnStartedPayload;
   turn_complete: TurnCompletePayload;
   turn_aborted: TurnAbortedPayload;
   turn_rewound: TurnRewoundPayload;
   shutdown_complete: Record<string, never>;
-  // LLM output
+  // LLM 输出
   agent_message: AgentMessagePayload;
   agent_message_delta: AgentMessageDeltaPayload;
   thinking_delta: ThinkingDeltaPayload;
   token_count: TokenCountPayload;
-  // Tool
+  // 工具
   tool_call_begin: ToolCallBeginPayload;
   tool_call_end: ToolCallEndPayload;
-  // Approval
+  // 审批
   approval_request: ApprovalRequestPayload;
   ask_user_question: AskUserQuestionPayload;
   ask_user_input: AskUserInputPayload;
   permission_bubble: PermissionBubblePayload;
-  // Compaction
+  // 上下文压缩
   context_compacted: ContextCompactedPayload;
-  // Error
+  // 错误
   error: ErrorPayload;
   stream_error: StreamErrorPayload;
-  // Config / routing
+  // 配置 / 路由
   config_reloaded: ConfigReloadedPayload;
   routing: RoutingPayload;
-  // Collab
+  // 协作
   collab_started: CollabStartedPayload;
   collab_message: CollabMessagePayload;
   collab_finished: CollabFinishedPayload;
@@ -395,17 +393,17 @@ export interface EventMsgByType {
   plan_rejected: PlanRejectedPayload;
   plan_step: PlanStepPayload;
   permission_mode_changed: PermissionModeChangedPayload;
-  // Plugin / quota
+  // 插件 / 配额
   plugin_loaded: PluginLoadedPayload;
   quota_exhausted: QuotaExhaustedPayload;
 }
 
-/** Single union variant for ReflectEvent — narrowed by `msg.type`. */
+/** ReflectEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */
 export type ReflectEventMsg = {
   [T in EventMsgType]: { type: T } & EventMsgByType[T];
 }[EventMsgType];
 
-/** Outer Tauri `reflect_event` payload. */
+/** 外层 Tauri `reflect_event` payload。 */
 export interface ReflectEvent {
   id: string;
   msg: ReflectEventMsg;

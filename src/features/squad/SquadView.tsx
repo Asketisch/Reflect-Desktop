@@ -1,5 +1,5 @@
 /**
- * SquadView —— Squad 列表 + 详情 + 任务委派 (Phase 3 item 11).
+ * SquadView —— Squad 列表 + 详情 + 任务委派 (Phase 3 条目 11).
  *
  * Master-detail 布局:
  * - 左:所有 squad 列表(选中后高亮)+ 创建表单。
@@ -266,7 +266,7 @@ function SquadTaskRow(props: {
   );
 }
 
-// ── MemberEditor (for create form) ────────────────────────────────
+// ── MemberEditor（用于创建表单）────────────────────────────────
 
 function MemberEditor(props: {
   members: ReflectSquadMember[];

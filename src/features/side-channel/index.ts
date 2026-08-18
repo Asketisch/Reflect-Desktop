@@ -1,5 +1,5 @@
 /**
- * side-channel feature barrel (Phase 2 item 1).
+ * side-channel 功能桶（Phase 2 条目 1）。
  */
 export { SideChannelView } from './SideChannelView';
 export { useSideChannelController } from './useSideChannelController';

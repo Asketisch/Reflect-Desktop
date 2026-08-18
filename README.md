@@ -1,7 +1,6 @@
 # ReflectDesktop
 
-> Standalone Tauri 2 + React 19 desktop GUI for [Reflect Agent](https://github.com/CNB/Reflect-Agent).
-> Zero-modification integration: this repo consumes `reflect-*` crates via `vendor/` mirror + a small IPC adapter on top of `reflect-protocol`.
+> Reflect Agent 独立桌面应用：Tauri 2 + React 19，通过 `reflect-protocol` 协议桥接 Reflect Agent 核心。
 
 [![v0.1.0](https://img.shields.io/badge/version-0.1.0-blue)]()
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-orange)]()
@@ -9,126 +8,127 @@
 
 ---
 
-## Why this repo exists
+## 项目说明
 
-Reflect Agent's terminal-mode frontend (`reflect tui`) and the headless exec path (`reflect exec "..."`) carry the same `reflect-core::AgentThread`. A desktop GUI wants the same threads but in a Tauri-rendered window. Rather than shipping a Tauri shim inside ReflectAgent (which would couple Tauri 2 build artifacts into a headless agent tool), ReflectDesktop keeps all GUI code here and only **consumes** the agent through `vendor/reflect-*` snapshots pulled on demand.
-
----
-
-## Features
-
-### Sessions & Workspaces
-
-- Time-bucketed session sidebar: **Now / Today / Yesterday / This week / Older** (`useSessions`).
-- Resume, replay (`reflect_replay_session`), rename, archive, delete.
-- Persistent composer draft per thread.
-
-### Composer & Agent Controls
-
-- Auto-grow textarea, IME-safe.
-- `/` slash popup driven by `src/features/composer/slashCommands.ts` (mirrors TUI slash commands).
-- `@` file mention, drag/drop + paste images.
-- Send: `Cmd+Enter` (macOS) / `Ctrl+Enter` (Linux/Windows).
-- Interrupt: `Cmd+.` / `Ctrl+.` → `reflect_interrupt`.
-- Model picker, effort toggle, permission mode cycle, approval rules.
-- Composer is owned by `src/features/composer/`; `src/features/messages/Composer.tsx` is a thin re-export shim.
-
-### Chat Rendering
-
-- `react-markdown` + Shiki for code blocks.
-- Streaming via `AgentMessageDelta` events (single `reflect_event` channel).
-- Tool rows collapse consecutive calls; `McpToolInvoked` adds `(via <server>)` badge.
-- Collapsible Thinking blocks (`ThinkingDelta`).
-
-### Approval & AskUser Modals
-
-- **ApprovalModal**: Tool / Hook / Plan — Allow Once / Always / Deny.
-- **QuestionModal**: multi-question, multi-select, "Other" custom text.
-- **AskUserModal**: free-text reply.
-- **PlanReadyModal**: Accept / Submit Changes with plan markdown review.
-
-### macOS-native
-
-- Overlay titlebar with vibrancy (`macOSPrivateApi: true`, `titleBarStyle: "Overlay"`).
-- Dock badge (via `objc2`).
-- Close-to-tray (window hide on close).
-- Global shortcut via `tauri-plugin-global-shortcut`.
-
-### Backend Integration
-
-- **In-process** `Arc<AgentThread>` (no daemon) — same protocol envelope as TUI.
-- Tauri command surface split by domain under `src-tauri/src/commands/<domain>.rs`, re-exported from a thin `src-tauri/src/commands/mod.rs`; command bodies wrap `reflect_protocol::Op` plus diagnostic / config / tool / session / file / git / shell / allowlist / workspace / skill / memory / hook / search commands.
-- Single push event `reflect_event` (payload = `reflect_protocol::Event`).
-- `tokio::sync::broadcast` for session fan-out to multiple subscribers.
-
-### Settings
-
-- Display (theme: light / dark / system, accent colors, transparency, wallpaper).
-- Editor (vim / output-style toggles).
-- Provider (default provider + API key placeholders).
-- `ConfigForm` covers every section in `vendor/reflect-config/src/schema.rs`; advanced raw TOML editor remains the release valve.
+Reflect Agent 的终端模式 (`reflect tui`) 和无头执行模式 (`reflect exec "..."`) 共用同一个 `reflect-core::AgentThread`。桌面 GUI 需要在 Tauri 窗口中运行相同的线程，但不希望将 Tauri 2 构建产物耦合到无头代理工具中。因此 ReflectDesktop 将全部 GUI 代码放在本仓库，仅通过 `reflect-agent/` git submodule 消费代理核心。
 
 ---
 
-## Requirements
+## 功能特性
+
+### 会话与工作区
+
+- 时间分组会话侧边栏：**当前 / 今天 / 昨天 / 本周 / 更早** (`useSessions`)
+- 恢复、回放 (`reflect_replay_session`)、重命名、归档、删除
+- 每个线程独立的持久化编辑器草稿
+
+### 编辑器与代理控制
+
+- 自动增长文本框，安全支持输入法
+- `/` 斜杠命令弹窗，由 `src/features/composer/slashCommands.ts` 驱动（与终端模式斜杠命令一致）
+- `@` 文件引用，拖拽/粘贴图片
+- 发送：`Cmd+Enter`（macOS）/ `Ctrl+Enter`（Linux/Windows）
+- 中断：`Cmd+.` / `Ctrl+.` → `reflect_interrupt`
+- 模型选择器、努力级别切换、权限模式切换、批准规则
+- 编辑器归属于 `src/features/composer/`；`src/features/messages/Composer.tsx` 为薄重新导出层
+
+### 聊天渲染
+
+- `react-markdown` + Shiki 代码块高亮
+- 通过 `AgentMessageDelta` 事件流式传输（单一 `reflect_event` 通道）
+- 工具行折叠连续调用；`McpToolInvoked` 添加 `(via <server>)` 徽标
+- 可折叠的思考块 (`ThinkingDelta`)
+
+### 批准与用户问答弹窗
+
+- **批准弹窗**: 工具 / 钩子 / 计划 — 允许一次 / 始终允许 / 拒绝
+- **问答弹窗**: 多问题、多选、"其他" 自定义文本
+- **用户问答弹窗**: 自由文本回复
+- **计划就绪弹窗**: 接受 / 提交更改，附带计划 Markdown 审阅
+
+### macOS 原生适配
+
+- 覆盖式标题栏（`macOSPrivateApi: true`，`titleBarStyle: "Overlay"`）
+- Dock 徽标（通过 `objc2`）
+- 关闭到系统托盘（关闭窗口时隐藏）
+- 全局快捷键（`tauri-plugin-global-shortcut`）
+
+### 后端集成
+
+- **进程内** `Arc<AgentThread>`（无守护进程），与终端模式共用同一协议信封
+- Tauri 命令按领域拆分在 `src-tauri/src/commands/<domain>.rs`，由 `src-tauri/src/commands/mod.rs` 重新导出
+- 命令体封装 `reflect_protocol::Op` 及诊断 / 配置 / 工具 / 会话 / 文件 / Git / Shell / 允许列表 / 工作区 / 技能 / 记忆 / 钩子 / 搜索命令
+- 单一推送事件通道 `reflect_event`（负载 = `reflect_protocol::Event`）
+- `tokio::sync::broadcast` 支持多订阅者会话事件广播
+
+### 设置
+
+- 显示（主题：亮色 / 暗色 / 系统跟随、强调色、透明度、壁纸）
+- 编辑器（Vim 模式 / 输出样式切换）
+- 提供商（默认提供商 + API 密钥占位符）
+- `ConfigForm` 覆盖 `reflect-agent/crates/resources/reflect-config/src/schema.rs` 中的每个部分；高级原始 TOML 编辑器保留为出口
+
+---
+
+## 环境要求
 
 - Node.js ≥ 20 + pnpm
-- Rust toolchain (stable)
-- macOS: Xcode Command Line Tools
-- Linux: `webkit2gtk-4.1`, `libayatana-appindicator3-dev`, `librsvg2-dev`
-- Windows: WebView2 (Win10+ ships it), Microsoft C++ Build Tools
+- Rust 工具链（stable）
+- macOS：Xcode 命令行工具
+- Linux：`webkit2gtk-4.1`、`libayatana-appindicator3-dev`、`librsvg2-dev`
+- Windows：WebView2（Windows 10+ 自带）、Microsoft C++ 构建工具
 
 ---
 
-## Getting Started
+## 快速开始
 
-### Install prebuilt (macOS arm64)
+### 安装预编译版本（macOS arm64）
 
 ```bash
 bash scripts/install.sh
-# Installs:
-#   /usr/local/bin/reflect-desktop           (binary)
-#   ~/Applications/ReflectDesktop.app        (launchable bundle)
+# 安装：
+#   /usr/local/bin/reflect-desktop           （二进制）
+#   ~/Applications/ReflectDesktop.app        （可启动包）
 ```
 
-### From source
+### 从源码构建
 
 ```bash
 git clone https://github.com/CNB/ReflectDesktop.git
 cd ReflectDesktop
 pnpm install
-bash scripts/vendor-sync.sh /path/to/Reflect-Agent main
-bash scripts/build.sh        # auto-detects OS, outputs native bundles
-bash scripts/install.sh      # macOS: installs .app + binary
+git submodule update --init --recursive
+bash scripts/build.sh        # 自动检测操作系统，输出原生安装包
+bash scripts/install.sh      # macOS: 安装 .app + 二进制
 ```
 
-`scripts/build.sh` detects the current OS and emits the right bundle type:
+`scripts/build.sh` 检测当前操作系统并发出正确的安装包类型：
 
-| OS       | Default bundles   | Output path                                   |
-|----------|-------------------|-----------------------------------------------|
-| macOS    | `app,dmg`         | `target/release/bundle/macos/`                |
-| Linux    | `deb,appimage`    | `target/release/bundle/{deb,appimage}/`       |
-| Windows  | `msi`             | `target/release/bundle/msi/`                  |
+| 操作系统   | 默认安装包      | 输出路径                                |
+|----------|-------------|---------------------------------------|
+| macOS    | `app,dmg`   | `target/release/bundle/macos/`        |
+| Linux    | `deb,appimage` | `target/release/bundle/{deb,appimage}/` |
+| Windows  | `msi`       | `target/release/bundle/msi/`          |
 
-Useful flags:
+常用参数：
 ```bash
-bash scripts/build.sh --fast          # release-fast profile (no LTO, ~2x faster)
-bash scripts/build.sh --universal     # macOS universal arm64+x86_64 binary
-bash scripts/build.sh --bundles=app   # override bundle list
-bash scripts/build.sh --dry-run       # print commands without executing
+bash scripts/build.sh --fast          # release-fast 配置文件（无 LTO，快约 2 倍）
+bash scripts/build.sh --universal     # macOS 通用 arm64+x86_64 二进制
+bash scripts/build.sh --bundles=app   # 覆盖安装包列表
+bash scripts/build.sh --dry-run       # 打印命令不执行
 bash scripts/build.sh --help
 ```
 
-Equivalent npm scripts: `pnpm build:native`, `pnpm build:universal`, `pnpm build:fast`.
+等价的 npm 脚本：`pnpm build:native`、`pnpm build:universal`、`pnpm build:fast`。
 
-### Dev mode
+### 开发模式
 
 ```bash
 pnpm tauri dev
-# Frontend HMR on :5173, Tauri window opens
+# 前端 HMR 监听 :5173，Tauri 窗口打开
 ```
 
-### Run validation suite
+### 运行验证套件
 
 ```bash
 pnpm typecheck
@@ -138,96 +138,95 @@ cd src-tauri && cargo check
 
 ---
 
-## Layout
+## 目录结构
 
 ```
 ReflectDesktop/
-├── vendor/         # git subtree mirror of reflect-* crates
-│                    # updated via bash scripts/vendor-sync.sh
-├── app-core/       # shared UI-agnostic reducer & state (was reflect-app-core)
-├── src/            # React 19 + Vite + feature-sliced components
-│   ├── features/   # per-slice folders (shell/messages/composer/...)
-│   ├── stores/     # agent store (Zustand) split into agent/ submodule
-│   ├── services/   # agent hook + agentEventBus (compat + ref-counted fan-out)
-│   ├── utils/      # bridge.ts (low-level invoke/listen) + commands/<domain>.ts
-│   │                # + tauri.ts / commands.ts compat barrels + i18n/<domain>/
+├── reflect-agent/   # Reflect-Agent 仓库的 git submodule（reflect-* 核心 crate）
+│                    # 只读镜像，通过 git submodule update --remote 升级
+├── app-core/       # 共享的 UI 无关 reducer 与状态模块
+├── src/            # React 19 + Vite + 功能切片组件
+│   ├── features/   # 按功能切分的目录（shell/messages/composer/...）
+│   ├── stores/     # 代理状态存储（Zustand），拆分为 agent/ 子模块
+│   ├── services/   # 代理钩子 + 事件总线（兼容 + 引用计数广播）
+│   ├── utils/      # bridge.ts（底层 invoke/listen）+ commands/<domain>.ts
+│   │                # + tauri.ts / commands.ts 兼容桶 + i18n/<domain>/
 │   ├── styles/     # tokens.css + base.css + typography.module.css
-│   └── types/      # generated from reflect-protocol's schema dump
-├── src-tauri/      # Tauri 2 Rust backend (binary name: reflect-desktop)
+│   └── types/      # 从 reflect-protocol 模式导出生成
+├── src-tauri/      # Tauri 2 Rust 后端（二进制名：reflect-desktop）
 │   └── src/
 │       ├── state.rs / events.rs / dock.rs / menu.rs / shortcut.rs
-│       │         / tray.rs / mcp.rs        # top-level integration modules
+│       │         / tray.rs / mcp.rs        # 顶层集成模块
 │       ├── commands/mod.rs + commands/<domain>.rs + commands/error.rs
 │       └── hook_store.rs / memory_store.rs / shell_sessions.rs
-│                     / workspace_state.rs   # private state helpers
-├── Cargo.toml      # workspace root for vendor + app-core + src-tauri
-├── docs/           # CHANGELOG · PROTOCOL_BRIDGE · codebase-map · ARCHITECTURE
-│                    #   + USER_GUIDE · runbooks · gui/ (design history)
-└── scripts/        # install.sh · vendor-sync.sh · build.sh
+│                     / workspace_state.rs   # 私有状态辅助模块
+├── Cargo.toml      # workspace 根（app-core + src-tauri，path 引用 submodule crate）
+├── docs/           # 更新日志 · 协议桥 · 代码地图 · 架构文档 · 用户指南 · 运行手册
+└── scripts/        # install.sh · dump-ts-types.sh · build.sh
 ```
 
 ---
 
-## Tauri IPC Surface
+## Tauri IPC 命令表
 
-The command surface is defined per-domain in `src-tauri/src/commands/<domain>.rs`, re-exported through the thin `src-tauri/src/commands/mod.rs` and registered in `src-tauri/src/lib.rs` via `tauri::generate_handler!`. The full set spans `reflect_*` command families covering `Op` submission, session I/O, config persistence, tool/skill/memory/hook listings, file + git + shell + workspace + allowlist + search, plus `ping` and `reflect_set_dock_badge`.
+命令按领域定义在 `src-tauri/src/commands/<domain>.rs`，通过 `src-tauri/src/commands/mod.rs` 重新导出，在 `src-tauri/src/lib.rs` 中通过 `tauri::generate_handler!` 注册。命令覆盖 `reflect_*` 系列，包含 `Op` 提交、会话 I/O、配置持久化、工具/技能/记忆/钩子列表、文件 + Git + Shell + 工作区 + 允许列表 + 搜索，以及 `ping` 和 `reflect_set_dock_badge`。
 
-Frontend wrappers live under `src/utils/commands/<domain>.ts` (new code) with `src/utils/tauri.ts` and `src/utils/commands.ts` retained as compatibility barrels. The low-level `invoke` / `listen` primitives live in `src/utils/bridge.ts`.
+前端包装器位于 `src/utils/commands/<domain>.ts`（新代码），`src/utils/tauri.ts` 和 `src/utils/commands.ts` 保留为兼容桶。底层 `invoke` / `listen` 基元位于 `src/utils/bridge.ts`。
 
-Push events: single channel `reflect_event` carrying `reflect_protocol::Event` (snake_case JSON discriminators across the `EventMsg` variants).
+推送事件：单一通道 `reflect_event`，携带 `reflect_protocol::Event`（snake_case JSON 判别符覆盖 `EventMsg` 各变体）。
 
-Full spec: [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md).
+完整规范：[`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md)。
 
 ---
 
-## Roadmap
+## 路线图
 
-| Phase | Slice | Status |
+| 阶段 | 功能切片 | 状态 |
 |---|---|---|
-| **M1.x** | scaffold + protocol bridge + 3-pane layout + composer + modal + statusbar | ✅ Done (commit `2c73335` … `76d7717`) |
-| **M2.x** | real AgentThread backend + 4 product linkages (tray/menu/shortcut/dock) + macOS close-to-tray | ✅ Done (commit `65bff4b`) |
-| **M3.x** | 22 builtin tools + Streamdown + Context Ring + multi-session LRU + Recipe + Cron + Deep Link | 🔧 In flight |
-| **C1..C4** | tray polish, global hotkey, dock + badge, dual-binary install | ✅ Partial |
-| **D1..D3** | remote daemon + iOS app + IM bridge + Workflow canvas | 📅 Planned |
+| **M1.x** | 骨架 + 协议桥 + 三窗格布局 + 编辑器 + 弹窗 + 状态栏 | ✅ 完成（commit `2c73335` … `76d7717`） |
+| **M2.x** | 真实 AgentThread 后端 + 4 项产品联动（托盘/菜单/快捷键/Dock）+ macOS 关闭到托盘 | ✅ 完成（commit `65bff4b`） |
+| **M3.x** | 22 个内置工具 + Streamdown + 上下文环 + 多会话 LRU + 配方 + 定时任务 + 深度链接 | 🔧 进行中 |
+| **C1..C4** | 托盘完善、全局热键、Dock + 徽标、双二进制安装 | ✅ 部分完成 |
+| **D1..D3** | 远程守护进程 + iOS 应用 + IM 桥 + 工作流画布 | 📅 已规划 |
 
-Full history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+完整历史：[`docs/CHANGELOG.md`](docs/CHANGELOG.md)。
 
 ---
 
-## Sync agent sources
+## 升级代理核心（submodule）
 
-When Reflect-Agent exports a new release:
+当 Reflect-Agent 发布新版本时：
 
 ```bash
-bash scripts/vendor-sync.sh /Users/admin/Code/CNB/Reflect-Agent main
-# OR supply a tag:
-bash scripts/vendor-sync.sh /Users/admin/Code/CNB/Reflect-Agent v1.2.0
+git submodule update --remote reflect-agent
+git diff --submodule reflect-agent
+git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
 ```
 
-This is the only sanctioned way to refresh vendor. Editing files under `vendor/` directly is not allowed (next sync will overwrite).
+`reflect-agent/` 是只读镜像，不要直接编辑；改动请提交到 Reflect-Agent 仓库后升级 submodule（完整流程见 [`SUBMODULE.md`](SUBMODULE.md)）。
 
-Full runbook: [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md).
+完整运行手册：[`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md)。
 
 ---
 
-## Documentation
+## 文档导航
 
-| Doc | Purpose |
+| 文档 | 用途 |
 |---|---|
-| [`docs/codebase-map.md`](docs/codebase-map.md) | Task-oriented "if you need X, edit Y" |
-| [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md) | Tauri ↔ reflect-protocol envelope spec |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Top-level layout + state flow |
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | End-user manual |
-| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Release notes |
-| [`docs/gui/`](docs/gui/) | Historical design docs (M1 snapshot) |
-| [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md) | Vendor sync checklist |
-| [`docs/mobile-ios-tailscale-blueprint.md`](docs/mobile-ios-tailscale-blueprint.md) | iOS + Tailscale setup (planned) |
-| [`docs/headless-daemon.md`](docs/headless-daemon.md) | Daemon lifecycle CLI (planned) |
-| [`AGENTS.md`](AGENTS.md) | Agent contract for the repo |
-| [`docs/index.html`](docs/index.html) | Rendered docs website (open in browser) |
+| [`docs/codebase-map.md`](docs/codebase-map.md) | 面向任务的"需要改 X，编辑 Y"映射 |
+| [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md) | Tauri ↔ reflect-protocol 协议信封规范 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 顶层布局 + 状态流转 |
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | 终端用户手册 |
+| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | 版本更新日志 |
+| [`docs/gui/`](docs/gui/) | 历史设计文档（M1 快照） |
+| [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md) | 核心子模块升级检查表 |
+| [`docs/mobile-ios-tailscale-blueprint.md`](docs/mobile-ios-tailscale-blueprint.md) | iOS + Tailscale 设置（已规划） |
+| [`docs/headless-daemon.md`](docs/headless-daemon.md) | 守护进程生命周期 CLI（已规划） |
+| [`AGENTS.md`](AGENTS.md) | 仓库 Agent 契约 |
+| [`docs/index.html`](docs/index.html) | 渲染后的文档站点（浏览器打开） |
 
 ---
 
-## License
+## 许可证
 
-MIT — see [`LICENSE`](LICENSE).
+MIT — 详见 [`LICENSE`](LICENSE)。

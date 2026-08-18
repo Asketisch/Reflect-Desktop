@@ -11,10 +11,10 @@ fn sessions_base() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".reflect/sessions"))
 }
 
-/// List sessions, optionally paginated.
+/// 列出 session,支持可选分页。
 ///
-/// B3-04: `limit` + `offset` give cursor-style paging (newest first).
-/// `limit = 0` or omitted → no limit (full list).
+/// `limit` + `offset` 提供游标式分页(按时间倒序)。
+/// `limit = 0` 或省略 → 无上限(返回完整列表)。
 #[tauri::command]
 pub async fn reflect_list_sessions(
     limit: Option<usize>,
@@ -74,8 +74,7 @@ pub async fn reflect_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRe
         .map_err(CommandError::from)
 }
 
-/// Export session to JSON in `~/.reflect/exports/<id>.json` and return path.
-/// Used by B3-02 export menu (ThreadsView, CommandPalette).
+/// 把 session 导出为 JSON 到 `~/.reflect/exports/<id>.json` 并返回路径。供 ThreadsView / CommandPalette 的导出菜单使用。
 #[tauri::command]
 pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
     let home = dirs::home_dir().ok_or_else(|| CommandError {
@@ -99,9 +98,9 @@ pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
 
 #[cfg(test)]
 mod tests {
-    // B3-04: pagination logic mirrors reflect_list_sessions's limit/offset slice.
-    // We don't spin up a Tauri runtime here; we replicate the slice semantics
-    // on a synthetic Vec<String> so a regression in the algorithm is caught.
+    // 分页逻辑与 reflect_list_sessions 的 limit/offset 切片保持一致。
+    // 这里不启动 Tauri runtime,而是在合成的 Vec<String> 上复现切片语义,
+    // 用以捕获算法层的回归。
 
     fn paginate<T: Clone>(mut all: Vec<T>, limit: Option<usize>, offset: Option<usize>) -> Vec<T> {
         let off = offset.unwrap_or(0);

@@ -58,7 +58,7 @@ export function ChatView() {
 
   const isLoaded = !sessionId || loadedSessionId === sessionId;
 
-  // B13: chat + diff split view. Toggled in Settings → Display.
+  // B13：chat + diff 分屏视图。在 Settings → Display 中切换。
   const [prefs] = useUiPrefs();
   const [diffText, setDiffText] = useState<string | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);

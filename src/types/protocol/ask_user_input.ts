@@ -1,12 +1,11 @@
 /**
- * Reflect protocol — AskUserInput payload (free-text prompt).
+ * Reflect protocol —— AskUserInput payload（自由文本提示）。
  *
- * Mirrors `vendor/reflect-protocol/src/event_msg.rs` `AskUserInputMsg`.
- * Distinct from `ask_user_question` (structured multi-select). The Rust
- * side uses `request_id` so the frontend can correlate the eventual
- * `Op::AskUserInputResponse` with the right prompt.
+ * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/event_msg.rs` 的 `AskUserInputMsg`。
+ * 区别于 `ask_user_question`（结构化多选）。Rust 端使用 `request_id`
+ * 以便前端将最终的 `Op::AskUserInputResponse` 关联到正确的提示。
  *
- * See `./index.ts` for the top-level vendor-sync warning.
+ * 顶层同步警告见 `./index.ts`。
  */
 
 export interface AskUserInputPayload {

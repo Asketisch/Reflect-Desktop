@@ -27,7 +27,7 @@ describe('debounce', () => {
     vi.advanceTimersByTime(80);
     d('y');
     vi.advanceTimersByTime(80);
-    expect(fn).not.toHaveBeenCalled(); // 80 + 80 = 160 but reset at 80
+    expect(fn).not.toHaveBeenCalled(); // 80 + 80 = 160，但 80 处已重置
     vi.advanceTimersByTime(20);
     expect(fn).toHaveBeenCalledTimes(1);
     expect(fn).toHaveBeenCalledWith('y');

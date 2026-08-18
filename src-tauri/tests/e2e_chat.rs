@@ -12,7 +12,7 @@
 //!    成功与否,事件流端到端流转即证明 MinimalAgent::submit → broadcast → receiver
 //!    链路可用**。
 //! 2. `e2e_anthropic_client_streams_real_llm` — 直调 `AnthropicClient::stream`
-//!    喂纯 model 名(绕过 graph nodes 的 spec 前缀问题),验证 vendor LLM client +
+//!    喂纯 model 名(绕过 graph nodes 的 spec 前缀问题),验证 核心 crate LLM client +
 //!    SSE 解析层端到端可用,能拿到 `ChatEvent::Delta`。
 //! 3. `e2e_shutdown_op_propagates` — 投递 Op::Shutdown,验证 Op 路径端到端。
 //!
@@ -165,8 +165,8 @@ async fn e2e_user_input_drives_agent_thread() {
 
 /// 端到端 #2:直调 `AnthropicClient::stream` 喂纯 model 名。
 ///
-/// 绕过 graph nodes 的 spec→model 转换(那边有 vendor 前缀处理问题),
-/// 直接验证 vendor LLM client + SSE 解析层可用。命中 `ChatEvent::Delta`
+/// 绕过 graph nodes 的 spec→model 转换(那边有 spec 前缀处理问题),
+/// 直接验证 核心 crate LLM client + SSE 解析层可用。命中 `ChatEvent::Delta`
 /// 即证明 HTTP + SSE 解析 + ChatEvent 映射全链路工作。
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn e2e_anthropic_client_streams_real_llm() {

@@ -26,7 +26,7 @@ function write(workspace: string, list: string[]): void {
   try {
     window.localStorage.setItem(keyFor(workspace), JSON.stringify(list));
   } catch {
-    // History is best-effort when storage is unavailable or full.
+    // 当存储空间不可用或已满时，历史记录采用尽力而为策略。
   }
 }
 

@@ -1,4 +1,4 @@
-//! B8-01: terminal shell exec —— 流式 stdout/stderr 到前端事件。
+//! Terminal shell exec —— 流式 stdout/stderr 到前端事件。
 
 use std::sync::Arc;
 
@@ -10,37 +10,36 @@ use tokio::process::Command as TokioCommand;
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
 
-/// Shell session metadata returned to the frontend on `reflect_run_shell`.
+/// `reflect_run_shell` 返回给前端的 shell 会话元数据。
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ShellSession {
-    /// Unique session id (UUID v4); used to correlate subsequent
-    /// `reflect_terminal_output` events and to call `reflect_kill_shell`.
+    /// 唯一会话 id(UUID v4);用于关联后续 `reflect_terminal_output` 事件
+    /// 以及调用 `reflect_kill_shell`。
     pub id: String,
-    /// Command that was launched.
+    /// 已发起的命令。
     pub command: String,
-    /// Working directory (workspace at launch time).
+    /// 工作目录(启动时的工作区)。
     pub cwd: String,
 }
 
-/// Payload emitted on `reflect_terminal_output` event.
+/// `reflect_terminal_output` 事件载荷。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ShellOutputChunk {
     pub session_id: String,
-    /// "stdout" | "stderr" | "exit" | "error".
+    /// 取值 `"stdout" | "stderr" | "exit" | "error"`。
     pub stream: String,
-    /// For stdout/stderr: utf-8 decoded line; for exit: exit code as string.
+    /// stdout/stderr 时为 utf-8 解码后的行;exit 时为退出码的字符串形式。
     pub data: String,
-    /// Monotonic sequence within this session (for ordering).
+    /// 该会话内单调递增的序列号(用于排序)。
     pub seq: u64,
 }
 
-/// Spawn `cmd` (single shell expression), stream stdout/stderr as
-/// `reflect_terminal_output` events tagged with `session_id`. Returns the
-/// session id so the frontend can match chunks.
+/// 启动 `cmd`(单条 shell 表达式),把 stdout/stderr 流式转发为带 `session_id`
+/// 的 `reflect_terminal_output` 事件。返回会话 id 供前端匹配 chunk。
 ///
-/// Real PTY (resize / raw mode) is out of scope for the first cut — we use
-/// `tokio::process::Command` with piped stdout/stderr and emit line chunks.
-/// The frontend renders them with ANSI-safe escaping.
+/// 真实 PTY(resize / raw mode)不在初版范围 —— 这里使用
+/// `tokio::process::Command` 加管道化 stdout/stderr,按行输出 chunk,
+/// 由前端负责 ANSI 安全转义后渲染。
 #[tauri::command]
 pub async fn reflect_run_shell(
     agent: State<'_, MinimalAgent>,
@@ -51,7 +50,7 @@ pub async fn reflect_run_shell(
     let id = uuid::Uuid::new_v4().to_string();
     let workdir = agent.workspace().clone();
 
-    // Build command. Use shell to support pipes/redirects (zsh on macOS, sh elsewhere).
+    // 构造命令。借助 shell 以支持管道/重定向(macOS 上是 zsh,其他平台是 sh)。
     let shell = if cfg!(target_os = "macos") {
         "/bin/zsh"
     } else {
@@ -77,11 +76,11 @@ pub async fn reflect_run_shell(
         msg: "no stderr handle".into(),
     })?;
 
-    // Register kill handle BEFORE spawning readers so kill can race safely.
+    // 在启动 reader 之前先注册 kill 句柄,确保 kill 与 reader 之间能安全竞争。
     let child_lock = Arc::new(tokio::sync::Mutex::new(Some(child)));
     agent.register_shell_session(id.clone(), child_lock.clone());
 
-    // stdout reader — also waits for process exit and emits an "exit" event.
+    // stdout reader —— 还会等待进程退出,并发出 "exit" 事件。
     {
         let app = app.clone();
         let id = id.clone();
@@ -101,7 +100,7 @@ pub async fn reflect_run_shell(
                     },
                 );
             }
-            // Wait for exit (if process hasn't been killed yet).
+            // 等待进程退出(若进程尚未被 kill)。
             let mut g = lock.lock().await;
             if let Some(mut c) = g.take() {
                 match c.wait().await {
@@ -132,13 +131,13 @@ pub async fn reflect_run_shell(
         });
     }
 
-    // stderr reader
+    // stderr 读取 task
     {
         let app = app.clone();
         let id = id.clone();
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr).lines();
-            let mut seq: u64 = 1_000_000; // distinct namespace
+            let mut seq: u64 = 1_000_000; // 使用独立的序列号空间
             while let Ok(Some(line)) = reader.next_line().await {
                 seq += 1;
                 let _ = app.emit(
@@ -161,7 +160,7 @@ pub async fn reflect_run_shell(
     })
 }
 
-/// Kill a running shell session by id. Idempotent: missing sessions are not an error.
+/// 按 id 终止运行中的 shell 会话。幂等:会话缺失不视为错误。
 #[tauri::command]
 pub async fn reflect_kill_shell(
     agent: State<'_, MinimalAgent>,
@@ -177,7 +176,7 @@ pub async fn reflect_kill_shell(
     Ok(())
 }
 
-/// List active shell session ids (diagnostic).
+/// 列出当前活动的 shell 会话 id(诊断用)。
 #[tauri::command]
 pub async fn reflect_list_shell_sessions(
     agent: State<'_, MinimalAgent>,

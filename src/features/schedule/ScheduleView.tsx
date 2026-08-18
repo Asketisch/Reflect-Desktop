@@ -1,14 +1,14 @@
 /**
- * ScheduleView —— Phase 1 item 2 cron schedule UI.
+ * ScheduleView —— Phase 1 条目 2 cron 定时任务 UI。
  *
- * Renders cron jobs from `reflect_list_schedules`, supports add / toggle /
- * remove, and shows the scheduler status badge. Orchestration lives in
- * `useScheduleController`.
+ * 从 `reflect_list_schedules` 渲染 cron 任务，支持添加 / 切换 /
+ * 移除，并显示调度器状态徽标。编排逻辑位于
+ * `useScheduleController`。
  *
- * Backend contract: `src/utils/commands/schedule.ts` ↔
- * `src-tauri/src/commands/schedule.rs` ↔ `vendor/reflect-stream::cron`.
- * Driver (30s tick) fires due jobs by injecting their prompt as a
- * `Submission::user_input` into the agent loop.
+ * 后端契约：`src/utils/commands/schedule.ts` ↔
+ * `src-tauri/src/commands/schedule.rs` ↔ `reflect-agent/crates/integrations/reflect-stream::cron`。
+ * 驱动程序（30 秒 tick）通过将到期任务的 prompt 作为
+ * `Submission::user_input` 注入 agent 循环来触发执行。
  */
 import { Plus, X, Clock, Power, Trash2 } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';

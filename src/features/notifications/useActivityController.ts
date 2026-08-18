@@ -1,6 +1,6 @@
 /**
  * useActivityController —— Activity timeline + @mention 搜索的
- * TanStack Query 控制器 (Phase 3 item 9).
+ * TanStack Query 控制器 (Phase 3 条目 9).
  *
  * 数据源:
  * - `reflect_list_activity` —— 全量 + 过滤(activity tab)。

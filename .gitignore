@@ -1,6 +1,6 @@
-# ─── ReflectDesktop ─── standalone Tauri 2 GUI for Reflect Agent
+# ─── ReflectDesktop ─── Reflect Agent 的独立 Tauri 2 GUI ───
 
-# Rust
+# Rust 构建产物
 **/target/
 
 # Node / Vite / Tauri
@@ -10,23 +10,17 @@
 pnpm-lock.yaml
 .pnpmfile.cjs.tmp
 
-# OS
+# 操作系统
 .DS_Store
 Thumbs.db
 
-# Local config
+# 本地配置(不入库)
 *.local.toml
 
-# Build artifacts
+# 打包产物
 WixTools/
 
-# Local agent tooling (plan files, scratch)
+# 本地 agent 工具产物(plan 文件、草稿)
 .zcode/
 graphify-out/
 crates/graphify-out/
-
-# ─── Cargo vendor mirrors ───
-# vendor/* are git subtree pulls from the ReflectAgent crate, locked at HEAD
-# when the ReflectDesktop was first cut. They are NOT to be developed in
-# place: pull updates with `bash scripts/vendor-sync.sh` from the source repo.
-# Note: build artifacts inside vendor/**/target/ are still ignored globally.

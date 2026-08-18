@@ -1,5 +1,5 @@
 /**
- * Vitest — pushToast / dismissToast actions。
+ * Vitest —— pushToast / dismissToast 动作。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAgentStore } from '@/stores/agentStore';

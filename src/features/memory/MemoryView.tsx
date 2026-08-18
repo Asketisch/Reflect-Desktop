@@ -5,10 +5,9 @@
  * 与后端同步。支持 scope (global / project / session) 过滤,
  * 内联编辑 + 删除 + 新增表单。
  *
- * Refactored 2026-07-25: query/mutation orchestration lives in
- * `useMemoryController`; row and form rendering live in `MemoryRow` /
- * `MemoryAddForm`. This component composes them with the filter bar and
- * empty/error/loading states.
+ * 重构于 2026-07-25：查询/变更编排位于 `useMemoryController`；
+ * 行和表单渲染位于 `MemoryRow` / `MemoryAddForm`。
+ * 本组件用过滤栏和空态/错误/加载状态将它们组合起来。
  */
 import { Brain, Plus, X } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';

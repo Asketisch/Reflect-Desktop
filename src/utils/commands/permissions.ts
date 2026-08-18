@@ -1,20 +1,20 @@
 /**
- * Effort + permission-mode wrappers. Controls the live agent loop's reasoning
- * effort and the global permission gate.
+ * Effort + permission-mode 封装。控制运行中 agent 循环的推理强度
+ * 与全局权限门控。
  */
 import { invoke } from '../bridge';
 
-/** Set reasoning effort level (provider-defined string). */
+/** 设置推理强度等级(provider 定义字符串)。 */
 export async function reflect_set_effort(level: string): Promise<string> {
   return invoke<string>('reflect_set_effort', { level });
 }
 
-/** Set the permission mode directly. */
+/** 直接设置 permission mode。 */
 export async function reflect_set_permission_mode(mode: string): Promise<string> {
   return invoke<string>('reflect_set_permission_mode', { mode });
 }
 
-/** Cycle through available permission modes. */
+/** 在可用的 permission mode 之间循环切换。 */
 export async function reflect_cycle_permission_mode(): Promise<string> {
   return invoke<string>('reflect_cycle_permission_mode');
 }

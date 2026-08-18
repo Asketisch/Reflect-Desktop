@@ -1,5 +1,5 @@
 /**
- * useMediaController —— Media Studio + Computer Use Tab 控制器 (Phase 3 item 13).
+ * useMediaController —— Media Studio + Computer Use Tab 控制器（Phase 3 条目 13）。
  *
  * 数据源:
  * - `reflect_list_media` —— 目录扫图(Studio tab)。
@@ -32,14 +32,14 @@ export type MediaTab = 'studio' | 'computer';
 export interface MediaController {
   tab: MediaTab;
   setTab: (t: MediaTab) => void;
-  /** Studio state */
+  /** Studio 状态 */
   studioDir: string;
   setStudioDir: (d: string) => void;
   assets: ReflectMediaAsset[];
   studioLoading: boolean;
   studioError: Error | null;
   refreshStudio: () => void;
-  /** Computer state */
+  /** Computer 状态 */
   actionHistory: ReflectComputerUseAction[];
   executeAction: (action: ReflectComputerUseAction) => Promise<void>;
   /** 截屏 —— 返回 base64 PNG data URL 并推入历史。 */
@@ -56,8 +56,8 @@ export function useMediaController(): MediaController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
   const [tab, setTab] = useState<MediaTab>('studio');
-  // Default to a benign scratch path; user typically overrides this in the UI.
-  // Empty string keeps the studio query disabled until a path is entered.
+  // 默认使用安全的 scratch 路径；用户通常会在 UI 中覆盖。
+  // 空字符串使 studio 查询保持禁用状态，直到输入路径。
   const [studioDir, setStudioDir] = useState<string>('/tmp');
 
   const studioQ = useQuery({

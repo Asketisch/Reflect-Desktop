@@ -1,9 +1,9 @@
 /**
- * Complex-section editors for subagent_providers / routing /
- * mcp_servers / lsp_servers / hooks / feature_flags / plugins.
+ * 复杂分区编辑器：subagent_providers / routing /
+ * mcp_servers / lsp_servers / hooks / feature_flags / plugins。
  *
- * Each editor writes back into the raw TOML via the pure helpers
- * in `config/toml.ts` so unknown keys elsewhere remain untouched.
+ * 每个编辑器通过 `config/toml.ts` 中的纯辅助函数写回原始 TOML，
+ * 使其他位置的未知键保持不变。
  */
 
 import { useMemo } from 'react';

@@ -30,18 +30,18 @@ export interface PlainText {
 export type SlashInput = ParsedSlash | PlainText;
 
 export type SlashResultKind =
-  | 'submit' // 普通文本提交,freeform
-  | 'submit_with_submission' // 触发了特定 Submission (compact/interrupt/...)
-  | 'no-op' // 解析成功但尚未实装,告诉 UI "command handled"
+  | 'submit' // 普通文本提交，freeform
+  | 'submit_with_submission' // 触发了特定 Submission（compact/interrupt/...）
+  | 'no-op' // 解析成功但尚未实装，告诉 UI "command handled"
   | 'reject'; // 非法输入
 
 export interface SlashResult {
   kind: SlashResultKind;
-  /** Optional Submission kind to invoke (matches `reflect_*` command). */
+  /** 可选的 Submission kind（与 `reflect_*` 命令对应）。 */
   submission?: string;
-  /** Plain-text payload when `kind === 'submit'`. */
+  /** `kind === 'submit'` 时的纯文本 payload。 */
   payload?: string;
-  /** User-facing message (status, error, etc). */
+  /** 面向用户的信息（状态、错误等）。 */
   message?: string;
 }
 
@@ -50,11 +50,11 @@ export interface SlashContext {
   now: () => Date;
 }
 
-/** Parse `/cmd args...` from freeform text. */
+/** 从自由文本中解析 `/cmd args...`。 */
 export function parseSlash(input: string): SlashInput {
   const trimmed = input.trim();
   if (!trimmed.startsWith('/')) return { raw: trimmed, isSlash: false };
-  // Match `/<cmd>` followed by zero or more space-separated args.
+  // 匹配 `/<cmd>` 后跟零个或多个空格分隔的参数。
   const m = trimmed.match(/^\/(\S+)(?:\s+(.*))?$/);
   if (!m) return { raw: trimmed, isSlash: false };
   const command = m[1].toLowerCase();
@@ -63,7 +63,7 @@ export function parseSlash(input: string): SlashInput {
   return { command, args, raw: trimmed, isSlash: true };
 }
 
-/** Look up a SlashCmd by primary name or alias. Returns null if unknown. */
+/** 通过主名称或别名查找 SlashCmd。如果未知则返回 null。 */
 export function resolveCommand(name: string): SlashCmd | null {
   const n = name.toLowerCase();
   return (
@@ -73,7 +73,7 @@ export function resolveCommand(name: string): SlashCmd | null {
   );
 }
 
-/** Execute a parsed slash and return the dispatch result. Pure (no side effects). */
+/** 执行已解析的 slash 并返回分发结果。纯函数（无副作用）。 */
 export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResult {
   const cmd = resolveCommand(parsed.command);
   if (!cmd) {
@@ -169,7 +169,7 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
         message: 'Token 用量见底部状态栏 / 右侧 Inspector 的 Token Usage。',
       };
 
-    // ===== Tier C — stubs that route to settings / no-op =====
+    // ===== Tier C — 路由到 settings / no-op 的 stub =====
     case 'init':
     case 'diff':
     case 'files':
@@ -203,7 +203,7 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
   }
 }
 
-/** Top-level dispatcher: parse + execute in one call. */
+/** 顶层分发器：一次调用完成解析与执行。 */
 export function dispatch(input: string, ctx: SlashContext): SlashInput | SlashResult {
   const parsed = parseSlash(input);
   if (!parsed.isSlash) return parsed;

@@ -1,11 +1,9 @@
 /**
- * Reflect protocol — shared core enums (string unions) used by every
- * domain module. This file only contains *type-level* enums (no payload
- * structs, no discriminated unions) so it can be safely imported by any
- * other module without creating circular references.
+ * Reflect protocol —— 共享核心枚举（字符串联合），所有领域模块共用。
+ * 本文件仅包含*类型级*枚举（无 payload 结构体、无判别联合），
+ * 可安全地被任何模块导入而不产生循环引用。
  *
- * See `./index.ts` for the full barrel re-export and the top-level
- * vendor-sync warning comment.
+ * 完整 barrel 再导出与顶层同步警告见 `./index.ts`。
  */
 
 export type PermissionMode =
@@ -22,7 +20,7 @@ export type SandboxPolicy = 'workspace_only' | 'os_sandbox' | 'full_access';
 export type RiskLevel = 'low' | 'medium' | 'high';
 export type ReasoningEffort = 'low' | 'medium' | 'high';
 
-/** ReviewDecision is snake_case-tagged. Deny carries `{ reason: string }`. */
+/** ReviewDecision 使用 snake_case 标记。Deny 携带 `{ reason: string }` payload。 */
 export type ReviewDecision = 'approve' | { deny: { reason: string } } | 'approve_for_session';
 
 /**
