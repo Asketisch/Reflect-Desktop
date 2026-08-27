@@ -27,11 +27,13 @@ use commands::{
     reflect_activity_count, reflect_add_memory, reflect_add_schedule, reflect_agent_status,
     reflect_ask_user_input_response, reflect_ask_user_question_response, reflect_assign_squad_task,
     reflect_cancel_side_channel, reflect_check_allowlist, reflect_check_update, reflect_claim_task,
-    reflect_clear_activity, reflect_compact, reflect_computer_use, reflect_create_squad,
+    reflect_clear_activity, reflect_compact, reflect_computer_use, reflect_create_session,
+    reflect_create_squad,
     reflect_create_task, reflect_current_workspace, reflect_cycle_permission_mode,
     reflect_delegate_next, reflect_delete_agent_def, reflect_delete_session, reflect_delete_squad,
-    reflect_delete_task, reflect_delete_team, reflect_dream, reflect_enter_plan_mode,
-    reflect_exit_plan_mode, reflect_export_session, reflect_export_session_markdown,
+    reflect_delete_task, reflect_delete_team, reflect_dream, reflect_enter_goal_mode,
+    reflect_enter_plan_mode, reflect_exit_goal_mode, reflect_exit_plan_mode,
+    reflect_export_session, reflect_export_session_markdown,
     reflect_get_agent_def, reflect_get_autopilot_config, reflect_get_config,
     reflect_get_remote_config, reflect_get_remote_status, reflect_get_schedule_status,
     reflect_get_side_channel, reflect_get_squad, reflect_get_task, reflect_get_team,
@@ -43,8 +45,10 @@ use commands::{
     reflect_list_schedules, reflect_list_sessions, reflect_list_shell_sessions,
     reflect_list_side_channels, reflect_list_skills, reflect_list_squads, reflect_list_tasks,
     reflect_list_teams, reflect_list_tools, reflect_list_workspaces, reflect_load_allowlist,
-    reflect_media_capabilities, reflect_parse_agent_md, reflect_plan_approval, reflect_read_file,
-    reflect_remove_memory, reflect_remove_schedule, reflect_rename_session, reflect_replay_session,
+    reflect_archive_session, reflect_bind_session, reflect_list_archived_sessions,
+    reflect_media_capabilities, reflect_parse_agent_md, reflect_plan_approval, reflect_pick_workspace_folder,
+    reflect_read_file, reflect_reveal_path, reflect_remove_memory, reflect_remove_schedule,
+    reflect_rename_session, reflect_replay_session, reflect_unarchive_session,
     reflect_rewind, reflect_run_shell, reflect_save_agent_def, reflect_save_allowlist,
     reflect_save_config, reflect_screenshot, reflect_search_activity, reflect_search_files,
     reflect_set_effort, reflect_set_permission_mode, reflect_set_workspace, reflect_shutdown,
@@ -80,6 +84,7 @@ pub fn run() {
     tauri::Builder::default()
         // ====== Plugins ======
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         // ====== 状态 ======
         .manage(MinimalAgent::new_empty())
         // ====== Menu (在 builder 阶段静态注入) ======
@@ -98,15 +103,22 @@ pub fn run() {
             reflect_hook_approval,
             reflect_enter_plan_mode,
             reflect_exit_plan_mode,
+            reflect_enter_goal_mode,
+            reflect_exit_goal_mode,
             reflect_plan_approval,
             reflect_set_effort,
             reflect_ask_user_question_response,
             reflect_ask_user_input_response,
             reflect_set_permission_mode,
             reflect_cycle_permission_mode,
+            reflect_create_session,
+            reflect_bind_session,
             reflect_list_sessions,
             reflect_rename_session,
             reflect_delete_session,
+            reflect_archive_session,
+            reflect_unarchive_session,
+            reflect_list_archived_sessions,
             reflect_replay_session,
             reflect_export_session,
             // 诊断 / config / tools
@@ -117,6 +129,8 @@ pub fn run() {
             // 各领域 domain 管理(workspace / skills / memory / hooks / git)
             reflect_list_workspaces,
             reflect_set_workspace,
+            reflect_pick_workspace_folder,
+            reflect_reveal_path,
             reflect_current_workspace,
             reflect_list_skills,
             reflect_list_memory,

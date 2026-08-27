@@ -3,6 +3,8 @@
  *
  * 顶部：New Chat 主按钮 + 搜索框。
  * 主体：时间分桶 session 列表（BucketGroup + SessionItem）。
+ * 传入 onRename/onDelete/onExport/onArchive 时，行尾出现 kebab 菜单
+ * （rename / export / archive / delete）。
  *
  * 契约（Sidebar.test.tsx）：
  *   - 含 'Sessions' 标题文字
@@ -27,9 +29,26 @@ interface Props {
   onSelect: (id: string) => void;
   onRefresh: () => void;
   onNewChat?: () => void;
+  /** 行级操作（可选）；透传给 SessionItem 的 kebab 菜单。 */
+  onRename?: (id: string, newName: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  onExport?: (id: string) => Promise<string | null>;
+  onArchive?: (id: string) => Promise<void>;
 }
 
-export function Sidebar({ buckets, loading, error, activeId, onSelect, onRefresh, onNewChat }: Props) {
+export function Sidebar({
+  buckets,
+  loading,
+  error,
+  activeId,
+  onSelect,
+  onRefresh,
+  onNewChat,
+  onRename,
+  onDelete,
+  onExport,
+  onArchive,
+}: Props) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
 
@@ -78,7 +97,16 @@ export function Sidebar({ buckets, loading, error, activeId, onSelect, onRefresh
           <p className={s.hint}>{t('sidebar.empty')}</p>
         )}
         {filtered.map((b) => (
-          <BucketGroup key={b.label} bucket={b} activeId={activeId} onSelect={onSelect} />
+          <BucketGroup
+            key={b.label}
+            bucket={b}
+            activeId={activeId}
+            onSelect={onSelect}
+            onRename={onRename}
+            onDelete={onDelete}
+            onExport={onExport}
+            onArchive={onArchive}
+          />
         ))}
       </div>
     </div>

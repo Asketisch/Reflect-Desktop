@@ -63,6 +63,9 @@ describe('ThreadsView', () => {
       refresh: vi.fn(),
       rename: vi.fn(),
       remove: vi.fn(),
+      archived: [],
+      archive: vi.fn(),
+      unarchive: vi.fn(),
       export: vi.fn(),
     });
     vi.mocked(useActiveSession).mockReturnValue({
@@ -94,6 +97,9 @@ describe('ThreadsView', () => {
       refresh: vi.fn(),
       rename: vi.fn(),
       remove: vi.fn(),
+      archived: [],
+      archive: vi.fn(),
+      unarchive: vi.fn(),
       export: vi.fn(),
     });
     vi.mocked(useActiveSession).mockReturnValue({
@@ -134,6 +140,9 @@ describe('ThreadsView', () => {
       refresh: vi.fn(),
       rename: vi.fn(),
       remove: vi.fn(),
+      archived: [],
+      archive: vi.fn(),
+      unarchive: vi.fn(),
       export: vi.fn(),
     });
     vi.mocked(useActiveSession).mockReturnValue({

@@ -1,14 +1,21 @@
 import { useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { dispatch } from './slashEngine';
 import type { UseAttachmentsResult } from './useAttachments';
 import { useAgent } from '@/services/agent';
-import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
+import {
+  useSessions,
+  useActiveSession,
+  SESSIONS_QUERY_KEY,
+} from '@/features/sessions/hooks/useSessions';
 import { useI18n } from '@/utils/i18n';
 import {
   reflect_compact,
   reflect_interrupt,
   reflect_enter_plan_mode,
   reflect_exit_plan_mode,
+  reflect_enter_goal_mode,
+  reflect_exit_goal_mode,
   reflect_set_effort,
   reflect_set_permission_mode,
   reflect_export_session,
@@ -24,6 +31,8 @@ interface UseComposerSubmissionOptions {
   setBusy: (busy: boolean) => void;
   setSlashVisible: (visible: boolean) => void;
   focus: () => void;
+  /** v1.x：当前工作区绝对路径；提交时注入 `ReflectSubmission.workspace`。 */
+  currentWorkspace?: string | null;
 }
 
 export function useComposerSubmission({
@@ -34,12 +43,14 @@ export function useComposerSubmission({
   setBusy,
   setSlashVisible,
   focus,
+  currentWorkspace,
 }: UseComposerSubmissionOptions) {
   const { submit } = useAgent();
   const { activeId } = useActiveSession();
   const { rename } = useSessions();
   const pushToast = useAgentStore((state) => state.pushToast);
   const { t } = useI18n();
+  const qc = useQueryClient();
 
   const dispatchSubmission = useCallback(async (kind: string, args: string[]) => {
     switch (kind) {
@@ -52,6 +63,12 @@ export function useComposerSubmission({
         break;
       case 'exit_plan_mode':
         await reflect_exit_plan_mode();
+        break;
+      case 'enter_goal_mode':
+        await reflect_enter_goal_mode(args.join(' '));
+        break;
+      case 'exit_goal_mode':
+        await reflect_exit_goal_mode();
         break;
       case 'set_effort':
         await reflect_set_effort((args[0] ?? '').toLowerCase());
@@ -103,14 +120,20 @@ export function useComposerSubmission({
         }
       } else {
         if (attachments.attachments.length > 0) {
-          await useAgentStore.getState().submitItems([
-            ...(value ? [{ type: 'text' as const, text: value }] : []),
-            ...attachments.toUserInputItems(),
-          ]);
+          await useAgentStore.getState().submitItems(
+            [
+              ...(value ? [{ type: 'text' as const, text: value }] : []),
+              ...attachments.toUserInputItems(),
+            ],
+            currentWorkspace ?? null,
+          );
         } else {
-          await submit(value);
+          await submit(value, currentWorkspace ?? null);
         }
         history.commit(value);
+        // 刷新侧边栏会话列表:新会话的首条消息会派生标题,
+        // 不等下一次手动刷新/缓存过期即可见。
+        void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
       }
       attachments.clear();
     } catch (error) {
@@ -123,10 +146,12 @@ export function useComposerSubmission({
   }, [
     activeId,
     attachments,
+    currentWorkspace,
     dispatchSubmission,
     focus,
     history,
     pushToast,
+    qc,
     setBusy,
     setSlashVisible,
     setText,

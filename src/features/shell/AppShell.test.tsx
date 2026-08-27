@@ -6,7 +6,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '@/features/shell/AppShell';
 import { useAgentStore } from '@/stores/agentStore';
-import { resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
+import { resetMockInvoke, mockInvoke, createTestQueryClient } from '@/test/setup.tsx';
 
 // Mock @tanstack/react-router — 仿照 app.smoke.test.tsx 的 mock 模式。
 // Outlet 渲染一个 sentinel，验证 AppShell 真的把 router children 挂到了 DOM
@@ -97,6 +97,24 @@ describe('AppShell collapse behavior', () => {
   it('renders Outlet content (router children actually mount)', () => {
     render(wrap(<AppShell />));
     expect(screen.getByTestId('outlet-content')).toBeDefined();
+  });
+
+  // v1.x workspace→session 归属：New Chat 主动分配 session id(纯 ID 分配,
+  // session 在首条 submission 时后端物化), 再 setActiveId 导航到 /chat/$id。
+  it('New Chat calls reflect_create_session before navigating', async () => {
+    const created: unknown[] = [];
+    mockInvoke('reflect_create_session', async () => {
+      created.push('sess-new-1');
+      return 'sess-new-1';
+    });
+    mockInvoke('reflect_list_sessions', async () => []);
+    mockInvoke('reflect_current_workspace', async () => null);
+
+    render(wrap(<AppShell />));
+    fireEvent.click(screen.getByRole('button', { name: /new chat/i }));
+
+    await new Promise((r) => setTimeout(r, 0)); // 让 .then(setActiveId) 微任务落地
+    expect(created).toEqual(['sess-new-1']);
   });
 
   // 回归保护：TitleBar 必须挂 data-tauri-drag-region（否则窗口无法拖动），

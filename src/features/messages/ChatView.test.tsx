@@ -27,13 +27,17 @@ declare global {
 
 import { ChatView } from './ChatView';
 
+// 真实 rollout 线格式:reflect_protocol::RolloutRecord tagged union。
+const T1 = '075f8a83-d84b-4f9d-93eb-9c428881bb43';
 const SAMPLE_RECORDS = [
   {
-    seq: 1,
-    kind: 'event' as const,
-    timestamp: 0,
-    payload: { id: 't1', msg: { type: 'agent_message', text: 'hi! how can I help?' } },
+    type: 'session_meta',
+    session_id: 'sess-42',
+    model: 'anthropic/stub',
+    started_at: '2026-08-13T03:01:00Z',
   },
+  { type: 'message', turn_id: T1, role: 'user', content: [{ type: 'text', text: 'hello' }] },
+  { type: 'message', turn_id: T1, role: 'assistant', content: 'hi! how can I help?' },
 ];
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -48,6 +52,9 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('ChatView', () => {
   beforeEach(() => {
     resetMockInvoke();
+    // v1.x:ChatView 加载序列第一步是 bind;默认 mock 为 no-op
+    // (resetMockInvoke 会清掉 setup 里的默认 mock,需在本文件重注册)。
+    mockInvoke('reflect_bind_session', async () => {});
     saveLocale('en');
     window.__chatTestSessionId = undefined;
     window.__chatTestPath = '/chat';
@@ -149,6 +156,67 @@ describe('ChatView', () => {
     await waitFor(() => {
       expect(screen.getByText('此会话没有消息。')).toBeDefined();
     });
+  });
+
+  it('binds the backend session before replaying history (bind → replay order)', async () => {
+    // mock invoke handler 实际签名为 (cmd, args) —— args 是线上参数对象。
+    const order: string[] = [];
+    mockInvoke('reflect_bind_session', async (_cmd: string, args?: { id: string }) => {
+      order.push(`bind:${args?.id ?? ''}`);
+    });
+    mockInvoke('reflect_replay_session', async () => {
+      order.push('replay');
+      return SAMPLE_RECORDS;
+    });
+    window.__chatTestSessionId = 'sess-42';
+    window.__chatTestPath = '/chat/sess-42';
+
+    await act(async () => {
+      renderWithProviders(<ChatView />);
+    });
+    await waitFor(() => {
+      const state = useAgentStore.getState() as any;
+      expect(state.loadedSessionId).toBe('sess-42');
+    });
+    // v1.x:加载序列必须先 bind(后端线程落到本 session id)再 replay 水合。
+    // 水合后 loadedSessionId 变化会触发 effect 重跑一次 → 再 bind 一次
+    // (后端幂等短路),故只断言前两步的相对顺序。
+    expect(order[0]).toBe('bind:sess-42');
+    expect(order[1]).toBe('replay');
+  });
+
+  it('re-binds the backend session when switching to another session', async () => {
+    // mock invoke handler 签名为 (cmd, args) —— args 是线上参数对象。
+    const binds: string[] = [];
+    mockInvoke('reflect_bind_session', async (_cmd: string, args?: { id: string }) => {
+      binds.push(args?.id ?? '');
+    });
+    mockInvoke('reflect_replay_session', async () => []);
+
+    // 首次加载 sess-1 并水合。
+    window.__chatTestSessionId = 'sess-1';
+    window.__chatTestPath = '/chat/sess-1';
+    await act(async () => {
+      renderWithProviders(<ChatView />);
+    });
+    await waitFor(() => {
+      expect((useAgentStore.getState() as any).loadedSessionId).toBe('sess-1');
+    });
+    expect(binds).toContain('sess-1');
+
+    // 切到 sess-2(模拟路由参数变化 + 重新挂载):必须再次 bind,
+    // 后端 AgentThread 才会续写到新会话文件。
+    cleanup();
+    window.__chatTestSessionId = 'sess-2';
+    window.__chatTestPath = '/chat/sess-2';
+    await act(async () => {
+      renderWithProviders(<ChatView />);
+    });
+    await waitFor(() => {
+      expect(binds).toContain('sess-2');
+    });
+    // bind 顺序:sess-1 在前,sess-2 在后(切会话重绑)。
+    expect(binds.indexOf('sess-2')).toBeGreaterThan(binds.indexOf('sess-1'));
   });
 
   it('clears the loaded session when navigating to /chat (no id)', async () => {

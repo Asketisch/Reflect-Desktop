@@ -4,6 +4,314 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 功能 — GUI 会话持久化：M4 recorder 接线 + 跨轮记忆修复（v1.x）
+
+- **协议/引擎层**（reflect-agent submodule）：
+  - `SessionConfiguredEvent.session_id` 不再随机 —— `submission_loop` 在
+    `SessionConfiguredEvent::new` 后覆盖为线程预分配 id（serve.rs 同），
+    与 rollout 文件名 / `SessionMeta.session_id` / 前端路由 id 一致。
+  - 新模块 `reflect_core::resume::records_to_preload(&[RolloutRecord]) ->
+    Vec<ChatMessage>`：rollout 记录 → LLM 历史映射（legacy String / 图文
+    blocks / 工具对顺序 / compaction 摘要前置 System），`bootstrap_resume`
+    与 GUI 回填共用单一实现。
+  - `submission_loop` **每轮历史回填**：有 recorder 的线程在每 UserInput
+    turn 前从 `recorder.replay` 重建会话历史（修复跨轮失忆 —— 旧引擎
+    `AgentState::default()` 每轮新建、`preload_messages` 一次性 take，
+    模型每轮只见新输入）。无 recorder 线程保留 preload-once 语义。
+  - `CronScheduler::rebind_sender(Option<Sender<Submission>>)`：换绑
+    投递通道（纯字段赋值；调用方须 stop + 重启 driver，job uuid 经共享
+    Arc 保留）。
+  - `ToolRegistry::external_tool_names()` + `pre_loop` 外部工具可见性补丁：
+    `effective_tools` 增并非 `Builtin` 源工具名 —— **M4 开启后 MCP/LSP/
+    Plugin 工具不再被隐藏**（此前过滤为 always_on ∪ 已激活 skill，CLI 同受益）。
+- **Tauri 适配层**：
+  - 新命令 `reflect_bind_session({ id })`：replay 该 id 的 JSONL →
+    `records_to_preload` → `state::rebind::rebind_session`（换绑线程：
+    `construct_thread` 带 `with_session_id` + 完整 M4（`build_default_m4`，
+    recorder 覆写为同 id 的 `JsonlRolloutWriter`），旧 turn `cancel_token`
+    有界排空，cron driver 换 sender 重启；同 id 幂等短路；未知 id 空历史
+    绑定不报错）。
+  - 新模块 `state/thread_factory`：registry 构造 + `construct_thread(sid,
+    preload)` 统一 install / rebind 两路径；M4 全量启用（skills / memory /
+    compaction / notes），recorder base 统一到
+    `reflect_rollout::path::default_base()`。
+  - **cron 修复**：install 时 `let _driver_handle = driver.start(30)` 立即
+    Drop 句柄 → driver 任务被 abort → **cron 任务从未真正触发**。句柄现
+    存 `inner.cron_driver`，rebind 时 stop 旧 driver 后重启。
+  - **rebind 写锁自死锁修复**：`rebind_session` step 5 的
+    `if let ... = cron_scheduler.write().clone()` scrutinee 临时值（写
+    guard）活到 if-let 块结束，块内再对同一把锁 `write()` 因 parking_lot
+    非重入自死锁 → 每次 `reflect_bind_session` 永久挂起 IPC 线程。改为
+    读锁 clone 释放 guard 后再取写锁写回。
+  - **cron 换向提前**：旧 driver 的 stop 从新线程构造之后提前到旧线程
+    cancel 之后立即执行 —— `CronScheduler::start` 按值捕获旧
+    `sub_tx`，窗口内旧 driver 仍会把到期 job 投进已 cancel 的旧线程
+    （静默丢触发）；新 driver 首个 tick 立即扫描补发，不丢触发。
+  - `sessions_base()` 对齐 `default_base()`，杜绝列表/回放路径分叉。
+- **前端**：`reflect_bind_session(id)` IPC 包装；`ChatView` 加载序列改为
+  **bind → replay → hydrate**（已水合同 id 也先 bind 再早退，后端幂等；
+  retry 同构）—— 切换会话后续写该会话文件且 LLM 恢复上下文。
+- **行为变化**（需知）：
+  - GUI 会话开始落盘 `~/.reflect/sessions/YYYY/MM/DD/<id>.jsonl`（首行
+    `SessionMeta.workspace` = 归属工作区）。
+  - 多轮记忆恢复（此前每轮失忆）；系统 prompt / 工具表与 CLI 同款
+    （M4 全量），prompt 变长由 compactor 收敛。
+  - 配置的 cron 任务开始真正按周期触发。
+- **测试**：submodule 侧 `resume` 映射 6 用例 + `pre_loop` M4/回填/rewind
+  3 用例 + `session_configured_reports_preallocated_session_id` +
+  cron rebind 用例；GUI 侧 rebind 4 用例 + install registry/cron 句柄用例；
+  前端 ChatView bind→replay 顺序 / 切会话重绑 2 用例 + fakeBackend /
+  mock / contract 同步。
+- **文档**：`docs/PROTOCOL_BRIDGE.md` 补 `reflect_bind_session` 行 +
+  `SessionConfigured.session_id` 语义。
+
+### 功能 — 工作区 ↔ 会话归属 + Composer `@` 文件弹层（v1.x）
+
+- **协议层**（reflect-agent submodule，serde 全兼容 —— 新字段均带
+  `#[serde(default, skip_serializing_if = "Option::is_none")]`）：
+  - `UserInputItem` 新增 `File { path, range? }` 变体（`FileRange { start_line, end_line }`）；
+    core 侧 `user_input_items_to_messages` 展开为 `@<path>`（含行区间时
+    `@<path>:L<n>-L<m>`）文本块，真实读取由 LLM `/read` 工具按需触发。
+  - `Submission.workspace: Option<String>` —— 会话归属随首条 UserInput 传递，
+    后端写入 `RolloutRecord::SessionMeta.workspace`（回退 `cfg.current_workspace()`）。
+  - `SessionInfo.workspace: Option<String>` —— 旧 JSONL 反序列化为 `None`，
+    前端按"未归属"展示。
+  - `rollout_index::list_sessions_in_workspace(base, ws)` —— 精确匹配过滤；
+    旧会话（`workspace = None`）在过滤视图不出现（归属创建时确定，避免误归类）。
+    JSONL 路径布局不变（`<base>/YYYY/MM/DD/<id>.jsonl`）。
+- **Tauri 适配层**：新命令 `reflect_create_session -> string`（无参纯 ID
+  分配，New Chat 先拿路由 id，workspace 归属经 `Submission.workspace`
+  注入）；`reflect_list_sessions` 增加可选 `workspace`
+  过滤参数（老 IPC 传 `null` 兼容全量列表）。
+- **前端 — 会话归属**：新 hook `useCurrentWorkspace`（30s staleTime）；
+  `AppShell.handleNewChat` 改为 `reflect_create_session()` →
+  `setActiveId` → 导航；`useSessions` 支持 `workspacePath` 过滤（queryKey 含
+  workspace 维度）；`reflect_set_workspace` 成功后失效 current-workspace +
+  sessions 缓存；`SessionItem` 副标题显示归属项目名（basename，hover 全路径），
+  未归属显示"未归属"。
+- **前端 — `@` 文件弹层**：`useComposerInput` 增 `MENTION_QUERY` 检测
+  （`(^|\s)@([^@\s]*)$`）+ Escape 关闭；`MentionPicker` 切到文件源
+  （`reflect_list_dir(null, 2)` 浅层递归，跳过 node_modules/target/.git 等，
+  复用 command-palette fuzzy，slice 50）；`useAttachments.addFileMention` +
+  `toUserInputItems` file 映射；工具栏 `@` 按钮改为追加 `@` 并直接开弹层
+  （显式 `setMentionVisible(true)` —— setState 不触发 onChange）；
+  `useComposerSubmission` 透传 `workspace` 进 Submission 信封。
+- **测试**：前端 7 组新增/扩展（@ 触发检测 / MentionPicker / addFileMention
+  线格式 / useSessions workspace 过滤 / Composer @ 弹层集成 / AppShell New
+  Chat / useCurrentWorkspace）；Rust `list_sessions_in_workspace` 过滤断言。
+- **文档**：`docs/PROTOCOL_BRIDGE.md` 补 `File` / `FileRange` /
+  `Submission.workspace` / `SessionInfo.workspace` schema 与
+  `reflect_create_session` 命令行。
+
+### 修复 — 窗口拖拽 / 项目目录 / 会话归档（GUI 三项可用性补齐）
+
+- **窗口拖拽**：根因是 Tauri 2 的 `core:window:default` 权限集不包含
+  `core:window:allow-start-dragging`，`data-tauri-drag-region` 触发的
+  `plugin:window|start_dragging` IPC 被 ACL 静默拒绝，标题栏拖不动。
+  - `src-tauri/capabilities/main.json` 新增 `core:window:allow-start-dragging`。
+  - `src/features/shell/TitleBar.tsx` 改用 `data-tauri-drag-region="deep"`
+    （Tauri drag.js 在子树内命中非交互元素即触发，整条顶栏可拖）；
+    移除冗余的手写 `onMouseDown` preventDefault（drag.js 已自带）。
+  - `src/styles/base.css` 与 `TitleBar.module.css` 移除无效的
+    `-webkit-app-region: drag`（WKWebView 不识别此 CSS 属性，Tauri 拖拽是
+    属性 + JS 命中 + ACL 三件套）。
+- **项目目录**：WorkspacesView 接入真实历史列表 + 原生目录选择。
+  - 后端 `commands/workspaces.rs`：
+    - `reflect_set_workspace` 切换即把当前项 upsert 进
+      `~/.reflect/workspaces.json`（去重 + last_used 刷新 + 截断到 20 条）。
+    - `reflect_pick_workspace_folder`：原生目录选择对话框（Rust 侧
+      调 `tauri-plugin-dialog` 的 `DialogExt::pick_folder`，经 oneshot
+      折回 async 返回；不走 JS IPC，无需 dialog capability）。
+    - `reflect_reveal_path`：在系统文件管理器中定位路径（macOS `open -R` /
+      Windows `explorer /select,` / Linux `xdg-open`）。
+  - 依赖：`src-tauri/Cargo.toml` 新增 `tauri-plugin-dialog = "2"`，
+    `lib.rs` 注册 `tauri_plugin_dialog::init()`。
+  - 前端 `src/features/workspaces/WorkspacesView.tsx` 重写：当前 workspace
+    卡 + 「打开项目目录…」主按钮 + 「在文件管理器中显示」次按钮；最近
+    项目区按 `last_used` 倒序，每条支持 reveal / use。
+  - IPC 包装 `src/utils/commands/workspaces.ts` 补三个新 wrapper；
+    `commands/mod.rs` 注册三个新命令 + `lib.rs::invoke_handler!` 同步。
+- **会话归档 / 恢复 / 删除**：共享 `SessionItemMenu` 让侧边栏与
+  ThreadsView 都能执行 rename / export / archive / delete。
+  - 后端 `commands/sessions.rs`：新增 `reflect_archive_session` /
+    `reflect_unarchive_session` / `reflect_list_archived_sessions`。
+    归档把 session 的所有文件（含轮转副本、文件名错位副本）+ 自定义名
+    搬到 `~/.reflect/sessions-archive`，相对路径不变（unarchive 沿同一
+    相对路径搬回）。归档目录放在 sessions 树之外，避免被
+    `rollout_index::list_sessions` 全树扫描命中。
+  - 前端：抽出 `src/features/sessions/components/SessionItemMenu.tsx`
+    （合并 `threads/components/ThreadItemMenu.tsx`），SessionItem 行尾
+    kebab（⋯）悬停出现；`BucketGroup` / `Sidebar` / `ThreadsView` 透传
+    菜单 handler；归档当前打开会话后自动回 `/chat`。
+  - ThreadsView 新增「Archived」区（带 restore / 彻底删除）。
+  - IPC 包装 `src/utils/commands/sessions.ts` 补三个 wrapper；
+    `useSessions` hook 新增 `archive` / `unarchive` / `archived` 字段。
+- **Capabilities / Tests / Docs**：
+  - `tests/helpers/fakeBackend.ts` 同步四个新命令 + workspaces 线格式
+    改为后端 `WorkspaceInfo`（unix 秒 + label）。
+  - `tests/ipc.command-contract.test.ts` 加 archive round-trip + folder
+    picker / reveal 路径断言。
+  - `tests/sessions.lifecycle.test.tsx` 加侧边栏 kebab 归档 / 删除 /
+    自动回 `/chat`、ThreadsView restore 归档全流程用例。
+  - `tests/views.route-matrix.test.tsx` 改为校验
+    `reflect_list_workspaces` + `reflect_agent_status`。
+  - 新增 `src/features/sessions/components/SessionItemMenu.test.tsx`（6 用例）。
+  - 后端 `commands/{workspaces,sessions}.rs` 加 7 个 Rust 单元测试（去重 /
+    持久化 / 容量上限 / archive+restore 整树搬移），`cargo test --lib
+    commands::` 48 个测试全绿。
+  - `docs/PROTOCOL_BRIDGE.md` 新增 6 个命令条目 + 归档树 / workspaces.json
+    持久化约定。
+
+### 修复 — v1.x diff 审查修复（前端）
+
+- **MentionPicker 路径契约**：后端 `DirEntry.path` 是绝对路径，弹层原样
+  透传 → 违反 `UserInputItem.File.path` 工作区相对路径契约。现按
+  `listing.root` 剥离前缀（hint 展示同走相对路径）；`onPickFile` 契约
+  回归用例（绝对路径 mock → 相对路径断言）。
+- **MentionPicker i18n**：`Files` / `Loading files…` / `No matching files.`
+  硬编码英文改 `composer.mentionPicker.*` 键；补漏的
+  `composer.toolbar.mentionFile` 键（工具栏 `@` 按钮此前取不到文案）；
+  清理死键 `session.workspaceBadge` / `composer.mentionPicker.placeholder`。
+- **ChatView 加载 effect**：unmount / 换 session 时递增 `requestIdRef`
+  使在途 replay 作废（防旧 replay 水合进全局 store 污染新会话）；
+  已水合判断改读 `useAgentStore.getState()` 实时值并把
+  `loadedSessionId` 移出 deps —— 水合成功后不再二次重跑
+  （多余 bind + loading banner 闪断 + 双份 JSONL 读）。
+- **New Chat 失败兜底**：`handleNewChat` 补 `.catch` → error toast
+  （新键 `toast.newSessionFailed`）。
+- **SessionItemMenu 主题**：`--rd-*` 令牌全仓不存在，暗色 hex fallback
+  在亮色主题下渲染成深色面板。改 `tokens.css` 既有令牌
+  （`--bg-elevated` / `--border-default` / `--text-primary` / `--accent` …）。
+- **`/goal` 斜杠命令**：缺参 reject 文案混排中英，改与 engine 其余
+  消息一致的英文（engine 保持纯函数，文案走 caller toast）。
+- **`Submission.workspace` 线格式测试**：新增 `stores/agent/store.test.ts`
+  —— 非空注入顶层字段、null/undefined 省略字段（后端回退
+  `cfg.current_workspace()` 的前提）。
+
+### 新增 — goal 模式 GUI 触发面（Op 直通 + `/goal` 斜杠命令）
+
+- **背景**：上游 `reflect-protocol` v1.2 P1 已有 `Op::EnterGoalMode { goal,
+  verify_command?, token_budget? }` / `Op::ExitGoalMode`（core 侧
+  `GoalController` 每轮 turn 结束自校验、未完成自动续作），但 Desktop GUI
+  此前无触发面（i18n 标注"后续阶段"）。
+- **后端**：`src-tauri/src/commands/agent.rs` 新增 `reflect_enter_goal_mode` /
+  `reflect_exit_goal_mode` 两个薄 Op 适配（与其他 14 个 Op 命令同模式，经
+  `MinimalAgent::submit_op` 投递），`lib.rs` 注册表同步。
+- **前端**：新域文件 `src/utils/commands/goal.ts`（barrel 导出）；Composer
+  新增 `/goal <description>` 斜杠命令（`/goal clear` 退出，与 TUI 约定一致），
+  无参数时 reject 并给出引导。
+- 文档：`docs/PROTOCOL_BRIDGE.md` §2 注记 + §6 Op 联合补两个变体。
+- 测试：`tests/flows.chat-plan-goal-edit.test.tsx` 覆盖 goal 多轮自动续作
+  （零用户提交下多 turn 累积/状态流转/退出）；契约测试补 goal round-trip
+  （可选字段缺省/完整两形态 + 状态清除）。
+
+### 新增 — `tests/` 应用级全量测试套件（168 测试，全绿）
+
+- **基础设施**：`tests/helpers/fakeBackend.ts` 实现 `lib.rs` 注册表中的
+  全部 `reflect_*` IPC 命令（带状态、失败注入、调用日志、线格式参数断言），
+  内置 ScriptedAgent 事件编排（`emit` / 审批·提问·计划 `gate` 挂起，
+  复刻真实 agent 审批停顿与提交抢占）；`tests/helpers/appHarness.tsx`
+  挂载完整真实应用（真实 reducer / React Query / 路由 / 事件总线订阅）。
+- **覆盖**：IPC 契约与四方对齐（后端函数 ↔ 前端包装 ↔ handler 注册 ↔
+  模拟实现 + `PROTOCOL_BRIDGE.md` 覆盖率下限）、全部 `EventMsg` 变体
+  协议矩阵、聊天端到端主流程（含审批门）、**chat → plan → edit 全链路**
+  （plan 草稿多次更新 → plan_ready → 三选择决策 → 编辑工具逐审批 →
+  完成，含 IPC 时序断言）、**goal 模式多轮自动续作**、审批/提问/计划
+  四模态全路径、会话生命周期（分桶/重放/切换）、Composer 斜杠命令/
+  历史/附件、设置页配置读写、34 条路由视图矩阵、错误与韧性（流错误/
+  配额/后端故障/中断）。
+- 运行：`pnpm vitest run tests/`；全量 `pnpm test` 现共 77 文件 732 测试。
+- 详见 `tests/README.md`。
+
+### 修复 — reflect-sandbox seatbelt 临时 profile 并发写竞争（上游 submodule）
+
+- **现象**：`cargo test --workspace` 多线程下 `reflect-sandbox` 的
+  `rm_rf_root_is_blocked_in_sandbox` 必挂（stdout 为空），单线程 / 单用例
+  通过。**这不是测试问题,是 `seatbelt_argv` 的真实缺陷**:临时 profile
+  固定写 `reflect-sandbox-<pid>.sb`,同一进程内并发调用(桌面应用并行
+  工具执行、并行测试)在 `fs::write` 截断重写窗口内互相踩踏 ——
+  `sandbox-exec` 读到半截 profile 编译失败、子进程不启动(fail-closed);
+  或读到他人完整 profile,workspace 写白名单错乱。
+- **修复**(Reflect-Agent 仓库,submodule 指针同步升级):文件名追加原子
+  自增序号(`reflect-sandbox-<pid>-<seq>.sb`),每次调用独立文件;新增
+  回归测试 `seatbelt_argv_temp_profiles_are_unique_per_call`。验证:
+  `--lib` 多线程 5 连跑 15/15 全绿。
+- 顺带:全量测试亦确认根 workspace 经 path 依赖自动纳入全部子模块 crate
+  (共 26 成员),`cargo test --workspace` 实际覆盖核心 crate 自身测试。
+
+### 修复 — submodule 协议新增 `tool_execution_request` 变体导致编译失败
+
+- **`app-core` reducer 编译错误（根因）**：submodule `reflect-protocol` 新增
+  `EventMsg::ToolExecutionRequest(ToolExecutionRequestEvent)`（v1.3 SDK serve
+  模式远程工具执行请求）后，`app-core/src/reducer/mod.rs` 的穷尽 match 未覆盖
+  该变体，`cargo check` 报 E0004、整个后端无法编译。已将其加入协议层
+  no-op 分支（Desktop 内嵌 AgentThread、不注册远程工具，不会收到此事件）。
+- **前端协议类型同步**：`EventMsgType` 联合此前缺 `tool_execution_request`
+  （线格式 snake_case tag），已补齐类型镜像 `ToolExecutionRequestPayload`
+  （`call_id` / `tool` / `args`）+ `EventMsgByType` 条目；
+  `reduceEvent` 加对应 no-op case，配合穷尽性守卫保持前后端事件表一致。
+- 文档：`docs/PROTOCOL_BRIDGE.md` §3.3 工具事件表补 `tool_execution_request`
+  行（标注 serve 模式语义与 Desktop no-op 决策）。
+
+### 修复 — 全量测试发现的问题（会话归属 / 事件层前向兼容 / 删除会话）
+
+- **session 归属按内嵌 `session_meta.session_id` 匹配（根因）**：真实数据中存在
+  「文件名 ≠ 内嵌 meta id」的会话文件（如 resume 沿用旧文件名写入新线程），
+  而索引 `list_sessions` 以 meta id 标识 session，按文件名定位会全部 miss。
+  `src-tauri/src/commands/sessions.rs` 统一改为：文件定位先读首行 meta
+  （`first_line_session_id`），无 meta 时回退文件名 stem——三处受益：
+  - 标题精化 `derived_titles` 以 meta id 为 key（此前按文件名 key，
+    实测 260 个会话全部停留在 JSON 脏标题 `[{"text":"…","type":"text"}]`，
+    精化从未生效；修复后脏标题清零，GUI 实机复验通过）；
+  - 回放/导出兜底 `session_files` 同样按 meta 命中错位文件；
+  - `reflect_delete_session` 此前删 `sessions/<id>/` 目录——真实布局是
+    `YYYY/MM/DD/<id>.jsonl`，删除永远是静默 no-op；现删除该 session 的
+    全部文件（含错位/轮转副本）+ `_names/<id>.name` + 旧布局目录。
+- **事件层前向兼容**：
+  - `reduceEvent`（`src/stores/agent/reducer.ts`）switch 无兜底分支，
+    运行时遇到未知 `msg.type`（submodule 升级新增事件、前端类型未同步）
+    返回 `undefined`，调用方 `Object.keys(patch)` 抛 TypeError 中断事件
+    处理。新增带 `never` 穷尽性守卫的 `default` 分支：运行时安全返回空
+    patch，同时保留「新增事件类型未处理时编译报错」的信号。
+  - 前端协议类型镜像补齐 `plan_draft_updated`（`PlanDraftUpdatedEvent`，
+    后端已有而前端联合缺失）；reducer 加对应 no-op case（GUI 决策路径
+    走 `plan_ready` 弹窗，草稿正文暂不渲染）。
+- 测试：sessions.rs 新增 4 个回归用例（meta 错位定位/精化、无 meta 回退、
+  删除三布局）；agentStore.test.ts 新增未知事件安全 + plan_draft_updated
+  用例。Rust 79 + 前端 564 用例全绿。
+
+### 修复 — 历史会话无法显示 + 会话标题 + Composer 默认发送键
+
+- **历史会话回放修复（根因 ×2）**：
+  - 前端 `turnsFromRollout`（`src/stores/replay.ts`）此前按一个不存在的
+    `{ seq, kind, payload }` 事件信封解析回放记录，而
+    `reflect_replay_session` 实际返回的是 `reflect_protocol::RolloutRecord`
+    tagged union（`{"type":"message","turn_id","role","content"}`）——
+    所有记录都被丢弃，历史会话永远空白。已重写转换器：按 `turn_id` 分组，
+    `content` 支持纯字符串与 `ContentBlock` 数组（text / tool_use /
+    tool_result），`compaction` 记录渲染为单行 `compacted` 摘要（与 live
+    `context_compacted` 一致）。
+  - 后端 `reflect_replay_session` / `reflect_export_session` 兜底：
+    submodule 的 `reader::replay` 只查「今天/昨天/前天」三日窗口，三日以上
+    的历史会话拿到空结果。`src-tauri/src/commands/sessions.rs` 新增
+    `replay_session()`：快路径为空时全树扫描该 session 的所有文件
+    （跨日期目录 + 轮转副本 `.1`~`.3`，按时间升序拼接），导出命令同步受益。
+- **会话列表标题**：
+  - `SessionInfo.title`（自定义名 / 首条 user 消息派生）此前未被前端使用，
+    侧边栏固定显示 session_id 前 8 字符。`displayTitle`（`buckets.ts`）
+    现优先展示 `title`，无标题时回退 id 前缀；`ReflectSessionInfo`
+    （`src/utils/types.ts`）补齐 `title` / token 字段镜像。
+  - 后端标题精化（`src-tauri/src/commands/sessions.rs::refine_session_titles`）：
+    submodule 派生标题对 block 数组 `content`（user 消息新格式）会退化成
+    整段 JSON 字符串（`[{"text":"…","type":"text"}]`），且从不合并
+    `_names/<id>.name` 自定义名。列表命令现做两级精化：自定义名优先
+    （镜像 TUI 语义）→ block-aware 首条 user 消息重派生（全树单次 walk）。
+  - 新会话首条消息发送后自动 invalidate 会话列表 query，派生标题立即可见
+    （不再等 5min staleTime）。
+- **Composer 默认发送键**：裸 Enter 现在直接发送（Shift+Enter 换行；
+  ⌘/Ctrl+Enter 保持兼容；IME composition 期间的 Enter 不发送）。
+  发送按钮 tooltip 文案同步更新（en/zh-CN）。
+
 ### 新增 — 前端 token usage UI 接通
 
 后端 `token_count` 事件（`TokenCountEvent`）早已由 `model_call` 节点每轮 emit，前端

@@ -24,10 +24,12 @@ pub use remote_config::{RemoteConfig, RemoteStatus};
 
 mod agent;
 mod install;
+pub(crate) mod rebind;
 mod remote_config;
 mod session;
 mod submit;
 mod activity;
+mod thread_factory;
 
 pub use agent::AgentStatus;
 
@@ -168,10 +170,28 @@ impl MinimalAgent {
         Arc::clone(&self.inner.squad_manager)
     }
 
-    /// install_agent_thread 内部调用:把带真 submission sender 的 scheduler
-    /// 写回 inner,并启动后台 driver(30s tick)。幂等:重复调用只重建一次。
-    pub(crate) fn install_cron_scheduler(&self, sender: tokio::sync::mpsc::Sender<reflect_protocol::Submission>) {
-        // session_id 用 "desktop" 固定值(单进程单 scheduler;持久化留后续)。
+    /// v1.x:当前后端 AgentThread 绑定的 session id(`None` = 尚未
+    /// 绑定或仍在 install 时随机 id 上)。命令层用此判断是否需要 rebind。
+    pub(crate) fn bound_session_id(&self) -> Option<reflect_protocol::ThreadId> {
+        *self.inner.bound_session_id.lock()
+    }
+
+    /// v1.x:共享 ModelRegistry 是否已构建(provider/degraded 分支后)。
+    /// 命令层(尤其 `reflect_bind_session`)必须先看此再 rebind。
+    pub(crate) fn model_registry_ready(&self) -> bool {
+        self.inner.model_registry.lock().is_some()
+    }
+
+    /// 构造 scheduler + 启动 driver(30s tick),返回 `(scheduler, driver_handle)`。
+    /// 调用方负责把句柄存入 inner 或在用完时 stop 后重启。
+    ///
+    /// driver 句柄必须存入 `inner.cron_driver` —— 立即 drop 会让 driver 任务
+    /// 被 abort,cron 永不触发(v1.x 修复的根因)。
+    /// 幂等:已有 scheduler(含 jobs)时把 jobs 迁移过来,重复 install 不丢 jobs。
+    pub(crate) fn spawn_cron_scheduler(
+        &self,
+        sender: tokio::sync::mpsc::Sender<reflect_protocol::Submission>,
+    ) -> (reflect_stream::cron::CronScheduler, reflect_stream::cron::CronDriverHandle) {
         let scheduler = reflect_stream::cron::CronScheduler::new(
             Some(sender),
             reflect_protocol::ThreadId::new(),
@@ -179,17 +199,12 @@ impl MinimalAgent {
         // 若已有 scheduler(含 jobs),把 jobs 迁移过来,避免 install 二次调用丢 jobs。
         if let Some(prev) = self.inner.cron_scheduler.read().as_ref() {
             for job in prev.list() {
-                // 重建:用 create 复制(prompt + schedule + name),保留 id 不可控
-                // (create 生成新 uuid)—— 桌面端 install 只在启动时调一次,
-                // 此分支主要是防御性,实际不会进。
                 let _ = scheduler.create(&job.schedule, job.prompt.clone(), job.name.clone());
             }
         }
-        // 启动后台 driver(30s tick)。driver 持 jobs Arc + sender clone,
-        // 与命令层共享同一把锁。
         let driver = scheduler.clone();
-        let _driver_handle = driver.start(30);
-        *self.inner.cron_scheduler.write() = Some(scheduler);
+        let driver_handle = driver.start(30);
+        (scheduler, driver_handle)
     }
 
     /// 注册一个 shell session,返回 kill handle 放入 map。

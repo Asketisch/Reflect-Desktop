@@ -68,11 +68,12 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     };
   },
 
-  submit: async (text) => {
+  submit: async (text, workspace) => {
     const id = uuid();
     const submission: ReflectSubmission = {
       id,
       op: { type: 'user_input', items: [{ type: 'text', text }] },
+      ...(workspace ? { workspace } : {}),
     };
     set((state) => ({
       turns: [
@@ -83,11 +84,12 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     await reflect_submit(submission);
   },
 
-  submitItems: async (items) => {
+  submitItems: async (items, workspace) => {
     const id = uuid();
     const submission: ReflectSubmission = {
       id,
       op: { type: 'user_input', items },
+      ...(workspace ? { workspace } : {}),
     };
     const firstText = items.find(
       (item): item is { type: 'text'; text: string } => item.type === 'text',

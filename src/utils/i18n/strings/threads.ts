@@ -23,6 +23,11 @@ const threads: Record<string, StringEntry> = {
   'threads.exported':           { en: 'Exported → {path}',                    'zh-CN': '已导出 → {path}' },
   'threads.threadActions':      { en: 'Thread actions',                       'zh-CN': '会话操作' },
   'threads.renameThread':       { en: 'Rename thread',                        'zh-CN': '重命名会话' },
+  'threads.archive':            { en: 'Archive',                              'zh-CN': '归档' },
+  'threads.archiveConfirm':     { en: 'Archive thread "{id}"?\nIt moves to the archive area and can be restored later.', 'zh-CN': '归档会话 "{id}"？\n它会被移入归档区，之后可随时恢复。' },
+  'threads.archived':           { en: 'Archived',                             'zh-CN': '已归档' },
+  'threads.archivedEmpty':      { en: 'No archived threads.',                 'zh-CN': '暂无已归档的会话。' },
+  'threads.restore':            { en: 'Restore',                              'zh-CN': '恢复' },
 };
 
 export default threads;

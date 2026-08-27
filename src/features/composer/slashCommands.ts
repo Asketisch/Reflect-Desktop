@@ -57,6 +57,7 @@ export const SLASH_COMMANDS: SlashCmd[] = [
   { name: 'skills', category: 'skills', summaryKey: 'slash.skills.desc' },
   { name: 'plan', category: 'mode', summaryKey: 'slash.enterPlan.desc' },
   { name: 'exit-plan', aliases: ['exitplan'], category: 'mode', summaryKey: 'slash.exitPlan.desc' },
+  { name: 'goal', category: 'mode', summaryKey: 'slash.goal.desc' },
   { name: 'keybindings', aliases: ['keys', 'bindings'], category: 'shortcuts', summaryKey: 'slash.keybindings.desc' },
   { name: 'statusline', aliases: ['status-line'], category: 'shortcuts', summaryKey: 'slash.statusline.desc' },
   { name: 'output-style', category: 'shortcuts', summaryKey: 'slash.outputStyle.desc' },

@@ -110,6 +110,11 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       return { turns };
     }
 
+    case 'tool_execution_request':
+      // v1.3 SDK serve 模式:core 请求客户端本地执行注册的远程工具。
+      // Desktop 内嵌 AgentThread,不注册远程工具,不会收到;保穷尽 no-op。
+      return {};
+
     case 'approval_request': {
       // plan 类型的审批走独立的 plan_ready 事件 + pendingPlan + PlanReadyModal,
       // 不进 pendingApprovals(后者只收 tool / hook)。
@@ -292,6 +297,11 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     case 'plan_rejected':
       return { pendingPlan: null };
 
+    case 'plan_draft_updated':
+      // plan 草稿覆盖式更新(TUI 用于刷新草稿预览)。GUI 决策路径走
+      // plan_ready → PlanReadyModal,草稿正文暂不渲染;先占位保穷尽。
+      return {};
+
     case 'plan_step':
       // plan 执行进度。TODO:接入 plan 步骤 UI(目前仅补全类型,不渲染)。
       return {};
@@ -319,6 +329,16 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         createdAt: Date.now(),
       };
       return { toasts: [...state.toasts, toast] };
+    }
+
+    default: {
+      // 穷尽性守卫:联合类型新增变体而上方无对应 case 时,此赋值编译报错,
+      // 提醒补 case。运行时(submodule 已发新事件、前端类型未同步)走到
+      // 这里则安全返回空 patch —— 调用方(store.subscribe)对 patch 做
+      // Object.keys 展开,返回 undefined 会抛 TypeError 中断事件处理。
+      const _exhaustive: never = msg;
+      void _exhaustive;
+      return {};
     }
   }
 }

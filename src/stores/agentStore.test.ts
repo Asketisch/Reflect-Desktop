@@ -566,3 +566,29 @@ describe('reduceEvent — plugin / quota', () => {
     expect(patch).toEqual({});
   });
 });
+
+// ====== 前向兼容(未知事件类型) ======
+
+describe('reduceEvent — 未知事件类型的前向兼容', () => {
+  it('运行时未知 msg.type 安全返回空 patch(不抛 TypeError)', () => {
+    // 场景:submodule 升级新增 EventMsg 变体、前端类型未同步时,
+    // store.subscribe 对 patch 做 Object.keys 展开 —— reducer 返回
+    // undefined 会让整条事件处理中断。default 分支必须返回 {}。
+    const unknown = { type: 'future_event_kind', payload: { x: 1 } } as unknown as ReflectEventMsg;
+    const patch = reduceEvent(emptyState(), ev('', unknown));
+    expect(patch).toEqual({});
+  });
+
+  it('plan_draft_updated 是 no-op(GUI 决策路径走 plan_ready)', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'plan_draft_updated',
+        draft_id: 'refactor.md',
+        markdown: '# 计划\n- 步骤',
+        path: '/ws/.reflect/plan/refactor.md',
+      }),
+    );
+    expect(patch).toEqual({});
+  });
+});

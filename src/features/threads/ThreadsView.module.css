@@ -3,3 +3,85 @@
   flex-direction: column;
   gap: var(--space-4);
 }
+
+/* ── 已归档区 ─────────────────────────────────────────────── */
+
+.archived {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.archivedTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+.archivedCount {
+  display: inline-block;
+  min-width: 1.4rem;
+  padding: 0 0.35rem;
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border-radius: var(--radius-pill);
+}
+
+.archivedEmpty {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.archivedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.archivedRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.archivedRow:hover {
+  background: var(--bg-hover);
+}
+
+.archivedBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.archivedTitleText {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archivedMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.archivedActions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}

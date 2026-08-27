@@ -48,3 +48,13 @@
   font-size: 0.85rem;
   text-align: center;
 }
+
+.hint {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

@@ -4,17 +4,15 @@
 //! `tauri::async_runtime::spawn` 推迟的 task 内),因为 `AgentThread::new`
 //! 内部立即 `tokio::spawn(submission_loop(...))`。
 //!
-//! 同时承载内置工具注册(`register_builtin_tools`)与 MCP/LSP bootstrap
-//! 的 spawn — 后者异步推进,不阻塞 install 返回。
+//! v1.x 重构:registry / thread 构造全走 `state::thread_factory`,本文件
+//! 只负责拼装 + 安装 forwarder / cron / MCP-LSP bootstrap。
 
 use std::sync::Arc;
 
-use reflect_core::{AgentConfig, AgentThread};
-use reflect_llm::SharedModelRegistry;
 use reflect_tools::{
-    Sanitizer, ToolRegistry,
+    ToolRegistry,
     builtins::{
-        BashTool, DeleteTool, EchoTool, EditTool, EnterPlanModeTool, EnterWorktreeTool,
+        BashTool, DeleteTool, EditTool, EnterPlanModeTool, EnterWorktreeTool,
         ExitPlanModeTool, ExitWorktreeTool, GlobTool, GrepTool, NotebookEditTool, ReadTool,
         ToolSearchTool, WebFetchTool, WebSearchTool, WriteTool,
     },
@@ -30,66 +28,33 @@ use super::MinimalAgent;
 /// 必须跑在 tokio runtime 上下文。Tauri `setup` 闭包运行时 Tauri 已经
 /// 初始化了它的 async_runtime,这一步安全。
 pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
-    // 1. 解析模型 spec 与 provider。读 cfg + env 的真实优先级。
+    // 1. 读 cfg 快照 + 解析 model spec。
     let cfg_snapshot = agent.inner.cfg.read().clone();
     let workspace = agent.inner.workspace.clone();
     let model_spec = cfg_snapshot
         .resolved_model_spec()
         .unwrap_or_else(|| "stub/test".to_string());
     let has_provider = cfg_snapshot.active_provider().is_some();
+    if !has_provider {
+        *agent.inner.degraded_reason.lock() =
+            Some("no provider configured — set an API key in Settings".to_string());
+    }
 
-    // 2. 构造共享 ToolRegistry —— 无论是否有 provider 都先注册,
-    //    MCP/LSP 后续也在这个 registry 上 register_plugin_tool。
+    // 2. 注册内置工具到共享 registry(MCP/LSP 后续也注册进来)。
     let tools = agent.inner.tools.clone();
     register_builtin_tools(&tools);
 
-    // 3. ModelRegistry:有 provider 走真路径;否则降级到空 registry + EchoTool。
-    let registry: SharedModelRegistry = if has_provider {
-        match cfg_snapshot.to_registry() {
-            Ok(r) => Arc::new(r),
-            Err(e) => {
-                tracing::warn!(
-                    "[reflect-gui] to_registry failed ({}); falling back to empty registry",
-                    e
-                );
-                *agent.inner.degraded_reason.lock() =
-                    Some(format!("model registry build failed: {e}"));
-                Arc::new(reflect_llm::ModelRegistry::new())
-            }
-        }
-    } else {
-        // 无 API key / provider 配置 —— 降级。注册 EchoTool 让 smoke 路径可走。
-        tracing::warn!(
-            "[reflect-gui] no provider configured (set OPENAI_API_KEY / ANTHROPIC_API_KEY \
-             or edit ~/.reflect/config.toml); running in degraded mode"
-        );
-        *agent.inner.degraded_reason.lock() =
-            Some("no provider configured — set an API key in Settings".to_string());
-        tools.register(Arc::new(EchoTool));
-        Arc::new(reflect_llm::ModelRegistry::new())
-    };
+    // 3. 构造 ModelRegistry(provider / degraded 两分支)。
+    let registry = super::thread_factory::build_registry(&cfg_snapshot, Arc::clone(&tools));
+    *agent.inner.model_registry.lock() = Some(registry.clone());
 
-    // 4. AgentConfig + AgentThread。
-    let cfg = AgentConfig::new(model_spec.clone(), workspace.clone()).with_approvals(true);
-    // sanitizer 用默认 10 pattern;AgentThread 内部传 None 也会走 with_defaults,
-    // 这里显式构造便于后续接 [sanitize] config 段。
-    let sanitizer = Arc::new(Sanitizer::with_defaults());
-    // v1.x:从 config.toml `[hooks]` 段构建 HookEngine(含 builtin hook +
-    // 插件 hook),注入 AgentThread。此前 AgentThread::new 内部硬编码
-    // `HookEngine::new()`,导致 `[hooks]` 配置整段死信(read_before_edit /
-    // plan_mode_gate 等运行时 toggle 永远不生效)。与 reflect-exec 对齐。
-    let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(
-        reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks).build_engine(),
-    );
-    let thread = Arc::new(AgentThread::new(
-        cfg,
-        registry,
-        tools.clone(),
-        Some(sanitizer),
-        Some(hook_engine.clone()),
-    ));
+    // 4. 构造占位 AgentThread(sid = None,不挂 recorder / 不固定 id)。
+    //    占位 thread 给首条消息前的 health-check / 状态命令兜底;
+    //    `reflect_bind_session` 会触发 rebind 把它换成带 recorder 的真 thread。
+    let thread = super::thread_factory::construct_thread(agent, None, vec![])
+        .expect("install: construct_thread(占位) 不应失败");
 
-    // 5. 写回 inner。
+    // 5. 写回 inner + 把共享 registry 记入 inner(rebind 复用)。
     *agent.inner.thread.lock() = Some(thread.clone());
     *agent.inner.model_spec.write() = model_spec.clone();
 
@@ -101,11 +66,16 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     //     互不阻塞。
     super::activity::subscribe_activity_logger(agent);
 
-    // 6b. 注入 Cron 调度器:拿 AgentThread 的 submission
-    //     sender,构造带真 sender 的 CronScheduler,启动后台 driver(30s tick)。
-    //     driver 与命令层共享 jobs,到期把 prompt 作为 UserInput 注入 agent loop。
+    // 6b. 注入 Cron 调度器 + 启动后台 driver。
+    //
+    // v1.x 修复:此前 `let _driver_handle = driver.start(30)` 立即 drop
+    // 句柄 → driver 任务被 abort → cron 永不触发。现在把句柄存到
+    // `inner.cron_driver`,rebind_session 时 stop 旧 driver + 换 sender
+    // 后重启,保持 jobs Arc 不变。
     let cron_sender = thread.submission_sender();
-    agent.install_cron_scheduler(cron_sender);
+    let (scheduler, driver_handle) = agent.spawn_cron_scheduler(cron_sender);
+    *agent.inner.cron_scheduler.write() = Some(scheduler);
+    *agent.inner.cron_driver.lock() = Some(driver_handle);
 
     // 7. MCP / LSP bootstrap—— 读 cfg 的 [mcp_servers]/[lsp_servers],
     //    启动 server + 注册 tool。lifecycle event 经 session broadcast 推前端。
@@ -127,7 +97,6 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
             session_tx_for_bootstrap,
         )
         .await;
-        // 触发一次 unused warning 抑制(agent_clone 保留 future 扩展用)。
         let _ = &agent_clone;
     });
 
@@ -239,5 +208,22 @@ mod tests {
 
         // interrupt 幂等:install 后调用不应 panic。
         agent.interrupt();
+    }
+
+    /// v1.x:install 必须建立 `model_registry`(构造 AgentThread 复用),
+    /// 并初始化 `cron_driver` 句柄(否则 cron 永不触发)。
+    #[tokio::test]
+    async fn install_populates_registry_and_cron_handle() {
+        let agent = MinimalAgent::new_empty();
+        assert!(!agent.model_registry_ready(), "registry 预置 None");
+        agent.install_agent_thread();
+        assert!(agent.model_registry_ready(), "registry 已建");
+
+        // cron_driver 句柄已存(不是 None),否则 cron 任务被立即 abort。
+        let handle = agent.inner.cron_driver.lock();
+        assert!(
+            handle.is_some(),
+            "cron_driver 必须保存驱动句柄,否则 cron 永不触发"
+        );
     }
 }

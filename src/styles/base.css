@@ -172,30 +172,24 @@ h6 {
 }
 
 /* ===== Drag region（Tauri 窗口拖拽，供 TitleBar 用）=====
- * 注意：嵌套的交互元素（button / a / input / textarea / select）由下方显式
- * 列出 -webkit-app-region: no-drag 来保留可点击能力。其它子元素（div / span /
- * h1 / kbd）继承外层 drag 区域，整个 titlebar 都能拖动窗口。
+ * 生效机制：`data-tauri-drag-region` 属性由 Tauri 注入的 drag.js 在
+ * mousedown 时命中（="deep" 时整棵子树可拖），调用
+ * `plugin:window|start_dragging` IPC —— 该命令需要 capabilities 中的
+ * `core:window:allow-start-dragging` 权限（core:window:default 不含它）。
+ * 可点击元素（button / a / input 等）由 drag.js 的 isClickableElement
+ * 自动豁免，无需 CSS 配合。
  *
- * 双重保险设置：
+ * 这里只做视觉/命中辅助：
  *   - position: relative —— 让 drag 元素在 flex 兄弟里仍能接到 mousedown。
  *   - z-index: 1        —— 提到同 stacking context 顶层，避免被 transform
  *                          兄弟盖住。
  *   - user-select: none —— 防止 mousedown 后文本选中打断 native drag 行为。
  */
 [data-tauri-drag-region] {
-  -webkit-app-region: drag;
   cursor: default;
   position: relative;
   z-index: 1;
   user-select: none;
-}
-[data-tauri-drag-region] button,
-[data-tauri-drag-region] a,
-[data-tauri-drag-region] input,
-[data-tauri-drag-region] textarea,
-[data-tauri-drag-region] select,
-[data-tauri-drag-region] [role="button"] {
-  -webkit-app-region: no-drag;
 }
 
 /* ===== 减弱动画（无障碍）===== */

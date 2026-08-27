@@ -154,8 +154,14 @@ export interface AgentState {
   toasts: Toast[];
 
   subscribe: () => () => void;
-  submit: (text: string) => Promise<void>;
-  submitItems: (items: UserInputItem[]) => Promise<void>;
+  /**
+   * v1.x：第二个可选参数 `workspace` —— 当前激活工作区(绝对路径)。
+   * 注入到 `ReflectSubmission.workspace`，后端据此把该 session 归属到
+   * 指定 workspace 并在 `session_meta.workspace` 字段落盘。
+   * `undefined` / `null` 表示不指定(CLI / 测试场景)。
+   */
+  submit: (text: string, workspace?: string | null) => Promise<void>;
+  submitItems: (items: UserInputItem[], workspace?: string | null) => Promise<void>;
   interrupt: () => Promise<void>;
   compact: () => Promise<void>;
   rewind: (toTurnId?: string) => Promise<void>;

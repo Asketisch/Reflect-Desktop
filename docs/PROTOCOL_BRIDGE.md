@@ -33,6 +33,13 @@ pub struct Event {
 > 后端在 `commands/<domain>.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递。
 > 所有 Op 命令返回 `string`(submission id,供前端 pairing/调试)。
 
+> **Goal 模式(v1.2 P1)**:`enter_goal_mode { goal, verify_command?, token_budget? }` /
+> `exit_goal_mode` 映射到 `reflect_enter_goal_mode` / `reflect_exit_goal_mode`
+> (`commands/agent.rs` / `commands/goal.ts`)。进入目标模式后,core 侧
+> `GoalController` 在每轮 turn 结束自校验(LM judge + 可选校验命令),未完成则
+> steering 自动续作 —— **不需要新的用户提交**;GUI 经常规 turn/流式事件呈现
+> 多轮续作,事件侧无 goal 专属变体。
+
 ### 2.0 Op 之外的命令（诊断 / 配置 / 域 I/O）
 
 这些命令不对应 `Op` 变体；它们与 Op 派生的命令共存于相同的域模块中：
@@ -44,7 +51,10 @@ pub struct Event {
 | `reflect_get_config` | `null` | `string` (TOML) | `commands/config.rs` / `commands/config.ts` |
 | `reflect_save_config` | `{ toml }` | `null` | `commands/config.rs` / `commands/config.ts` |
 | `reflect_list_tools` | `null` | `Vec<{ name, description }>` | `commands/agent.rs` / `commands/agent.ts` |
-| `reflect_list_sessions` / `reflect_rename_session` / `reflect_delete_session` / `reflect_replay_session` | — | — | `commands/sessions.rs` / `commands/sessions.ts` |
+| `reflect_list_sessions` / `reflect_rename_session` / `reflect_delete_session` / `reflect_replay_session` | `{ workspace?, limit?, offset? }` / — / — / — | `SessionInfo[]` / — / — / — | `commands/sessions.rs` / `commands/sessions.ts`。`workspace` 为可选过滤（`SessionInfo.workspace` 精确匹配；旧会话 `workspace = None` 仅在全量列表出现） |
+| `reflect_create_session` | `null` | `string`（ThreadId） | `commands/sessions.rs` / `commands/sessions.ts`。纯 ID 分配（New Chat 先拿路由 id），不触发后端绑定；会话文件在首条 `UserInput` 时由后端物化并写 `SessionMeta.workspace`（workspace 值取自任意类型首条 `Submission` 的顶层 `workspace`，缺省回退 `cfg.current_workspace()`） |
+| `reflect_bind_session` | `{ id }` | `null` | `commands/sessions.rs` / `commands/sessions.ts`。把后端 `AgentThread` 换绑到指定 session id：replay 该 id 的 JSONL → `records_to_preload` → 重建线程（`with_session_id` + M4 recorder 同 id）。**后端幂等**（同 id 短路）；未知 id（刚 `reflect_create_session` 分配、未落盘）走空历史分支不报错。ChatView 挂载每个会话都调一次（bind → replay → hydrate 序列）；旧线程经 `cancel_token` 有界排空，cron driver 换 sender 后重启（job uuid 保留） |
+| `reflect_archive_session` / `reflect_unarchive_session` / `reflect_list_archived_sessions` | `{ id }` / `{ id }` / `null` | `null` / `null` / `SessionInfo[]` | `commands/sessions.rs` / `commands/sessions.ts`（归档树 `~/.reflect/sessions-archive`，整树搬移、相对路径不变） |
 | `reflect_export_session` / `reflect_export_session_markdown` | `{ id }` / `{ id }` | `string` (path) / `string` (markdown) | `commands/export.rs` / `commands/sessions.ts` |
 | `reflect_git_status` / `reflect_git_diff` / `reflect_git_log` | — | `GitStatus` / `string` / `Vec<GitLogEntry>` | `commands/git.rs` / `commands/git.ts` |
 | `reflect_run_shell` | `{ cmd }` | `ShellSession { id, command, cwd }` | `commands/shell.rs` / `commands/terminal.ts`; `reflect_terminal_output` event streams output |
@@ -52,7 +62,9 @@ pub struct Event {
 | `reflect_list_shell_sessions` | `null` | `string[]` | `commands/shell.rs` / `commands/terminal.ts` |
 | `reflect_list_dir` / `reflect_read_file` / `reflect_search_files` | `{ path?, maxDepth? }` / `{ path }` / `{ query, ... }` | `DirListing` / `FileReadResult` / search results | `commands/files.rs` / `commands/files.ts`; `commands/search.rs` / `commands/search.ts` |
 | `reflect_load_allowlist` / `reflect_save_allowlist` / `reflect_check_allowlist` | — | allowlist payload | `commands/allowlist.rs` / `commands/allowlist.ts` |
-| `reflect_list_workspaces` / `reflect_set_workspace` / `reflect_current_workspace` | — | workspace payloads | `commands/workspaces.rs` / `commands/workspaces.ts` |
+| `reflect_list_workspaces` / `reflect_set_workspace` / `reflect_current_workspace` | — | workspace payloads（`WorkspaceInfo { path, label, last_used, session_count }`，历史持久化于 `~/.reflect/workspaces.json`） | `commands/workspaces.rs` / `commands/workspaces.ts` |
+| `reflect_pick_workspace_folder` | `null` | `string?`（原生目录选择框，取消 → `null`；走 `tauri-plugin-dialog` Rust API，不经 JS IPC） | `commands/workspaces.rs` / `commands/workspaces.ts` |
+| `reflect_reveal_path` | `{ path }` | `null`（在 Finder / 资源管理器 / xdg-open 中定位） | `commands/workspaces.rs` / `commands/workspaces.ts` |
 | `reflect_list_skills` | `null` | `SkillEntry[]` | `commands/skills.rs` / `commands/skills.ts` |
 | `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory` | `{ scope?, key?, value? }` | memory payloads | `commands/memory.rs` / `commands/memory.ts` |
 | `reflect_list_hooks` / `reflect_toggle_hook` | — | hook payloads | `commands/hooks.rs` / `commands/hooks.ts` |
@@ -90,8 +102,12 @@ pub struct Submission {
     pub op: Op,
     pub client_user_message_id: Option<String>,
     pub trace: Option<TraceContext>,
+    pub workspace: Option<String>,   // v1.x：会话归属（首条 UserInput 时写入 SessionMeta.workspace）
 }
 ```
+
+`workspace` 带 `#[serde(default, skip_serializing_if = "Option::is_none")]` —— 旧线格式不写该键，
+后端回退 `cfg.current_workspace()`；GUI 端由 `useCurrentWorkspace` 注入当前激活工作区。
 
 ### 2.1 `UserInputItem`（`reflect-agent/crates/protocol/reflect-protocol/src/item.rs`）
 
@@ -102,6 +118,10 @@ pub struct Submission {
 | `LocalImage` | `path: PathBuf` | 文件选择器（后端从磁盘读取） |
 | `Skill` | `name: String, args: Option<JSON>` | `/skill name` 或技能选择器 |
 | `QuestionAnswer` | `request_id, answers` | LLM 提问的回复（`AskUserQuestionResponse` 的替代路径） |
+| `File` | `path: String, range?: FileRange` | Composer `@` 文件弹层（`MentionPicker`）。`path` 为相对工作区 POSIX 路径；`FileRange { start_line, end_line }` 可选。core 侧 `user_input_items_to_messages` 展开为 `@<path>` / `@<path>:L<n>-L<m>` 文本块，真实读取由 LLM `/read` 工具按需触发 |
+
+`File` 为纯新增 variant（旧 reader 不受影响）；`SessionInfo.workspace` / `RolloutRecord::SessionMeta.workspace`
+同样带 serde 兼容注解 —— 旧 JSONL 反序列化为 `None`，前端按"未归属"展示。
 
 ### 2.2 提交 ID 生命周期
 
@@ -109,6 +129,11 @@ pub struct Submission {
 - 后端从 `reflect_submit` 返回相同 id（回显）。
 - 前端将入站 `Event.id` 与原始 `Submission.id` 关联以解锁输入器 / 标记 turn 完成。
 - `EVENT_ID_NONE = ""` 事件（生命周期：`SessionConfigured`、`ShutdownComplete`、`PermissionModeChanged` …）没有对应的提交。
+- `SessionConfigured.session_id`（v1.x 起）等于线程预分配 id：与 rollout 文件名
+  （`~/.reflect/sessions/YYYY/MM/DD/<id>.jsonl`）、`SessionMeta.session_id` 及
+  前端路由 id 一致（`reflect_bind_session` 经 `with_session_id` 注入，`submission_loop`
+  在 `SessionConfiguredEvent::new` 后覆盖 `sc.session_id = session_id`）。旧版本曾发出
+  随机 UUID，仅作 turn 事件标识。
 
 ---
 
@@ -138,12 +163,13 @@ pub struct Submission {
 | `thinking_delta` | `delta: String` | Reasoning block (collapsible) |
 | `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?` |
 
-### 3.3 Tools (2)
+### 3.3 Tools (3)
 
 | 变体 | 字段 | UI |
 |---|---|---|
 | `tool_call_begin` | `ToolCallBeginEvent` | Tool row running indicator |
 | `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled |
+| `tool_execution_request` | `ToolExecutionRequestEvent` (v1.3 SDK) | none —— serve 模式下 core 请求客户端本地执行其经 `Op::RegisterTools` 注册的远程工具（回执 `Op::ToolExecutionResponse`，`call_id` 配对）。Desktop 内嵌 AgentThread 不注册远程工具，reducer no-op 保穷尽 |
 
 ### 3.4 Approvals / AskUser (4)
 
@@ -253,6 +279,8 @@ export type ReflectOp =
   | { type: 'hook_approval'; id: string; decision: ReviewDecision }
   | { type: 'enter_plan_mode'; task: string }
   | { type: 'exit_plan_mode' }
+  | { type: 'enter_goal_mode'; goal: string; verify_command?: string; token_budget?: number }
+  | { type: 'exit_goal_mode' }
   | { type: 'plan_approval'; id: string; decision: ReviewDecision }
   | { type: 'set_effort'; effort: ReasoningEffort }
   | { type: 'ask_user_question_response'; id: string; answers: AskUserAnswer }

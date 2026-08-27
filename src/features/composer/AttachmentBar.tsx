@@ -1,8 +1,8 @@
 /**
  * AttachmentBar —— Composer 底部附件预览条 (B5)。
  *
- * 显示当前待发的 attachments(local_image / inline image / skill mention)。
- * 每个 chip 有 "×" 按钮删除。
+ * 显示当前待发的 attachments(local_image / inline image / file mention /
+ * skill mention)。每个 chip 有 "×" 按钮删除。
  */
 import type { PendingAttachment } from './useAttachments';
 import s from './AttachmentBar.module.css';
@@ -23,6 +23,8 @@ export function AttachmentBar({ attachments, onRemove }: AttachmentBarProps) {
             ? `🖼 ${shorten(a.path)}`
             : a.kind === 'image'
             ? `🖼 inline (${a.mime_type})`
+            : a.kind === 'file'
+            ? `📄 ${shorten(a.path)}${a.range ? ` L${a.range.start_line}-${a.range.end_line}` : ''}`
             : `⚡ /${a.name}`;
         return (
           <div key={`${a.kind}-${idx}`} className={s.chip}>

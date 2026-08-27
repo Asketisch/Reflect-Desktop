@@ -22,6 +22,11 @@ const workspaces: Record<string, StringEntry> = {
   'workspaces.use':           { en: 'Use',                                                                                                                         'zh-CN': '使用' },
   'workspaces.sessionCount':  { en: '{count} session{plural}',                                                                                                     'zh-CN': '{count} 个会话' },
   'workspaces.unknown':       { en: '(unknown)',                                                                                                                   'zh-CN': '(未知)' },
+  'workspaces.openFolder':    { en: 'Open project folder…',                                                                                                        'zh-CN': '打开项目目录…' },
+  'workspaces.pickFailed':    { en: 'Failed to open folder picker: {msg}',                                                                                          'zh-CN': '打开目录选择器失败: {msg}' },
+  'workspaces.reveal':        { en: 'Reveal in file manager',                                                                                                       'zh-CN': '在文件管理器中显示' },
+  'workspaces.revealFailed':  { en: 'Failed to reveal path: {msg}',                                                                                                'zh-CN': '定位路径失败: {msg}' },
+  'workspaces.lastUsed':      { en: 'Last used {time}',                                                                                                             'zh-CN': '最近使用 {time}' },
 };
 
 export default workspaces;

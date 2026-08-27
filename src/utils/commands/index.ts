@@ -8,6 +8,7 @@ export * from './health';
 export * from './agent';
 export * from './approvals';
 export * from './plan';
+export * from './goal';
 export * from './permissions';
 export * from './questions';
 export * from './config';

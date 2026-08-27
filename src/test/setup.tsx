@@ -74,6 +74,19 @@ beforeEach(() => {
   // reflect_rename_session
   mockInvoke('reflect_rename_session', async (_id: string, _new_name: string) => {});
 
+  // reflect_current_workspace —— 默认未打开工作区(null);AppShell 的 useCurrentWorkspace 依赖
+  mockInvoke('reflect_current_workspace', async () => null);
+
+  // reflect_create_session —— 纯 ID 分配(首条 submission 时后端物化)
+  mockInvoke('reflect_create_session', async () => 'sess-stub-new');
+
+  // reflect_bind_session —— 把后端 AgentThread 绑到指定 session id
+  // (后端幂等;未知 id 走空历史分支,不报错 → mock 为 no-op)
+  mockInvoke('reflect_bind_session', async () => {});
+
+  // reflect_list_archived_sessions —— 默认无归档会话
+  mockInvoke('reflect_list_archived_sessions', async () => []);
+
   // reflect_set_permission_mode
   mockInvoke('reflect_set_permission_mode', async () => {});
 

@@ -34,6 +34,18 @@ describe('useAttachments', () => {
     expect(result.current.attachments[0]).toEqual({ kind: 'skill', name: 'code-review' });
   });
 
+  it('addFileMention appends file mention (with and without range)', () => {
+    const { result } = renderHook(() => useAttachments());
+    act(() => {
+      result.current.addFileMention('README.md');
+      result.current.addFileMention('src/main.ts', { start_line: 10, end_line: 20 });
+    });
+    expect(result.current.attachments).toEqual([
+      { kind: 'file', path: 'README.md' },
+      { kind: 'file', path: 'src/main.ts', range: { start_line: 10, end_line: 20 } },
+    ]);
+  });
+
   it('remove(idx) drops entry', () => {
     const { result } = renderHook(() => useAttachments());
     act(() => {
@@ -67,6 +79,18 @@ describe('useAttachments', () => {
       { type: 'local_image', path: '/x.png' },
       { type: 'image', data: 'd', mime_type: 'image/png' },
       { type: 'skill', name: 's' },
+    ]);
+  });
+
+  it('toUserInputItems maps file mentions (range optional on the wire)', () => {
+    const { result } = renderHook(() => useAttachments());
+    act(() => {
+      result.current.addFileMention('README.md');
+      result.current.addFileMention('src/main.ts', { start_line: 1, end_line: 5 });
+    });
+    expect(result.current.toUserInputItems()).toEqual([
+      { type: 'file', path: 'README.md' },
+      { type: 'file', path: 'src/main.ts', range: { start_line: 1, end_line: 5 } },
     ]);
   });
 });

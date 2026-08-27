@@ -38,6 +38,7 @@ import {
   reflect_list_tools,
   // sessions
   reflect_list_sessions,
+  reflect_create_session,
   reflect_rename_session,
   reflect_delete_session,
   reflect_replay_session,
@@ -310,14 +311,20 @@ describe('commands forwarding (mapping)', () => {
 
   // ----- 会话 -----
 
-  it('reflect_list_sessions normalises missing opts to { limit: null, offset: null }', async () => {
+  it('reflect_list_sessions normalises missing opts to { workspace: null, limit: null, offset: null }', async () => {
     const none = await captureCmd('reflect_list_sessions', () => reflect_list_sessions());
-    expectArgs(none, { limit: null, offset: null });
+    expectArgs(none, { workspace: null, limit: null, offset: null });
 
     const some = await captureCmd('reflect_list_sessions', () =>
-      reflect_list_sessions({ limit: 10, offset: 20 }),
+      reflect_list_sessions({ workspace: '/tmp/proj', limit: 10, offset: 20 }),
     );
-    expectArgs(some, { limit: 10, offset: 20 });
+    expectArgs(some, { workspace: '/tmp/proj', limit: 10, offset: 20 });
+  });
+
+  it('reflect_create_session forwards no args and resolves to a session id', async () => {
+    mockInvoke('reflect_create_session', async () => 'sess-new-1');
+    const id = await reflect_create_session();
+    expect(id).toBe('sess-new-1');
   });
 
   it('reflect_rename_session encodes newName (camelCase); delete forwards { id } only', async () => {

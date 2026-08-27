@@ -10,6 +10,14 @@
   color: var(--success);
 }
 
+.currentActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .currentLabel {
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
@@ -120,4 +128,11 @@
 
 .wsSep {
   opacity: 0.5;
+}
+
+.wsActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
 }

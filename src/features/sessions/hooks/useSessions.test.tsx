@@ -147,6 +147,42 @@ describe('useSessions', () => {
   });
 });
 
+describe('useSessions workspace 过滤 (v1.x workspace→session 归属)', () => {
+  it('omitted workspace lists everything (workspace: null on the wire)', async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    mockInvoke('reflect_list_sessions', async (_c, args) => {
+      seen.push((args as Record<string, unknown>) ?? {});
+      return [];
+    });
+
+    renderHook(() => useSessions(), { wrapper: hookWrapper });
+
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0), { timeout: 2000 });
+    expect(seen[0]).toEqual({ workspace: null, limit: null, offset: null });
+  });
+
+  it('passes workspacePath through and re-fetches on workspace switch', async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    mockInvoke('reflect_list_sessions', async (_c, args) => {
+      seen.push((args as Record<string, unknown>) ?? {});
+      return [];
+    });
+
+    const { rerender } = renderHook(
+      ({ ws }: { ws: string | null }) => useSessions({ workspacePath: ws }),
+      { wrapper: hookWrapper, initialProps: { ws: '/tmp/proj-a' } },
+    );
+
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0), { timeout: 2000 });
+    expect(seen[0]).toEqual({ workspace: '/tmp/proj-a', limit: null, offset: null });
+
+    // 切换工作区 → queryKey 变化 → 自动重拉(旧缓存不串台)。
+    rerender({ ws: '/tmp/proj-b' });
+    await waitFor(() => expect(seen.length).toBe(2), { timeout: 2000 });
+    expect(seen[1]).toEqual({ workspace: '/tmp/proj-b', limit: null, offset: null });
+  });
+});
+
 describe('useActiveSession', () => {
   beforeEach(() => {
     __mockPathname.current = '/chat';

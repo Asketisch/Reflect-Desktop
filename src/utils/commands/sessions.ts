@@ -1,5 +1,5 @@
 /**
- * Session I/O —— 列表 / 回放 / 重命名 / 删除 / 导出。
+ * Session I/O —— 列表 / 回放 / 重命名 / 删除 / 归档 / 导出。
  *
  * `ReflectRolloutRecord` 故意采用 `Record<string, unknown>` 形态,
  * 因为 Rust 端返回的是按协议判别的联合类型;TS 视图见
@@ -17,14 +17,35 @@ export interface ReflectMarkdownExportResult {
   bytes: number;
 }
 
-/** 分页获取会话列表。`limit` 与 `offset` 均可选。 */
+/**
+ * 分页获取会话列表。`limit` 与 `offset` 均可选。
+ *
+ * `workspace` 为当前工作区绝对路径时只返回归属该工作区的会话;
+ * `null` / 省略 → 全量(含未归属旧会话)。
+ */
 export async function reflect_list_sessions(
-  opts: { limit?: number; offset?: number } = {},
+  opts: { workspace?: string | null; limit?: number; offset?: number } = {},
 ): Promise<ReflectSessionInfo[]> {
   return invoke<ReflectSessionInfo[]>('reflect_list_sessions', {
+    workspace: opts.workspace ?? null,
     limit: opts.limit ?? null,
     offset: opts.offset ?? null,
   });
+}
+
+/** 预分配一个新会话 id(前端路由用)。workspace 归属由首条提交携带。 */
+export async function reflect_create_session(): Promise<string> {
+  return invoke<string>('reflect_create_session');
+}
+
+/**
+ * 把后端 AgentThread 绑到指定 session id(ChatView 挂载时调用)。
+ *
+ * 后端幂等:同 id 二次 bind 直接短路。未知 id(磁盘无对应 JSONL,
+ * 如刚由 `reflect_create_session` 分配)走空历史分支,不报错。
+ */
+export async function reflect_bind_session(id: string): Promise<void> {
+  return invoke<void>('reflect_bind_session', { id });
 }
 
 /** 按 id 重命名已有会话。 */
@@ -35,6 +56,27 @@ export async function reflect_rename_session(id: string, new_name: string): Prom
 /** 按 id 删除已有会话。 */
 export async function reflect_delete_session(id: string): Promise<void> {
   return invoke<void>('reflect_delete_session', { id });
+}
+
+/** 按 id 归档会话（文件移出 sessions 树，列表/回放不再命中）。 */
+export async function reflect_archive_session(id: string): Promise<void> {
+  return invoke<void>('reflect_archive_session', { id });
+}
+
+/** 按 id 恢复已归档会话（沿原相对路径搬回）。 */
+export async function reflect_unarchive_session(id: string): Promise<void> {
+  return invoke<void>('reflect_unarchive_session', { id });
+}
+
+/**
+ * 列出已归档会话。`workspace` 过滤语义与 `reflect_list_sessions` 一致。
+ */
+export async function reflect_list_archived_sessions(
+  workspace?: string | null,
+): Promise<ReflectSessionInfo[]> {
+  return invoke<ReflectSessionInfo[]>('reflect_list_archived_sessions', {
+    workspace: workspace ?? null,
+  });
 }
 
 /** 回放会话:返回原始事件所产生的 rollout record 流。 */

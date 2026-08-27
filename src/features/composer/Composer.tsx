@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ArrowUp, SlashSquare, Image as ImageIcon, FileText, AtSign } from 'lucide-react';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { SlashPopup } from './SlashPopup';
@@ -9,6 +9,7 @@ import { MentionPicker } from './MentionPicker';
 import { usePromptHistory } from './usePromptHistory';
 import { useComposerInput } from './useComposerInput';
 import { useComposerSubmission } from './useComposerSubmission';
+import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { useI18n } from '@/utils/i18n';
 import s from './Composer.module.css';
 
@@ -18,12 +19,14 @@ export function Composer() {
   const [slashVisible, setSlashVisible] = useState(false);
   const [slashQuery, setSlashQuery] = useState('');
   const [busy, setBusy] = useState(false);
-  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionVisible, setMentionVisible] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachments = useAttachments();
   const history = usePromptHistory('default');
+  const { currentWorkspace } = useCurrentWorkspace();
 
   const focus = useCallback(() => textareaRef.current?.focus(), []);
   const doSubmit = useComposerSubmission({
@@ -34,6 +37,7 @@ export function Composer() {
     setBusy,
     setSlashVisible,
     focus,
+    currentWorkspace,
   });
   const { onChange, onKeyDown } = useComposerInput({
     text,
@@ -42,6 +46,9 @@ export function Composer() {
     slashVisible,
     setSlashVisible,
     setSlashQuery,
+    mentionVisible,
+    setMentionVisible,
+    setMentionQuery,
     history,
     submit: () => void doSubmit(),
   });
@@ -63,11 +70,6 @@ export function Composer() {
     setSlashVisible(false);
   }, []);
 
-  const mentionQuery = useMemo(() => {
-    const match = text.match(/(?:^|\s)@(\w*)$/);
-    return match ? match[1] : '';
-  }, [text]);
-
   const onPickImage = useCallback((files: FileList | null) => {
     if (!files) return;
     Array.from(files).forEach((file) => {
@@ -85,6 +87,42 @@ export function Composer() {
     Array.from(files).forEach((file) => attachments.addLocalImage(`(file) ${file.name}`));
   }, [attachments]);
 
+  const onPickMention = useCallback(
+    (relPath: string) => {
+      // 1. 清除 textarea 末尾的 `@<query>` 片段（保留前导空白）
+      setText((prev) => prev.replace(/(^|\s)@[^@\s]*$/, '$1'));
+      // 2. 把文件加进 attachments（待发列表）
+      attachments.addFileMention(relPath);
+      setMentionVisible(false);
+      focus();
+    },
+    [attachments, focus],
+  );
+
+  const onMentionButton = useCallback(() => {
+    // 工具栏 `@` 按钮：在末尾追加 `@`（必要时补前导空格）并**直接**打开弹层。
+    // 直接 setState 不触发 onChange，MENTION_QUERY 不会重算 ——
+    // 因此这里显式 setMentionVisible(true)（后续输入会由 onChange 接管）。
+    setText((prev) => {
+      const needsSpace = prev.length > 0 && !/\s$/.test(prev);
+      const next = `${prev}${needsSpace ? ' ' : ''}@`;
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.selectionStart = el.selectionEnd = next.length;
+        }
+      });
+      return next;
+    });
+    setMentionVisible(true);
+    setMentionQuery('');
+  }, []);
+
+  const workspaceLabel = currentWorkspace
+    ? `@ ${currentWorkspace.split('/').filter(Boolean).pop() ?? currentWorkspace}`
+    : undefined;
+
   const canSend = !busy && (Boolean(text.trim()) || attachments.attachments.length > 0);
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
   const sendHint = isMac ? t('composer.sendHintMac') : t('composer.sendHintOther');
@@ -93,13 +131,11 @@ export function Composer() {
     <div className={s.wrap}>
       <SlashPopup query={slashQuery} visible={slashVisible} onSelect={onSlashSelect} />
       <MentionPicker
-        visible={mentionOpen}
+        visible={mentionVisible}
         query={mentionQuery}
-        onPick={(name) => {
-          attachments.addSkillMention(name);
-          setMentionOpen(false);
-        }}
-        onClose={() => setMentionOpen(false)}
+        workspaceLabel={workspaceLabel}
+        onPickFile={onPickMention}
+        onClose={() => setMentionVisible(false)}
       />
 
       <input
@@ -186,15 +222,11 @@ export function Composer() {
                 <Icon icon={ImageIcon} size={14} />
               </IconButton>
             </Tooltip>
-            <Tooltip label={t('composer.toolbar.mentionSkill')} side="top">
+            <Tooltip label={t('composer.toolbar.mentionFile')} side="top">
               <IconButton
-                label={t('composer.toolbar.mentionSkill')}
+                label={t('composer.toolbar.mentionFile')}
                 size="sm"
-                onClick={() => {
-                  setText((value) => `${value} @`);
-                  setMentionOpen(true);
-                  focus();
-                }}
+                onClick={onMentionButton}
                 data-testid="composer-attach-mention"
               >
                 <Icon icon={AtSign} size={14} />

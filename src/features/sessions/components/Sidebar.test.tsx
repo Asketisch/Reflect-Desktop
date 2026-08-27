@@ -2,7 +2,7 @@
  * Vitest — Sidebar 组件测试。
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Sidebar } from '@/features/sessions/components/Sidebar';
 import type { SessionBucket } from '@/features/sessions/utils/buckets';
 
@@ -112,5 +112,32 @@ describe('Sidebar', () => {
     const refreshBtn = container.querySelector('button[title="Refresh"]') as HTMLButtonElement;
     refreshBtn.click();
     expect(onRefresh).toHaveBeenCalled();
+  });
+
+  it('renders kebab menu with archive action when handlers provided', async () => {
+    const onArchive = vi.fn().mockResolvedValue(undefined);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { container } = render(
+      <Sidebar
+        buckets={sample}
+        loading={false}
+        error={null}
+        activeId={null}
+        onSelect={vi.fn()}
+        onRefresh={vi.fn()}
+        onRename={vi.fn().mockResolvedValue(undefined)}
+        onDelete={vi.fn().mockResolvedValue(undefined)}
+        onExport={vi.fn().mockResolvedValue(null)}
+        onArchive={onArchive}
+      />,
+    );
+    // 无 handlers 时不渲染 kebab（上面用例已隐式覆盖）；这里应存在。
+    const kebab = container.querySelector('[data-testid="session-kebab-s1"]') as HTMLButtonElement;
+    expect(kebab).toBeDefined();
+    kebab.click();
+    const archiveBtn = await screen.findByTestId('session-archive-s1');
+    fireEvent.click(archiveBtn);
+    await waitFor(() => expect(onArchive).toHaveBeenCalledWith('s1'));
+    confirmSpy.mockRestore();
   });
 });

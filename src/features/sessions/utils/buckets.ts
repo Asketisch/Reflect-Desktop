@@ -53,7 +53,11 @@ export function bucketSessions(sessions: ReflectSessionInfo[], now: number = Dat
   }));
 }
 
-/** 解析显示名(后端 `SessionInfo` 只有 `session_id`,所以固定用 id 前 8 字符)。 */
-export function displayTitle(session: Pick<ReflectSessionInfo, 'session_id'>): string {
-  return session.session_id.slice(0, 8);
+/**
+ * 解析显示名:优先用后端派生的会话标题(`SessionInfo.title` ——
+ * 自定义名或首条 user 消息预览);无标题时回退 id 前 8 字符。
+ */
+export function displayTitle(session: Pick<ReflectSessionInfo, 'session_id' | 'title'>): string {
+  const title = session.title?.trim();
+  return title ? title : session.session_id.slice(0, 8);
 }

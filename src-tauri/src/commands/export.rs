@@ -39,6 +39,7 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
                 session_id: _,
                 model,
                 started_at: _,
+                workspace: _,
             } => {
                 if !session_meta_emitted {
                     out.push_str(&format!("**model**: `{model}`\n\n"));

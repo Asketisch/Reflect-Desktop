@@ -2,7 +2,12 @@
  * TitleBar —— 贯通全宽的顶栏（macOS Overlay 标题栏）。
  *
  * 关键设计：
- *   - 根元素挂 `data-tauri-drag-region` —— 整条顶栏可拖动窗口。
+ *   - 根元素挂 `data-tauri-drag-region="deep"` —— 整条顶栏（含标题文本等
+ *     子树）可拖动窗口。Tauri 的 drag.js 会自动豁免 button/a/input 等可
+ *     点击元素，toggle 按钮不受影响。
+ *   - 拖拽生效依赖 capabilities 的 `core:window:allow-start-dragging` 权限
+ *     （`core:window:default` 只含只读 getter，不含该命令 —— 缺权限时
+ *     `start_dragging` IPC 被 ACL 拒绝，窗口拖不动）。
  *   - 高度 = `--titlebar-height` token（40px，macOS 标准）。
  *   - 左侧 `--traffic-light-gutter` (80px) padding 为红绿灯按钮让位。
  *   - 内容：sidebar toggle + 当前 view 标题 + session 状态 / 右侧 permission + inspector toggle。
@@ -94,19 +99,13 @@ export function TitleBar({
       : t('shell.sessionWaiting');
 
   return (
-    // data-tauri-drag-region：让整条顶栏可拖动窗口。
-    // 内部的 button/a/input 由 base.css 的 `[data-tauri-drag-region] button { no-drag }` 自动豁免，
-    // 保证 sidebar/inspector toggle 仍可点击。
-    // onMouseDown 兜底：target 不是 button 时 preventDefault，避免 webview
-    // 抢焦点（focus 文本）打断 native drag 行为。
+    // data-tauri-drag-region="deep"：子树内任意非交互元素命中都触发拖动；
+    // drag.js 自动跳过 button/a/input（isClickableElement），toggle 仍可点击，
+    // 并在命中时自行 preventDefault 防止文本选中抢焦点。
     <header
       className={s.bar}
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       data-testid="titlebar"
-      onMouseDown={(e) => {
-        if (e.target instanceof HTMLElement && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
-        e.preventDefault();
-      }}
     >
       <div className={s.left}>
         <Tooltip label={sidebarOpen ? t('shell.hideSidebar') : t('shell.showSidebar')} side="bottom">

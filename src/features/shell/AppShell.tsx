@@ -41,13 +41,17 @@ import { ModalStack } from '@/features/modals';
 import { CommandPalette } from '@/features/command-palette/CommandPalette';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
+import { reflect_create_session } from '@/utils/commands';
+import { useAgentStore } from '@/stores/agentStore';
 import { useThemeCycle } from './hooks/useThemeCycle';
 import { useCommandPaletteShortcut } from './hooks/useCommandPaletteShortcut';
 import { usePaletteActions } from './hooks/usePaletteActions';
+import { useCurrentWorkspace } from './hooks/useCurrentWorkspace';
 import s from './AppShell.module.css';
 
 export function AppShell() {
-  const sessions = useSessions();
+  const { currentWorkspace } = useCurrentWorkspace();
+  const sessions = useSessions({ workspacePath: currentWorkspace });
   const { activeId, setActiveId } = useActiveSession();
   const router = useRouter();
   const { t, tp } = useI18n();
@@ -67,9 +71,31 @@ export function AppShell() {
     setActiveId(id);
   };
 
+  // 新建会话:后端预分配 session id → navigate 到 /chat/<id>。
+  // workspace 归属不在这里落盘,由首条 submission 携带 `workspace`
+  // 触发后端写 `SessionMeta`(见 PROTOCOL_BRIDGE §2)。
   const handleNewChat = () => {
-    setActiveId(null);
-    void router.navigate({ to: '/chat' });
+    const pushToast = useAgentStore.getState().pushToast;
+    void reflect_create_session()
+      .then((id) => {
+        setActiveId(id);
+      })
+      .catch((e: unknown) => {
+        pushToast({
+          kind: 'error',
+          message: t('toast.newSessionFailed', { msg: e instanceof Error ? e.message : String(e) }),
+        });
+      });
+  };
+
+  // 删除 / 归档当前打开的会话后回到新对话视图，避免停留在已不存在的 session。
+  const handleDeleteSession = async (id: string) => {
+    await sessions.remove(id);
+    if (id === activeId) setActiveId(null);
+  };
+  const handleArchiveSession = async (id: string) => {
+    await sessions.archive(id);
+    if (id === activeId) setActiveId(null);
   };
 
   // palette action handlers (集中到 hook)
@@ -114,6 +140,10 @@ export function AppShell() {
               onSelect={handleSelect}
               onRefresh={sessions.refresh}
               onNewChat={handleNewChat}
+              onRename={sessions.rename}
+              onDelete={handleDeleteSession}
+              onExport={sessions.export}
+              onArchive={handleArchiveSession}
             />
           </aside>
         )}

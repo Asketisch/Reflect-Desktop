@@ -51,6 +51,7 @@ const slash: Record<string, StringEntry> = {
   'slash.threads.desc':        { en: 'Open threads view',                    'zh-CN': '打开会话视图' },
   'slash.exitPlan.desc':       { en: 'Exit plan mode',                       'zh-CN': '退出计划模式' },
   'slash.enterPlan.desc':      { en: 'Enter plan mode',                      'zh-CN': '进入计划模式' },
+  'slash.goal.desc':           { en: 'Enter goal mode (/goal clear to exit)', 'zh-CN': '进入目标模式（/goal clear 退出）' },
   'slash.vim.desc':            { en: 'Toggle vim mode',                      'zh-CN': '切换 vim 模式' },
   'slash.effort.desc':         { en: 'Set reasoning effort',                 'zh-CN': '设置 reasoning effort' },
   'slash.mode.desc':           { en: 'Cycle permission mode',                'zh-CN': '切换权限模式' },

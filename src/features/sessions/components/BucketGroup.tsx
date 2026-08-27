@@ -10,6 +10,11 @@ export interface BucketGroupProps {
   bucket: SessionBucket;
   activeId: string | null;
   onSelect: (id: string) => void;
+  /** 行级操作（可选）；透传给 SessionItem 的 kebab 菜单。 */
+  onRename?: (id: string, newName: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  onExport?: (id: string) => Promise<string | null>;
+  onArchive?: (id: string) => Promise<void>;
 }
 
 /** 内部 label → i18n key。 */
@@ -21,7 +26,15 @@ const BUCKET_LABEL_KEYS: Record<string, LocaleKey> = {
   'Older': 'sidebar.bucket.older',
 };
 
-export function BucketGroup({ bucket, activeId, onSelect }: BucketGroupProps) {
+export function BucketGroup({
+  bucket,
+  activeId,
+  onSelect,
+  onRename,
+  onDelete,
+  onExport,
+  onArchive,
+}: BucketGroupProps) {
   const { t } = useI18n();
   const labelKey = BUCKET_LABEL_KEYS[bucket.label];
   return (
@@ -34,6 +47,10 @@ export function BucketGroup({ bucket, activeId, onSelect }: BucketGroupProps) {
             session={sess}
             active={activeId === sess.session_id}
             onClick={() => onSelect(sess.session_id)}
+            onRename={onRename}
+            onDelete={onDelete}
+            onExport={onExport}
+            onArchive={onArchive}
           />
         ))}
       </div>

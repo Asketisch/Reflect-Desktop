@@ -32,6 +32,7 @@ import permissionMode from './permissionMode';
 import plan from './plan';
 import prompts from './prompts';
 import schedule from './schedule';
+import session from './session';
 import settings from './settings';
 import shell from './shell';
 import sidebar from './sidebar';
@@ -70,6 +71,7 @@ export const STRINGS: Record<string, StringEntry> = {
   ...plan,
   ...prompts,
   ...schedule,
+  ...session,
   ...settings,
   ...shell,
   ...sidebar,

@@ -1,4 +1,4 @@
-//! 核心 agent 桥接:`reflect_submit` / `reflect_interrupt` + 12 个 Op 命令。
+//! 核心 agent 桥接:`reflect_submit` / `reflect_interrupt` + 14 个 Op 命令。
 //!
 //! 每个 Op 命令构造一个 `Op`,经 `MinimalAgent::submit_op` 真正驱动 `AgentThread`。
 
@@ -30,7 +30,7 @@ pub async fn reflect_interrupt(agent: State<'_, MinimalAgent>) -> CommandResult<
     Ok(())
 }
 
-// ====== 12 个 Op 命令:构造 Op 经 submit_op 真正驱动 AgentThread ======
+// ====== 14 个 Op 命令:构造 Op 经 submit_op 真正驱动 AgentThread ======
 
 #[tauri::command]
 pub async fn reflect_compact(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
@@ -141,6 +141,34 @@ pub async fn reflect_cycle_permission_mode(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<String> {
     Ok(agent.submit_op(Op::CyclePermissionMode).await?)
+}
+
+// ====== 目标模式(v1.2 P1,reflect-goal 编排)======
+
+/// 进入目标模式:`Op::EnterGoalMode`。core 侧构造 `GoalController`,
+/// 后续每轮 turn 结束自校验,未完成则 steering 续作,完成则退出。
+///
+/// 前端 invoke 形态:`invoke<string>('reflect_enter_goal_mode', { goal, verifyCommand?, tokenBudget? })`。
+#[tauri::command]
+pub async fn reflect_enter_goal_mode(
+    agent: State<'_, MinimalAgent>,
+    goal: String,
+    verify_command: Option<String>,
+    token_budget: Option<u64>,
+) -> CommandResult<String> {
+    Ok(agent
+        .submit_op(Op::EnterGoalMode {
+            goal,
+            verify_command,
+            token_budget,
+        })
+        .await?)
+}
+
+/// 退出目标模式:`Op::ExitGoalMode`,停止自动续作。
+#[tauri::command]
+pub async fn reflect_exit_goal_mode(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+    Ok(agent.submit_op(Op::ExitGoalMode).await?)
 }
 
 // ====== 辅助:字符串 → 强类型 ======

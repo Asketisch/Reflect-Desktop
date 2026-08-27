@@ -40,9 +40,10 @@ export type EventMsgType =
   | 'agent_message_delta'
   | 'thinking_delta'
   | 'token_count'
-  // 工具 (2)
+  // 工具 (3)
   | 'tool_call_begin'
   | 'tool_call_end'
+  | 'tool_execution_request'
   // 审批 (1)
   | 'approval_request'
   // 用户提问 (2)
@@ -74,6 +75,7 @@ export type EventMsgType =
   | 'plan_ready'
   | 'plan_approved'
   | 'plan_rejected'
+  | 'plan_draft_updated'
   | 'plan_step'
   | 'permission_mode_changed'
   // 插件 / 配额
@@ -146,6 +148,22 @@ export interface ToolCallEndPayload {
   output: ToolOutput;
   is_error: boolean;
   elapsed_ms: number;
+}
+
+/**
+ * `tool_execution_request` —— v1.3 SDK:core 请求客户端本地执行其经
+ * `Op::RegisterTools` 注册的远程自定义工具,客户端以
+ * `Op::ToolExecutionResponse { call_id, output }` 回执(同 call_id 配对)。
+ * 仅 serve 模式会发出;Desktop 内嵌 AgentThread 不注册远程工具,
+ * 类型保穷尽但不渲染。payload 镜像 Rust `ToolExecutionRequestEvent`。
+ */
+export interface ToolExecutionRequestPayload {
+  /** 与 `Op::ToolExecutionResponse.call_id` 配对的请求标识(uuid)。 */
+  call_id: string;
+  /** 工具名(与 `RemoteToolSpec.name` 一致)。 */
+  tool: string;
+  /** LLM 发起的调用参数(已解析的 JSON 对象)。 */
+  args: Record<string, unknown>;
 }
 
 export interface ToolOutput {
@@ -302,6 +320,20 @@ export interface PlanRejectedPayload {
   reason?: string;
 }
 
+/**
+ * `plan_draft_updated` —— plan 草稿文件落盘后的覆盖式更新(可多次)。
+ * GUI 的用户决策路径走 `plan_ready` 弹窗;此事件仅用于草稿预览刷新
+ * (TUI 语义),payload 镜像 Rust `PlanDraftUpdatedEvent`。
+ */
+export interface PlanDraftUpdatedPayload {
+  /** 草稿源文件名(不含目录,如 `refactor.md`)。 */
+  draft_id: string;
+  /** plan markdown 全文。 */
+  markdown: string;
+  /** 草稿落盘绝对路径;后端 `Option` + skip_serializing_if,可能缺省。 */
+  path?: string;
+}
+
 export interface PermissionModeChangedPayload {
   from: PermissionMode;
   to: PermissionMode;
@@ -362,6 +394,7 @@ export interface EventMsgByType {
   // 工具
   tool_call_begin: ToolCallBeginPayload;
   tool_call_end: ToolCallEndPayload;
+  tool_execution_request: ToolExecutionRequestPayload;
   // 审批
   approval_request: ApprovalRequestPayload;
   ask_user_question: AskUserQuestionPayload;
@@ -391,6 +424,7 @@ export interface EventMsgByType {
   plan_ready: PlanReadyPayload;
   plan_approved: PlanApprovedPayload;
   plan_rejected: PlanRejectedPayload;
+  plan_draft_updated: PlanDraftUpdatedPayload;
   plan_step: PlanStepPayload;
   permission_mode_changed: PermissionModeChangedPayload;
   // 插件 / 配额

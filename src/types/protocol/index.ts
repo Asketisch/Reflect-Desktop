@@ -93,7 +93,7 @@ export {
 export type { ReflectSubmission } from './submission';
 
 // ----- UserInputItem -----
-export type { UserInputItem } from './item';
+export type { FileRange, UserInputItem } from './item';
 
 // ----- Question / Answer -----
 export type {

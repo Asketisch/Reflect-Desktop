@@ -11,6 +11,7 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { useAgentStore } from '@/stores/agentStore';
 import { reflect_replay_session, reflect_git_diff } from '@/utils/commands';
+import { reflect_bind_session } from '@/utils/commands/sessions';
 import { useUiPrefs } from '@/utils/uiPrefs';
 import type { ReflectRolloutRecord } from '@/utils/types';
 import { useI18n } from '@/utils/i18n';
@@ -36,25 +37,38 @@ export function ChatView() {
       setError(null);
       return;
     }
-    if (loadedSessionId === sessionId) {
-      setLoading(false);
-      setError(null);
-      return;
-    }
     const myId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
-    void reflect_replay_session(sessionId).then((records: ReflectRolloutRecord[]) => {
-      if (requestIdRef.current !== myId) return;
-      hydrateSession(sessionId, records);
-    }).catch((e: unknown) => {
+    // v1.x:先 bind(后端幂等,同 id 短路)再决定 hydrate。bind 保证后端
+    // AgentThread 落到本 session id(recorder + LLM 上下文),即使已水合
+    // 也必须先走一遍(早退前),Composer 发送才会续写本会话文件。
+    void reflect_bind_session(sessionId)
+      .then(() => {
+        if (requestIdRef.current !== myId) return null;
+        // 已水合同 id:bind 已完成,不再重复 replay。读 store 实时值而非
+        // 闭包快照 —— `loadedSessionId` 不能进 deps(水合成功后会让本
+        // effect 重跑第二遍:多余 bind + loading banner 闪断)。
+        if (useAgentStore.getState().loadedSessionId === sessionId) return null;
+        return reflect_replay_session(sessionId);
+      })
+      .then((records: ReflectRolloutRecord[] | null) => {
+        if (requestIdRef.current !== myId) return;
+        if (records) hydrateSession(sessionId, records);
+      })
+      .catch((e: unknown) => {
       if (requestIdRef.current !== myId) return;
       setError(e instanceof Error ? e.message : String(e));
     }).finally(() => {
       if (requestIdRef.current !== myId) return;
       setLoading(false);
     });
-  }, [sessionId, loadedSessionId, hydrateSession, clearSession]);
+    return () => {
+      // unmount / 换 session 时使在途请求作废,防止旧 replay 水合进
+      // 全局 store 污染新会话视图。
+      requestIdRef.current++;
+    };
+  }, [sessionId, hydrateSession, clearSession]);
 
   const isLoaded = !sessionId || loadedSessionId === sessionId;
 
@@ -92,16 +106,19 @@ export function ChatView() {
               const myId = ++requestIdRef.current;
               setError(null);
               setLoading(true);
-              void reflect_replay_session(sessionId).then((r) => {
-                if (requestIdRef.current !== myId) return;
-                hydrateSession(sessionId, r);
-              }).catch((e) => {
-                if (requestIdRef.current !== myId) return;
-                setError(String(e));
-              }).finally(() => {
-                if (requestIdRef.current !== myId) return;
-                setLoading(false);
-              });
+              // 与主加载序列同构:bind(幂等)→ replay → hydrate。
+              void reflect_bind_session(sessionId)
+                .then(() => reflect_replay_session(sessionId))
+                .then((r) => {
+                  if (requestIdRef.current !== myId) return;
+                  hydrateSession(sessionId, r);
+                }).catch((e: unknown) => {
+                  if (requestIdRef.current !== myId) return;
+                  setError(e instanceof Error ? e.message : String(e));
+                }).finally(() => {
+                  if (requestIdRef.current !== myId) return;
+                  setLoading(false);
+                });
             }}
           >
             {t('chat.retry')}

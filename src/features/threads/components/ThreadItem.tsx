@@ -2,13 +2,14 @@
  * ThreadItem —— 单个 thread 行（CSS Modules 版）。
  * 用 router Link，保留 data-active 契约。
  *
- * B3-03: kebab 菜单(⋯) — rename / export / delete。
+ * B3-03: kebab 菜单(⋯) — rename / export / archive / delete。
+ * 菜单本体是共享组件 `sessions/components/SessionItemMenu`。
  */
 import { useState, useRef, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { ReflectSessionInfo } from '@/utils/commands';
 import { chatLinkFor, shortTimestamp } from '../utils/threadLabels';
-import { ThreadItemMenu } from './ThreadItemMenu';
+import { SessionItemMenu } from '@/features/sessions/components/SessionItemMenu';
 import { useI18n } from '@/utils/i18n';
 import s from './ThreadItem.module.css';
 
@@ -19,6 +20,7 @@ export interface ThreadItemProps {
   onRename: (id: string, newName: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onExport: (id: string) => Promise<string | null>;
+  onArchive?: (id: string) => Promise<void>;
 }
 
 export function ThreadItem({
@@ -28,8 +30,9 @@ export function ThreadItem({
   onRename,
   onDelete,
   onExport,
+  onArchive,
 }: ThreadItemProps) {
-  const { tp } = useI18n();
+  const { tp, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const kebabRef = useRef<HTMLButtonElement | null>(null);
 
@@ -39,7 +42,7 @@ export function ThreadItem({
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node | null;
       if (kebabRef.current?.contains(target)) return;
-      const menuEl = document.querySelector(`[data-thread-menu="${session.session_id}"]`);
+      const menuEl = document.querySelector(`[data-session-menu="${session.session_id}"]`);
       if (menuEl?.contains(target)) return;
       setMenuOpen(false);
     };
@@ -75,7 +78,7 @@ export function ThreadItem({
         ref={kebabRef}
         type="button"
         className={s.kebab}
-        aria-label="Thread actions"
+        aria-label={t('threads.threadActions')}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         data-testid={`thread-kebab-${session.session_id}`}
@@ -88,7 +91,7 @@ export function ThreadItem({
         ⋯
       </button>
       {menuOpen && (
-        <ThreadItemMenu
+        <SessionItemMenu
           session={session}
           onRename={async (newName) => {
             await onRename(session.session_id, newName);
@@ -103,6 +106,14 @@ export function ThreadItem({
             setMenuOpen(false);
             return path;
           }}
+          onArchive={
+            onArchive
+              ? async () => {
+                  await onArchive(session.session_id);
+                  setMenuOpen(false);
+                }
+              : undefined
+          }
         />
       )}
     </li>

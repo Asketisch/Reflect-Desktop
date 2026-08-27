@@ -86,8 +86,18 @@ describe('bucketSessions', () => {
 });
 
 describe('displayTitle', () => {
-  it('returns the first 8 characters of the session_id', () => {
+  it('prefers the derived/custom title over the session_id', () => {
+    expect(displayTitle({ session_id: 'abcdef12-3456', title: '修复滚动条问题' })).toBe(
+      '修复滚动条问题',
+    );
+  });
+
+  it('falls back to the first 8 characters when title is missing', () => {
     expect(displayTitle({ session_id: 'abcdef12-3456' })).toBe('abcdef12');
+  });
+
+  it('falls back to the first 8 characters when title is blank', () => {
+    expect(displayTitle({ session_id: 'abcdef12-3456', title: '   ' })).toBe('abcdef12');
   });
 
   it('returns full id when shorter than 8 chars', () => {

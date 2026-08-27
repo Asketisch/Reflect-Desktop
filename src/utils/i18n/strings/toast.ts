@@ -8,6 +8,7 @@ import type { StringEntry } from '../types';
 
 const toast: Record<string, StringEntry> = {
   'toast.newSession':         { en: 'New session started.',              'zh-CN': '已开启新会话。' },
+  'toast.newSessionFailed':   { en: 'New session failed: {msg}',         'zh-CN': '创建会话失败: {msg}' },
   'toast.noSessionsToClear':  { en: 'No sessions to clear.',             'zh-CN': '没有可清空的会话。' },
   'toast.deleteFailed':       { en: 'Delete failed: {msg}',              'zh-CN': '删除失败: {msg}' },
   'toast.clearedSessions':    { en: 'Cleared {count} session{plural}.',  'zh-CN': '已清除 {count} 个会话。' },

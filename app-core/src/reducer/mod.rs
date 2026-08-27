@@ -85,7 +85,13 @@ pub fn apply_event(mut state: RenderState, event: Event) -> RenderState {
 
         // 协议层新增的 event variant,Desktop reducer 暂无专门处理逻辑;
         // 显式列出并 no-op,避免 match 非穷尽编译错误,后续按需接入渲染。
-        EventMsg::PlanStep(_) | EventMsg::PluginLoaded(_) | EventMsg::QuotaExhausted(_) | EventMsg::PlanDraftUpdated(_) => {}
+        // ToolExecutionRequest 仅 serve 模式(客户端经 Op::RegisterTools 注册
+        // 远程工具)会发出;Desktop 内嵌 AgentThread,不注册远程工具,故 no-op。
+        EventMsg::PlanStep(_)
+        | EventMsg::PluginLoaded(_)
+        | EventMsg::QuotaExhausted(_)
+        | EventMsg::PlanDraftUpdated(_)
+        | EventMsg::ToolExecutionRequest(_) => {}
     }
 
     state

@@ -92,6 +92,20 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
       };
     case 'exit-plan':
       return { kind: 'submit_with_submission', submission: 'exit_plan_mode', message: 'Exiting plan mode…' };
+    case 'goal': {
+      const goalText = parsed.args.join(' ').trim();
+      if (!goalText) {
+        return { kind: 'reject', message: '/goal <description> — or /goal clear to exit' };
+      }
+      if (goalText === 'clear') {
+        return { kind: 'submit_with_submission', submission: 'exit_goal_mode', message: 'Exiting goal mode…' };
+      }
+      return {
+        kind: 'submit_with_submission',
+        submission: 'enter_goal_mode',
+        message: `Goal mode: ${goalText}`,
+      };
+    }
     case 'effort': {
       const level = parsed.args[0]?.toLowerCase();
       if (!level || !['low', 'medium', 'high'].includes(level)) {
