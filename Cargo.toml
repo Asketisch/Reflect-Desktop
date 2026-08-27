@@ -58,6 +58,7 @@ reflect-stream      = { path = "reflect-agent/crates/integrations/reflect-stream
 
 # runtime 层
 reflect-core = { path = "reflect-agent/crates/runtime/reflect-core" }
+reflect      = { path = "reflect-agent/crates/runtime/reflect" }
 
 # Desktop 自有共享层(UI 无关应用层,Tauri 与未来其它 runtime 复用)
 reflect-app-core    = { path = "app-core" }

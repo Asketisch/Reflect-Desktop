@@ -21,6 +21,9 @@ tauri                       = { version = "2", features = ["tray-icon", "macos-p
 # tokio-util:CancellationToken 公开 getter(state.rs::cancel_token)需要 sync 模块。
 tokio-util                  = { workspace = true }
 tauri-plugin-global-shortcut = "2"
+# 原生目录选择对话框（WorkspacesView「打开项目目录」），仅 Rust 侧调用，
+# 不经 JS IPC，因此无需 dialog capability。
+tauri-plugin-dialog          = "2"
 serde                       = { workspace = true }
 serde_json                  = { workspace = true }
 serde_yaml                  = { workspace = true }
@@ -43,6 +46,10 @@ reflect-hooks               = { workspace = true }
 # 阶段 3d:MCP / LSP 运行时接入。
 reflect-mcp                 = { workspace = true }
 reflect-lsp                 = { workspace = true }
+# v1.x 会话持久化:`reflect::m4_bootstrap::build_default_m4` 给 GUI 接
+# 完整 M4(skills/memory/compaction/notes),与 CLI/TUI 行为对齐。仅依赖
+# tokio,无 pyo3/hyper 等重 crate。
+reflect                     = { workspace = true }
 # 多 agent 协调:Task/Team/Coordinator(reflect-agent/crates/orchestration/reflect-task 已实现 TaskManager 全套 API)。
 # Phase 1 暴露命令面;UI 与 hook/event_sink 注入留后续阶段。
 reflect-task                = { workspace = true }
@@ -79,3 +86,4 @@ tauri-build = { workspace = true }
 [dev-dependencies]
 tokio-util = { workspace = true }
 tempfile = "3"
+chrono = { workspace = true }
