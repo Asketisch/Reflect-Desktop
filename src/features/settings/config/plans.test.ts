@@ -152,6 +152,49 @@ describe('upsertPlan / removePlan', () => {
     expect(block).toContain('label = "num"');
   });
 
+  it('应用序列化的 credentials = [] 必须先剥离再追加(否则保存被后端拒绝)', () => {
+    // `toml::to_string_pretty` 把空 Vec 写成内联 `credentials = []`;
+    // TOML 不允许同 key 既是普通数组又被 [[...]] 扩展 —— 不剥离的话
+    // reflect_save_config 的 load_from_str 拒绝整份配置。
+    const serialized = `[active]
+provider = "anthropic"
+
+[anthropic]
+api_key = "sk-top"
+base_url = "https://api.stepfun.com/step_plan"
+model = "step-3.7-flash"
+timeout_secs = 300
+credentials = []
+`;
+    const next = upsertPlan(serialized, {
+      provider: 'anthropic',
+      topLevel: false,
+      label: 'glm',
+      apiKey: 'sk-glm',
+      baseUrl: '',
+      model: 'glm-4.6',
+      weight: '',
+      quota: null,
+    });
+    expect(next).not.toMatch(/^credentials\s*=\s*\[\s*\]/m);
+    expect(next).toContain('[[anthropic.credentials]]');
+    expect(next).toContain('label = "glm"');
+    // 回读闭环:隐式 default + 新 plan 都可见。
+    expect(listPlans(next).map((p) => p.label)).toEqual(['default', 'glm']);
+    // 其他段的 credentials = [] 不受牵连(只剥目标 provider 段)。
+    const withOpenai = upsertPlan(`${serialized}[openai]\napi_key = "k"\ncredentials = []\n`, {
+      provider: 'anthropic',
+      topLevel: false,
+      label: 'glm2',
+      apiKey: 'sk-g2',
+      baseUrl: '',
+      model: '',
+      weight: '',
+      quota: null,
+    });
+    expect(withOpenai).toMatch(/^credentials = \[\]/m); // openai 段的保留
+  });
+
   it('topLevel plan 写回 [provider] 段', () => {
     const next = upsertPlan(SAMPLE, {
       provider: 'openai',

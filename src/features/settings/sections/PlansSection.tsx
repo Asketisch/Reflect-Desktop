@@ -50,6 +50,10 @@ import s from '../SettingsView.module.css';
 export interface PlansSectionProps {
   rawToml: string;
   onChange: (next: string) => void;
+  /** 把变更立即落盘（reflect_save_config → 后端校验 + 热重载 provider 栈）。
+   *  Plans 页的每个操作（保存/删除/设为默认）都是完整意图，不应要求用户
+   *  再去点页面底部的总保存按钮 —— 否则模型选择器读到的仍是旧配置。 */
+  onCommit?: (next: string) => void;
 }
 
 interface FormState {
@@ -92,7 +96,7 @@ interface QuotaQueryState {
   snapshot: PlanQuotaSnapshot | null;
 }
 
-export function PlansSection({ rawToml, onChange }: PlansSectionProps) {
+export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps) {
   const { t } = useI18n();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [showKey, setShowKey] = useState(false);
@@ -151,6 +155,7 @@ export function PlansSection({ rawToml, onChange }: PlansSectionProps) {
     // session_configured.context_window_size；空值 = 清除覆盖）。
     if (model) next = setContextWindowForModel(next, model, form.maxContext.trim());
     onChange(next);
+    onCommit?.(next);
     setForm(EMPTY_FORM);
   };
 
@@ -172,7 +177,9 @@ export function PlansSection({ rawToml, onChange }: PlansSectionProps) {
   };
 
   const onDelete = (plan: PlanEntry) => {
-    onChange(removePlan(rawToml, plan.provider, plan.label));
+    const next = removePlan(rawToml, plan.provider, plan.label);
+    onChange(next);
+    onCommit?.(next);
     if (form.editingLabel === plan.label) setForm(EMPTY_FORM);
   };
 
@@ -284,7 +291,11 @@ export function PlansSection({ rawToml, onChange }: PlansSectionProps) {
             className={s.permCard}
             data-active={provider === activeProvider || undefined}
             data-testid={`provider-default-${provider}`}
-            onClick={() => onChange(setActiveProvider(rawToml, provider))}
+            onClick={() => {
+              const next = setActiveProvider(rawToml, provider);
+              onChange(next);
+              onCommit?.(next);
+            }}
           >
             <div className={s.permCardHeader}>
               <Badge variant={provider === activeProvider ? 'success' : 'neutral'} solid>

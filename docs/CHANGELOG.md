@@ -4,6 +4,32 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — Coding plan 保存后无法选择/切换模型
+
+- **「保存 Plan」写盘被后端拒绝（根因）**：`reflect_get_config` 返回的
+  TOML 由 `toml::to_string_pretty` 序列化,空凭证池被写成段内内联
+  `credentials = []`;前端追加 plan 是在文件末尾加 `[[provider.credentials]]`
+  块 —— TOML 不允许同一 key 既是普通数组又被数组表扩展,
+  `load_from_str` 拒绝整份保存（"Cannot mutate immutable namespace"）。
+  凡是配置被应用序列化过一轮的用户,添加 plan 必然失败。修复:
+  追加首个块前剥离 `[provider]` 段内的内联 `credentials` 行
+  （`credentials` 带 `#[serde(default)]`,删除后缺省合法;其他段的
+  内联值不受牵连）。
+- **「保存 Plan」只改内存不落盘**：Plans 页的保存 Plan / 删除 /
+  设为默认三个操作此前只更新设置页内存中的 TOML 草稿,必须再点页面
+  底部「保存到 ~/.reflect/config.toml」才真正写盘 —— 漏点的话后端
+  config 从未更新,模型选择器与 Models 页读到的永远是旧配置。
+  现在三个操作即时落盘（reflect_save_config → 后端校验 + 热重载
+  provider 栈）,失败原因经设置页错误条展示。
+- **Models 页「设为默认」只切 provider 不切模型**：同 provider 下的
+  多个 plan(如顶层 api_key 隐式 default + 自建的 credentials 条目)
+  此前全部被标成「当前默认」且按钮禁用,无法切换;且切换只写
+  `[active].provider`,段级模型名不变,实际使用的模型不变。改为按
+  plan 粒度判定(provider + 段级模型名一致才算默认),切换走
+  `reflect_set_model`(同时写 provider 与模型名,热重载 + 强制重绑)。
+- **Composer 模型选择器切换失败静默**：`reflect_set_model` 被后端
+  拒绝时此前无任何反馈,现以 toast 展示原因。
+
 ### 修复 — 全量 diff review 发现的八处缺陷
 
 - **Files 页 Reject 时序竞态**：单块拒绝后,`invalidateQueries` 的

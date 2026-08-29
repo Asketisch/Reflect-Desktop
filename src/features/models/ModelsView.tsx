@@ -3,8 +3,11 @@
  *
  * 数据源:reflect_agent_status + reflect_set_effort。
  * v1.x coding plan:追加「编码计划」区 —— 从 config 解析 plan 列表,
- * 一键切换默认供应商(写 `[active].provider` → reflect_save_config,
- * 后端热重载 provider 栈,无需重启)。
+ * 一键把某个 plan 设为默认(走 reflect_set_model:写 `[active].provider`
+ * + `[<provider>].model` 段级模型 → 后端热重载 provider 栈,无需重启)。
+ * 判定与切换都必须落到 plan 粒度:同 provider 下有多个 plan 时仅凭
+ * provider 无法区分,且只切 provider 不写模型名的话,实际使用的模型
+ * 根本不会变。
  */
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,8 +15,8 @@ import { Cpu, Folder, AlertTriangle, CheckCircle2, Zap } from 'lucide-react';
 import {
   reflect_agent_status,
   reflect_get_config,
-  reflect_save_config,
   reflect_set_effort,
+  reflect_set_model,
 } from '@/utils/commands';
 import { reflect_get_effort } from '@/utils/commands/permissions';
 import { Card, Badge, Button, Icon, SegmentedControl, EmptyState } from '@/features/design-system';
@@ -22,8 +25,9 @@ import {
   listPlans,
   maskKey,
   readActiveProvider,
-  setActiveProvider,
+  type PlanEntry,
 } from '@/features/settings/config/plans';
+import { readField } from '@/features/settings/config/schema';
 import s from './ModelsView.module.css';
 
 const REASONING_EFFORTS = ['low', 'medium', 'high'] as const;
@@ -75,10 +79,13 @@ export function ModelsView() {
     },
   });
 
-  // 一键切换默认供应商:改 `[active].provider` → 保存(后端热重载 provider 栈)。
+  // 一键把某个 plan 设为默认:reflect_set_model 写 `[active].provider` +
+  // `[<provider>].model` 段级模型(plan 无 model = 清除覆盖,回落 provider
+  // 内置默认),后端热重载 provider 栈并强制重绑当前会话。只改 provider
+  // 不写模型名的话,同 provider 的多个 plan 切换后实际模型不变。
   const switchProviderMutation = useMutation({
-    mutationFn: async ({ toml, provider }: { toml: string; provider: string }) =>
-      reflect_save_config(setActiveProvider(toml, provider as 'anthropic' | 'openai')),
+    mutationFn: async ({ key, provider, model }: { key: string; provider: string; model: string }) =>
+      reflect_set_model(provider, model).then((spec) => ({ key, spec })),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agent-status'] });
       qc.invalidateQueries({ queryKey: ['config'] });
@@ -91,6 +98,12 @@ export function ModelsView() {
 
   const status = statusQuery.data;
   const hasModel = Boolean(status?.has_model);
+
+  /** plan 是否就是当前默认:provider 生效 且 段级模型名与该 plan 一致
+   *  (段级为空时只有 model 为空的隐式 default plan 算默认)。仅按
+   *  provider 判定会把同端口的全部 plan 都标成「当前默认」并禁用按钮。 */
+  const isDefaultPlan = (plan: PlanEntry): boolean =>
+    plan.provider === activeProvider && readField(toml, plan.provider, 'model') === plan.model;
 
   return (
     <div className={s.root}>
@@ -150,7 +163,7 @@ export function ModelsView() {
         ) : (
           <div className={s.planList}>
             {plans.map((plan) => {
-              const isDefault = plan.provider === activeProvider;
+              const isDefault = isDefaultPlan(plan);
               return (
                 <Card key={`${plan.provider}/${plan.label}`} level="outlined" padding="md" className={s.planCard}>
                   <div className={s.planMain}>
@@ -173,9 +186,16 @@ export function ModelsView() {
                     variant={isDefault ? 'ghost' : 'primary'}
                     size="sm"
                     disabled={isDefault || switchProviderMutation.isPending}
-                    loading={switchProviderMutation.isPending && switchProviderMutation.variables?.provider === plan.provider}
+                    loading={
+                      switchProviderMutation.isPending &&
+                      switchProviderMutation.variables?.key === `${plan.provider}/${plan.label}`
+                    }
                     onClick={() =>
-                      switchProviderMutation.mutate({ toml, provider: plan.provider })
+                      switchProviderMutation.mutate({
+                        key: `${plan.provider}/${plan.label}`,
+                        provider: plan.provider,
+                        model: plan.model,
+                      })
                     }
                   >
                     {isDefault ? t('models.planIsDefault') : t('models.planSetDefault')}

@@ -40,6 +40,7 @@ export function ComposerControls() {
   const { t } = useI18n();
   const permissionMode = useAgentStore((st) => st.permissionMode);
   const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
+  const pushToast = useAgentStore((st) => st.pushToast);
 
   const [plans, setPlans] = useState<PlanEntry[]>([]);
   const [activeProvider, setActiveProvider] = useState('');
@@ -88,8 +89,13 @@ export function ComposerControls() {
         const spec = await reflect_set_model(target.provider, value.slice('model:'.length));
         setCurrentSpec(spec);
         setActiveProvider(target.provider);
-      } catch {
-        /* 切换失败保持现状 */
+      } catch (e) {
+        // 静默吞错会让「点了没反应」无法诊断 —— 后端拒绝(如未知
+        // provider / 配置非法)必须可见。
+        pushToast({
+          kind: 'error',
+          message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
+        });
       } finally {
         setSwitching(false);
       }
@@ -102,8 +108,11 @@ export function ComposerControls() {
       const spec = await reflect_set_model(plan.provider, plan.model);
       setCurrentSpec(spec);
       setActiveProvider(plan.provider);
-    } catch {
-      /* 切换失败保持现状 —— 错误经后端事件/toast 链路呈现 */
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
     } finally {
       setSwitching(false);
     }

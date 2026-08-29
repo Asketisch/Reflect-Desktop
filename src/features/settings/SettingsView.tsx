@@ -167,7 +167,16 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
         )}
 
         {section === 'plans' && (
-          <PlansSection rawToml={rawToml} onChange={setRawToml} />
+          <PlansSection
+            rawToml={rawToml}
+            onChange={setRawToml}
+            // Plans 页操作即时落盘：仅改内存 state 的话，后端 config 不变，
+            // 模型选择器 / Models 页读到的仍是旧配置（「保存了却选不到」）。
+            onCommit={(next) => {
+              setRawToml(next);
+              saveMutation.mutate(next);
+            }}
+          />
         )}
 
         {section === 'permissions' && (

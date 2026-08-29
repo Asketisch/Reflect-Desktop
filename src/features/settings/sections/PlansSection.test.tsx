@@ -43,9 +43,13 @@ quota = { window_secs = 3600, max_tokens = 120000, check_via = "zhipu" }
 api_key = "sk-oai-1234"
 `;
 
-function renderSection(rawToml: string, onChange = vi.fn()) {
-  render(<I18nProvider><PlansSection rawToml={rawToml} onChange={onChange} /></I18nProvider>);
-  return { onChange };
+function renderSection(rawToml: string, onChange = vi.fn(), onCommit = vi.fn()) {
+  render(
+    <I18nProvider>
+      <PlansSection rawToml={rawToml} onChange={onChange} onCommit={onCommit} />
+    </I18nProvider>,
+  );
+  return { onChange, onCommit };
 }
 
 describe('PlansSection', () => {
@@ -67,17 +71,22 @@ describe('PlansSection', () => {
     expect(screen.getAllByText('default').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('点击非默认供应商卡片 → onChange 写入 [active].provider', () => {
+  it('点击非默认供应商卡片 → onChange/onCommit 写入 [active].provider', () => {
     const onChange = vi.fn();
-    renderSection(SAMPLE_TOML, onChange);
+    const onCommit = vi.fn();
+    renderSection(SAMPLE_TOML, onChange, onCommit);
     fireEvent.click(screen.getByTestId('provider-default-openai'));
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(readActiveProvider(onChange.mock.calls[0][0] as string)).toBe('openai');
+    // 落盘回调收到同一份 TOML（「保存了却选不到模型」的回归锚）。
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls[0][0]).toBe(onChange.mock.calls[0][0]);
   });
 
-  it('填写表单保存 → onChange 追加新的 [[provider.credentials]] 块', () => {
+  it('填写表单保存 → onChange/onCommit 追加新的 [[provider.credentials]] 块', () => {
     const onChange = vi.fn();
-    renderSection(SAMPLE_TOML, onChange);
+    const onCommit = vi.fn();
+    renderSection(SAMPLE_TOML, onChange, onCommit);
     fireEvent.change(screen.getByPlaceholderText('e.g. glm-coding-plan'), {
       target: { value: 'minimax-plan' },
     });
@@ -87,15 +96,20 @@ describe('PlansSection', () => {
     const next = onChange.mock.calls[0][0] as string;
     expect(next).toContain('label = "minimax-plan"');
     expect(next).toContain('api_key = "sk-mm"');
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls[0][0]).toBe(next);
   });
 
   it('删除计划 → onChange 移除对应块', () => {
     const onChange = vi.fn();
-    renderSection(SAMPLE_TOML, onChange);
+    const onCommit = vi.fn();
+    renderSection(SAMPLE_TOML, onChange, onCommit);
     const glmCard = screen.getByText('glm-plan').closest('div[class*="providerCard"]') as HTMLElement;
     fireEvent.click(within(glmCard).getByText('Delete'));
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange.mock.calls[0][0] as string).not.toContain('glm-plan');
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls[0][0]).toBe(onChange.mock.calls[0][0]);
   });
 
   it('自动切换开关写入 localStorage 偏好', () => {

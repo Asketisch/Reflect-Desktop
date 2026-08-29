@@ -125,7 +125,11 @@ export function upsertPlan(toml: string, plan: PlanEntry): string {
   if (existing) {
     return replaceSpan(toml, existing.start, existing.end, block);
   }
-  return `${toml.replace(/\s*$/, '')}\n\n${block.join('\n')}\n`;
+  // 追加首个块前必须剥离 `[provider]` 段内应用序列化产生的内联
+  // `credentials = []`：TOML 不允许同一 key 既是普通数组又被
+  // `[[provider.credentials]]` 扩展，否则后端 load_from_str 拒绝整份
+  // 保存（表现为「保存 Plan 失败、模型列表里永远看不到新 plan」）。
+  return `${stripInlineCredentials(toml, plan.provider).replace(/\s*$/, '')}\n\n${block.join('\n')}\n`;
 }
 
 /** 删除 plan。topLevel 条目删除 `[provider].api_key`；数组条目删除整个块。 */
@@ -193,6 +197,34 @@ export function setContextWindowForModel(toml: string, model: string, tokens: st
 
 const HEADER_RE = /^\[\[([^\]]+)\]\]\s*$/;
 const SUBTABLE_RE = /^\[([^\]]+)\]\s*$/;
+
+/**
+ * 剥离 `[provider]` 段内的内联 `credentials = ...` 行。
+ *
+ * `toml::to_string_pretty(&ReflectConfig)` 会把空 `Vec` 序列化为
+ * `credentials = []`；TOML v1.0 规范不允许同一 key 既是普通数组又被
+ * `[[provider.credentials]]` 数组表扩展（toml crate 报
+ * "Cannot mutate immutable namespace"）。追加首个 credentials 块前调用；
+ * 后端 `credentials` 带 `#[serde(default)]`，删除后缺省合法。
+ */
+function stripInlineCredentials(toml: string, provider: PlanProvider): string {
+  const sectionHeader = `[${provider}]`;
+  let inSection = false;
+  const out: string[] = [];
+  for (const line of toml.split('\n')) {
+    const trimmed = line.trim();
+    // 任何表头（`[x]` / `[[x]]`）都会终结 `[provider]` 段的直接体；
+    // 子表 `[provider.credentials.quota]` 同样不在剥离范围。
+    if (HEADER_RE.test(trimmed) || SUBTABLE_RE.test(trimmed)) {
+      inSection = trimmed === sectionHeader;
+      out.push(line);
+      continue;
+    }
+    if (inSection && /^credentials\s*=/.test(trimmed)) continue;
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 /** 解析 `[[provider.credentials]]` 数组条目（含 `[provider.credentials.quota]` 子表）。 */
 function listCredentialPlans(toml: string, provider: PlanProvider): PlanEntry[] {

@@ -54,6 +54,7 @@ const composer: Record<string, StringEntry> = {
   'composer.controls.apiModelsGroup':        { en: 'Models from API',                               'zh-CN': '接口模型列表' },
   'composer.controls.modelNone':             { en: 'No model configured',                           'zh-CN': '未配置模型' },
   'composer.controls.modelConfigureHint':    { en: 'Configure a provider in Settings → Provider first.', 'zh-CN': '请先在 设置 → Provider 中配置供应商。' },
+  'composer.controls.switchFailed':          { en: 'Model switch failed: {msg}',                    'zh-CN': '切换模型失败：{msg}' },
   'composer.controls.effort':                { en: 'Effort',                                        'zh-CN': '思考' },
   'composer.controls.effortAria':            { en: 'Reasoning effort',                              'zh-CN': '思考深度' },
   'composer.controls.permissionAria':        { en: 'Permission mode',                               'zh-CN': '权限模式' },
