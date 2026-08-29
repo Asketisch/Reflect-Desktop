@@ -178,8 +178,14 @@ describe('chat full conversation flow (real app mount)', () => {
     await waitFor(() => expect(screen.getByRole('log').textContent).toContain('first reply'));
     await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
 
-    // 用户立刻发第二条 —— 旧编排被抢占，不再产生事件。
+    // 用户立刻发第二条 —— turn 仍在运行，消息进入前端待发送队列
+    // （不发后端、不进消息流 turns）。
     await typeAndSend('second');
+    await screen.findByTestId('queued-messages');
+    expect(backend.agent.submissions.length).toBe(1);
+
+    // 「立即发送」直接提交 —— 旧编排被抢占，不再产生事件。
+    fireEvent.click(screen.getByTestId('queued-send-0'));
     await waitFor(() => expect(backend.agent.submissions.length).toBe(2));
     const log = screen.getByRole('log');
     await waitFor(() => expect(log.textContent).toContain('second'));

@@ -4,14 +4,17 @@
  * - useQuery 缓存 `reflect_list_sessions` 结果(5min staleTime)
  * - useMutation 处理 rename / delete / archive → invalidate → 自动重刷
  * - 时间分桶规则已抽出到 `./utils/buckets.ts`(纯函数,可独立测试)
+ * - 项目目录分组规则在 `./utils/workspaceGroups.ts`(侧边栏消费)
  */
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import {
   reflect_list_sessions,
   reflect_list_archived_sessions,
+  reflect_list_workspaces,
   reflect_rename_session,
+  reflect_generate_session_title,
   reflect_delete_session,
   reflect_archive_session,
   reflect_unarchive_session,
@@ -19,16 +22,22 @@ import {
   type ReflectSessionInfo,
 } from '@/utils/commands';
 import { bucketSessions, type SessionBucket } from '../utils/buckets';
+import { groupSessionsByWorkspace, type WorkspaceSessionGroup } from '../utils/workspaceGroups';
 
 export type { SessionBucket };
 
 export const SESSIONS_QUERY_KEY = ['sessions'] as const;
 /** `['sessions', 'archived']` 是 `['sessions']` 的子键,主列表 invalidate 时一并失效。 */
 export const ARCHIVED_SESSIONS_QUERY_KEY = ['sessions', 'archived'] as const;
+/** 与 WorkspacesView 共用同一查询键：set_workspace 后的 invalidate 两边都生效。 */
+export const WORKSPACES_QUERY_KEY = ['workspaces'] as const;
 const SESSIONS_STALE_MS = 5 * 60_000;
 
 export interface UseSessionsResult {
+  /** 时间分桶（HomeView / ThreadsView 使用）。 */
   buckets: SessionBucket[];
+  /** 项目目录分组（侧边栏使用）；未归属旧会话归入哨兵分组。 */
+  groups: WorkspaceSessionGroup[];
   all: ReflectSessionInfo[];
   archived: ReflectSessionInfo[];
   loading: boolean;
@@ -36,6 +45,8 @@ export interface UseSessionsResult {
   refetch: () => void;
   refresh: () => void;
   rename: (id: string, newName: string) => Promise<void>;
+  /** AI 生成/重新生成会话标题（force=true 覆盖旧 AI 标题）。 */
+  generateTitle: (id: string, force?: boolean) => Promise<string>;
   remove: (id: string) => Promise<void>;
   archive: (id: string) => Promise<void>;
   unarchive: (id: string) => Promise<void>;
@@ -65,8 +76,18 @@ export function useSessions(
     queryFn: () => reflect_list_archived_sessions(),
     staleTime: SESSIONS_STALE_MS,
   });
+  // 已知项目注册表（~/.reflect/workspaces.json）：空项目组也进侧边栏。
+  const { data: knownWorkspaces = [] } = useQuery({
+    queryKey: WORKSPACES_QUERY_KEY,
+    queryFn: () => reflect_list_workspaces(),
+    staleTime: SESSIONS_STALE_MS,
+  });
 
   const buckets = bucketSessions(all);
+  const groups = useMemo(
+    () => groupSessionsByWorkspace(all, knownWorkspaces),
+    [all, knownWorkspaces],
+  );
 
   const renameMutation = useMutation({
     mutationFn: async ({ id, newName }: { id: string; newName: string }) =>
@@ -75,6 +96,19 @@ export function useSessions(
       qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
     },
   });
+
+  const generateTitleMutation = useMutation({
+    mutationFn: async ({ id, force }: { id: string; force: boolean }) =>
+      reflect_generate_session_title(id, force),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+    },
+  });
+
+  const generateTitle = useCallback(
+    (id: string, force = false) => generateTitleMutation.mutateAsync({ id, force }),
+    [generateTitleMutation],
+  );
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => reflect_delete_session(id),
@@ -122,6 +156,7 @@ export function useSessions(
 
   return {
     buckets,
+    groups,
     all,
     archived,
     loading: isLoading,
@@ -133,6 +168,7 @@ export function useSessions(
       void refetch();
     },
     rename,
+    generateTitle,
     remove,
     archive,
     unarchive,

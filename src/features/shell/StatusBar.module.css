@@ -77,3 +77,8 @@
 .themeBtn:hover {
   color: var(--text-primary);
 }
+
+/* 上下文占比 ≥80% 转 warning 色（与 ContextUsage 一致）。 */
+.itemMuted[data-warn] {
+  color: var(--warning);
+}

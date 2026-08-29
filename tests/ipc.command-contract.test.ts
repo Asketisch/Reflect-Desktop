@@ -46,7 +46,10 @@ describe('IPC command contract (exhaustive parity)', () => {
     const src = backendSource();
     const frontendNames = Object.keys(commands).filter((k) => k.startsWith('reflect_'));
     expect(frontendNames.length).toBeGreaterThanOrEqual(100);
-    const orphans = frontendNames.filter((n) => !src.includes(`pub async fn ${n}`));
+    // 同步 `pub fn` 与 `pub async fn` 均为合法后端命令（如 dock badge）。
+    const orphans = frontendNames.filter(
+      (n) => !src.includes(`pub async fn ${n}`) && !src.includes(`pub fn ${n}`),
+    );
     expect(orphans).toEqual([]);
   });
 

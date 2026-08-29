@@ -4,11 +4,14 @@
  * 契约：主行 button 元素 + aria-pressed（active 反馈）。
  * 传入任一操作 handler 时行尾显示悬停 kebab（⋯）菜单
  * （rename / export / archive / delete，见 SessionItemMenu）。
+ * 多选模式（selectable）：行首显示勾选框，点击行/勾选框均切换选中、
+ * 不触发导航，kebab 隐藏（批量删除由 Sidebar 的选择条承担）。
  */
 import { memo, useState, useRef, useEffect } from 'react';
 import type { ReflectSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { displayTitle } from '../utils/buckets';
+import { basename } from '../utils/workspaceGroups';
 import { SessionItemMenu } from './SessionItemMenu';
 import s from './SessionItem.module.css';
 
@@ -16,20 +19,40 @@ export interface SessionItemProps {
   session: ReflectSessionInfo;
   active: boolean;
   onClick: () => void;
+  /** meta 行是否显示归属项目（项目分组视图下由组头承担，可关）。 */
+  showWorkspace?: boolean;
   onRename?: (id: string, newName: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onExport?: (id: string) => Promise<string | null>;
   onArchive?: (id: string) => Promise<void>;
+  onGenerateTitle?: (id: string) => Promise<string>;
+  /** 置顶态与切换（可选；置顶行标题前显示 📍 标记）。 */
+  pinned?: boolean;
+  onTogglePin?: (id: string) => void;
+  /** 归档列表行：菜单「归档」位切换为「恢复」（onArchive 实际接 unarchive）。 */
+  archivedRow?: boolean;
+  /** 多选删除（可选）：显示勾选框并参与选中集合。 */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 function SessionItemImpl({
   session,
   active,
   onClick,
+  showWorkspace = true,
   onRename,
   onDelete,
   onExport,
   onArchive,
+  onGenerateTitle,
+  pinned,
+  onTogglePin,
+  archivedRow,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: SessionItemProps) {
   const { t } = useI18n();
   const hasActions = Boolean(onRename && onDelete && onExport);
@@ -59,26 +82,50 @@ function SessionItemImpl({
 
   const title = displayTitle(session);
   // workspace 归属:basename 显示在 meta 行,hover 显示全路径;
-  // 旧会话(workspace 为 null)显示「未归属」。
+  // 旧会话(workspace 为 null)显示「未归属」;项目分组视图下由组头承担,可关。
   const wsLabel = session.workspace ? basename(session.workspace) : t('session.noWorkspace');
+  // 多选模式：整行点击 = 切换选中（不导航），kebab 隐藏。
+  const rowAction = selectable ? () => onToggleSelect?.(session.session_id) : onClick;
   return (
-    <div className={s.row}>
+    <div className={s.row} data-selected={selectable && selected ? 'true' : undefined}>
+      {selectable && (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={title || session.session_id}
+          className={s.checkbox}
+          data-checked={selected || undefined}
+          data-testid={`session-select-${session.session_id}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleSelect?.(session.session_id);
+          }}
+        >
+          {selected ? '✓' : ''}
+        </button>
+      )}
       <button
-        onClick={onClick}
+        onClick={rowAction}
         aria-pressed={active}
         className={s.item}
         data-active={active || undefined}
       >
-        <div className={s.title}>{title || t('sidebar.untitled')}</div>
+        <div className={s.title}>{pinned ? `📍 ${title || t('sidebar.untitled')}` : title || t('sidebar.untitled')}</div>
         <div className={s.meta}>
-          <span className={s.workspace} title={session.workspace ?? undefined}>
-            {wsLabel}
-          </span>
-          <span className={s.metaSep}>·</span>
+          {showWorkspace && (
+            <>
+              <span className={s.workspace} title={session.workspace ?? undefined}>
+                {wsLabel}
+              </span>
+              <span className={s.metaSep}>·</span>
+            </>
+          )}
           <span>{session.message_count} msgs</span>
         </div>
       </button>
-      {hasActions && (
+      {hasActions && !selectable && (
         <button
           ref={kebabRef}
           type="button"
@@ -116,16 +163,29 @@ function SessionItemImpl({
                 }
               : undefined
           }
+          onGenerateTitle={
+            onGenerateTitle
+              ? async () => {
+                  const title = await onGenerateTitle(session.session_id);
+                  setMenuOpen(false);
+                  return title;
+                }
+              : undefined
+          }
+          pinned={pinned}
+          onTogglePin={
+            onTogglePin
+              ? () => {
+                  onTogglePin(session.session_id);
+                  setMenuOpen(false);
+                }
+              : undefined
+          }
+          archivedRow={archivedRow}
         />
       )}
     </div>
   );
-}
-
-/** workspace 绝对路径 → 末段目录名(显示用;hover 仍展示全路径)。 */
-function basename(p: string): string {
-  const parts = p.replace(/\/$/, '').split('/');
-  return parts[parts.length - 1] || p;
 }
 
 export const SessionItem = memo(SessionItemImpl);

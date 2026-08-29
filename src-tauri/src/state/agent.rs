@@ -72,7 +72,13 @@ pub(crate) struct MinimalAgentInner {
     /// v1.x 会话持久化:`install_agent_thread` 一次性构造好的共享 ModelRegistry。
     /// `rebind_session` 重建 AgentThread 时复用(provider clients 昂贵,
     /// 不每次重建);注册到 inner 后 `construct_thread` 直接读。
+    /// v1.x coding plan:`reflect_save_config` 保存 provider 相关段变更时
+    /// 会整体重建并热替换(见 `state/reload.rs`),新计划无需重启生效。
     pub(crate) model_registry: ParkingMutex<Option<SharedModelRegistry>>,
+    /// coding plan 配额追踪器:遍历 config `[[<provider>.credentials]].quota`
+    /// 声明构建(见 `state/quota.rs`)。`None` = 未声明任何配额(向后兼容)。
+    /// 与 `model_registry` 同生命周期:install 时构建,provider 段变更时重建。
+    pub(crate) quota_tracker: ParkingMutex<Option<reflect_llm::SharedQuotaTracker>>,
     /// v1.x 会话持久化:当前绑定的 session id(`None` = install 后的占位
     /// thread,首条消息时会重建并写入首个真正 id)。
     /// rebind_session 比较短路;命令层通过 `bound_session_id()` 读取。
@@ -81,6 +87,8 @@ pub(crate) struct MinimalAgentInner {
     /// 否则 driver 任务被 `CronDriverHandle::drop` 立即 abort(cron 永远
     /// 不触发)。rebind_session 时 `stop` 旧 driver + 用新 sender 重启。
     pub(crate) cron_driver: ParkingMutex<Option<reflect_stream::cron::CronDriverHandle>>,
+    /// LSP 连接管理器(按工作区由用户手动开启;None = 未启用)。
+    pub(crate) lsp_manager: ParkingMutex<Option<std::sync::Arc<reflect_lsp::LspConnectionManager>>>,
 }
 
 /// agent 诊断快照 —— 给前端显示状态徽标(ready / 是否有 API key / 模型 / 工作区)。
@@ -146,8 +154,10 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         activity_logger,
         squad_manager,
         model_registry: ParkingMutex::new(None),
+        quota_tracker: ParkingMutex::new(None),
         bound_session_id: ParkingMutex::new(None),
         cron_driver: ParkingMutex::new(None),
+        lsp_manager: ParkingMutex::new(None),
     }
 }
 

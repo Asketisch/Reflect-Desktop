@@ -15,6 +15,11 @@ export interface ThreadBucketGroupProps {
   onDelete: (id: string) => Promise<void>;
   onExport: (id: string) => Promise<string | null>;
   onArchive?: (id: string) => Promise<void>;
+  onGenerateTitle?: (id: string) => Promise<string>;
+  /** 多选删除：勾选框渲染与选中集合（可选）。 */
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 export function ThreadBucketGroup({
@@ -25,6 +30,10 @@ export function ThreadBucketGroup({
   onDelete,
   onExport,
   onArchive,
+  onGenerateTitle,
+  selectable,
+  selectedIds,
+  onToggleSelect,
 }: ThreadBucketGroupProps) {
   return (
     <section className={s.group} data-bucket={bucket.label}>
@@ -40,6 +49,10 @@ export function ThreadBucketGroup({
             onDelete={onDelete}
             onExport={onExport}
             onArchive={onArchive}
+            onGenerateTitle={onGenerateTitle}
+            selectable={selectable}
+            selected={selectedIds?.has(sess.session_id) ?? false}
+            onToggleSelect={onToggleSelect}
           />
         ))}
       </ul>

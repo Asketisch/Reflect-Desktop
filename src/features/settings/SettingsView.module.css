@@ -448,3 +448,70 @@
   border-radius: var(--radius-xs);
   color: var(--text-muted);
 }
+
+/* ====== 编码计划（PlansSection） ====== */
+
+.planMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.planMeta code {
+  font-family: var(--font-mono);
+  background: var(--bg-input);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.planUrl {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  overflow-wrap: anywhere;
+}
+
+.planActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* 「查询余量」结果行（成功为分段指标，失败为错误文本） */
+.planQuotaResult {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.planQuotaResult[data-failed] {
+  color: var(--danger);
+}
+
+.permCard[data-active] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/* 模型字段 + 「拉取模型列表」按钮一行排布;提示行展示成功数量或错误 */
+.modelFetchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.fetchHint {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fetchHint[data-failed] {
+  color: var(--danger);
+}

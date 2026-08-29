@@ -16,13 +16,17 @@
 //! 表现为新会话视图里的瞬态气泡,见风险表)。
 
 use reflect_llm::ChatMessage;
-use reflect_protocol::ThreadId;
+use reflect_protocol::{PermissionMode, ThreadId};
 use tracing::{debug, warn};
 
 use super::thread_factory::construct_thread;
 use super::MinimalAgent;
 
 /// 把 agent 的 AgentThread 换绑到指定 session id(带 preload 历史)。
+///
+/// `initial_mode` 为 `Some` 时作为新线程的会话级 PermissionMode
+/// (来自该 session JSONL 审计轨迹的末次 `PermissionModeChanged`),
+/// 实现模式随会话恢复;`None` 落默认 Auto。
 ///
 /// 必须在 tokio 上下文调用(`AgentThread::new` 内部 `tokio::spawn`)。
 ///
@@ -35,12 +39,38 @@ pub(crate) fn rebind_session(
     agent: &MinimalAgent,
     sid: ThreadId,
     preload: Vec<ChatMessage>,
+    initial_mode: Option<PermissionMode>,
+) -> anyhow::Result<()> {
+    rebind_session_inner(agent, sid, preload, initial_mode, false)
+}
+
+/// 强制重绑:跳过同 id 短路,无条件重建线程。
+///
+/// coding plan 热切换路径(`state/reload.rs::hot_reload_provider_stack`)
+/// 使用:provider 相关配置变更后,当前绑定会话必须换到新 registry/tracker
+/// 上,否则新计划要到下次切换会话才生效。`initial_mode` 传旧线程当前
+/// 模式,保证热重载不重置权限模式。
+pub(crate) fn rebind_session_forced(
+    agent: &MinimalAgent,
+    sid: ThreadId,
+    preload: Vec<ChatMessage>,
+    initial_mode: Option<PermissionMode>,
+) -> anyhow::Result<()> {
+    rebind_session_inner(agent, sid, preload, initial_mode, true)
+}
+
+fn rebind_session_inner(
+    agent: &MinimalAgent,
+    sid: ThreadId,
+    preload: Vec<ChatMessage>,
+    initial_mode: Option<PermissionMode>,
+    force: bool,
 ) -> anyhow::Result<()> {
     if !agent.model_registry_ready() {
         anyhow::bail!("agent 未安装或 registry 未就绪");
     }
-    // 同 id 短路(允许 ChatView 在已水合时仍调 bind)。
-    if agent.bound_session_id() == Some(sid) {
+    // 同 id 短路(允许 ChatView 在已水合时仍调 bind);forced 变体跳过。
+    if !force && agent.bound_session_id() == Some(sid) {
         debug!("rebind_session: {sid} 已是当前绑定,短路");
         return Ok(());
     }
@@ -67,8 +97,9 @@ pub(crate) fn rebind_session(
         old_driver.stop();
     }
 
-    // 2. 构造新 thread(recorder 绑定新 sid,preload 注入历史)。
-    let thread = construct_thread(agent, Some(sid), preload)?;
+    // 2. 构造新 thread(recorder 绑定新 sid,preload 注入历史,
+    //    initial_mode 恢复会话级权限模式)。
+    let thread = construct_thread(agent, Some(sid), preload, initial_mode)?;
 
     // 3. 单次赋值换槽 — `agent_status().ready` 不闪断(None 中间态不外露)。
     *agent.inner.thread.lock() = Some(thread.clone());
@@ -115,7 +146,7 @@ mod tests {
         agent.install_agent_thread();
         assert!(agent.bound_session_id().is_none(), "install 不绑定 id");
         let sid = reflect_protocol::ThreadId::new();
-        rebind_session(&agent, sid, vec![]).expect("rebind 不应失败");
+        rebind_session(&agent, sid, vec![], None).expect("rebind 不应失败");
         assert_eq!(agent.bound_session_id(), Some(sid));
         assert!(
             agent.inner.thread.lock().is_some(),
@@ -129,9 +160,9 @@ mod tests {
         let agent = MinimalAgent::new_empty();
         agent.install_agent_thread();
         let sid = reflect_protocol::ThreadId::new();
-        rebind_session(&agent, sid, vec![]).unwrap();
+        rebind_session(&agent, sid, vec![], None).unwrap();
         let thread1 = agent.inner.thread.lock().clone();
-        rebind_session(&agent, sid, vec![]).unwrap();
+        rebind_session(&agent, sid, vec![], None).unwrap();
         let thread2 = agent.inner.thread.lock().clone();
         assert!(
             Arc::ptr_eq(thread1.as_ref().unwrap(), thread2.as_ref().unwrap()),
@@ -144,7 +175,7 @@ mod tests {
     async fn rebind_before_install_fails() {
         let agent = MinimalAgent::new_empty();
         let sid = reflect_protocol::ThreadId::new();
-        assert!(rebind_session(&agent, sid, vec![]).is_err());
+        assert!(rebind_session(&agent, sid, vec![], None).is_err());
         assert!(agent.bound_session_id().is_none());
     }
 
@@ -162,7 +193,7 @@ mod tests {
         let original_id = job.id.clone();
 
         let sid = reflect_protocol::ThreadId::new();
-        rebind_session(&agent, sid, vec![]).unwrap();
+        rebind_session(&agent, sid, vec![], None).unwrap();
         // 重建 scheduler / 重启 driver 后,job 列表应仍含同一 id。
         let after_ids: Vec<String> = agent
             .cron_scheduler()
@@ -174,6 +205,31 @@ mod tests {
         assert!(
             after_ids.contains(&original_id),
             "job id 必须在 rebind 后保留"
+        );
+    }
+
+    /// `initial_mode = Some` 时新线程必须带上该会话级 PermissionMode
+    /// (模式随会话恢复,而非落回全局默认 Auto)。
+    #[tokio::test]
+    async fn rebind_restores_initial_permission_mode() {
+        let agent = MinimalAgent::new_empty();
+        agent.install_agent_thread();
+        let sid = reflect_protocol::ThreadId::new();
+        rebind_session(&agent, sid, vec![], Some(PermissionMode::Plan)).unwrap();
+        let thread = agent.inner.thread.lock().clone().unwrap();
+        assert_eq!(
+            thread.config().permission_mode(),
+            PermissionMode::Plan,
+            "rebind 必须把 initial_mode 应用到新线程"
+        );
+        // 对照:None → 默认 Auto。
+        let sid2 = reflect_protocol::ThreadId::new();
+        rebind_session(&agent, sid2, vec![], None).unwrap();
+        let thread2 = agent.inner.thread.lock().clone().unwrap();
+        assert_eq!(
+            thread2.config().permission_mode(),
+            PermissionMode::Auto,
+            "initial_mode 缺省时新线程落默认 Auto"
         );
     }
 }

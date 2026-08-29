@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, RootRoute, Router } from '@tanstack/react-router';
 import React, { useEffect } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
+import { useEditorStore } from '@/stores/editorStore';
 import { ModalStack } from '@/features/modals';
 import { AppShell } from '@/features/shell/AppShell';
 import { I18nProvider } from '@/utils/i18n';
@@ -20,6 +21,7 @@ import { ThreadsView } from '@/features/threads/ThreadsView';
 import { ModelsView } from '@/features/models/ModelsView';
 import { FilesView } from '@/features/files/FilesView';
 import { GitView } from '@/features/git/GitView';
+import { PullRequestsView } from '@/features/git/PullRequestsView';
 import { SkillsView } from '@/features/skills/SkillsView';
 import { WorkspacesView } from '@/features/workspaces/WorkspacesView';
 import { PlanView } from '@/features/plan/PlanView';
@@ -33,7 +35,6 @@ import { DebugView } from '@/features/debug/DebugView';
 import { DesignSystemView } from '@/features/design-system/DesignSystemView';
 import { DictationView } from '@/features/dictation/DictationView';
 import { MobileView } from '@/features/mobile/MobileView';
-import { UpdateView } from '@/features/update/UpdateView';
 import { MemoryView } from '@/features/memory/MemoryView';
 import { SearchView } from '@/features/files/SearchView';
 import { TasksBoardView } from '@/features/tasks-board/TasksBoardView';
@@ -45,6 +46,7 @@ import { KmsView } from '@/features/kms';
 import { AutopilotView } from '@/features/autopilot';
 import { SquadView } from '@/features/squad';
 import { MediaView } from '@/features/media';
+import { HooksView } from '@/features/hooks/HooksView';
 
 // ====== 路由树 (TanStack Router v1 API) ======
 
@@ -63,11 +65,12 @@ const modelsRoute = new Route({ getParentRoute: () => rootRoute, path: 'models',
 const skillsRoute = new Route({ getParentRoute: () => rootRoute, path: 'skills', component: SkillsView });
 const workspacesRoute = new Route({ getParentRoute: () => rootRoute, path: 'workspaces', component: WorkspacesView });
 const gitRoute = new Route({ getParentRoute: () => rootRoute, path: 'git', component: GitView });
+const pullsRoute = new Route({ getParentRoute: () => rootRoute, path: 'pulls', component: PullRequestsView });
+const hooksRoute = new Route({ getParentRoute: () => rootRoute, path: 'hooks', component: HooksView });
 const terminalRoute = new Route({ getParentRoute: () => rootRoute, path: 'terminal', component: TerminalView });
 const planRoute = new Route({ getParentRoute: () => rootRoute, path: 'plan', component: PlanView });
 const promptsRoute = new Route({ getParentRoute: () => rootRoute, path: 'prompts', component: PromptsView });
 const aboutRoute = new Route({ getParentRoute: () => rootRoute, path: 'about', component: AboutView });
-const updateRoute = new Route({ getParentRoute: () => rootRoute, path: 'update', component: UpdateView });
 const notificationsRoute = new Route({ getParentRoute: () => rootRoute, path: 'notifications', component: NotificationsView });
 const debugRoute = new Route({ getParentRoute: () => rootRoute, path: 'debug', component: DebugView });
 const appsRoute = new Route({ getParentRoute: () => rootRoute, path: 'apps', component: AppsView });
@@ -98,11 +101,12 @@ const routeTree = rootRoute.addChildren([
   skillsRoute,
   workspacesRoute,
   gitRoute,
+  pullsRoute,
+  hooksRoute,
   terminalRoute,
   planRoute,
   promptsRoute,
   aboutRoute,
-  updateRoute,
   notificationsRoute,
   debugRoute,
   appsRoute,
@@ -147,8 +151,14 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   // store.subscribe() 是幂等的(防止 React 18 StrictMode 双 mount 重复订阅)。
   // unmount 时清理(返回的 cleanup 调 unlisten + 标记未订阅)。
   useEffect(() => {
-    const unsubscribe = useAgentStore.getState().subscribe();
-    return unsubscribe;
+    const unsubscribeAgent = useAgentStore.getState().subscribe();
+    // editorStore 也订阅同一 agent event bus,把 tool_call_end 中的
+    // Diff 内容累计到 FilesView 的 pending 编辑列表(Cursor 式 review)。
+    const unsubscribeEditor = useEditorStore.getState().subscribe();
+    return () => {
+      unsubscribeAgent();
+      unsubscribeEditor();
+    };
   }, []);
   return <I18nProvider><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></I18nProvider>;
 }

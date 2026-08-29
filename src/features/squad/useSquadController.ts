@@ -23,6 +23,7 @@ import {
 } from '@/utils/commands/squad';
 import { reflect_list_tasks, type ReflectTask } from '@/utils/commands/tasks';
 import type { ReflectActor } from '@/utils/commands/activity';
+import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 
 export const SQUADS_QUERY_KEY = ['squads'] as const;
@@ -67,6 +68,7 @@ function leaderActor(name: string): ReflectActor {
 export function useSquadController(): SquadController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { t } = useI18n();
   const [selectedName, setSelectedName] = useState('');
   const [draftName, setDraftName] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
@@ -97,7 +99,7 @@ export function useSquadController(): SquadController {
       await reflect_create_squad(spec);
     },
     onSuccess: () => {
-      pushToast({ kind: 'success', message: `Squad "${draftName}" created` });
+      pushToast({ kind: 'success', message: t('squad.toastCreated', { name: draftName }) });
       qc.invalidateQueries({ queryKey: [...SQUADS_QUERY_KEY] });
       setDraftName('');
       setDraftDescription('');
@@ -110,7 +112,7 @@ export function useSquadController(): SquadController {
   const removeMut = useMutation({
     mutationFn: (name: string) => reflect_delete_squad(name),
     onSuccess: () => {
-      pushToast({ kind: 'success', message: 'Squad deleted' });
+      pushToast({ kind: 'success', message: t('squad.toastDeleted') });
       qc.invalidateQueries({ queryKey: [...SQUADS_QUERY_KEY] });
       if (selectedName) setSelectedName('');
     },
@@ -124,8 +126,8 @@ export function useSquadController(): SquadController {
     },
     onSuccess: (claimed) => {
       qc.invalidateQueries({ queryKey: [...SQUADS_QUERY_KEY, 'tasks', selectedName] });
-      if (claimed) pushToast({ kind: 'success', message: `Leader claimed task #${claimed.id}` });
-      else pushToast({ kind: 'warn', message: 'No pending task available' });
+      if (claimed) pushToast({ kind: 'success', message: t('squad.toastClaimed', { id: claimed.id }) });
+      else pushToast({ kind: 'warn', message: t('squad.toastNoPending') });
     },
     onError: (e) => pushToast({ kind: 'error', message: String(e) }),
   });
@@ -138,7 +140,7 @@ export function useSquadController(): SquadController {
       qc.invalidateQueries({ queryKey: [...SQUADS_QUERY_KEY, 'tasks', selectedName] });
       pushToast({
         kind: 'success',
-        message: vars.assignee ? `Assigned to ${vars.assignee}` : 'Assignment cleared',
+        message: vars.assignee ? t('squad.toastAssigned', { assignee: vars.assignee }) : t('squad.toastUnassigned'),
       });
     },
     onError: (e) => pushToast({ kind: 'error', message: String(e) }),

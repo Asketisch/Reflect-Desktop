@@ -1,0 +1,245 @@
+/**
+ * ComposerControls —— Composer 控制条（模型 / 思考深度 / 权限模式）。
+ *
+ * 渲染在输入卡片**下方**的独立一行（不在卡片内部），对标成熟 agent
+ * 桌面端：选择器贴近输入框，不必跳设置页或拼斜杠命令。
+ *
+ * - 模型：选项来自 coding plans（`reflect_get_config` 解析，与 ModelsView
+ *   同源）；切换走 `reflect_set_model`（后端改 `[active].provider` +
+ *   `[<provider>].model` → 热重载 provider 栈，协议不动）。
+ * - 思考深度：`reflect_get_effort` 回读 + `reflect_set_effort` 设置
+ *   （乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新）。
+ * - 权限模式：agentStore 的 `permissionMode`（有 `permission_mode_changed`
+ *   事件回读）+ `setPermissionMode`，提供 计划/询问/自动/Yolo 四个常用段。
+ *
+ * 数据获取用 useEffect + useState（同 ChatView 的 git diff 模式），
+ * 不引入 QueryClient 依赖，保证 Composer 在任意测试挂载环境可用。
+ */
+import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { reflect_agent_status, reflect_get_config, reflect_set_model } from '@/utils/commands/config';
+import { reflect_list_provider_models, type ProviderModelInfo } from '@/utils/commands/models';
+import { reflect_get_effort, reflect_set_effort } from '@/utils/commands/permissions';
+import { listPlans, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
+import { useAgentStore } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
+import s from './ComposerControls.module.css';
+
+const EFFORTS = ['low', 'medium', 'high'] as const;
+type Effort = (typeof EFFORTS)[number];
+
+/** 常用权限模式子集（完整 7 段仍在 Settings → Permissions）。 */
+const PERMISSION_SEGMENTS = [
+  { value: 'plan', labelKey: 'composer.controls.perm.plan', hintKey: 'composer.controls.planHint' },
+  { value: 'prompt', labelKey: 'composer.controls.perm.ask', hintKey: 'composer.controls.askHint' },
+  { value: 'accept_edits', labelKey: 'composer.controls.perm.auto', hintKey: 'composer.controls.autoHint' },
+  { value: 'bypass', labelKey: 'composer.controls.perm.yolo', hintKey: 'composer.controls.yoloHint' },
+] as const;
+
+export function ComposerControls() {
+  const { t } = useI18n();
+  const permissionMode = useAgentStore((st) => st.permissionMode);
+  const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
+
+  const [plans, setPlans] = useState<PlanEntry[]>([]);
+  const [activeProvider, setActiveProvider] = useState('');
+  const [currentSpec, setCurrentSpec] = useState('');
+  const [switching, setSwitching] = useState(false);
+  const [effort, setEffort] = useState<Effort>('low');
+  // 接口拉取的模型列表(挂在 planKey 上)+ 拉取状态。
+  const [apiModels, setApiModels] = useState<ProviderModelInfo[]>([]);
+  const [apiModelsFor, setApiModelsFor] = useState('');
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+
+  // 配置 + 当前模型快照（挂载时一次；模型切换成功后本地更新）。
+  useEffect(() => {
+    let cancelled = false;
+    reflect_get_config()
+      .then((toml) => {
+        if (cancelled) return;
+        setPlans(listPlans(toml));
+        setActiveProvider(readActiveProvider(toml));
+      })
+      .catch(() => {/* 配置不可读时隐藏模型选择 */});
+    reflect_agent_status()
+      .then((status) => {
+        if (!cancelled) setCurrentSpec(status.model);
+      })
+      .catch(() => {/* 状态不可读时显示占位 */});
+    reflect_get_effort()
+      .then((level) => {
+        if (!cancelled) setEffort(normalizeEffort(level));
+      })
+      .catch(() => {/* 回读失败保持默认 */});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onSwitchModel = async (value: string) => {
+    if (switching) return;
+    // 'model:<id>' = 从接口拉取的模型(挂到当前 active plan 的端口上)。
+    if (value.startsWith('model:')) {
+      const target = selectedPlan ?? plans.find((p) => p.provider === activeProvider);
+      if (!target) return;
+      setSwitching(true);
+      try {
+        const spec = await reflect_set_model(target.provider, value.slice('model:'.length));
+        setCurrentSpec(spec);
+        setActiveProvider(target.provider);
+      } catch {
+        /* 切换失败保持现状 */
+      } finally {
+        setSwitching(false);
+      }
+      return;
+    }
+    const plan = plans.find((p) => planKey(p) === value);
+    if (!plan) return;
+    setSwitching(true);
+    try {
+      const spec = await reflect_set_model(plan.provider, plan.model);
+      setCurrentSpec(spec);
+      setActiveProvider(plan.provider);
+    } catch {
+      /* 切换失败保持现状 —— 错误经后端事件/toast 链路呈现 */
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  /** 对当前 active plan 的 base_url + api_key 拉取可用模型列表。 */
+  const onFetchModels = async () => {
+    const plan = selectedPlan ?? plans.find((p) => p.provider === activeProvider);
+    if (!plan || !plan.apiKey.trim() || fetchingModels) return;
+    setFetchingModels(true);
+    setModelsError(null);
+    try {
+      const res = await reflect_list_provider_models(plan.baseUrl.trim(), plan.apiKey.trim(), plan.provider);
+      setApiModels(res.models);
+      setApiModelsFor(planKey(plan));
+    } catch (e) {
+      setModelsError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  const onSetEffort = (level: Effort) => {
+    setEffort(level);
+    void reflect_set_effort(level).catch(() => {
+      // 乐观更新失败回滚读不到真值 —— 保持所选，下次挂载会对齐。
+    });
+  };
+
+  const hasPlans = plans.length > 0;
+  // 选中态回退链：model 精确匹配 spec → activeProvider 下无 model 的隐式
+  // default plan → activeProvider 下第一个 plan（model 走 provider 默认）。
+  const specModel = currentSpec.includes('/') ? currentSpec.slice(currentSpec.indexOf('/') + 1) : '';
+  const selectedPlan =
+    plans.find((p) => p.provider === activeProvider && p.model === specModel) ??
+    plans.find((p) => p.provider === activeProvider && p.model === '') ??
+    plans.find((p) => p.provider === activeProvider);
+  // 接口模型列表只在归属 plan 仍被选中时显示(避免展示别的 plan 的列表)。
+  const showApiModels = apiModels.length > 0 && selectedPlan != null && apiModelsFor === planKey(selectedPlan);
+
+  /** 能力标记后缀:接口返回了明确信息才标注,未返回由用户自行判断。 */
+  const visionSuffix = (v: boolean | null) =>
+    v === true ? ` · ${t('common.visionTag')}` : v === false ? ` · ${t('common.noVisionTag')}` : '';
+
+  return (
+    <div className={s.controlsBar}>
+      <div className={s.left}>
+        <label className={s.control}>
+          <span className={s.controlLabel}>{t('composer.controls.model')}</span>
+          <span className={s.modelRow}>
+            <select
+              className={s.controlSelect}
+              value={selectedPlan ? planKey(selectedPlan) : ''}
+              disabled={!hasPlans || switching}
+              onChange={(event) => void onSwitchModel(event.target.value)}
+              aria-label={t('composer.controls.modelAria')}
+              data-testid="composer-model-select"
+              title={hasPlans ? currentSpec : t('composer.controls.modelConfigureHint')}
+            >
+              {!hasPlans && <option value="">{currentSpec || t('composer.controls.modelNone')}</option>}
+              {hasPlans && !selectedPlan && currentSpec && (
+                <option value="">{t('composer.controls.modelCurrent', { spec: currentSpec })}</option>
+              )}
+              {plans.map((plan) => (
+                <option key={planKey(plan)} value={planKey(plan)}>
+                  {plan.label} · {plan.model || plan.provider}
+                </option>
+              ))}
+              {showApiModels && (
+                <optgroup label={t('composer.controls.apiModelsGroup')}>
+                  {apiModels.map((m) => (
+                    <option key={m.id} value={`model:${m.id}`}>
+                      {m.id}
+                      {visionSuffix(m.supports_vision)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <button
+              type="button"
+              className={s.fetchBtn}
+              onClick={() => void onFetchModels()}
+              disabled={fetchingModels || !hasPlans}
+              title={modelsError ?? t('composer.controls.fetchModelsHint')}
+              data-testid="composer-fetch-models"
+            >
+              <RefreshCw size={12} className={fetchingModels ? s.fetchSpin : undefined} />
+            </button>
+          </span>
+        </label>
+
+        <label className={s.control}>
+          <span className={s.controlLabel}>{t('composer.controls.effort')}</span>
+          <select
+            className={s.controlSelect}
+            value={effort}
+            onChange={(event) => onSetEffort(normalizeEffort(event.target.value))}
+            aria-label={t('composer.controls.effortAria')}
+            data-testid="composer-effort-select"
+          >
+            {EFFORTS.map((level) => (
+              <option key={level} value={level}>{level}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className={s.right}>
+        <div className={s.permSwitch} role="radiogroup" aria-label={t('composer.controls.permissionAria')} data-testid="composer-permission-switch">
+          {PERMISSION_SEGMENTS.map((segment) => (
+            <button
+              key={segment.value}
+              type="button"
+              role="radio"
+              aria-checked={permissionMode === segment.value}
+              className={s.permBtn}
+              data-active={permissionMode === segment.value || undefined}
+              onClick={() => void setPermissionMode(segment.value)}
+              title={t(segment.hintKey)}
+              data-testid={`composer-perm-${segment.value}`}
+            >
+              {t(segment.labelKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** plan 的稳定 option key（provider + label 组合唯一）。 */
+function planKey(plan: PlanEntry): string {
+  return `${plan.provider}/${plan.label}`;
+}
+
+function normalizeEffort(value: string): Effort {
+  return (EFFORTS as readonly string[]).includes(value) ? (value as Effort) : 'low';
+}

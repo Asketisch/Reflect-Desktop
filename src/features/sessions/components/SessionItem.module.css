@@ -4,6 +4,40 @@
   align-items: stretch;
 }
 
+/* 多选勾选框（selectMode 下渲染，样式语义同 ThreadItem）。 */
+.checkbox {
+  flex: none;
+  align-self: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 var(--space-1) 0 var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-input);
+  color: var(--accent-fg);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.checkbox:hover {
+  border-color: var(--accent-border);
+}
+
+.checkbox[data-checked] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 多选模式下选中行高亮。 */
+.row[data-selected] .item {
+  background: var(--accent-subtle);
+}
+
 .item {
   position: relative;
   display: block;

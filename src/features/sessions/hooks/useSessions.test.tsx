@@ -7,12 +7,14 @@
  * 3. refresh 重新拉取
  * 4. rename 调用 reflect_rename_session + refresh
  * 5. 错误处理 (invoke reject)
+ * 6. 项目目录分组 (侧边栏 groups: 会话归组 + 已知项目合并 + 未归属哨兵)
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
+import { UNASSIGNED_GROUP_KEY } from '@/features/sessions/utils/workspaceGroups';
 import { mockInvoke, resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
 
 // 供 useActiveSession 使用的 router hooks 模块级模拟。
@@ -180,6 +182,42 @@ describe('useSessions workspace 过滤 (v1.x workspace→session 归属)', () =>
     rerender({ ws: '/tmp/proj-b' });
     await waitFor(() => expect(seen.length).toBe(2), { timeout: 2000 });
     expect(seen[1]).toEqual({ workspace: '/tmp/proj-b', limit: null, offset: null });
+  });
+});
+
+describe('useSessions 项目分组 (sidebar groups)', () => {
+  it('computes workspace groups from sessions + known workspaces', async () => {
+    const now = Date.now();
+    mockInvoke('reflect_list_sessions', async () => [
+      {
+        session_id: 's1',
+        model: 'stub/test',
+        started_at: new Date(now - 60_000).toISOString(),
+        message_count: 1,
+        workspace: '/tmp/proj-a',
+      },
+      {
+        session_id: 's2',
+        model: 'stub/test',
+        started_at: new Date(now - 120_000).toISOString(),
+        message_count: 1,
+      },
+    ]);
+    mockInvoke('reflect_list_workspaces', async () => [
+      { path: '/tmp/proj-a', label: 'proj-a', last_used: 1, session_count: 1 },
+      { path: '/tmp/proj-b', label: 'proj-b', last_used: 2, session_count: 0 },
+    ]);
+
+    const { result } = renderHook(() => useSessions(), { wrapper: hookWrapper });
+    await waitFor(() => expect(result.current.groups.length).toBeGreaterThan(0), { timeout: 2000 });
+
+    // 有会话的组在前（按最近活跃），空项目组随后，未归属哨兵分组固定最后。
+    expect(result.current.groups.map((g) => g.path)).toEqual(['/tmp/proj-a', '/tmp/proj-b', null]);
+    const [projA, , unassigned] = result.current.groups;
+    expect(projA.label).toBe('proj-a');
+    expect(projA.sessions.map((s) => s.session_id)).toEqual(['s1']);
+    expect(unassigned.key).toBe(UNASSIGNED_GROUP_KEY);
+    expect(unassigned.sessions.map((s) => s.session_id)).toEqual(['s2']);
   });
 });
 

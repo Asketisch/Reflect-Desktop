@@ -164,6 +164,17 @@ export function DisplaySection() {
             <option value="compact">{t('settings.display.compact')}</option>
           </select>
         </label>
+        <label className={s.row}>
+          <input
+            type="checkbox"
+            checked={prefs.activityBarMode === 'full'}
+            onChange={(event) => update({ activityBarMode: event.target.checked ? 'full' : 'simple' })}
+            data-testid="settings-advanced-views"
+          />
+          <span>{t('settings.display.advancedViews')}</span>
+          {prefs.activityBarMode === 'full' && <Badge variant="info">on</Badge>}
+        </label>
+        <p className={s.subtle}>{t('settings.display.advancedViewsHelp')}</p>
       </Card>
 
       <Card level="flat" padding="lg">

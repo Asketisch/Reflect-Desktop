@@ -5,12 +5,13 @@
  * 1. 菜单项渲染（rename / export / delete；onArchive 存在时含 archive）
  * 2. rename → 提交 input → onRename 调用 + new value
  * 3. export → onExport 调用 + toast 显示
- * 4. delete / archive → confirm 拒绝时不调用
- * 5. archive → confirm 同意后调用 onArchive
+ * 4. delete / archive → 应用内确认取消时不调用
+ * 5. archive → 应用内确认同意后调用 onArchive
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SessionItemMenu } from '@/features/sessions/components/SessionItemMenu';
+import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
 import type { ReflectSessionInfo } from '@/utils/commands';
 
 const SESSION: ReflectSessionInfo = {
@@ -76,37 +77,64 @@ describe('SessionItemMenu', () => {
     });
   });
 
-  it('does not delete when confirm() returns false', async () => {
+  it('does not delete when the in-app confirm is cancelled', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const { container } = render(<SessionItemMenu {...baseProps()} onDelete={onDelete} />);
+    const { container } = render(
+      <>
+        <SessionItemMenu {...baseProps()} onDelete={onDelete} />
+        <ConfirmDialogHost />
+      </>,
+    );
 
     const deleteBtn = container.querySelector('[data-testid="session-delete-s1"]') as HTMLButtonElement;
     fireEvent.click(deleteBtn);
+    // 应用内确认框弹出 → 取消。
+    fireEvent.click(await screen.findByTestId('confirm-dialog-cancel'));
     expect(onDelete).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
   });
 
-  it('archives after confirm() accepts', async () => {
+  it('deletes after the in-app confirm is accepted', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(
+      <>
+        <SessionItemMenu {...baseProps()} onDelete={onDelete} />
+        <ConfirmDialogHost />
+      </>,
+    );
+
+    const deleteBtn = container.querySelector('[data-testid="session-delete-s1"]') as HTMLButtonElement;
+    fireEvent.click(deleteBtn);
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
+    await waitFor(() => expect(onDelete).toHaveBeenCalled());
+  });
+
+  it('archives after the in-app confirm is accepted', async () => {
     const onArchive = vi.fn().mockResolvedValue(undefined);
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const { container } = render(<SessionItemMenu {...baseProps()} onArchive={onArchive} />);
+    const { container } = render(
+      <>
+        <SessionItemMenu {...baseProps()} onArchive={onArchive} />
+        <ConfirmDialogHost />
+      </>,
+    );
 
     const archiveBtn = container.querySelector('[data-testid="session-archive-s1"]') as HTMLButtonElement;
     fireEvent.click(archiveBtn);
-
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
     await waitFor(() => expect(onArchive).toHaveBeenCalled());
-    confirmSpy.mockRestore();
   });
 
-  it('does not archive when confirm() returns false', async () => {
+  it('does not archive when the in-app confirm is cancelled', async () => {
     const onArchive = vi.fn().mockResolvedValue(undefined);
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const { container } = render(<SessionItemMenu {...baseProps()} onArchive={onArchive} />);
+    const { container } = render(
+      <>
+        <SessionItemMenu {...baseProps()} onArchive={onArchive} />
+        <ConfirmDialogHost />
+      </>,
+    );
 
     const archiveBtn = container.querySelector('[data-testid="session-archive-s1"]') as HTMLButtonElement;
     fireEvent.click(archiveBtn);
+    fireEvent.click(await screen.findByTestId('confirm-dialog-cancel'));
     expect(onArchive).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
   });
 });

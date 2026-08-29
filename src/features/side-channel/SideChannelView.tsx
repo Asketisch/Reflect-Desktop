@@ -14,6 +14,7 @@
 import { Plus, X, GitBranch, XCircle, Loader2 } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Badge, Card, EmptyState, Icon, Spinner } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { useSideChannelController } from './useSideChannelController';
 import type { ReflectSideChannelInfo, ReflectSideChannelStatus } from '@/utils/commands';
 import s from './SideChannelView.module.css';
@@ -27,16 +28,17 @@ const STATUS_VARIANT: Record<ReflectSideChannelStatus, 'neutral' | 'accent' | 's
 
 export function SideChannelView() {
   const ctrl = useSideChannelController();
+  const { t } = useI18n();
 
   return (
     <PageShell
       icon={GitBranch}
-      title="Side-channels"
-      subtitle="Concurrent user-driven agent runs. Each side-channel has an independent cancel token — main Cmd+C does not stop them."
+      title={t('sideChannel.title')}
+      subtitle={t('sideChannel.subtitle')}
       width="lg"
       actions={
         <Badge variant={ctrl.runningCount > 0 ? 'accent' : 'neutral'}>
-          {ctrl.runningCount} running
+          {t('sideChannel.runningCount', { count: ctrl.runningCount })}
         </Badge>
       }
     >
@@ -52,14 +54,14 @@ export function SideChannelView() {
         >
           <input
             className={s.formInput}
-            placeholder="Agent name (e.g. default, reviewer)"
+            placeholder={t('sideChannel.agentNamePlaceholder')}
             value={ctrl.agentName}
             onChange={(e) => ctrl.setAgentName(e.target.value)}
             data-testid="side-channel-start-name"
           />
           <input
             className={s.formInput}
-            placeholder="Prompt (required)"
+            placeholder={t('sideChannel.promptPlaceholder')}
             value={ctrl.prompt}
             onChange={(e) => ctrl.setPrompt(e.target.value)}
             data-testid="side-channel-start-prompt"
@@ -71,7 +73,7 @@ export function SideChannelView() {
               onClick={ctrl.toggleShowForm}
               data-testid="side-channel-start-cancel"
             >
-              <Icon icon={X} size={12} /> Cancel
+              <Icon icon={X} size={12} /> {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -80,7 +82,7 @@ export function SideChannelView() {
               data-testid="side-channel-start-submit"
             >
               {ctrl.isMutating ? <Icon icon={Loader2} size={12} /> : <Icon icon={Plus} size={12} />}
-              Start
+              {t('sideChannel.start')}
             </button>
           </div>
         </form>
@@ -93,7 +95,7 @@ export function SideChannelView() {
             onClick={ctrl.toggleShowForm}
             data-testid="side-channel-add-btn"
           >
-            <Icon icon={Plus} size={12} /> Start a side-channel
+            <Icon icon={Plus} size={12} /> {t('sideChannel.startOne')}
           </button>
         </div>
       )}
@@ -107,16 +109,16 @@ export function SideChannelView() {
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={GitBranch} />}
-            title="Failed to load side-channels"
-            description="Check the agent backend and try again."
+            title={t('sideChannel.failed')}
+            description={t('sideChannel.failedDesc')}
           />
         </Card>
       ) : ctrl.channels.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={GitBranch} />}
-            title="No side-channels"
-            description="Click “Start a side-channel” above to spawn one."
+            title={t('sideChannel.empty')}
+            description={t('sideChannel.emptyDesc')}
           />
         </Card>
       ) : (
@@ -141,6 +143,7 @@ function SideChannelRow({
   channel: ReflectSideChannelInfo;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const isRunning = channel.status === 'running';
   return (
     <div className={s.row} data-testid={`side-channel-row-${channel.id}`}>
@@ -163,10 +166,10 @@ function SideChannelRow({
             type="button"
             className={`${s.actionBtn} ${s.actionBtnDanger}`}
             onClick={onCancel}
-            title="Cancel"
+            title={t('common.cancel')}
             data-testid={`side-channel-cancel-${channel.id}`}
           >
-            <Icon icon={XCircle} size={12} /> Cancel
+            <Icon icon={XCircle} size={12} /> {t('common.cancel')}
           </button>
         )}
       </div>

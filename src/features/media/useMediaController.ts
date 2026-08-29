@@ -23,6 +23,7 @@ import {
   type ReflectMediaCapabilities,
 } from '@/utils/commands/media';
 import { useAgentStore } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
 
 export const MEDIA_QUERY_KEY = ['media', 'assets'] as const;
 const MEDIA_STALE_MS = 15_000;
@@ -55,6 +56,7 @@ export interface MediaController {
 export function useMediaController(): MediaController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { t } = useI18n();
   const [tab, setTab] = useState<MediaTab>('studio');
   // 默认使用安全的 scratch 路径；用户通常会在 UI 中覆盖。
   // 空字符串使 studio 查询保持禁用状态，直到输入路径。
@@ -83,7 +85,7 @@ export function useMediaController(): MediaController {
       await reflect_computer_use(action);
     },
     onSuccess: (_data, action) => {
-      pushToast({ kind: 'success', message: `executed: ${summarizeAction(action)}` });
+      pushToast({ kind: 'success', message: t('media.toastExecuted', { action: summarizeAction(action) }) });
       setActionHistory((h) => [action, ...h].slice(0, 20));
       setLastError(null);
     },
@@ -106,7 +108,7 @@ export function useMediaController(): MediaController {
       const shot: ReflectComputerUseAction = { kind: 'screenshot', params: null };
       setActionHistory((h) => [shot, ...h].slice(0, 20));
       setLastError(null);
-      pushToast({ kind: 'success', message: 'Screenshot captured' });
+      pushToast({ kind: 'success', message: t('media.toastScreenshot') });
     },
     onError: (e) => {
       const msg = String(e);

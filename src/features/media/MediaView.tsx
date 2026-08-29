@@ -25,30 +25,31 @@ import {
   SegmentedControl,
 } from '@/features/design-system';
 import { useMediaController, type MediaTab } from './useMediaController';
+import { useI18n } from '@/utils/i18n';
 import s from './MediaView.module.css';
-
-const TAB_OPTIONS = [
-  { value: 'studio' as const, label: 'Studio', hint: 'Image assets' },
-  { value: 'computer' as const, label: 'Computer Use', hint: 'Mouse + keyboard' },
-];
 
 export function MediaView() {
   const ctrl = useMediaController();
+  const { t } = useI18n();
+  const tabOptions = [
+    { value: 'studio' as const, label: t('media.tabStudio'), hint: t('media.tabStudioHint') },
+    { value: 'computer' as const, label: t('media.tabComputer'), hint: t('media.tabComputerHint') },
+  ];
   return (
     <PageShell
       icon={ImageIcon}
-      title="Media Studio"
-      subtitle="Local image assets + computer-use controls."
+      title={t('media.title')}
+      subtitle={t('media.subtitle')}
       width="lg"
     >
       <div className={s.tabBar}>
-        <SegmentedControl<MediaTab> options={TAB_OPTIONS} value={ctrl.tab} onChange={ctrl.setTab} />
+        <SegmentedControl<MediaTab> options={tabOptions} value={ctrl.tab} onChange={ctrl.setTab} />
       </div>
 
       {ctrl.capabilities && (
         <div className={s.capsLine}>
-          <Badge variant="neutral">image: {ctrl.capabilities.imageBackend}</Badge>
-          <Badge variant="neutral">computer: {ctrl.capabilities.computerBackend}</Badge>
+          <Badge variant="neutral">{t('media.capImage', { backend: ctrl.capabilities.imageBackend })}</Badge>
+          <Badge variant="neutral">{t('media.capComputer', { backend: ctrl.capabilities.computerBackend })}</Badge>
           <span className={s.capsNote}>{ctrl.capabilities.note}</span>
         </div>
       )}
@@ -59,17 +60,18 @@ export function MediaView() {
 }
 
 function StudioTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> }) {
+  const { t } = useI18n();
   return (
     <div className={s.studioLayout}>
       <div className={s.studioControls}>
         <Input
-          placeholder="Directory path (e.g. /Users/me/Pictures)"
+          placeholder={t('media.dirPlaceholder')}
           value={ctrl.studioDir}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => ctrl.setStudioDir(e.target.value)}
           data-testid="media-dir"
         />
         <Button variant="ghost" size="sm" onClick={ctrl.refreshStudio} data-testid="media-refresh">
-          <Icon icon={RefreshCw} size={12} /> Refresh
+          <Icon icon={RefreshCw} size={12} /> {t('common.refresh')}
         </Button>
       </div>
 
@@ -79,7 +81,7 @@ function StudioTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> }) {
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={ImageIcon} />}
-            title="No directory / cannot read"
+            title={t('media.noDirectory')}
             description={String(ctrl.studioError?.message ?? ctrl.studioError)}
           />
         </Card>
@@ -87,8 +89,8 @@ function StudioTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> }) {
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={ImageIcon} />}
-            title="No images yet"
-            description="Point the directory input to a folder containing PNG / JPEG / GIF / WebP / BMP files."
+            title={t('media.noImages')}
+            description={t('media.noImagesDesc')}
           />
         </Card>
       ) : (
@@ -117,6 +119,7 @@ function StudioTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> }) {
 }
 
 function ComputerUseTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> }) {
+  const { t } = useI18n();
   return (
     <div className={s.cuLayout}>
       <div className={s.cuControls}>
@@ -134,7 +137,7 @@ function ComputerUseTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> 
 
       {ctrl.lastError && (
         <Card level="outlined" padding="md" className={s.errorCard} data-level="error">
-          <div className={s.errorTitle}>Last action failed</div>
+          <div className={s.errorTitle}>{t('media.lastActionFailed')}</div>
           <div className={s.errorBody}>{ctrl.lastError}</div>
         </Card>
       )}
@@ -143,13 +146,13 @@ function ComputerUseTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> 
         <Card level="flat" padding="none">
           <EmptyState
             icon={<Icon icon={MousePointer2} />}
-            title="No actions yet"
-            description="Click any control above to drive the mouse, keyboard, or capture a screenshot. On macOS the first action may prompt for Accessibility / Screen Recording permission."
+            title={t('media.noActions')}
+            description={t('media.noActionsDesc')}
           />
         </Card>
       ) : (
         <div className={s.history} data-testid="cu-history">
-          <h3 className={s.subhead}>Action history (latest 20)</h3>
+          <h3 className={s.subhead}>{t('media.actionHistory')}</h3>
           {ctrl.actionHistory.map((a, i) => (
             <Card key={i} level="flat" padding="sm" className={s.histRow}>
               <code>{summarize(a)}</code>
@@ -170,19 +173,20 @@ function ScreenshotAction({
   busy: boolean;
   lastScreenshot: string | null;
 }) {
+  const { t } = useI18n();
   return (
     <Card level="outlined" padding="md" className={s.cuCard}>
       <div className={s.cuTitle}>
-        <Icon icon={Camera} size={14} /> Screenshot
+        <Icon icon={Camera} size={14} /> {t('media.screenshot')}
       </div>
-      <p className={s.cuHint}>Capture the full screen (PNG).</p>
+      <p className={s.cuHint}>{t('media.screenshotHint')}</p>
       <Button variant="primary" size="sm" disabled={busy} onClick={onCapture} data-testid="cu-screenshot">
-        Capture
+        {t('media.capture')}
       </Button>
       {lastScreenshot && (
         <img
           src={lastScreenshot}
-          alt="Last screenshot"
+          alt={t('media.lastScreenshotAlt')}
           className={s.shotPreview}
           data-testid="cu-screenshot-preview"
         />
@@ -201,22 +205,23 @@ function ClickAction({
   const [x, setX] = useState(0);
   const [y, setY] = useState(0);
   const [button, setButton] = useState('left');
+  const { t } = useI18n();
   return (
     <Card level="outlined" padding="md" className={s.cuCard}>
       <div className={s.cuTitle}>
-        <Icon icon={MousePointer2} size={14} /> Click
+        <Icon icon={MousePointer2} size={14} /> {t('media.click')}
       </div>
       <div className={s.coordRow}>
         <Input type="number" value={x} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setX(Number(e.target.value))} />
         <Input type="number" value={y} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setY(Number(e.target.value))} />
         <select className={s.btnSelect} value={button} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setButton(e.target.value)}>
-          <option value="left">left</option>
-          <option value="right">right</option>
-          <option value="middle">middle</option>
+          <option value="left">{t('media.mouseLeft')}</option>
+          <option value="right">{t('media.mouseRight')}</option>
+          <option value="middle">{t('media.mouseMiddle')}</option>
         </select>
       </div>
       <Button variant="primary" size="sm" disabled={busy} onClick={() => onClick(x, y, button)} data-testid="cu-click">
-        Click
+        {t('media.click')}
       </Button>
     </Card>
   );
@@ -225,17 +230,18 @@ function ClickAction({
 function MoveAction({ onClick, busy }: { onClick: (x: number, y: number) => void; busy: boolean }) {
   const [x, setX] = useState(0);
   const [y, setY] = useState(0);
+  const { t } = useI18n();
   return (
     <Card level="outlined" padding="md" className={s.cuCard}>
       <div className={s.cuTitle}>
-        <Icon icon={MousePointer2} size={14} /> Move
+        <Icon icon={MousePointer2} size={14} /> {t('media.move')}
       </div>
       <div className={s.coordRow}>
         <Input type="number" value={x} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setX(Number(e.target.value))} />
         <Input type="number" value={y} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setY(Number(e.target.value))} />
       </div>
       <Button variant="ghost" size="sm" disabled={busy} onClick={() => onClick(x, y)} data-testid="cu-move">
-        Move
+        {t('media.move')}
       </Button>
     </Card>
   );
@@ -244,15 +250,16 @@ function MoveAction({ onClick, busy }: { onClick: (x: number, y: number) => void
 function ScrollAction({ onClick, busy }: { onClick: (dx: number, dy: number) => void; busy: boolean }) {
   const [dx, setDx] = useState(0);
   const [dy, setDy] = useState(-3);
+  const { t } = useI18n();
   return (
     <Card level="outlined" padding="md" className={s.cuCard}>
-      <div className={s.cuTitle}>Scroll</div>
+      <div className={s.cuTitle}>{t('media.scroll')}</div>
       <div className={s.coordRow}>
         <Input type="number" value={dx} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDx(Number(e.target.value))} />
         <Input type="number" value={dy} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDy(Number(e.target.value))} />
       </div>
       <Button variant="ghost" size="sm" disabled={busy} onClick={() => onClick(dx, dy)} data-testid="cu-scroll">
-        Scroll
+        {t('media.scroll')}
       </Button>
     </Card>
   );
@@ -260,14 +267,15 @@ function ScrollAction({ onClick, busy }: { onClick: (dx: number, dy: number) => 
 
 function KeyTypeAction({ onClick, busy }: { onClick: (text: string) => void; busy: boolean }) {
   const [text, setText] = useState('hello');
+  const { t } = useI18n();
   return (
     <Card level="outlined" padding="md" className={s.cuCard}>
       <div className={s.cuTitle}>
-        <Icon icon={Keyboard} size={14} /> Type text
+        <Icon icon={Keyboard} size={14} /> {t('media.typeText')}
       </div>
       <Input value={text} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setText(e.target.value)} />
       <Button variant="ghost" size="sm" disabled={busy} onClick={() => onClick(text)} data-testid="cu-type">
-        Type
+        {t('media.type')}
       </Button>
     </Card>
   );
@@ -275,14 +283,15 @@ function KeyTypeAction({ onClick, busy }: { onClick: (text: string) => void; bus
 
 function KeyComboAction({ onClick, busy }: { onClick: (keys: string) => void; busy: boolean }) {
   const [keys, setKeys] = useState('ctrl+c');
+  const { t } = useI18n();
   return (
     <Card level="outlined" padding="md" className={s.cuCard}>
       <div className={s.cuTitle}>
-        <Icon icon={Keyboard} size={14} /> Key combo
+        <Icon icon={Keyboard} size={14} /> {t('media.keyCombo')}
       </div>
-      <Input value={keys} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeys(e.target.value)} placeholder="e.g. cmd+shift+p" />
+      <Input value={keys} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeys(e.target.value)} placeholder={t('media.keyComboPlaceholder')} />
       <Button variant="ghost" size="sm" disabled={busy} onClick={() => onClick(keys)} data-testid="cu-combo">
-        Combo
+        {t('media.combo')}
       </Button>
     </Card>
   );

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
-import { createTestQueryClient, mockInvoke } from '@/test/setup';
+import { createTestQueryClient, mockInvoke, emitMockEvent, resetMockInvoke } from '@/test/setup';
+import { useAgentStore } from '@/stores/agentStore';
 import { Composer } from './Composer';
 
 vi.mock('@tanstack/react-router', () => ({
@@ -19,6 +20,14 @@ function renderComposer() {
     </I18nProvider>,
   );
 }
+
+// 提交会乐观插入 streaming turn，影响后续发送路由（Queue/Steer）
+// —— 文件级 beforeEach 保证每个用例都从干净 store 出发。
+// 草稿持久化到 localStorage（F），同样需要逐用例清理。
+beforeEach(() => {
+  window.localStorage.clear();
+  useAgentStore.getState().reset();
+});
 
 describe('Composer prompt-history integration', () => {
   beforeEach(() => {
@@ -237,5 +246,402 @@ describe('Composer @ file mention (v1.x)', () => {
     ]);
     // 提交后附件清空。
     expect(screen.queryByTestId('attachment-bar')).toBeNull();
+  });
+});
+
+describe('Composer run-state controls (E/C)', () => {
+  it('shows a stop button while a turn is running; clicking interrupts', async () => {
+    const interrupts: number[] = [];
+    mockInvoke('reflect_interrupt', async () => {
+      interrupts.push(1);
+      return null;
+    });
+    useAgentStore.setState({
+      turns: [{ id: 't1', items: [], status: 'streaming' }],
+    });
+    renderComposer();
+
+    const stop = screen.getByTestId('composer-stop');
+    fireEvent.click(stop);
+
+    await waitFor(() => expect(interrupts).toHaveLength(1));
+  });
+
+  it('hides the stop button when no turn is running', () => {
+    useAgentStore.setState({
+      turns: [{ id: 't1', items: [], status: 'done' }],
+    });
+    renderComposer();
+    expect(screen.queryByTestId('composer-stop')).toBeNull();
+  });
+
+  it('renders context usage when tokens and window size are known', () => {
+    useAgentStore.setState({
+      tokens: {
+        input: 3000,
+        output: 1000,
+        cached: 0,
+        cacheWrite: 0,
+        total: 4000,
+      },
+      contextWindowSize: 100000,
+    });
+    renderComposer();
+    const usage = screen.getByTestId('composer-context-usage');
+    expect(usage.textContent).toContain('4%');
+    expect(usage.getAttribute('data-warn')).toBeNull();
+  });
+
+  it('flags warning at ≥80% context usage', () => {
+    useAgentStore.setState({
+      tokens: {
+        input: 85000,
+        output: 0,
+        cached: 0,
+        cacheWrite: 0,
+        total: 85000,
+      },
+      contextWindowSize: 100000,
+    });
+    renderComposer();
+    const usage = screen.getByTestId('composer-context-usage');
+    expect(usage.getAttribute('data-warn')).not.toBeNull();
+    expect(usage.getAttribute('title')).toMatch(/compact/);
+  });
+
+  it('renders no context usage without token data', () => {
+    renderComposer();
+    expect(screen.queryByTestId('composer-context-usage')).toBeNull();
+  });
+});
+
+describe('Composer queue vs steer (C)', () => {
+  function useStreamingTurn() {
+    useAgentStore.setState({ turns: [{ id: 't-run', items: [], status: 'streaming' }] });
+  }
+
+  function trackSubmit(submitted: unknown[]) {
+    mockInvoke('reflect_submit', async (_cmd, args) => {
+      const s = (args as { submission: unknown }).submission;
+      submitted.push(s);
+      return 'sub-ok';
+    });
+  }
+
+  it('queues a follow-up message while the turn runs without touching the backend', async () => {
+    const submitted: unknown[] = [];
+    trackSubmit(submitted);
+    useStreamingTurn();
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '排队消息' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(useAgentStore.getState().queuedMessages).toHaveLength(1));
+    expect(submitted).toHaveLength(0);
+    expect(useAgentStore.getState().queuedMessages[0].text).toBe('排队消息');
+    // 输入框已清空（消息转入队列气泡）。
+    expect(input.value).toBe('');
+  });
+
+  it('queue drain auto-submits after the turn completes', async () => {
+    const submitted: unknown[] = [];
+    trackSubmit(submitted);
+    useStreamingTurn();
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: '稍后发送' }]);
+
+    // 模拟 turn 收尾（subscribe 回调触发 drainQueue）。
+    useAgentStore.setState({ turns: [{ id: 't-run', items: [], status: 'done' }] });
+    await useAgentStore.getState().drainQueue();
+
+    await waitFor(() => expect(submitted).toHaveLength(1));
+    expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
+    // drain 走 submitItems：乐观插入的 user_text turn 立即可见。
+    const turn = useAgentStore.getState().turns.find((item) => item.id !== 't-run');
+    expect(turn?.items[0]).toEqual({ kind: 'user_text', text: '稍后发送' });
+  });
+
+  it('steer mode interrupts the running turn and submits immediately', async () => {
+    const submitted: unknown[] = [];
+    trackSubmit(submitted);
+    const interrupts: number[] = [];
+    mockInvoke('reflect_interrupt', async () => {
+      interrupts.push(1);
+      // 中断生效：当前 turn 收尾，waitTurnSettled 轮询通过。
+      useAgentStore.setState({ turns: [{ id: 't-run', items: [], status: 'aborted' }] });
+      return null;
+    });
+    useStreamingTurn();
+    renderComposer();
+
+    // 切到 Steer 模式。
+    fireEvent.click(screen.getByTestId('composer-mode-switch').children[1]);
+
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '转向：改用方案 B' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(submitted).toHaveLength(1));
+    expect(interrupts).toHaveLength(1);
+    // Steer 不产生队列。
+    expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
+  });
+
+  it('Shift+Cmd+Enter sends with the reversed mode (queue mode → steer)', async () => {
+    const submitted: unknown[] = [];
+    trackSubmit(submitted);
+    mockInvoke('reflect_interrupt', async () => {
+      useAgentStore.setState({ turns: [{ id: 't-run', items: [], status: 'aborted' }] });
+      return null;
+    });
+    useStreamingTurn();
+    renderComposer();
+
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '单次转向' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true, metaKey: true });
+
+    await waitFor(() => expect(submitted).toHaveLength(1));
+    expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
+  });
+});
+
+// ===========================================================================
+// 内联控制条（ComposerControls）：模型 / 思考深度 / 权限模式
+// ===========================================================================
+
+describe('Composer inline controls', () => {
+  it('switches permission mode from the segmented control', async () => {
+    const calls: string[] = [];
+    mockInvoke('reflect_set_permission_mode', async (_cmd: string, args?: { mode: string }) => {
+      calls.push(args?.mode ?? '');
+      return 'ok';
+    });
+    useAgentStore.setState({ permissionMode: 'prompt' });
+    renderComposer();
+
+    fireEvent.click(screen.getByTestId('composer-perm-bypass'));
+    await waitFor(() => expect(calls).toEqual(['bypass']));
+    // 当前段高亮来自 store 的 permissionMode（permission_mode_changed 事件回读）。
+    expect(screen.getByTestId('composer-perm-prompt').getAttribute('data-active')).toBeDefined();
+  });
+
+  it('lists coding plans and switches model via reflect_set_model', async () => {
+    mockInvoke(
+      'reflect_get_config',
+      async () =>
+        '[active]\nprovider = "openai"\n\n[openai]\nmodel = "gpt-5"\napi_key = "sk-1"\n\n[[openai.credentials]]\nlabel = "plan-a"\nmodel = "gpt-5-mini"\n',
+    );
+    mockInvoke('reflect_agent_status', async () => ({
+      ready: true,
+      has_model: true,
+      model: 'openai/gpt-5',
+      workspace: '/tmp',
+      degraded_reason: null,
+    }));
+    const calls: Array<{ provider: string; model: string }> = [];
+    mockInvoke('reflect_set_model', async (_cmd: string, args?: { provider: string; model: string }) => {
+      calls.push({ provider: args?.provider ?? '', model: args?.model ?? '' });
+      return 'openai/gpt-5-mini';
+    });
+    renderComposer();
+
+    const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(0));
+    fireEvent.change(select, { target: { value: 'openai/plan-a' } });
+    await waitFor(() => expect(calls).toEqual([{ provider: 'openai', model: 'gpt-5-mini' }]));
+  });
+
+  it('fetches models from provider API and switches to one of them', async () => {
+    mockInvoke(
+      'reflect_get_config',
+      async () =>
+        '[active]\nprovider = "openai"\n\n[openai]\napi_key = "sk-1"\nbase_url = "https://api.example.com/v1"\n',
+    );
+    mockInvoke('reflect_agent_status', async () => ({
+      ready: true,
+      has_model: true,
+      model: 'openai/gpt-5',
+      workspace: '/tmp',
+      degraded_reason: null,
+    }));
+    const listCalls: Array<{ baseUrl: string; apiKey: string; endpoint: string }> = [];
+    mockInvoke(
+      'reflect_list_provider_models',
+      async (_cmd: string, args?: { baseUrl: string; apiKey: string; endpoint: string }) => {
+        listCalls.push({ baseUrl: args?.baseUrl ?? '', apiKey: args?.apiKey ?? '', endpoint: args?.endpoint ?? '' });
+        return {
+          endpoint: 'openai',
+          models: [
+            { id: 'gpt-4o', display_name: 'gpt-4o', supports_vision: true },
+            { id: 'o1-mini', display_name: 'o1-mini', supports_vision: false },
+          ],
+        };
+      },
+    );
+    const switchCalls: string[] = [];
+    mockInvoke('reflect_set_model', async (_cmd: string, args?: { provider: string; model: string }) => {
+      switchCalls.push(args?.model ?? '');
+      return 'openai/gpt-4o';
+    });
+    renderComposer();
+
+    fireEvent.click(await screen.findByTestId('composer-fetch-models'));
+    await waitFor(() =>
+      expect(listCalls).toEqual([{ baseUrl: 'https://api.example.com/v1', apiKey: 'sk-1', endpoint: 'openai' }]),
+    );
+    // 拉取结果进入下拉(带能力标记);选择后以该 model id 走 reflect_set_model。
+    const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
+    const option = Array.from(select.options).find((o) => o.value === 'model:gpt-4o');
+    expect(option?.textContent).toContain('gpt-4o · vision');
+    fireEvent.change(select, { target: { value: 'model:gpt-4o' } });
+    await waitFor(() => expect(switchCalls).toEqual(['gpt-4o']));
+  });
+
+  it('initializes effort from backend readback and applies changes', async () => {
+    mockInvoke('reflect_get_effort', async () => 'high');
+    const calls: string[] = [];
+    mockInvoke('reflect_set_effort', async (_cmd: string, args?: { level: string }) => {
+      calls.push(args?.level ?? '');
+      return 'ok';
+    });
+    renderComposer();
+
+    const select = (await screen.findByTestId('composer-effort-select')) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe('high'));
+    fireEvent.change(select, { target: { value: 'low' } });
+    await waitFor(() => expect(calls).toContain('low'));
+  });
+});
+
+// ===========================================================================
+// P3：`!` 终端直通 + slash 弹层键盘导航与 stub 下架
+// ===========================================================================
+
+describe('Composer bang (!) shell passthrough', () => {
+  it('runs `! cmd` locally via reflect_run_shell without submitting to the agent', async () => {
+    const runShell: string[] = [];
+    const submitted: Array<{ id: string }> = [];
+    const trackSubmit = (sink: Array<{ id: string }>) => {
+      mockInvoke('reflect_submit', async (_cmd: string, args?: unknown) => {
+        const submission = (args as { submission: { id: string } }).submission;
+        sink.push(submission);
+        return submission.id;
+      });
+    };
+    mockInvoke('reflect_run_shell', async (_cmd: string, args?: { cmd: string }) => {
+      runShell.push(args?.cmd ?? '');
+      return { id: 'shell-bang-1', command: args?.cmd ?? '', cwd: '/tmp' };
+    });
+    trackSubmit(submitted);
+    renderComposer();
+
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '! echo hi' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(runShell).toEqual(['echo hi']));
+    // 不进 agent 循环。
+    await new Promise((r) => setTimeout(r, 30));
+    expect(submitted).toHaveLength(0);
+    // 本地输出面板出现。
+    expect(screen.getByTestId('composer-bang-runs').textContent).toContain('! echo hi');
+    // exit 事件收尾 → done。
+    emitMockEvent('reflect_terminal_output', { session_id: 'shell-bang-1', stream: 'exit', data: '', seq: 1 });
+    await waitFor(() => expect(screen.getByText('done')).toBeDefined());
+  });
+});
+
+describe('Composer slash popup (stub 下架 + 键盘导航)', () => {
+  it('hides no-op stub commands from the popup', async () => {
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '/' } });
+
+    const popup = await screen.findByTestId('slash-popup');
+    expect(popup.textContent).toContain('/effort');
+    expect(popup.textContent).toContain('/compact');
+    // 纯 TUI 镜像 stub（/theme /vim）已从清单删除,不再出现。
+    expect(popup.textContent).not.toContain('/theme');
+    expect(popup.textContent).not.toContain('/vim');
+    // Tier C no-op stub 不再出现在弹层（手输仍会得到引导提示）。
+    expect(popup.textContent).not.toContain('/commit');
+    expect(popup.textContent).not.toContain('/review');
+    expect(popup.textContent).not.toContain('/mcp');
+  });
+
+  it('navigates candidates with ArrowDown and picks with Enter instead of submitting', async () => {
+    const submitted: Array<{ id: string }> = [];
+    const trackSubmit = (sink: Array<{ id: string }>) => {
+      mockInvoke('reflect_submit', async (_cmd: string, args?: unknown) => {
+        const submission = (args as { submission: { id: string } }).submission;
+        sink.push(submission);
+        return submission.id;
+      });
+    };
+    trackSubmit(submitted);
+    renderComposer();
+
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '/' } });
+    await screen.findByTestId('slash-popup');
+
+    // 首项 effort → ArrowDown 选中第二项 compact。
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(input.value).toBe('/compact '));
+    // Enter 被弹层消费，不触发 agent 提交。
+    await new Promise((r) => setTimeout(r, 30));
+    expect(submitted).toHaveLength(0);
+  });
+});
+
+describe('Composer context bar (workspace + git branch)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    useAgentStore.getState().reset();
+    resetMockInvoke();
+    mockInvoke('reflect_current_workspace', async () => '/Users/me/Code/alpha');
+    mockInvoke('reflect_git_status', async () => ({
+      branch: 'main',
+      upstream: 'origin/main',
+      ahead: 1,
+      behind: 2,
+      entries: [],
+      raw: '',
+      is_repo: true,
+    }));
+  });
+
+  it('shows opened directory and branch below the composer', async () => {
+    renderComposer();
+
+    // 目录段：basename + hover 全路径；分支段：名称 + ↑↓ 领先/落后。
+    const ws = await screen.findByTestId('composer-workspace');
+    expect(ws.textContent).toContain('alpha');
+    expect(ws.getAttribute('title')).toBe('/Users/me/Code/alpha');
+    const branch = await screen.findByTestId('composer-branch');
+    expect(branch.textContent).toContain('main');
+    expect(branch.textContent).toContain('↑1');
+    expect(branch.textContent).toContain('↓2');
+  });
+
+  it('hides the branch segment outside a git repo', async () => {
+    mockInvoke('reflect_git_status', async () => ({
+      branch: null,
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      entries: [],
+      raw: '',
+      is_repo: false,
+    }));
+    renderComposer();
+
+    expect(await screen.findByTestId('composer-workspace')).toBeDefined();
+    await waitFor(() =>
+      expect(screen.queryByTestId('composer-branch')).toBeNull(),
+    );
   });
 });

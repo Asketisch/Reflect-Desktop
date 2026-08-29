@@ -31,35 +31,42 @@
  */
 import { useState } from 'react';
 import { useRouter, Outlet } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { ActivityBar } from './ActivityBar';
 import { TitleBar } from './TitleBar';
 import { StatusBar } from './StatusBar';
 import { Inspector } from './Inspector';
 import { Sidebar } from '@/features/sessions/components/Sidebar';
 import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
+import { unpin, useSessionPins } from '@/features/sessions/utils/pins';
 import { ModalStack } from '@/features/modals';
+import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
 import { CommandPalette } from '@/features/command-palette/CommandPalette';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
-import { reflect_create_session } from '@/utils/commands';
+import {
+  reflect_create_session,
+  reflect_pick_workspace_folder,
+  reflect_set_workspace,
+} from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { useThemeCycle } from './hooks/useThemeCycle';
 import { useCommandPaletteShortcut } from './hooks/useCommandPaletteShortcut';
 import { usePaletteActions } from './hooks/usePaletteActions';
-import { useCurrentWorkspace } from './hooks/useCurrentWorkspace';
+import { useCurrentWorkspace, CURRENT_WORKSPACE_QUERY_KEY } from './hooks/useCurrentWorkspace';
 import s from './AppShell.module.css';
 
 export function AppShell() {
   const { currentWorkspace } = useCurrentWorkspace();
-  const sessions = useSessions({ workspacePath: currentWorkspace });
+  // 全量列表:侧边栏按项目目录分组展示所有项目(而非只列当前工作区)。
+  const sessions = useSessions();
+  const pins = useSessionPins();
   const { activeId, setActiveId } = useActiveSession();
   const router = useRouter();
+  const qc = useQueryClient();
   const { t, tp } = useI18n();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-
-  // B13-B15: agent 完成时给 chime + 系统通知 + dock badge。
-  useAgentNotifications(loadNotifyOptions());
 
   // 调色板所需的主题状态
   const { resolved, cycleTheme, setThemeMode } = useThemeCycle();
@@ -67,7 +74,63 @@ export function AppShell() {
   // ⌘K / Ctrl+K 全局快捷键 + Esc 关闭
   const { paletteOpen, setPaletteOpen } = useCommandPaletteShortcut();
 
-  const handleSelect = (id: string) => {
+  /** 切换工作区并失效相关缓存(失效集与 WorkspacesView 的切换路径一致)。 */
+  const switchWorkspace = async (path: string) => {
+    await reflect_set_workspace(path);
+    void qc.invalidateQueries({ queryKey: ['agent-status'] });
+    void qc.invalidateQueries({ queryKey: ['workspaces'] });
+    void qc.invalidateQueries({ queryKey: CURRENT_WORKSPACE_QUERY_KEY });
+  };
+
+  const toastError = (message: string) => {
+    useAgentStore.getState().pushToast({ kind: 'error', message });
+  };
+
+  /** 侧边栏「打开项目…」：系统目录选择器 → 切换工作区（复用 WorkspacesView 语义）。 */
+  const handleOpenProject = async () => {
+    let picked: string | null;
+    try {
+      picked = await reflect_pick_workspace_folder();
+    } catch (e) {
+      toastError(t('workspaces.pickFailed', { msg: e instanceof Error ? e.message : String(e) }));
+      return;
+    }
+    if (!picked) return;
+    try {
+      await switchWorkspace(picked);
+      useAgentStore.getState().pushToast({
+        kind: 'success',
+        message: t('workspaces.setTo', { name: picked.split('/').filter(Boolean).pop() ?? picked }),
+      });
+    } catch (e) {
+      toastError(t('workspaces.switchFailed', { msg: e instanceof Error ? e.message : String(e) }));
+    }
+  };
+
+  // B13-B15 + D:agent 完成时 chime + 门控系统通知(失焦/时长/节流,
+  // 点击跳回当前会话)+ 等待审批召回 + dock badge(设置开关)。
+  useAgentNotifications(loadNotifyOptions(), {
+    sessionId: activeId,
+    onOpenSession: (id) => {
+      if (id) void handleSelect(id);
+    },
+    title: t('app.name'),
+    approvalBody: t('notify.approvalBody'),
+    turnFinishedBody: t('notify.turnFinished'),
+  });
+
+  const handleSelect = async (id: string) => {
+    // 工作区跟随会话:rebind 重建线程时烧入 override 工作区,
+    // 跨项目点选先切到会话归属项目,保证续写/新消息用正确 cwd。
+    const target = sessions.all.find((s) => s.session_id === id)?.workspace;
+    if (target && target !== currentWorkspace) {
+      try {
+        await switchWorkspace(target);
+      } catch (e: unknown) {
+        // 目录可能已被删除/移走;会话仍打开,仅提示切换失败。
+        toastError(t('toast.workspaceSwitchFailed', { msg: e instanceof Error ? e.message : String(e) }));
+      }
+    }
     setActiveId(id);
   };
 
@@ -88,14 +151,32 @@ export function AppShell() {
       });
   };
 
+  // 在指定项目下新建会话:先切工作区(组头「+」入口),再预分配 id 并导航。
+  const handleNewChatIn = (path: string) => {
+    void switchWorkspace(path)
+      .then(() => reflect_create_session())
+      .then((id) => {
+        setActiveId(id);
+      })
+      .catch((e: unknown) => {
+        toastError(t('toast.newSessionFailed', { msg: e instanceof Error ? e.message : String(e) }));
+      });
+  };
+
   // 删除 / 归档当前打开的会话后回到新对话视图，避免停留在已不存在的 session。
+  // 删除/归档同时摘除置顶，避免置顶区悬挂引用。
   const handleDeleteSession = async (id: string) => {
     await sessions.remove(id);
+    unpin(id);
     if (id === activeId) setActiveId(null);
   };
   const handleArchiveSession = async (id: string) => {
     await sessions.archive(id);
+    unpin(id);
     if (id === activeId) setActiveId(null);
+  };
+  const handleUnarchiveSession = async (id: string) => {
+    await sessions.unarchive(id);
   };
 
   // palette action handlers (集中到 hook)
@@ -133,17 +214,25 @@ export function AppShell() {
         {sidebarOpen && (
           <aside className={s.sidebar} aria-label={t('sidebar.sessions')} data-testid="shell-sidebar">
               <Sidebar
-              buckets={sessions.buckets}
+              groups={sessions.groups}
               loading={sessions.loading}
               error={sessions.error}
               activeId={activeId}
+              currentWorkspace={currentWorkspace}
               onSelect={handleSelect}
               onRefresh={sessions.refresh}
               onNewChat={handleNewChat}
+              onNewChatIn={handleNewChatIn}
               onRename={sessions.rename}
               onDelete={handleDeleteSession}
               onExport={sessions.export}
               onArchive={handleArchiveSession}
+              onGenerateTitle={(id) => sessions.generateTitle(id, true)}
+              onOpenProject={() => void handleOpenProject()}
+              pinnedIds={pins.pinnedIds}
+              onTogglePin={pins.toggle}
+              archived={sessions.archived}
+              onUnarchive={handleUnarchiveSession}
             />
           </aside>
         )}
@@ -161,6 +250,7 @@ export function AppShell() {
       </div>
       <StatusBar />
       <ModalStack />
+      <ConfirmDialogHost />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}

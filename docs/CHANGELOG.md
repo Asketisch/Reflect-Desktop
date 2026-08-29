@@ -4,6 +4,470 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — 全量 diff review 发现的八处缺陷
+
+- **Files 页 Reject 时序竞态**：单块拒绝后,`invalidateQueries` 的
+  refetch 窗口期内 `value` 仍是 agent 版本,CodeMirrorEditor 的
+  revision effect 会把刚恢复的缓冲整体替换回旧内容；Reject All 则
+  没有任何路径把恢复值写回缓冲 —— 磁盘已恢复但编辑器显示 agent 版本。
+  改为拒绝落盘成功后 `setQueryData` 直接写入恢复内容（内容已确定,
+  无需等 refetch）。
+- **Git staged 语义**：`reflect_git_status` 的 `status` 是 trimmed 的
+  porcelain 码,`"M "`（已暂存）与 `" M"`（仅工作区）折叠成同一个
+  "M" —— GitView 新增的 staged tab 计数把未暂存修改也计入、列表里
+  还混入 untracked 文件。后端 `GitStatusEntry` 新增 `staged: bool`
+  （porcelain index 列推导,向后兼容字段）,前端 staged/working 分 tab
+  与计数改用该字段判定（`"MM"`/`"AM"` 这类暂存后又改的条目两个 tab
+  都出现）。
+- **inverse-patch 纯删除 hunk 错位**：纯删除块此前按 `oldStart` 行号
+  插回 —— 若先拒绝了更早的 hunk（行号整体漂移）,被删行会插到错误
+  位置（静默内容损坏）。改为优先用 hunk 上下文行做内容锚定（与新增
+  块同规则）,锚定失败才退化行号;另外多文件 diff 的 `---`/`+++` 文件头
+  不再被吞进 hunk。
+- **Coding Plans 表单保存**：编辑条目后改名 / 换 provider / 转
+  topLevel 保存时,upsert 按"新位置"找不到旧块会**追加重复条目**
+  （旧块残留进凭证池）—— 保存前先摘除旧位置的块。`findCredentialBlock`
+  的 label 正则此前只认双引号,单引号 label 的条目删除时会 fallthrough
+  **误删顶层隐式 default plan 的 api_key**。
+- **TOML 往返合法性**：`[context_windows]` 手写 bare 键（`model = …`）
+  与写入的 quoted 键构成 duplicate key,整份保存被后端拒绝 —— 写入前
+  先删两种形式；数字形字符串（如纯数字 api_key）此前被裸写为 TOML
+  整型（serde 拒绝）,`encode` 改为一律加引号；`weight` /
+  `window_secs` / `max_tokens`（后端 u32/u64）非数字输入不再拼入
+  （weight 回落默认 1,半截 quota 整体不声明）。
+- **bind 契约对齐（测试基建）**：fakeBackend 的 `reflect_bind_session`
+  未随真实后端改为返回权限模式字符串 —— 测试环境下 ChatView 的
+  `syncPermissionMode(undefined)` 会把徽标状态打成 undefined。
+- **CodeMirror 语言加载竞态**：快速切换文件时,旧文件的
+  `LanguageDescription.load()` 后 resolve 会把新文件的语言高亮覆盖成
+  旧语言（补 stale 守卫）。
+
+### 变更 — LSP 按工作区手动开启 + 打开文件才预热
+
+- 此前安装时只要配置了 `[lsp_servers]` 就无条件启动全部语言服务并注入
+  `lsp` tool；多项目场景下多份语言服务并发会加重系统负担。现在改为
+  **按工作区手动开启**（默认关闭）：Files 页路径栏新增 LSP 开关
+  chip，开启提示「agent 的代码理解（定义/引用/诊断）更准确，但会增加
+  系统资源占用」；偏好按 workspace 路径持久化（localStorage），切换
+  工作区自动恢复。关闭 = 反注册 `lsp` tool + 停掉全部 server——
+  未开启时工具集中**不注入** LSP 工具。
+- **文件预热（VSCode 式按需索引）**：开启后仅当用户在编辑器里真正
+  打开代码文件时才触发 `reflect_lsp_warmup`（`ensure_open` → didOpen，
+  server 侧建索引），后续 agent 的 LSP 查询即时可用；未打开的文件
+  不预热。LSP 未开启或无匹配 server 时预热静默跳过。
+- 新命令 `reflect_lsp_set_enabled` / `reflect_lsp_status` /
+  `reflect_lsp_warmup`（`commands/lsp.rs` + `src/utils/commands/lsp.ts`）；
+  `MinimalAgent` 新增 `lsp_manager` 常驻句柄，`bootstrap_lsp` 改为
+  幂等（重复开启不重复起 server）。
+
+### 新增 — CodeMirror 6 编辑器 + Cursor 式变更确认/拒绝
+
+- **可编辑代码编辑器**：Files 页的只读 prism 预览升级为 CodeMirror 6
+  编辑器（行号、历史、主流语言语法高亮经 `@codemirror/language-data`
+  动态加载），程序员可直接在工作区文件上编辑。
+- **Cursor 式变更 review**：agent 的 edit/write 工具每次修改文件后
+  （`tool_call_end` 事件携带 before→after 的 unified diff 与目标 path，
+  经 `stores/editorStore.ts` 累计为该文件的 pending 变更），编辑器内
+  直接渲染变更区域——新增行绿色背景 + 左侧亮边，被删除的行以红色块
+  呈现在新增区域上方（参考 Cursor / void / continue 的 review 视图），
+  每块顶部挂 Accept / Reject 悬浮控件，顶栏提供「全部接受 / 全部拒绝」。
+  - **Accept**：保留 agent 的修改，清除该块标记；
+  - **Reject**：按内容锚定的 inverse-patch 从当前内容重建该块原文
+    （`features/editor/diffHunks.ts`，容忍行号漂移；锚点歧义或写盘
+    失败则保持 pending 不变并提示），经新命令 `reflect_write_file`
+    （工作区沙盒内）写回磁盘。agent 刚编辑过的文件会自动在 Files 页
+    聚焦打开，编辑即可 review。
+
+### 新增 — Plan 最大上下文/自动压缩 + 连接测试；舍弃费用展示
+
+- **Plan 最大上下文与自动压缩**：Coding Plans 表单新增「最大上下文
+  (tokens)」字段，落盘到 config.toml 官方 `[context_windows]` 段
+  （key = plan 的 model 名）——runtime 会把它级联进
+  `session_configured.context_window_size`（Inspector 上下文仪表与
+  `get_context_remaining` 工具的既有分母），plan 卡片显示 `ctx` 徽标。
+  自动压缩（`stores/agent/autoCompact.ts`）：runtime 的压缩触发只认全局
+  `[compact].trigger_tokens`、不感知模型窗口，因此 GUI 侧补齐——监听
+  `token_count` 事件，已上报输入 tokens 达到 plan 最大上下文的 80% 时
+  自动触发 `reflect_compact`（Op::Compact），回落 50% 以下重新武装；
+  30s 节流 + 触发闩防连环压缩；Plans 页提供开关（默认开，localStorage
+  `reflect.autoCompact`）。
+- **连接测试（两种）**：Plans 表单新增「连接测试」区——
+  ① **测试连接**：纯 API 测试，拉一次模型列表接口（GET /models，零
+  token 消耗），显示连接正常/失败；
+  ② **发送测试消息**：新命令 `reflect_test_provider_chat`
+  （`commands/models.rs`）发送固定「你好」——单条 user 消息，
+  **刻意无 system 提示词、无 tools 定义**，`max_tokens = 32` 压低无效
+  消耗，展示模型回复或失败原因。
+- **舍弃费用/价格功能**：多数 API 提供商提供缓存服务，按 API 价格推算
+  的费用失真。移除 Inspector 的费用行与会话费用指标、StatusBar 费用
+  片段、`TokenSnapshot.cost` 字段、`/cost` 斜杠命令、提供商表单的
+  输入/输出价格配置字段及相关 i18n。token 用量统计（输入/输出/缓存/
+  总量）全部保留。
+
+### 新增 — 模型列表从接入端口拉取 + 图片附件链路修复
+
+- **模型列表拉取**：新增 `reflect_list_provider_models` 命令
+  （`commands/models.rs` + `src/utils/commands/models.ts`）：对着
+  base_url + api_key 拉取可用模型——`openai` 端口走 `GET {base}/models`
+  （Bearer），`anthropic` 端口走 `GET {base}/v1/models`（`x-api-key` +
+  `anthropic-version`）。两处 UI 接入：Composer 模型选择器新增拉取按钮
+  （⟳），拉到的模型以「接口模型列表」分组进入下拉，选中即
+  `reflect_set_model` 切换；Coding Plans 新增/编辑表单的模型字段新增
+  「拉取模型列表」按钮，结果进 datalist（保留手输自由）。
+- **模型视觉能力标记**：部分兼容网关（OpenRouter 风格）在模型对象里带
+  `input_modalities`，据此在下拉项标注「支持视觉 / 不支持视觉」；
+  官方 API 不返回能力信息时为空、不标注，是否视觉可用由用户自行判断
+  （对应「模型不支持视觉」场景的手动选择）。
+- **图片附件修复**：此前 GUI 粘贴/选择/拖拽的图片以 data-URL 字符串随
+  `reflect_submit` 发送，而协议 `UserInputItem::Image.data` 是
+  `Vec<u8>`（serde 要求数字数组）——提交会在后端反序列化阶段直接失败，
+  图片从未真正到达模型。现在 `reflect_submit` 在应用层把 image 条目的
+  data-URL / 裸 base64 解码为字节数组再反序列化（`commands/agent.rs::
+  normalize_image_data` + 手写 base64 解码器 + 单测），协议层不动。
+  注：非图片文件仍以占位 chip 附件（运行时按设计跳过），不发送内容。
+
+### 变更 — 设置页瘦身与「更多」页面翻译补全
+
+- **设置页每个页签重复的控件**：Agent 就绪状态徽标移到「提供商」页
+  （它反映的正是 provider 配置状态），权限模式快捷控件移到「权限模式」
+  页，不再在每个设置页签顶部重复出现。
+- **更新页暂时移除**：Settings → Updates 区块、独立的 `/update` 路由页、
+  命令面板「打开更新」入口及其 i18n 文案全部移除，待更新机制稳定后
+  再加回。后端更新命令与 IPC 封装保留，重新接入只需恢复 UI。
+- **Coding Plans 术语**：中文界面不再译作「编码计划」，直接显示
+  **Coding Plan / Token Plan**（导航、标题、Model 页区块、空态文案）；
+  「供应商」在 Coding Plans 语境下改为「接入端口」，配额相关文案统一。
+- **「更多」浮层内六个页面补齐翻译**：Squad（小队）、Autopilot（自动
+  任务）、Remote（远程）、Media（媒体工作室）、KMS（知识库）、
+  Side-channels（侧通道）此前整页硬编码英文，现已全部接入 i18n 体系
+  （新增 6 个 strings 模块共 150+ 键，en 值与原硬编码逐字符一致，
+  中文为完整翻译）；其余 zh-CN 与 en 相同的键均为刻意保留的专有名词
+  或协议标识（Git / Hooks / MCP / 权限模式名 / 斜杠命令 / 产品名）。
+
+### 变更 — 上下文压缩改为聚合统计,不再逐条刷屏对话流
+
+- `context_compacted` 事件（microcompact / smart_prune / llm_summarize，
+  如 `smart_prune: 0 msgs (7731 → 5344 tokens)`）此前每次触发都会在
+  对话中插入一条压缩提示行，长会话里是纯噪声。现在改为聚合统计：
+  AgentState 新增 `compactions`（次数 / 累计移除消息数 / 累计节省
+  tokens / 最近一次明细），展示在 Inspector 概览的上下文窗口区块
+  （hover 显示最近一次明细）；无变化的 noop 事件不计入。会话回放时
+  历史 compaction record 同样汇入统计（rollout record 不带 token 数，
+  `tokensSaved` 仅累计 live 事件）；对话流内的 compacted 行、
+  `chat.compacted` 文案与对应 CSS 一并移除。
+
+### 变更 — provider 收敛为接入端口（anthropic / openai），移除 ollama 选项
+
+- GUI 层面的 provider 概念明确为**接入端口**（API 协议端点）：只有
+  `anthropic` / `openai` 两种。多数模型供应商对两种端口都有兼容实现，
+  本地 Ollama 服务走 OpenAI 兼容端口（base_url 指向
+  `http://127.0.0.1:11434/v1`），因此不再作为独立的第三种 provider：
+  Coding Plans 的默认供应商卡片与新增表单、提供商页 `active.provider`
+  选项与 `[ollama]` 字段组、模型页供应商切换均已移除 ollama。
+  跨供应商自动切换顺序相应收敛为 anthropic → openai
+  （`PLAN_PROVIDERS` / `pickFailoverProvider`）。后端 `[ollama]` 段
+  与 `reflect_set_model` 的参数校验保持不变（协议稳定；手写 TOML
+  仍可用，但 GUI 不再展示）。
+
+### 新增 — Coding Plans 手动查询用量
+
+- 设置 → 编码计划的每个 plan 卡片新增「查询用量」按钮（配置了
+  `quota.check_via` 时出现）：对着厂商用量 API 实时查询用量，
+  卡片内展示已用百分比 / 剩余 token / 窗口重置时间，鉴权与网络失败
+  以错误文本内联展示。用量查询仅对 coding plan / token plan 订阅
+  开放。查询端点与 cc-switch 一致（Kimi
+  `/coding/v1/usages`、智谱 `/api/monitor/usage/quota/limit`、MiniMax
+  `/coding_plan/remains`、ZenMux base_url），实现复用
+  `reflect_llm::QuotaProvider`（与运行时 failover 判定共用，不在 GUI
+  重复逻辑）。新增命令 `reflect_query_plan_quota`（`commands/config.rs`
+  + `src/utils/commands/config.ts`），传显式 baseUrl/apiKey，编辑中
+  未保存的表单也能直接试查。`volcengine` / `anthropic_usage` /
+  `open_a_i_usage` 的查询仍需上游实现（AK/SK 签名 / OAuth），选择后
+  明确报错而非静默失败。顺带修正 `QUOTA_SOURCES` 中 `openai_usage`
+  的拼法 —— serde snake_case 对连续大写逐字母拆词，`OpenAIUsage`
+  实际接受 `open_a_i_usage`，旧拼法会导致配置保存时
+  `load_from_str` 解析失败。
+
+### 变更 — 打开的目录与 git 分支移到对话框下方
+
+- 目录 / 分支是当前会话的上下文（在哪个项目、哪个分支上工作），不是
+  全局状态：从底部 StatusBar 移除，新增 Composer 下方的上下文条
+  `ComposerContextBar`（模型/权限控制条之下）：目录显示 basename、
+  hover 全路径；分支显示名称 + ↑↓ 领先/落后；非 repo 或未打开目录时
+  对应段隐藏，两段皆无则整条不渲染。数据 hook
+  `useGitStatusSummary`（useEffect + useState，工作区切换 / 窗口聚焦
+  时重取，与 ComposerControls 同样规避 react-query 依赖）。StatusBar
+  保留：模型 @ provider · 权限模式 · 上下文占比 · MCP/LSP · token ·
+  会话数 · 主题。
+
+### 修复 — 删除/归档确认在桌面端静默失效（批量删除"点了没反应"的根因）
+
+- Tauri 的 WebView 层（wry 0.55）在 macOS WKWebView 上不实现 JS 对话框
+  回调，`window.confirm()` **不弹窗且恒返回 false** —— 此前所有依赖它
+  的二次确认（单条删除 / 批量删除 / 归档）点击后静默失败，多选删除
+  因此"还是没办法删除"。改为应用内确认对话框：新增
+  `features/modals/ConfirmDialog.tsx`（promise 式 `confirmDialog()` +
+  应用根部挂载 `<ConfirmDialogHost />`，复用 ModalShell 的焦点陷阱 /
+  Esc / 遮罩关闭语义），替换 Sidebar 批量删除、SessionItemMenu
+  删除/归档、ThreadsView 批量删除/归档区删除共 5 处调用；ModalShell
+  的 primary/secondary action 支持可选 `dataTestId`（确认框测试锚点
+  `confirm-dialog-confirm` / `confirm-dialog-cancel`）。
+
+### 修复 — 体验反馈五项：权限模式随会话 / slash 清理 / Composer 布局 / 多选删除 / 右键菜单
+
+- **权限模式绑定会话**（此前表现为“全局”）：模式本就存于每个
+  AgentThread，但 rebind 重建线程时静默落回默认 `Auto`，前端切换会话也
+  不清空显示 → 徽标与实际不一致。现在 `reflect_bind_session` 从该会话
+  JSONL 审计轨迹末次 `PermissionModeChanged` 恢复初始模式
+  （`with_initial_permission_mode`；`Bypass` 按 v1.3 安全基线降级
+  `Prompt`），并把绑定后线程的实际模式随 bind 返回（返回 `null` →
+  `string`，线格式变更见 PROTOCOL_BRIDGE §2）；ChatView 用返回值
+  `syncPermissionMode` 同步徽标/切换器；provider 热重载的强制重绑透传
+  旧线程当前模式。多项目并行时各会话保留各自的 plan / auto 模式。
+- **删除 /theme /vim 斜杠命令**：纯 TUI 镜像 stub（GUI 无 vim 实装，
+  主题切换由 Settings → Display / StatusBar / 命令面板承担，`/vim`
+  引导指向的 Settings → Keymap 页面并不存在）。从 `SLASH_COMMANDS`
+  清单、engine 分支与 i18n 文案移除，Tier A 工具栏 chips 9 → 7。
+- **Composer 控制条移位**：模型 / 思考深度 / 权限模式从输入卡片内部
+  （textarea 与附件栏之间）移到输入卡片**下方**独立一行。
+- **侧边栏会话多选删除**：头部「多选」进入 → 行首勾选框（点行 =
+  切换选中，不导航）→ 选择条显示已选数 + 批量删除（逐条复用
+  onDelete，含取消置顶 / 当前会话退出语义）→「完成」退出。与
+  /sessions 页多选共用 i18n 文案；归档区行为不变。
+- **禁用 WebView 默认右键菜单**：macOS WKWebView 右键出现的 Reload
+  等浏览器项与桌面应用语义不符；`main.tsx` 全局 `contextmenu`
+  preventDefault，文本编辑走应用菜单 Edit 项与 Cmd+C/V 快捷键。
+
+### 修复 — macOS Overlay 标题栏原生窗口标题与自绘顶栏重叠
+
+- `titleBarStyle: "Overlay"` 下 macOS 仍会把原生窗口标题文字（config
+  `title: "ReflectDesktop"`）绘制在顶栏位置，压在自绘 TitleBar 的侧栏切换
+  按钮与视图标题上。主窗口配置增加 `"hiddenTitle": true`（Tauri 2 原生
+  选项，等价 `NSWindow.titleVisibility = .hidden`），只隐藏文字绘制，
+  窗口标题语义（Accessibility / Mission Control）保留；仅影响 macOS，
+  Windows/Linux 原生标题栏不受影响。
+
+### 功能 — P1 会话组织 / P2 运行时可观测性 / P3 生态补全（全面对齐成熟 agent 桌面端）
+
+- **P1 会话组织与导航**：
+  - 会话置顶：localStorage 持久化（`sessions/utils/pins.ts` 新，有序 id +
+    pub/sub），侧边栏顶部「已置顶」区（对标 ZCode），会话菜单加 置顶/取消置顶，
+    删除/归档自动摘除置顶；置顶会话从项目分组中上移不重复。
+  - 侧边栏归档区：底部可折叠「已归档」，菜单「恢复」直走 unarchive
+    （此前归档列表只在 /sessions 底部）。
+  - 跨会话内容搜索：新命令 `reflect_search_sessions`（grep 会话 JSONL 的
+    user/assistant 文本，ASCII 折叠大小写不敏感，覆盖活跃树 + 归档树，
+    最近 120 会话扫描上限，返回命中片段）；搜索页改「会话 / 文件」双 tab，
+    会话命中点击跳转 `/chat/$id`。
+  - 命令面板补全：/search /memory /tasks /schedule /agents /side-channels
+    /remote /kms /autopilot /squad /media 11 个此前只能手输 URL 的路由。
+- **P2 运行时可观测性（对标 Reasonix）**：
+  - Inspector 改「概览 / 文件 / 改动」三 tab：概览含上下文窗口仪表
+    （占比条 + 80% 压缩阈值刻度线）+ Token 构成堆叠条（提示词/缓存命中/
+    缓存写入/回复）+ 会话指标（轮数/累计 token/费用）；文件 tab 复用
+    FileTree（depth 2）；改动 tab 复用 DiffViewer（`reflect_git_diff`）。
+  - 主动压缩预警横幅：上下文 ≥80% 在消息流顶部出横幅 + 一键 /compact
+    （此前只有 Composer 角落变色 tooltip）；占比回落自动重置，可手动关闭。
+  - StatusBar 加 git 分支（含 ↑↓ ahead/behind）与上下文占比（≥80% warning 色）。
+  - Composer 支持剪贴板粘贴图片/文件与拖拽投放（复用附件管线）。
+- **P3 生态补全**：
+  - `!` 终端直通：`! <cmd>` 经 `reflect_run_shell` 本地执行，输出面板
+    （Composer 卡片上方）流式呈现、可终止/折叠；不进 agent 循环、不写
+    会话历史（`useBangShell.ts` 新，共享 `reflect_terminal_output` 订阅）。
+  - Git 操作化：新命令 `reflect_git_stage` / `reflect_git_unstage` /
+    `reflect_git_commit`（`git add --` / `reset HEAD --` / `commit -m`；
+    push/pull 仍留给终端）；GitView 条目可勾选 + Stage/Unstage selected
+    + 提交框（成功 toast 短 hash）。
+  - 拉取请求：新命令 `reflect_gh_pr_list`（shell out `gh pr list --json`，
+    gh 缺失/非 repo 空态给原因）+ `/pulls` 视图（对标 Codex「拉取请求」，
+    点击在系统浏览器打开）。
+  - Hooks 管理 UI：`/hooks` 视图（`reflect_list_hooks` /
+    `reflect_toggle_hook` 此前无任何 UI 消费），运行时启停 + 计数。
+  - SkillsView 接入真 skills 列表（`reflect_list_skills` 此前从未消费）：
+    名称/描述/触发词/允许工具，空态提示安装路径。
+  - 清理：31 个 no-op slash stub 标记 `hidden` 不再进弹层（手输仍给引导，
+    engine case 保留）；删除死代码 ApprovalHistory（tsx/css/test 三件）；
+    修复 SlashPopup 键盘导航（此前 node 监听收不到按键 —— 改为受控组件，
+    选中态由 Composer 持有，箭头/Enter/Tab 在 textarea 键盘路径路由；
+    完整输入命令名时 Enter 仍直接执行）。
+- 文档：`docs/PROTOCOL_BRIDGE.md` §2.0 命令表补 6 个新命令；
+  `docs/codebase-map.md` 视图清单同步。
+- 测试：Rust `search_tests`（片段窗口 4 例）；前端 pins / Sidebar 置顶与
+  归档区 / Composer `!` 直通与 slash 键盘 / ContextBanner / Inspector 三 tab
+  / 路由矩阵补 /pulls /hooks；fakeBackend 补全部新命令 handler。
+
+### 功能 — 首页工作台 + 侧边栏精简（对标成熟 agent 桌面端首屏体验）
+
+- **侧边栏默认精简（大众模式）**：左侧导航栏新增双模式
+  （`uiPrefs.activityBarMode`，默认 `simple`）：
+  - `simple`（默认）：只保留 新会话 / 搜索（接通原孤儿路由 `/search`）/
+    「更多」浮层 / 设置 四个入口；其余 13+ 个视图（文件/Git/终端/技能/
+    任务/定时/Autopilot/Agents/Squad/通知/听写/远程/知识库/媒体/并行通道/
+    首页/关于）按「开发工具 / 自动化 / 更多功能」三组收进「更多」浮层，
+    外点/Esc 关闭 —— 此前 17 个平铺图标对非程序员用户过于硬核。
+  - `full`（开发者模式）：Settings → Display 新增「显示全部高级视图」
+    开关，开启后恢复全部平铺（历史行为不删）。⌘K 命令面板不受模式影响，
+    始终可达全部视图。
+- **首页工作台（新对话英雄态）**：落地页 `/` 在无会话无消息时呈现
+  问候语（按时段 早/午/晚）+ 副标题 + 当前工作区提示 + 居中 Composer +
+  快捷模板 chips（探索代码 / 构建新功能 / 审查改动 / 修复问题，
+  点击**预填**草稿不自动发送，经 `useComposerDraft` 新增的模块级 prefill
+  总线）；首条消息发出后同一 Composer 实例自然落回底部常规布局。
+  （对标 Codex/ZCode：欢迎页即空对话态。）
+- **Composer 内联控制条**（`ComposerControls.tsx` 新）：输入框卡片内
+  新增 模型选择器（选项与 Models 页的 coding plans 同源）+ 思考深度
+  （low/medium/high）+ 权限模式分段（计划/询问/自动/Yolo，完整 7 段仍在
+  Settings）；placeholder 提示补 `@ 文件` 语法。
+- **新命令**（见 `docs/PROTOCOL_BRIDGE.md` §2.0）：
+  - `reflect_set_model { provider, model }`：运行中切换模型 —— 协议
+    `Op` 不变，改 `[active].provider` + `[<provider>].model` 后复用
+    `reflect_save_config` 的写盘 + provider 栈热重载链路，下一个 turn 生效；
+  - `reflect_get_effort`：直读线程内 `AgentConfig::current_effort()`，
+    修复 Models 页 effort 控件不回读后端值（此前固定显示 medium）。
+- i18n：`shell.nav.search` / `shell.nav.more` / `shell.more.*` /
+  `settings.display.advancedViews*` / `chat.greeting.*` / `chat.hero.*` /
+  `chat.quick.*` / `composer.controls.*`（zh/en）。
+- 测试：ActivityBar 双模式与浮层、ChatView 英雄态三用例、Composer
+  内联控件三用例、Settings 开关持久化；`tests/helpers/fakeBackend.ts`
+  补 `reflect_set_model` / `reflect_get_effort` handler；测试 setup 增补
+  新命令默认 mock + uiPrefs 跨用例复位。
+
+### 功能 — Coding Plan 管理：计划配置入口 + 默认供应商切换 + 额度耗尽自动切换
+
+- **配置模型**（无新命令/线格式变更，复用 `~/.reflect/config.toml`）：
+  - 一个 coding plan = `[[<provider>.credentials]]` 一条带 `label` 的凭证
+    （`api_key` / `base_url` / `model` / `weight` / `quota`）；顶层
+    `[provider].api_key` 视为隐式 `default` 计划；默认供应商 =
+    `[active].provider`。设计详见 `docs/PLAN_FAILOVER.md`。
+- **后端热生效闭环**（此前改配置必须重启）：
+  - `src-tauri/src/state/quota.rs`（新）：按 config 中 `quota` 声明构建
+    `QuotaTracker`（GLM/Kimi/MiniMax/Zenmux 用量 API），随
+    `AgentConfig::with_quota_tracker` 进入每个线程（与 TUI/headless 对齐；
+    此前桌面端从未接线）——额度窗口耗尽 → `quota_exhausted` 事件 + 凭证
+    冷却 + 池内自动 failover。
+  - `src-tauri/src/state/reload.rs`（新）：`reflect_save_config` 检测
+    provider 段（`active`/`anthropic`/`openai`/`ollama`/`routing`）变更 →
+    重建 ModelRegistry + QuotaTracker → `rebind_session_forced`（新增
+    `state/rebind.rs` 强制变体，跳过同 id 短路；preload 与 bind 命令同源，
+    会话上下文保留）。
+- **前端自动切换**：`src/stores/agent/planFailover.ts`（新）消费
+  `quota_exhausted` / 耗尽特征 `error` 事件，挑选下一个有可用计划的
+  供应商 → `reflect_save_config` → toast 告知；开关（默认开，
+  localStorage `reflect.plans.autoFailover`）+ 60s 防抖；失败 turn 不自动重发。
+- **UI 入口**：
+  - 设置页新增「编码计划」nav（`sections/PlansSection.tsx` 新）：计划卡片
+    （增删改、密钥遮罩、额度徽标）、默认供应商一键设置、自动切换开关；
+    与 ConfigForm 共享 rawToml buffer、统一 Save 落盘。
+  - Models 页新增编码计划列表 + 「设为默认」一键切换（默认供应商热切换）。
+  - `src/features/settings/config/plans.ts`（新）：plan 解析/增删/切换/
+    failover 挑选纯函数（与 schema.ts 同风格的字符串手术）。
+- i18n：`settings.plans.*` / `models.plans.*`（zh/en）。
+- 测试：Rust `state::{quota,reload,rebind}`；前端 `plans.test.ts` /
+  `planFailover.test.ts` / `PlansSection.test.tsx`。
+
+### 修复与体验 — 会话侧边栏打开项目 / 历史会话多选删除 / ActivityBar 溢出
+
+- **侧边栏「打开项目…」**：会话侧边栏底部新增入口，调起系统目录选择器
+  （复用 `reflect_pick_workspace_folder` → `reflect_set_workspace`，与
+  WorkspacesView 同语义），切换后 toast 告知并刷新 workspaces / sessions /
+  当前工作区缓存 —— 此前新增项目必须进 Workspaces 页。
+- **历史会话多选删除**：Threads 页新增「多选」模式 —— 行首勾选框 +
+  顶栏操作条（已选计数 / 删除所选 / 完成），确认后逐条走既有
+  `reflect_delete_session`（无线格式变更）；删除含当前会话时先退出会话路由。
+- **ActivityBar 溢出修复**：主导航 17 项在窗口高度不足时曾溢出栏体、
+  叠在底部 StatusBar 上 —— 主导航组改为占满剩余高度并内部滚动
+  （细滚动条），Settings / About 固定钉在栏底部。
+- 测试：ThreadsView 多选删除（确认删除 / 取消不删）、Sidebar
+  「打开项目」按钮。
+
+### 体验 — Agent 桌面应用核心交互升级（对标 CodexMonitor）
+
+按用户旅程组织：发起任务 → 观察 agent 工作 → 运行中交互 → 回来看结果。
+
+- **消息内 diff 渲染**（观察）：
+  - edit/write 工具的结构化 `ContentBlock::Diff` 此前被压成 JSON 文本
+    （live 流）或直接丢弃（历史回放）。现在 `summarizeToolOutput`
+    返回 `{ text, diff, path }`（`src/stores/agent/turns.ts`），live
+    （`reducer.ts::tool_call_end`）与历史（`src/stores/replay.ts`）统一
+    提取 diff 块与目标路径。
+  - `MessageList` 的 tool_output 带 diff 时复用 `git/DiffViewer` 渲染
+    （unified 着色 + 行号 gutter，默认展开、路径为标题，可折叠）；
+    ChatView 分屏 diff 面板同步替换裸 `<pre>`。无新增依赖。
+- **运行状态与上下文可见性**（观察/交互）：
+  - Composer 运行中显示「停止」按钮（此前只有 `/interrupt` 斜杠命令）；
+  - Composer 角落新增上下文用量条（`tokens.total / contextWindowSize`，
+    ≥80% 转警示色并提示 `/compact`；数据来自已有的 `token_count` /
+    `session_configured` 事件，纯前端）。
+- **跟进消息 Queue vs Steer**（运行中交互；纯前端，不改协议）：
+  - turn 运行中发送的消息不再静默滑入后端不可见 mpsc 队列，而是进入
+    前端可见队列（`queuedMessages` + `enqueue/removeQueued/updateQueued/
+    drainQueue`）：消息流底部「待发送」气泡支持编辑 / 移除 / 立即发送。
+  - 排空时机：`turn_complete` / `turn_aborted` 后自动逐条发出；存在
+    待审批 / 待提问 / 待输入 / 待 plan 时暂停。
+  - Steer 语义：Composer 运行中显示 Queue（默认）/ Steer 模式切换 +
+    `Shift+Cmd/Ctrl+Enter` 单次反转；Steer = `reflect_interrupt()` →
+    等 `turn_aborted` → 立即提交（已完成工具调用保留在会话历史）。
+  - 会话切换（hydrate/clear）清空队列，消息不串会话。
+- **会话标题自动生成**（回来看结果；新命令，见 PROTOCOL_BRIDGE §2）：
+  - `reflect_generate_session_title(id, force?)`：replay 取首条 User +
+    Assistant 种子 → MinimalAgent 的 SharedModelRegistry one-shot 调用
+    → `derive_title` 清洗 → 落盘 `~/.reflect/sessions/_titles/<id>.title`。
+  - 标题优先级升级为三级：自定义名（`_names`）> AI（`_titles`）> 首条
+    消息派生；手动 rename 永不被覆盖。归档 / 删除同步搬移 / 清理 `_titles`。
+  - 触发：会话首次 `turn_complete` 自动生成（后端幂等，失败静默）；
+    会话菜单新增「AI 重命名」重新生成；Home / Threads 标题展示改用
+    `sess.title`（此前显示 session id 前 8 位）。
+- **通知与召回精细化**（回来看结果）：
+  - 通知门控（对标 CodexMonitor）：仅窗口失焦时通知、运行 <60s 不通知
+    （可设 30s/1m/2m/立即）、同 turn 1.5s 节流；通知正文改为 agent 最后
+    一条回复（截断 200 字符），点击通知聚焦窗口并跳回当前会话。
+  - 「需要你处理」通知：等待审批 / 提问 / 输入 / plan 时单独召回。
+  - Dock badge 接线：后端 `reflect_set_dock_badge` 此前无前端调用方，
+    现按待处理交互数实时更新（命令体按领域约定移入
+    `commands/dock.rs`；非 macOS 为 no-op）。
+  - 设置项扩展（Settings → Notifications）：仅失焦通知 / 最短运行时长 /
+    等待处理通知 / Dock 角标；持久化沿用 localStorage
+    `reflect.notify.options`。门控纯函数（`shouldNotifyTurnComplete`）
+    独立可测。
+- **Composer 草稿按会话持久化**（发起任务）：
+  - `useComposerDraft`：草稿写入 localStorage `reflect.draft.<sessionId>`，
+    切换会话自动恢复各自草稿，发送后清除 —— 此前草稿是组件内 state，
+    切会话即丢。
+- 测试：前端新增 `turns.test.ts` / `queue.test.ts` /
+  `useComposerDraft.test.ts` / `QueuedMessages.test.tsx` / notify 门控
+  用例 / Composer Queue-Steer 集成用例；fakeBackend 补齐 turn 生命周期
+  事件（`turn_started`/`turn_complete`）与 `reflect_tailscale_status`
+  线契约字段（修复 `RemoteView.ipv4` 偶发崩溃）、`reflect_generate_session_title`
+  与 dock badge 处理器；Rust 新增 `refine_session_titles` 三级优先级 /
+  `ai_titles` / `extract_title_seed` / `truncate_seed` 用例。
+
+### 功能 — 侧边栏按项目目录分组显示会话（可折叠 + 多项目）
+
+- **侧边栏结构**（纯前端，无线格式变更）：
+  - `Sidebar` 从时间分桶（Now/今天/…）切换为**项目目录分组**：每组头部显示
+    目录名（basename，hover 显全路径）+ 会话数 + 当前工作区标记，组下为该
+    项目的会话（`started_at` 倒序，标题即后端首条消息派生摘要）。
+  - 分组可折叠（`aria-expanded` 组头按钮），折叠态经 localStorage 持久化；
+    默认全展开，未归属分组默认折叠。搜索（标题 / session id / 项目名）时
+    强制展开所有命中分组。
+  - workspaces.json 中的已知项目即使无会话也显示，组头「+」可在该项目下
+    新建会话（先 `reflect_set_workspace` 再预分配 id 并导航）。
+  - 未归属旧会话（v1.x 之前创建、无 `SessionMeta.workspace`）归入「未归属」
+    分组，固定最后。
+- **新模块**：
+  - `src/features/sessions/utils/workspaceGroups.ts`：`groupSessionsByWorkspace`
+    纯函数（会话按 `workspace` 归组 ∪ 已知项目合并，跳过后端 `$HOME/.` 兜底
+    占位；组间最近活跃倒序，未归属组固定最后）。
+  - `src/features/sessions/components/WorkspaceGroup.tsx`：可折叠项目分组组件。
+  - `src/features/sessions/hooks/useCollapsedGroups.ts`：折叠态持久化 hook。
+  - `useSessions` 新增 `groups` 输出（`buckets` 保留，HomeView / ThreadsView
+    仍用时间分桶）。
+- **行为修复**：点击其他项目的会话时，工作区跟随会话——先
+  `reflect_set_workspace(会话.workspace)`（失效 `current-workspace` /
+  `agent-status` / `workspaces` 缓存）再导航，保证 `reflect_bind_session`
+  重建线程时烧入正确的 cwd（此前跨项目点选会以旧工作区续写）。
+- HomeView / ThreadsView / 线程页时间分桶不受影响。
+
 ### 功能 — GUI 会话持久化：M4 recorder 接线 + 跨轮记忆修复（v1.x）
 
 - **协议/引擎层**（reflect-agent submodule）：

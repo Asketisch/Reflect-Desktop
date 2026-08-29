@@ -37,15 +37,14 @@ export function HomeView() {
   const { t } = useI18n();
 
   const recent = useMemo(() => {
-    // `ReflectSessionInfo` 仅携带 `session_id`, `model`, `started_at`,
-    // `message_count` —— 无 display_name / token_total。标签回退到
-    // id 前缀；token 通过 card meta 中的 message_count 展示。
+    // 标签 = 会话标题（自定义名 / AI 标题 / 派生值，由后端精化）；
+    // 无标题的空会话回退 id 前缀。token 通过 card meta 展示。
     const all: Array<{ id: string; label: string; started_at: string; messages: number }> = [];
     for (const b of buckets) {
       for (const sess of b.sessions) {
         all.push({
           id: sess.session_id,
-          label: sess.session_id.slice(0, 8),
+          label: sess.title || sess.session_id.slice(0, 8),
           started_at: sess.started_at,
           messages: sess.message_count,
         });

@@ -87,3 +87,13 @@
   margin: 2px 0 0;
   line-height: var(--lh-normal);
 }
+
+/* v1.x P3：skills 元信息行（触发词 / 允许工具）。 */
+.skillMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}

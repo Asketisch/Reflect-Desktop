@@ -16,6 +16,8 @@ import { useAgentStore } from '@/stores/agentStore';
 let backend: FakeBackend;
 
 beforeEach(() => {
+  // 草稿持久化到 localStorage（F）—— 逐用例清理避免串扰。
+  window.localStorage.clear();
   backend = installFakeBackend();
   backend.agent.script = [{ emit: { type: 'agent_message_delta', delta: 'ack' } }];
 });
@@ -105,7 +107,7 @@ describe('slash commands (real dispatch → backend)', () => {
     await send('/model');
     await waitFor(() =>
       expect(
-        useAgentStore.getState().toasts.some((t) => t.message.includes('Settings → Models')),
+        useAgentStore.getState().toasts.some((t) => t.message.includes('Coding Plans')),
       ).toBe(true),
     );
     expect(backend.agent.submissions.length).toBe(0);

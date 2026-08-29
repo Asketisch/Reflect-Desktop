@@ -1,0 +1,148 @@
+//! provider 栈热重载 —— coding plan 切换的"立即生效"闭环。
+//!
+//! 背景:`reflect_save_config` 长期以来只热更新共享 cfg,**不**重建
+//! `ModelRegistry`(memoized 于 `inner.model_registry`)。用户在设置里
+//! 添加/切换 coding plan(凭证池 / `[active].provider`)后必须重启应用
+//! 才生效 —— 对"额度耗尽自动切换备用计划"的体验是致命断点。
+//!
+//! 本模块在保存配置后:
+//! 1. 检测 provider 相关段(`active` / `anthropic` / `openai` / `ollama` /
+//!    `routing`)是否变化;无关段(显示、MCP、hooks…)变更不打扰运行中的
+//!    会话。
+//! 2. 变化时重建 ModelRegistry + QuotaTracker 并热替换 inner。
+//! 3. 若当前有绑定会话,replay 其历史后 `rebind_session_forced` ——
+//!    运行中的线程换到新 registry 上,对话上下文经 preload 保留。
+//!    (replay 失败时仅重建空 preload 的线程,不阻塞保存。)
+
+use tracing::{info, warn};
+
+use super::MinimalAgent;
+
+/// 判断 provider 相关段是否发生变化(决定是否值得打断当前线程重建)。
+fn provider_stack_changed(
+    old: &reflect_config::ReflectConfig,
+    new: &reflect_config::ReflectConfig,
+) -> bool {
+    old.active != new.active
+        || old.anthropic != new.anthropic
+        || old.openai != new.openai
+        || old.ollama != new.ollama
+        || old.routing != new.routing
+}
+
+/// 保存配置后的 provider 栈热重载(见模块文档)。
+///
+/// 必须在 tokio 上下文调用(replay 是 async;`rebind_session_forced` 内部
+/// `AgentThread::new` 会 `tokio::spawn`)。失败只记日志、不回滚配置 ——
+/// 配置本身已合法写盘,下次 rebind/install 自然生效。
+pub(crate) async fn hot_reload_provider_stack(
+    agent: &MinimalAgent,
+    old: &reflect_config::ReflectConfig,
+    new: &reflect_config::ReflectConfig,
+) {
+    if !provider_stack_changed(old, new) {
+        return;
+    }
+    info!("[reflect-gui] provider stack changed; rebuilding registry + quota tracker");
+
+    // 1. 重建 registry(无 provider 时降级分支会注册 EchoTool,语义同 install)。
+    let registry = super::thread_factory::build_registry(new, agent.tools());
+    *agent.inner.model_registry.lock() = Some(registry);
+
+    // 2. 重建 quota tracker(coding plan 配额声明可能增删)。
+    super::quota::install_quota_tracker(agent, new);
+
+    // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
+    let model_spec = new
+        .resolved_model_spec()
+        .unwrap_or_else(|| "stub/test".to_string());
+    *agent.inner.model_spec.write() = model_spec;
+    *agent.inner.degraded_reason.lock() = if new.active_provider().is_none() {
+        Some("no provider configured — set an API key in Settings".to_string())
+    } else {
+        None
+    };
+
+    // 4. 当前有绑定会话 → replay 历史 → 强制重绑(跳过同 id 短路)。
+    //    旧线程的会话级 PermissionMode 原样带过去,热重载不重置权限模式。
+    let Some(sid) = agent.bound_session_id() else {
+        info!("[reflect-gui] no bound session; registry swap takes effect on next bind");
+        return;
+    };
+    let current_mode = agent
+        .inner
+        .thread
+        .lock()
+        .as_ref()
+        .map(|t| t.config().permission_mode());
+    let preload = match crate::commands::sessions::replay_for_preload(&sid).await {
+        Ok(p) => p,
+        Err(e) => {
+            warn!("[reflect-gui] replay for hot rebind failed ({e:#}); rebinding without history");
+            Vec::new()
+        }
+    };
+    match super::rebind::rebind_session_forced(agent, sid, preload, current_mode) {
+        Ok(()) => info!("[reflect-gui] hot rebind session {sid} onto new provider stack"),
+        Err(e) => warn!("[reflect-gui] hot rebind failed ({e:#}); new stack applies on next bind"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::MinimalAgent;
+
+    fn cfg_with_provider(provider: &str) -> reflect_config::ReflectConfig {
+        reflect_config::load_from_str(&format!("[active]\nprovider = \"{provider}\"\n"))
+            .expect("config parses")
+    }
+
+    /// 无关段变化不触发重载;provider 段变化触发(rebind 已绑定会话)。
+    #[tokio::test]
+    async fn hot_reload_rebuilds_registry_and_rebinds() {
+        let agent = MinimalAgent::new_empty();
+        agent.install_agent_thread();
+        let sid = reflect_protocol::ThreadId::new();
+        super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
+        let thread_before = agent.inner.thread.lock().clone().unwrap();
+        let registry_before = agent.inner.model_registry.lock().clone().unwrap();
+
+        // provider 未变 → 不重建。
+        let unchanged = cfg_with_provider("anthropic");
+        hot_reload_provider_stack(&agent, &unchanged, &unchanged).await;
+        let registry_after_same = agent.inner.model_registry.lock().clone().unwrap();
+        assert!(
+            std::sync::Arc::ptr_eq(&registry_before, &registry_after_same),
+            "provider 段未变时不得重建 registry"
+        );
+
+        // anthropic → openai → registry 重建 + 会话强制重绑(thread Arc 换新)。
+        let changed = cfg_with_provider("openai");
+        hot_reload_provider_stack(&agent, &unchanged, &changed).await;
+        let registry_after = agent.inner.model_registry.lock().clone().unwrap();
+        let thread_after = agent.inner.thread.lock().clone().unwrap();
+        assert!(
+            !std::sync::Arc::ptr_eq(&registry_before, &registry_after),
+            "provider 段变化必须重建 registry"
+        );
+        assert!(
+            !std::sync::Arc::ptr_eq(&thread_before, &thread_after),
+            "已绑定会话必须强制重绑到新 registry"
+        );
+        assert_eq!(agent.bound_session_id(), Some(sid), "会话 id 保持不变");
+        assert_eq!(agent.model_spec(), "openai/gpt-4o", "model spec 随 provider 更新(openai 默认模型)");
+    }
+
+    /// 未绑定会话时只换 registry,不建新线程。
+    #[tokio::test]
+    async fn hot_reload_without_bound_session_only_swaps_registry() {
+        let agent = MinimalAgent::new_empty();
+        agent.install_agent_thread();
+        assert!(agent.bound_session_id().is_none());
+        let old = cfg_with_provider("anthropic");
+        let new = cfg_with_provider("openai");
+        hot_reload_provider_stack(&agent, &old, &new).await;
+        assert_eq!(agent.model_spec(), "openai/gpt-4o");
+    }
+}

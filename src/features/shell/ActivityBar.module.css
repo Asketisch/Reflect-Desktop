@@ -8,6 +8,9 @@
   flex-shrink: 0;
   background: var(--bg-surface-alpha);
   border-right: 1px solid var(--border-default);
+  /* 窗口高度不足时本栏内部滚动,不得溢出压到底部 StatusBar。 */
+  min-height: 0;
+  overflow: hidden;
 }
 
 .logo {
@@ -32,6 +35,91 @@
   gap: var(--space-1);
 }
 
-.spacer {
-  flex: 1;
+/* 主导航组:占满剩余高度,放不下时内部滚动 —— Settings / About
+   所在的次要组因此始终钉在栏底部,不再与 StatusBar 重叠。 */
+.groupPrimary {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  /* 给细滚动条留缝,避免图标被裁。 */
+  padding-right: 2px;
+}
+
+/* ===== simple 模式 =====
+   仅 3 个按钮,无需内部滚动;放开 overflow 让「更多」浮层可以
+   溢出到栏外(全模式平铺时保持 hidden 防止长列表溢出)。 */
+.bar[data-mode="simple"] {
+  overflow: visible;
+}
+
+.bar[data-mode="simple"] .groupPrimary {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.moreWrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.flyout {
+  position: absolute;
+  left: calc(100% + var(--space-2));
+  bottom: 0;
+  z-index: 60;
+  min-width: 200px;
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  padding: var(--space-2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.flyoutTitle {
+  padding: 0 var(--space-1) var(--space-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+
+.flyoutGroup + .flyoutGroup {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.flyoutGroupTitle {
+  padding: 0 var(--space-1) var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.flyoutItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.flyoutItem:hover {
+  background: var(--bg-hover);
+}
+
+.flyoutItem > svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
 }

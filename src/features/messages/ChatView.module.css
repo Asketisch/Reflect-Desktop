@@ -5,6 +5,23 @@
   min-height: 0;
 }
 
+/* 英雄态：问候语 + 居中 Composer + 快捷模板 chips（垂直居中成组）。
+   MessageList 保持挂载（role="log" 被集成测试消费），仅视觉隐藏。 */
+.root[data-hero="on"] {
+  justify-content: center;
+  gap: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+.chatArea {
+  /* 常规布局透传：不干扰 MessageList 自身的 flex 滚动。 */
+  display: contents;
+}
+
+.chatArea[data-hero="on"] {
+  display: none;
+}
+
 .sessionBanner {
   display: flex;
   align-items: center;
@@ -31,6 +48,11 @@
   display: grid;
   grid-template-rows: 1fr minmax(140px, 38%);
   gap: 0;
+}
+
+/* 英雄态无 diff 分栏（diffPanel 不渲染），回退 flex 让 Hero 成组居中。 */
+.root[data-hero="on"][data-split="on"] {
+  display: flex;
 }
 
 .diffPanel {

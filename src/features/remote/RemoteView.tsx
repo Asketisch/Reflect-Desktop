@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { Wifi, Save, X, RefreshCw, Loader2, Info } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Badge, Card, EmptyState, Icon, Spinner } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import {
   useRemoteController,
   type RemoteConfigDraft,
@@ -23,6 +24,7 @@ import s from './RemoteView.module.css';
 
 export function RemoteView() {
   const ctrl = useRemoteController();
+  const { t } = useI18n();
   const [copyOk, setCopyOk] = useState(false);
 
   const copyPreview = async () => {
@@ -40,8 +42,8 @@ export function RemoteView() {
   return (
     <PageShell
       icon={Wifi}
-      title="Remote"
-      subtitle="Tailscale + iOS companion app. Configure the desktop daemon endpoint your iOS app connects to."
+      title={t('remote.title')}
+      subtitle={t('remote.subtitle')}
       width="lg"
       actions={
         <button
@@ -50,7 +52,7 @@ export function RemoteView() {
           onClick={ctrl.refetch}
           data-testid="remote-refresh"
         >
-          <Icon icon={RefreshCw} size={12} /> Refresh
+          <Icon icon={RefreshCw} size={12} /> {t('common.refresh')}
         </button>
       }
     >
@@ -58,14 +60,14 @@ export function RemoteView() {
       <Card level="outlined" padding="md" className={s.section} data-testid="remote-config-card">
         <header className={s.sectionHeader}>
           <div>
-            <strong>iOS connection</strong>
+            <strong>{t('remote.iosConnection')}</strong>
             <div className={s.sectionHint}>
-              Endpoint + shared token your iOS app uses to reach this desktop.
+              {t('remote.iosHint')}
             </div>
           </div>
           <div className={s.sectionActions}>
             <Badge variant={ctrl.config?.is_ready ? 'success' : 'neutral'}>
-              {ctrl.config?.is_ready ? 'ready' : 'not configured'}
+              {ctrl.config?.is_ready ? t('remote.ready') : t('remote.notConfigured')}
             </Badge>
             <button
               type="button"
@@ -75,7 +77,7 @@ export function RemoteView() {
             >
               {ctrl.showForm ? <Icon icon={X} size={12} /> : <Save size={12} />}
               {' '}
-              {ctrl.showForm ? 'Cancel' : ctrl.config?.is_ready ? 'Edit' : 'Configure'}
+              {ctrl.showForm ? t('common.cancel') : ctrl.config?.is_ready ? t('remote.edit') : t('remote.configure')}
             </button>
           </div>
         </header>
@@ -83,24 +85,24 @@ export function RemoteView() {
         {ctrl.config && !ctrl.showForm && (
           <dl className={s.configList} data-testid="remote-config-display">
             <div className={s.configRow}>
-              <dt>Endpoint</dt>
-              <dd>{ctrl.config.endpoint || '(empty)'}</dd>
+              <dt>{t('remote.endpoint')}</dt>
+              <dd>{ctrl.config.endpoint || t('remote.emptyValue')}</dd>
             </div>
             <div className={s.configRow}>
-              <dt>Host</dt>
-              <dd>{ctrl.config.host || '(empty)'}</dd>
+              <dt>{t('remote.host')}</dt>
+              <dd>{ctrl.config.host || t('remote.emptyValue')}</dd>
             </div>
             <div className={s.configRow}>
-              <dt>Port</dt>
+              <dt>{t('remote.port')}</dt>
               <dd>{ctrl.config.port}</dd>
             </div>
             <div className={s.configRow}>
-              <dt>Auth token</dt>
-              <dd>{ctrl.config.auth_token ? `${ctrl.config.auth_token.slice(0, 4)}…` : '(not set)'}</dd>
+              <dt>{t('remote.authToken')}</dt>
+              <dd>{ctrl.config.auth_token ? `${ctrl.config.auth_token.slice(0, 4)}…` : t('remote.notSet')}</dd>
             </div>
             <div className={s.configRow}>
-              <dt>Auto-connect</dt>
-              <dd>{ctrl.config.auto_connect ? 'yes' : 'no'}</dd>
+              <dt>{t('remote.autoConnect')}</dt>
+              <dd>{ctrl.config.auto_connect ? t('remote.yes') : t('remote.no')}</dd>
             </div>
           </dl>
         )}
@@ -115,17 +117,17 @@ export function RemoteView() {
             }}
           >
             <label className={s.field}>
-              Host
+              {t('remote.host')}
               <input
                 className={s.input}
                 value={ctrl.draft.host}
                 onChange={(e) => ctrl.patchDraft({ host: e.target.value } as Partial<RemoteConfigDraft>)}
-                placeholder="e.g. node.tail.net or 100.64.0.1"
+                placeholder={t('remote.hostPlaceholder')}
                 data-testid="remote-form-host"
               />
             </label>
             <label className={s.field}>
-              Port
+              {t('remote.port')}
               <input
                 className={s.input}
                 type="number"
@@ -137,13 +139,13 @@ export function RemoteView() {
               />
             </label>
             <label className={s.field}>
-              Auth token
+              {t('remote.authToken')}
               <input
                 className={s.input}
                 type="password"
                 value={ctrl.draft.authToken}
                 onChange={(e) => ctrl.patchDraft({ authToken: e.target.value })}
-                placeholder="shared bearer token"
+                placeholder={t('remote.tokenPlaceholder')}
                 data-testid="remote-form-token"
               />
             </label>
@@ -154,7 +156,7 @@ export function RemoteView() {
                 onChange={(e) => ctrl.patchDraft({ autoConnect: e.target.checked })}
                 data-testid="remote-form-auto-connect"
               />{' '}
-              Auto-connect on launch (driver TBD)
+              {t('remote.autoConnectLabel')}
             </label>
             <div className={s.formActions}>
               <button
@@ -163,7 +165,7 @@ export function RemoteView() {
                 onClick={ctrl.toggleShowForm}
                 data-testid="remote-form-cancel"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -172,7 +174,7 @@ export function RemoteView() {
                 data-testid="remote-form-submit"
               >
                 {ctrl.isMutating ? <Icon icon={Loader2} size={12} /> : <Save size={12} />}
-                {' '}Save
+                {' '}{t('common.save')}
               </button>
             </div>
           </form>
@@ -183,43 +185,43 @@ export function RemoteView() {
       <Card level="outlined" padding="md" className={s.section} data-testid="remote-tailscale-card">
         <header className={s.sectionHeader}>
           <div>
-            <strong>Tailscale</strong>
+            <strong>{t('remote.tailscale')}</strong>
             <div className={s.sectionHint}>
-              Detects the local daemon + suggests the MagicDNS hostname for iOS.
+              {t('remote.tailscaleHint')}
             </div>
           </div>
           <Badge variant={!ctrl.tailscale ? 'neutral' : ctrl.tailscale.running ? 'success' : 'warning'}>
-            {ctrl.tailscale?.installed ? (ctrl.tailscale.running ? 'running' : 'installed') : 'not installed'}
+            {ctrl.tailscale?.installed ? (ctrl.tailscale.running ? t('remote.running') : t('remote.installed')) : t('remote.notInstalled')}
           </Badge>
         </header>
 
         {ctrl.tailscale && (
           <dl className={s.configList}>
             <div className={s.configRow}>
-              <dt>Suggested host</dt>
-              <dd>{ctrl.tailscale.suggested_remote_host || '(no DNS or IP)'}</dd>
+              <dt>{t('remote.suggestedHost')}</dt>
+              <dd>{ctrl.tailscale.suggested_remote_host || t('remote.noDnsOrIp')}</dd>
             </div>
             {ctrl.tailscale.dns_name && (
               <div className={s.configRow}>
-                <dt>DNS</dt>
+                <dt>{t('remote.dns')}</dt>
                 <dd>{ctrl.tailscale.dns_name}</dd>
               </div>
             )}
             {ctrl.tailscale.tailnet_name && (
               <div className={s.configRow}>
-                <dt>Tailnet</dt>
+                <dt>{t('remote.tailnet')}</dt>
                 <dd>{ctrl.tailscale.tailnet_name}</dd>
               </div>
             )}
             {ctrl.tailscale.ipv4.length > 0 && (
               <div className={s.configRow}>
-                <dt>IPv4</dt>
+                <dt>{t('remote.ipv4')}</dt>
                 <dd>{ctrl.tailscale.ipv4.join(', ')}</dd>
               </div>
             )}
             {ctrl.tailscale.message && (
               <div className={s.configRow}>
-                <dt>Message</dt>
+                <dt>{t('remote.message')}</dt>
                 <dd>{ctrl.tailscale.message}</dd>
               </div>
             )}
@@ -231,9 +233,9 @@ export function RemoteView() {
       <Card level="outlined" padding="md" className={s.section} data-testid="remote-daemon-card">
         <header className={s.sectionHeader}>
           <div>
-            <strong>Desktop daemon hint</strong>
+            <strong>{t('remote.daemonHintTitle')}</strong>
             <div className={s.sectionHint}>
-              Run this on the desktop to expose the JSON-RPC endpoint for iOS.
+              {t('remote.daemonHintDesc')}
             </div>
           </div>
           <button
@@ -243,7 +245,7 @@ export function RemoteView() {
             disabled={!ctrl.previewCmd}
             data-testid="remote-copy-preview"
           >
-            {copyOk ? 'Copied' : 'Copy'}
+            {copyOk ? t('common.copied') : t('common.copy')}
           </button>
         </header>
         {ctrl.previewCmd ? (
@@ -255,8 +257,8 @@ export function RemoteView() {
         ) : (
           <EmptyState
             icon={<Icon icon={Info} />}
-            title="Preview unavailable"
-            description="The Tailscale daemon helper could not render a preview."
+            title={t('remote.previewUnavailable')}
+            description={t('remote.previewUnavailableDesc')}
           />
         )}
       </Card>
@@ -265,13 +267,13 @@ export function RemoteView() {
       <Card level="outlined" padding="md" className={s.section} data-testid="remote-status-card">
         <header className={s.sectionHeader}>
           <div>
-            <strong>Transport status</strong>
+            <strong>{t('remote.transportStatus')}</strong>
             <div className={s.sectionHint}>
-              Live connection state to the configured iOS / 远端 daemon.
+              {t('remote.transportHint')}
             </div>
           </div>
           <Badge variant={ctrl.status?.state === 'connected' ? 'success' : 'neutral'}>
-            {ctrl.status?.state ?? 'unknown'}
+            {ctrl.status?.state ?? t('remote.unknown')}
           </Badge>
         </header>
         {ctrl.status?.message && (

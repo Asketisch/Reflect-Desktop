@@ -6,6 +6,8 @@
  */
 export {
   reduceEvent,
+  selectHasPendingInteraction,
+  selectIsTurnRunning,
   useAgent,
   useAgentStore,
 } from './agent';
@@ -21,6 +23,7 @@ export type {
   PendingAskUser,
   PendingPlan,
   PendingQuestion,
+  QueuedMessage,
   RoutingSnapshot,
   Toast,
   ToastKind,

@@ -68,7 +68,6 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
           cached: msg.cached_tokens,
           cacheWrite: msg.cache_write_tokens,
           total: msg.total_tokens,
-          cost: msg.cost_usd ?? null,
           provider: msg.provider ?? null,
           credentialLabel: msg.credential_label ?? null,
         },
@@ -86,10 +85,13 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       };
 
     case 'tool_call_end': {
+      const summary = summarizeToolOutput(msg.output);
       const withOutput = appendItem(state.turns, turnId, {
         kind: 'tool_output',
         callId: msg.call_id,
-        text: summarizeToolOutput(msg.output),
+        text: summary.text,
+        diff: summary.diff,
+        path: summary.path,
         isError: msg.is_error,
       });
       // 只重写拥有对应 tool_call 的 turn,其他 turn 重写毫无意义。
@@ -159,13 +161,22 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         ],
       };
 
-    case 'context_compacted':
+    case 'context_compacted': {
+      // 压缩不进对话流（噪声），聚合到 Inspector 概览。后端对无变化的
+      // 压缩仍会发事件（noop 守卫只管落盘），这里跳过 before == after
+      // 且无消息移除的空压缩。
+      if (msg.before_tokens === msg.after_tokens && msg.removed_messages === 0) return {};
+      const saved = Math.max(0, msg.before_tokens - msg.after_tokens);
+      const prev = state.compactions;
       return {
-        turns: appendItem(state.turns, turnId, {
-          kind: 'compacted',
-          summary: `${msg.strategy}: ${msg.removed_messages} msgs (${msg.before_tokens} → ${msg.after_tokens} tokens)`,
-        }),
+        compactions: {
+          count: prev.count + 1,
+          removedMessages: prev.removedMessages + msg.removed_messages,
+          tokensSaved: prev.tokensSaved + saved,
+          last: `${msg.strategy}: ${msg.removed_messages} msgs (${msg.before_tokens} → ${msg.after_tokens} tokens)`,
+        },
       };
+    }
 
     case 'error':
       return isSessionEvent

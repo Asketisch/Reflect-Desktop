@@ -3,17 +3,16 @@
  *
  * 验证：
  *   - tokens === null 时显示 empty 段落
- *   - tokens 有值时渲染 input/output/total/cost 等数值
- *   - cost === null 时不含 "$" 文本
+ *   - tokens 有值时渲染 input/output/total 等数值（cost 已按产品决策移除）
  *
  * 仿 AppShell.test.tsx 模式：QueryClient 包裹 + resetMockInvoke + store.setState。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent, waitFor, screen } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Inspector } from '@/features/shell/Inspector';
 import { useAgentStore } from '@/stores/agentStore';
-import { resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
+import { resetMockInvoke, createTestQueryClient, mockInvoke } from '@/test/setup.tsx';
 import type { TokenSnapshot } from '@/stores/agent/types';
 
 vi.mock('@tanstack/react-router', async () => {
@@ -51,7 +50,6 @@ describe('Inspector — token usage section', () => {
       cached: 200,
       cacheWrite: 500,
       total: 1500,
-      cost: 0.0123,
       provider: 'anthropic',
       credentialLabel: 'main-key',
     });
@@ -61,7 +59,6 @@ describe('Inspector — token usage section', () => {
     expect(text).toContain('300'); // output
     expect(text).toContain('500'); // cacheWrite
     expect(text).toContain('1,500'); // total
-    expect(text).toContain('$0.0123'); // cost
     expect(text).toContain('anthropic'); // provider
     expect(text).toContain('main-key'); // credential
   });
@@ -73,12 +70,11 @@ describe('Inspector — token usage section', () => {
       cached: 0,
       cacheWrite: 0,
       total: 15,
-      cost: null,
     });
     const { container } = render(wrap(<Inspector />));
     const text = container.textContent ?? '';
     expect(text).toContain('15'); // total 显示
-    // 不含任何 "$" 开头的 cost 文本
+    // cost 展示已移除，任何情况下不含 "$"。
     expect(text).not.toContain('$');
   });
 
@@ -89,7 +85,6 @@ describe('Inspector — token usage section', () => {
       cached: 0,
       cacheWrite: 0,
       total: 15,
-      cost: null,
     });
     const { container } = render(wrap(<Inspector />));
     const text = container.textContent ?? '';
@@ -97,5 +92,80 @@ describe('Inspector — token usage section', () => {
     // 这里确保 cacheWrite 行不渲染、组件不崩、total 正确。
     expect(text).not.toContain('Cache write');
     expect(text).toContain('15');
+  });
+});
+
+// ===========================================================================
+// v1.x P2：概览 / 文件 / 改动 三 tab
+// ===========================================================================
+
+describe('Inspector tabs', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    useAgentStore.getState().reset();
+  });
+  afterEach(() => cleanup());
+
+  it('defaults to overview with context gauge, composition and session metrics', () => {
+    setTokens({
+      input: 300, output: 120, cached: 60, cacheWrite: 10, total: 420, 
+      provider: 'openai', credentialLabel: 'default',
+    });
+    useAgentStore.setState({ contextWindowSize: 1000, turns: [{ id: 't1', items: [] }] } as never);
+    render(wrap(<Inspector />));
+
+    expect(screen.getByTestId('inspector-tab-overview').getAttribute('aria-selected')).toBe('true');
+    // 上下文仪表：420/1000 → 42%。
+    expect(screen.getByTestId('inspector-context-gauge').textContent).toContain('42%');
+    // Token 构成堆叠条。
+    expect(screen.getByTestId('inspector-token-composition')).toBeDefined();
+    // 会话指标（轮数）。
+    expect(screen.getByTestId('inspector-turn-count').textContent).toBe('1');
+  });
+
+  it('overview shows aggregated compaction stats with last summary tooltip', () => {
+    useAgentStore.setState({
+      compactions: {
+        count: 2,
+        removedMessages: 3,
+        tokensSaved: 2387,
+        last: 'smart_prune: 0 msgs (7731 → 5344 tokens)',
+      },
+    } as never);
+    render(wrap(<Inspector />));
+
+    const stats = screen.getByTestId('inspector-compactions');
+    expect(stats.textContent).toContain('Context compactions');
+    expect(stats.textContent).toContain('2');
+    expect(stats.textContent).toContain('2,387'); // 压缩节省 tokens
+    expect(stats.getAttribute('title')).toBe('smart_prune: 0 msgs (7731 → 5344 tokens)');
+  });
+
+  it('hides the compaction stats block when there are no compactions', () => {
+    render(wrap(<Inspector />));
+    expect(screen.queryByTestId('inspector-compactions')).toBeNull();
+  });
+
+  it('files tab lists the workspace tree', async () => {
+    mockInvoke('reflect_list_dir', async () => ({
+      cwd: '/tmp',
+      entries: [
+        { name: 'src', path: '/tmp/src', kind: 'dir', size: 0, mtime: 0, depth: 0 },
+      ],
+    }));
+    render(wrap(<Inspector />));
+    fireEvent.click(screen.getByTestId('inspector-tab-files'));
+    await waitFor(() => {
+      expect(screen.getByTestId('inspector-files').textContent).toContain('src');
+    });
+  });
+
+  it('changes tab renders the git diff', async () => {
+    mockInvoke('reflect_git_diff', async () => 'diff --git a/x b/x\n+hello\n');
+    render(wrap(<Inspector />));
+    fireEvent.click(screen.getByTestId('inspector-tab-changes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('inspector-changes').textContent).toContain('+hello');
+    });
   });
 });

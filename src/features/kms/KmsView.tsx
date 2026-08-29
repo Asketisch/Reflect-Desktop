@@ -9,6 +9,7 @@ import { BookOpen, Plus, Search, Trash2, FileText } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, Button, EmptyState, Spinner, Input } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import {
   reflect_kms_list,
   reflect_kms_create,
@@ -24,6 +25,7 @@ import s from './KmsView.module.css';
 
 export function KmsView() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const [selectedWiki, setSelectedWiki] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newWikiName, setNewWikiName] = useState('');
@@ -82,8 +84,8 @@ export function KmsView() {
   return (
     <PageShell
       icon={BookOpen}
-      title="Knowledge Base"
-      subtitle="Grep-based wiki for local knowledge. Create, search, and manage pages."
+      title={t('kms.title')}
+      subtitle={t('kms.subtitle')}
       width="lg"
     >
       {/* Search bar */}
@@ -91,7 +93,7 @@ export function KmsView() {
         <div className={s.searchRow}>
           <Icon icon={Search} size={16} />
           <Input
-            placeholder="Search across all knowledge bases..."
+            placeholder={t('kms.searchPlaceholder')}
             value={searchQuery}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             className={s.searchInput}
@@ -124,7 +126,7 @@ export function KmsView() {
           </button>
         ))}
         <Button variant="ghost" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
-          <Icon icon={Plus} size={14} /> New
+          <Icon icon={Plus} size={14} /> {t('kms.new')}
         </Button>
       </div>
 
@@ -132,12 +134,12 @@ export function KmsView() {
       {showCreateForm && (
         <Card level="outlined" padding="md" className={s.createForm}>
           <Input
-            placeholder="Wiki name (e.g. engineering)"
+            placeholder={t('kms.wikiNamePlaceholder')}
             value={newWikiName}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewWikiName(e.target.value)}
           />
           <Input
-            placeholder="Description (optional)"
+            placeholder={t('kms.descriptionPlaceholder')}
             value={newWikiDesc}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewWikiDesc(e.target.value)}
           />
@@ -147,7 +149,7 @@ export function KmsView() {
             onClick={() => createWiki.mutate()}
             disabled={!newWikiName || createWiki.isPending}
           >
-            Create
+            {t('kms.create')}
           </Button>
         </Card>
       )}
@@ -167,14 +169,14 @@ export function KmsView() {
                   setPageContent('');
                 }}
               >
-                <Icon icon={Plus} size={14} /> New Page
+                <Icon icon={Plus} size={14} /> {t('kms.newPage')}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => deleteWiki.mutate(selectedWiki)}
               >
-                <Icon icon={Trash2} size={14} /> Delete Wiki
+                <Icon icon={Trash2} size={14} /> {t('kms.deleteWiki')}
               </Button>
             </div>
           </div>
@@ -182,13 +184,13 @@ export function KmsView() {
           {editingPage !== null && (
             <Card level="outlined" padding="md" className={s.editorCard}>
               <Input
-                placeholder="Page name (e.g. api-design)"
+                placeholder={t('kms.pageNamePlaceholder')}
                 value={pageName}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPageName(e.target.value)}
               />
               <textarea
                 className={s.editor}
-                placeholder="Write your page content in Markdown..."
+                placeholder={t('kms.pageContentPlaceholder')}
                 value={pageContent}
                 onChange={(e) => setPageContent(e.target.value)}
                 rows={10}
@@ -200,10 +202,10 @@ export function KmsView() {
                   onClick={() => savePage.mutate()}
                   disabled={!pageName || savePage.isPending}
                 >
-                  Save
+                  {t('common.save')}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setEditingPage(null)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
               </div>
             </Card>
@@ -214,8 +216,8 @@ export function KmsView() {
           ) : pagesQuery.data?.length === 0 ? (
             <EmptyState
               icon={<Icon icon={FileText} />}
-              title="No pages yet"
-              description="Create a new page to start building your knowledge base."
+              title={t('kms.noPages')}
+              description={t('kms.noPagesDesc')}
             />
           ) : (
             <div className={s.pageList}>
@@ -237,8 +239,8 @@ export function KmsView() {
       ) : wikisQuery.data?.length === 0 ? (
         <EmptyState
           icon={<Icon icon={BookOpen} />}
-          title="No knowledge bases"
-          description="Create your first wiki to start organizing knowledge."
+          title={t('kms.noWikis')}
+          description={t('kms.noWikisDesc')}
         />
       ) : wikisQuery.isLoading ? (
         <Spinner size={20} />

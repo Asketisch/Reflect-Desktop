@@ -38,21 +38,20 @@ describe('StatusBar — token indicator', () => {
     expect(screen.queryByTestId('statusbar-tokens')).toBeNull();
   });
 
-  it('renders total + cost when tokens present', () => {
+  it('renders total without any cost fragment when tokens present', () => {
     const tokens: TokenSnapshot = {
       input: 1200,
       output: 300,
       cached: 200,
       cacheWrite: 500,
       total: 1500,
-      cost: 0.0123,
     };
     useAgentStore.setState({ tokens });
     render(wrap(<StatusBar />));
     const el = screen.getByTestId('statusbar-tokens');
     const text = el.textContent ?? '';
     expect(text).toContain('1,500'); // total
-    expect(text).toContain('$0.0123'); // cost
+    expect(text).not.toContain('$');
   });
 
   it('renders total only when cost is null', () => {
@@ -62,7 +61,6 @@ describe('StatusBar — token indicator', () => {
       cached: 0,
       cacheWrite: 0,
       total: 15,
-      cost: null,
     };
     useAgentStore.setState({ tokens });
     render(wrap(<StatusBar />));

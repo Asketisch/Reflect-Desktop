@@ -8,7 +8,16 @@ import type { StringEntry } from '../types';
 
 const files: Record<string, StringEntry> = {
   'files.title':              { en: 'Files',                                               'zh-CN': '文件' },
-  'files.subtitle':           { en: 'Browse the workspace. Click any file to preview with line numbers + syntax highlighting.', 'zh-CN': '浏览工作区。点击任意文件以预览其内容,显示行号与语法高亮。' },
+  'files.subtitle':           { en: 'Browse and edit workspace files (CodeMirror). Agent edits show as green/red hunks with accept/reject.', 'zh-CN': '浏览并编辑工作区文件(CodeMirror)。agent 的修改以绿/红变更块呈现,支持逐块接受或拒绝恢复。' },
+  'files.pendingChanges':     { en: '{count} pending change{plural} from agent',           'zh-CN': 'agent 有 {count} 处待确认变更' },
+  'files.acceptAll':          { en: 'Accept all',                                          'zh-CN': '全部接受' },
+  'files.rejectAll':          { en: 'Reject all',                                          'zh-CN': '全部拒绝' },
+  'files.rejectFailed':       { en: 'Reject failed — the hunk no longer matches the file content. Review manually.', 'zh-CN': '拒绝失败——变更块与当前文件内容不匹配,请手动检查。' },
+  'files.binary':             { en: 'Binary file — content not shown.',                    'zh-CN': '二进制文件,不显示内容。' },
+  'files.lspOff':             { en: 'LSP off',                                             'zh-CN': 'LSP 未开启' },
+  'files.lspOn':              { en: 'LSP on ({count} servers)',                            'zh-CN': 'LSP 已开启({count} 个服务)' },
+  'files.lspOffHint':         { en: 'Enable LSP for this workspace? It starts language servers (higher tooling accuracy for the agent), at the cost of system resources.', 'zh-CN': '为当前工作区开启 LSP?将启动语言服务,agent 的代码理解(定义/引用/诊断)更准确,但会增加系统资源占用。' },
+  'files.lspOnHint':          { en: 'LSP enabled — files are warmed up as you open them. Click to disable.', 'zh-CN': 'LSP 已开启——打开文件时会自动预热建立索引。点击关闭。' },
   'files.open':               { en: 'Open',                                                'zh-CN': '打开' },
   'files.refresh':            { en: 'Refresh',                                             'zh-CN': '刷新' },
   'files.empty':              { en: 'empty',                                               'zh-CN': '空' },
@@ -32,6 +41,9 @@ const files: Record<string, StringEntry> = {
   'files.findNoMatchesDesc':  { en: 'No files contain "{query}".',                         'zh-CN': '没有文件包含 "{query}"。' },
   'files.findHits':           { en: '{count} hit{plural}',                                 'zh-CN': '{count} 个匹配' },
   'files.findTruncated':      { en: 'truncated at 200',                                    'zh-CN': '截断于 200 条' },
+  'search.tab.sessions':      { en: 'Sessions',                                            'zh-CN': '会话' },
+  'search.tab.files':         { en: 'Files',                                               'zh-CN': '文件' },
+  'search.sessionHits':       { en: '{count} session{plural}',                             'zh-CN': '{count} 个会话' },
 };
 
 export default files;

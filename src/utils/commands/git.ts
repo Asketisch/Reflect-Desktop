@@ -6,6 +6,9 @@ import { invoke } from '../bridge';
 export interface ReflectGitStatusEntry {
   path: string;
   status: string;
+  /** 是否含已暂存(index)变更 —— trimmed porcelain 码丢失了 "M " / " M"
+   *  的区分,后端单列本字段供 staged/working 分 tab。 */
+  staged: boolean;
   old_path: string | null;
 }
 
@@ -40,4 +43,36 @@ export async function reflect_git_diff(staged = false): Promise<string> {
 /** 获取最近 N 条 log(默认 20)。 */
 export async function reflect_git_log(limit = 20): Promise<ReflectGitLogEntry[]> {
   return invoke<ReflectGitLogEntry[]>('reflect_git_log', { limit });
+}
+
+// ====== P3：Git 操作化 + 拉取请求 ======
+
+/** stage 文件（`git add --`；空数组 = 全量 add -A）。 */
+export async function reflect_git_stage(paths: string[]): Promise<void> {
+  return invoke<void>('reflect_git_stage', { paths });
+}
+
+/** unstage 文件（`git reset HEAD --`；空数组 = 全量）。 */
+export async function reflect_git_unstage(paths: string[]): Promise<void> {
+  return invoke<void>('reflect_git_unstage', { paths });
+}
+
+/** 提交（`git commit -m`），返回新 commit 短 hash。 */
+export async function reflect_git_commit(message: string): Promise<string> {
+  return invoke<string>('reflect_git_commit', { message });
+}
+
+/** GitHub PR（`gh pr list`）；gh 未安装 / 非 repo 时后端抛带原因的错误。 */
+export interface ReflectGhPullRequest {
+  number: number;
+  title: string;
+  head_ref: string;
+  author: string;
+  updated_at: string;
+  url: string;
+  draft: boolean;
+}
+
+export async function reflect_gh_pr_list(limit = 20): Promise<ReflectGhPullRequest[]> {
+  return invoke<ReflectGhPullRequest[]>('reflect_gh_pr_list', { limit });
 }

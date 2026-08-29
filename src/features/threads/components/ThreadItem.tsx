@@ -21,6 +21,11 @@ export interface ThreadItemProps {
   onDelete: (id: string) => Promise<void>;
   onExport: (id: string) => Promise<string | null>;
   onArchive?: (id: string) => Promise<void>;
+  onGenerateTitle?: (id: string) => Promise<string>;
+  /** 多选删除（可选）：显示勾选框并参与选中集合。 */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 export function ThreadItem({
@@ -31,6 +36,10 @@ export function ThreadItem({
   onDelete,
   onExport,
   onArchive,
+  onGenerateTitle,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: ThreadItemProps) {
   const { tp, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -58,7 +67,25 @@ export function ThreadItem({
   }, [menuOpen, session.session_id]);
 
   return (
-    <li className={s.row}>
+    <li className={s.row} data-selected={selectable && selected ? 'true' : undefined}>
+      {selectable && (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={session.title || session.session_id}
+          className={s.checkbox}
+          data-checked={selected || undefined}
+          data-testid={`thread-select-${session.session_id}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleSelect?.(session.session_id);
+          }}
+        >
+          {selected ? '✓' : ''}
+        </button>
+      )}
       <Link
         to="/chat/$sessionId"
         params={{ sessionId: session.session_id }}
@@ -68,7 +95,7 @@ export function ThreadItem({
         data-href={chatLinkFor(session)}
       >
         <div className={s.title}>
-          {session.session_id.slice(0, 8)}
+          {session.title || session.session_id.slice(0, 8)}
         </div>
         <div className={s.meta}>
           {shortTimestamp(session.started_at)} · {tp('threads.msgCount', session.message_count)}
@@ -111,6 +138,15 @@ export function ThreadItem({
               ? async () => {
                   await onArchive(session.session_id);
                   setMenuOpen(false);
+                }
+              : undefined
+          }
+          onGenerateTitle={
+            onGenerateTitle
+              ? async () => {
+                  const title = await onGenerateTitle(session.session_id);
+                  setMenuOpen(false);
+                  return title;
                 }
               : undefined
           }

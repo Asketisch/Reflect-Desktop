@@ -40,6 +40,19 @@ const git: Record<string, StringEntry> = {
   'git.commitAll':      { en: 'Commit all',                                                                                                    'zh-CN': '提交全部' },
   'git.stageAll':       { en: 'Stage all',                                                                                                     'zh-CN': '全部暂存' },
   'git.unstageAll':     { en: 'Unstage all',                                                                                                   'zh-CN': '取消全部暂存' },
+  'git.selectAll':      { en: 'Select all',                                                                                                    'zh-CN': '全选' },
+  'git.stageSelected':  { en: 'Stage selected',                                                                                                'zh-CN': '暂存所选' },
+  'git.unstageSelected': { en: 'Unstage selected',                                                                                             'zh-CN': '取消暂存所选' },
+  'git.commitPlaceholder': { en: 'Commit message…',                                                                                            'zh-CN': '提交信息…' },
+  'git.commitHint':     { en: 'Commits the staged changes (push stays in your terminal).',                                                     'zh-CN': '提交已暂存的改动（push 仍在终端进行）。' },
+  'git.commitDone':     { en: 'Committed → {short}',                                                                                           'zh-CN': '已提交 → {short}' },
+  'pulls.title':        { en: 'Pull requests',                                                                                                 'zh-CN': '拉取请求' },
+  'pulls.subtitle':     { en: 'Open pull requests in the current repository (via gh CLI).',                                                    'zh-CN': '当前仓库的开放 PR（经 gh CLI）。' },
+  'pulls.count':        { en: '{count} open PR{plural}',                                                                                       'zh-CN': '{count} 个开放 PR' },
+  'pulls.draft':        { en: 'draft',                                                                                                         'zh-CN': '草稿' },
+  'pulls.empty':        { en: 'No open pull requests.',                                                                                        'zh-CN': '没有开放的 PR。' },
+  'pulls.emptyDesc':    { en: 'Open PRs in this repository will appear here.',                                                                 'zh-CN': '当前仓库的开放 PR 会显示在这里。' },
+  'pulls.unavailable':  { en: 'Pull requests unavailable',                                                                                     'zh-CN': '无法获取拉取请求' },
 };
 
 export default git;

@@ -1,13 +1,18 @@
 /**
  * SlashPopup —— `/` 命令候选弹层（CSS Modules 版）。
  *
+ * v1.x P3 修复键盘导航：此前弹层自带 node keydown 监听，但焦点始终在
+ * textarea（要继续输入过滤词），监听器永远收不到真实按键。现在改为
+ * **受控组件** —— 选中下标由 Composer 持有，ArrowUp/Down/Enter/Tab 在
+ * textarea 的 onKeyDown 里路由进来（见 useComposerInput）。
+ *
  * 契约（SlashPopup.test.tsx）：
  *   - 渲染 button 元素，文本含 `/<name>`
  *   - 点击 button 调 onSelect(name)
  *   - visible=false / 无匹配时返回 null
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { SLASH_COMMANDS } from './slashCommands';
+import { useEffect } from 'react';
+import { filterSlashCommands } from './slashCommands';
 import { useI18n } from '@/utils/i18n';
 import s from './SlashPopup.module.css';
 
@@ -15,62 +20,30 @@ interface Props {
   query: string;
   onSelect: (cmd: string) => void;
   visible: boolean;
+  /** 当前键盘/hover 选中的下标（受控，Composer 持有并夹紧）。 */
+  activeIdx: number;
+  /** hover 变更选中项（回传 Composer）。 */
+  onActiveIdxChange: (idx: number) => void;
 }
 
-export function SlashPopup({ query, onSelect, visible }: Props) {
+export function SlashPopup({ query, onSelect, visible, activeIdx, onActiveIdxChange }: Props) {
   const { t } = useI18n();
-  const listRef = useRef<HTMLDivElement>(null);
-  const [activeIdx, setActiveIdx] = useState(0);
+  const filtered = filterSlashCommands(query);
 
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().replace(/^\//, '');
-    if (!q) return SLASH_COMMANDS;
-    return SLASH_COMMANDS.filter(
-      (c) =>
-        c.name.toLowerCase().startsWith(q) ||
-        c.aliases?.some((a) => a.toLowerCase().startsWith(q)),
-    );
-  }, [query]);
-
+  // 查询变化或列表缩短时，把选中下标夹回有效区间。
   useEffect(() => {
-    setActiveIdx(0);
-  }, [query]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const node = listRef.current;
-    if (!node) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setActiveIdx((i) => Math.max(i - 1, 0));
-      } else if (e.key === 'Enter' || e.key === 'Tab') {
-        const c = filtered[activeIdx];
-        if (c) {
-          e.preventDefault();
-          onSelect(c.name);
-        }
-      }
-    };
-    // 注意：键盘导航目前仅支持鼠标驱动——textarea 在弹层打开时保持焦点，
-    // 因此弹层的 keydown 处理器不会因真实的按键而触发。点击选择（第 71 行）
-    // 仍然有效。正确的修复方案是在打开时将焦点转移到弹层。
-    node.addEventListener('keydown', onKey);
-    return () => node.removeEventListener('keydown', onKey);
-  }, [visible, filtered, activeIdx, onSelect]);
+    if (activeIdx >= filtered.length) onActiveIdxChange(0);
+  }, [filtered.length, activeIdx, onActiveIdxChange]);
 
   if (!visible || filtered.length === 0) return null;
 
   return (
-    <div ref={listRef} tabIndex={-1} className={s.popup} role="listbox">
+    <div className={s.popup} role="listbox" data-testid="slash-popup">
       {filtered.map((c, i) => (
         <button
           type="button"
           key={c.name}
-          onMouseEnter={() => setActiveIdx(i)}
+          onMouseEnter={() => onActiveIdxChange(i)}
           onClick={() => onSelect(c.name)}
           className={s.item}
           data-active={i === activeIdx || undefined}

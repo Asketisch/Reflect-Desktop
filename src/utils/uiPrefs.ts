@@ -16,6 +16,8 @@ export interface UiPrefs {
   surfaceOpacity: number;
   backgroundImage: string;
   backgroundImageOpacity: number;
+  /** 左侧导航栏模式：simple = 大众默认（少量高频入口 + 「更多」浮层），full = 全部视图平铺。 */
+  activityBarMode: 'simple' | 'full';
 }
 
 const DEFAULTS: UiPrefs = {
@@ -27,6 +29,7 @@ const DEFAULTS: UiPrefs = {
   surfaceOpacity: 1,
   backgroundImage: '',
   backgroundImageOpacity: 0.35,
+  activityBarMode: 'simple',
 };
 
 const KEY = 'reflect.uiprefs.v1';
@@ -70,6 +73,7 @@ function normalize(value: Partial<UiPrefs>): UiPrefs {
       1,
       DEFAULTS.backgroundImageOpacity,
     ),
+    activityBarMode: value.activityBarMode === 'full' ? 'full' : DEFAULTS.activityBarMode,
   };
 }
 

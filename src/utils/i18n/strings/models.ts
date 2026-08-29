@@ -24,6 +24,13 @@ const models: Record<string, StringEntry> = {
   'models.noProviderDesc':     { en: 'Set an API key to enable a model.',                        'zh-CN': '设置 API 密钥以启用模型。' },
   'models.configureHint':      { en: 'Configure one in Settings to get started.',                'zh-CN': '请在设置中配置。' },
   'models.settingsHint':       { en: 'Model spec is edited in Settings → {path}.',               'zh-CN': '模型规范在 Settings → {path} 中编辑。' },
+
+  // Coding Plans(术语保留英文,与 Token Plan 同义使用)
+  'models.plans':              { en: 'Coding plans',                                             'zh-CN': 'Coding Plans' },
+  'models.plansEmpty':         { en: 'No plans configured — add one in Settings → Coding Plans.', 'zh-CN': '暂无 Coding Plan — 在 设置 → Coding Plans 中添加。' },
+  'models.planIsDefault':      { en: 'Default',                                                  'zh-CN': '当前默认' },
+  'models.planSetDefault':     { en: 'Set as default',                                           'zh-CN': '设为默认' },
+  'models.plansHint':          { en: 'Switching the default provider hot-reloads the current session — no restart needed. Within one provider, credential failover is automatic.', 'zh-CN': '切换默认供应商后当前会话热重载,无需重启;同一接入端口内凭证故障切换自动完成。' },
 };
 
 export default models;

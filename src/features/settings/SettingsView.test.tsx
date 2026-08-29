@@ -44,10 +44,6 @@ model = "claude-3-5-sonnet-latest"
 api_key = "sk-existing"
 model = "gpt-4o"
 
-[ollama]
-base_url = "http://127.0.0.1:11434"
-model = "llama3.2"
-
 [mcp_servers.filesystem]
 type = "stdio"
 command = "npx"
@@ -98,8 +94,10 @@ describe('SettingsView', () => {
     });
 
     renderSettingsView();
+    // 权限快捷控件只在 Permissions 页显示（不再每个设置页签重复）。
+    fireEvent.click(screen.getByText('Permissions'));
     // permission 按钮文案:auto/prompt/deny/plan。
-    const planBtn = await screen.findByText('plan');
+    const planBtn = await screen.findByText('plan', { selector: 'button' });
     fireEvent.click(planBtn);
 
     await waitFor(() => expect(modeArg).toBe('plan'), { timeout: 2000 });
@@ -138,10 +136,7 @@ describe('SettingsView', () => {
     // OpenAI
     expect(screen.getByLabelText(/OpenAI API key/)).toBeDefined();
     expect(screen.getByLabelText(/OpenAI model/)).toBeDefined();
-    // Ollama(结构化输入)
-    expect(screen.getByLabelText(/Ollama base URL/)).toBeDefined();
-    expect(screen.getByLabelText(/Ollama model/)).toBeDefined();
-    // active provider 下拉(渲染在结构化表单内)
+    // active provider 下拉(渲染在结构化表单内;仅 anthropic / openai 两种接入端口)
     const providerSelects = screen.getAllByLabelText(/^Active provider$/);
     expect(providerSelects.length).toBeGreaterThanOrEqual(1);
     // Compact / token_budget
@@ -201,8 +196,8 @@ describe('SettingsView', () => {
       const input = screen.getByLabelText(/Anthropic API key/) as HTMLInputElement;
       expect(input.value).toBe('sk-ant-existing');
     });
-    const ollamaBase = screen.getByLabelText(/Ollama base URL/) as HTMLInputElement;
-    expect(ollamaBase.value).toBe('http://127.0.0.1:11434');
+    const openaiKey = screen.getByLabelText(/OpenAI API key/) as HTMLInputElement;
+    expect(openaiKey.value).toBe('sk-existing');
   });
 
   it('renders the Display screen with all four primary cards (theme / accent / transparency / background)', () => {
@@ -226,19 +221,34 @@ describe('SettingsView', () => {
     expect(container.querySelector('input[type="url"]')).toBeTruthy();
     expect(container.querySelector('input[type="file"]')).toBeTruthy();
   });
+
+  it('toggles the developer-mode ActivityBar switch from Display settings', () => {
+    renderSettingsView();
+    fireEvent.click(screen.getByRole('button', { name: 'Display' }));
+    // 默认 simple（大众模式）：开关未勾选。
+    const toggle = screen.getByTestId('settings-advanced-views') as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    expect(getUiPrefs().activityBarMode).toBe('simple');
+
+    fireEvent.click(toggle);
+    expect(getUiPrefs().activityBarMode).toBe('full');
+    expect((screen.getByTestId('settings-advanced-views') as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(getUiPrefs().activityBarMode).toBe('simple');
+  });
 });
 
 describe('configSchema helpers', () => {
   it('readField returns existing scalar values', () => {
     expect(readField(SAMPLE_TOML, 'anthropic', 'api_key')).toBe('sk-ant-existing');
-    expect(readField(SAMPLE_TOML, 'ollama', 'base_url')).toBe('http://127.0.0.1:11434');
+    expect(readField(SAMPLE_TOML, 'openai', 'model')).toBe('gpt-4o');
     expect(readField(SAMPLE_TOML, 'hooks.search_budget', 'max_calls')).toBe('25');
   });
 
   it('applyField writes scalar text into existing sections', () => {
     const next = applyField(SAMPLE_TOML, 'anthropic', 'api_key', 'sk-new', 'text');
     expect(next).toContain('api_key = "sk-new"');
-    expect(next).toContain('[ollama]');
     expect(next).toContain('[mcp_servers.filesystem]');
   });
 

@@ -3,6 +3,162 @@
   flex-direction: column;
   padding: var(--space-3);
   gap: var(--space-4);
+  min-height: 0;
+}
+
+/* ===== 概览 / 文件 / 改动 三 tab ===== */
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.tab {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.tab[data-active] {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+/* ===== 概览：上下文仪表 + Token 构成 ===== */
+
+.gaugeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.gaugeBadge {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeBadge[data-warn] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.gaugeBar {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.gaugeFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.gaugeFill[data-warn] {
+  background: var(--warning);
+}
+
+/* 80% 压缩阈值刻度线（对标 Reasonix「压缩 800000」）。 */
+.gaugeThreshold {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-1px);
+  background: var(--text-muted);
+  opacity: 0.6;
+}
+
+.gaugeHint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--warning);
+}
+
+.comp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.compBar {
+  display: flex;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--border-subtle);
+}
+
+.compSeg {
+  display: block;
+  height: 100%;
+}
+
+.compLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.compLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.compDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+/* ===== 文件 / 改动 tab ===== */
+
+.filesWrap {
+  min-height: 0;
+  overflow: auto;
+}
+
+.changesWrap {
+  min-height: 0;
+  overflow: auto;
+}
+
+.changesPre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
 }
 
 .section {

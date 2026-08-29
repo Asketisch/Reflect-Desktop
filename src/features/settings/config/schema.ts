@@ -38,7 +38,9 @@ export interface FieldSpec {
 }
 
 const SIMPLE_FIELDS: FieldSpec[] = [
-  { section: 'active', key: 'provider', labelKey: 'settings.config.field.active.provider', kind: 'select', options: ['anthropic', 'openai', 'ollama'] },
+  // provider = 接入端口（API 协议端点），仅 anthropic / openai 两种。
+  // Ollama 走 OpenAI 兼容端口：base_url 指向本地服务即可，不再是独立选项。
+  { section: 'active', key: 'provider', labelKey: 'settings.config.field.active.provider', kind: 'select', options: ['anthropic', 'openai'] },
 
   { section: 'anthropic', key: 'api_key', labelKey: 'settings.config.field.anthropic.api_key', kind: 'text', secret: true, placeholderKey: 'settings.config.placeholder.anthropic.api_key' },
   { section: 'anthropic', key: 'base_url', labelKey: 'settings.config.field.anthropic.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.anthropic.base_url' },
@@ -49,14 +51,6 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   { section: 'openai', key: 'base_url', labelKey: 'settings.config.field.openai.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.openai.base_url' },
   { section: 'openai', key: 'model', labelKey: 'settings.config.field.openai.model', kind: 'text', placeholderKey: 'settings.config.placeholder.openai.model' },
   { section: 'openai', key: 'timeout_secs', labelKey: 'settings.config.field.openai.timeout_secs', kind: 'integer' },
-
-  { section: 'ollama', key: 'base_url', labelKey: 'settings.config.field.ollama.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.ollama.base_url' },
-  { section: 'ollama', key: 'api_key', labelKey: 'settings.config.field.ollama.api_key', kind: 'text', secret: true, placeholderKey: 'settings.config.placeholder.ollama.api_key' },
-  { section: 'ollama', key: 'model', labelKey: 'settings.config.field.ollama.model', kind: 'text', placeholderKey: 'settings.config.placeholder.ollama.model' },
-  { section: 'ollama', key: 'keep_alive_secs', labelKey: 'settings.config.field.ollama.keep_alive_secs', kind: 'integer' },
-  { section: 'ollama', key: 'num_ctx', labelKey: 'settings.config.field.ollama.num_ctx', kind: 'integer' },
-  { section: 'ollama', key: 'num_gpu', labelKey: 'settings.config.field.ollama.num_gpu', kind: 'integer' },
-  { section: 'ollama', key: 'timeout_secs', labelKey: 'settings.config.field.ollama.timeout_secs', kind: 'integer' },
 
   { section: 'compact', key: 'trigger_tokens', labelKey: 'settings.config.field.compact.trigger_tokens', kind: 'integer' },
 
@@ -80,8 +74,6 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   { section: 'ask_user_question', key: 'default_timeout_secs', labelKey: 'settings.config.field.ask_user_question.default_timeout_secs', kind: 'integer' },
 
   { section: 'model', key: 'context_window', labelKey: 'settings.config.field.model.context_window', kind: 'integer' },
-  { section: 'model', key: 'input_price_micro_usd_per_mtok', labelKey: 'settings.config.field.model.input_price_micro_usd_per_mtok', kind: 'integer' },
-  { section: 'model', key: 'output_price_micro_usd_per_mtok', labelKey: 'settings.config.field.model.output_price_micro_usd_per_mtok', kind: 'integer' },
 
   { section: 'analytics', key: 'enabled', labelKey: 'settings.config.field.analytics.enabled', kind: 'boolean' },
   { section: 'analytics', key: 'endpoint', labelKey: 'settings.config.field.analytics.endpoint', kind: 'text' },

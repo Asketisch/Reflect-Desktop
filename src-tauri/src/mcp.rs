@@ -121,16 +121,23 @@ pub(crate) async fn bootstrap_mcp(
 
 /// bootstrap LSP servers + 返回 manager 句柄。
 pub(crate) async fn bootstrap_lsp(
+    agent: &crate::state::MinimalAgent,
     cfg: &ReflectConfig,
-    tools: Arc<ToolRegistry>,
-    session_tx: broadcast::Sender<Event>,
-) -> Option<Arc<LspConnectionManager>> {
+) -> Result<Option<Arc<LspConnectionManager>>, String> {
+    // 幂等:已启用(用户开关)时直接返回现有 manager,不重复注册/起 server。
+    if let Some(existing) = agent.inner.lsp_manager.lock().clone() {
+        return Ok(Some(existing));
+    }
+    let tools = agent.tools();
+    let session_tx = agent.session_tx();
     let configs = match cfg.lsp_server_configs() {
-        Ok(c) if c.is_empty() => return None,
+        Ok(c) if c.is_empty() => {
+            return Ok(None);
+        }
         Ok(c) => c,
         Err(e) => {
             tracing::warn!(error = %e, "LSP config invalid; skipping all LSP servers");
-            return None;
+            return Err(format!("LSP config invalid: {e}"));
         }
     };
 
@@ -166,6 +173,8 @@ pub(crate) async fn bootstrap_lsp(
     });
 
     // 单例 LspTool(单一 `lsp` tool,按 file_path 路由到对应 server)。
+    // 常驻 manager 存进 MinimalAgent,供开关命令启停与文件预热。
+    *agent.inner.lsp_manager.lock() = Some(manager.clone());
     let tool = Arc::new(LspTool::new(manager.clone()));
     tools.register_with_source(ToolSource::Runtime, tool);
 
@@ -186,7 +195,7 @@ pub(crate) async fn bootstrap_lsp(
     }
 
     tracing::info!(lsp_servers = configs.len(), "LSP bootstrap: spawning start tasks");
-    Some(manager)
+    Ok(Some(manager))
 }
 
 /// 把 reflect_mcp 的 transport kind 映射成 protocol 的 mirror 枚举。

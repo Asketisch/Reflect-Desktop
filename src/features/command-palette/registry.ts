@@ -38,6 +38,15 @@ import {
   Trash2,
   Download,
   Save,
+  Search,
+  Brain,
+  FolderKanban,
+  Clock,
+  Bot,
+  Workflow,
+  Wifi,
+  Zap,
+  Image as ImageIcon,
 } from 'lucide-react';
 import type { LocaleKey } from '@/utils/i18n';
 
@@ -96,7 +105,6 @@ export function buildPaletteItems(args: BuildPaletteArgs): PaletteItem[] {
     { id: 'nav.plan',        labelKey: 'palette.item.goPlan',      kind: 'navigation', icon: ListChecks,   to: '/plan',        weight: 10 },
     { id: 'nav.prompts',     labelKey: 'palette.item.goPrompts',   kind: 'navigation', icon: BookOpen,     to: '/prompts',     weight: 10 },
     { id: 'nav.about',       labelKey: 'palette.item.goAbout',     kind: 'navigation', icon: Info,         to: '/about',       weight: 10 },
-    { id: 'nav.update',      labelKey: 'palette.item.goUpdate',    kind: 'navigation', icon: Download,     to: '/update',      weight: 10 },
     { id: 'nav.notifications', labelKey: 'palette.item.goNotifications', kind: 'navigation', icon: Bell,      to: '/notifications', weight: 10 },
     { id: 'nav.debug',       labelKey: 'palette.item.goDebug',     kind: 'navigation', icon: Bug,          to: '/debug',       weight: 10 },
     { id: 'nav.apps',        labelKey: 'palette.item.goApps',      kind: 'navigation', icon: AppWindow,    to: '/apps',        weight: 10 },
@@ -104,6 +112,18 @@ export function buildPaletteItems(args: BuildPaletteArgs): PaletteItem[] {
     { id: 'nav.dictation',   labelKey: 'palette.item.goDictation', kind: 'navigation', icon: Mic,          to: '/dictation',   weight: 10 },
     { id: 'nav.mobile',      labelKey: 'palette.item.goMobile',    kind: 'navigation', icon: Smartphone,   to: '/mobile',      weight: 10 },
     { id: 'nav.design',      labelKey: 'palette.item.goDesign',    kind: 'navigation', icon: Layers,      to: '/design-system', weight: 10 },
+    // v1.x P1：补齐此前只能手输 URL 到达的视图（simple 模式下「更多」浮层同样可达）。
+    { id: 'nav.search',      labelKey: 'palette.item.goSearch',    kind: 'navigation', icon: Search,      to: '/search',        weight: 10 },
+    { id: 'nav.memory',      labelKey: 'palette.item.goMemory',    kind: 'navigation', icon: Brain,       to: '/memory',        weight: 10 },
+    { id: 'nav.tasks',       labelKey: 'palette.item.goTasks',     kind: 'navigation', icon: FolderKanban, to: '/tasks',        weight: 10 },
+    { id: 'nav.schedule',    labelKey: 'palette.item.goSchedule',  kind: 'navigation', icon: Clock,       to: '/schedule',      weight: 10 },
+    { id: 'nav.agents',      labelKey: 'palette.item.goAgents',    kind: 'navigation', icon: Bot,         to: '/agents',        weight: 10 },
+    { id: 'nav.sideChannels', labelKey: 'palette.item.goSideChannels', kind: 'navigation', icon: Workflow, to: '/side-channels', weight: 10 },
+    { id: 'nav.remote',      labelKey: 'palette.item.goRemote',    kind: 'navigation', icon: Wifi,        to: '/remote',        weight: 10 },
+    { id: 'nav.kms',         labelKey: 'palette.item.goKms',       kind: 'navigation', icon: BookOpen,    to: '/kms',           weight: 10 },
+    { id: 'nav.autopilot',   labelKey: 'palette.item.goAutopilot', kind: 'navigation', icon: Zap,         to: '/autopilot',     weight: 10 },
+    { id: 'nav.squad',       labelKey: 'palette.item.goSquad',     kind: 'navigation', icon: Users,       to: '/squad',         weight: 10 },
+    { id: 'nav.media',       labelKey: 'palette.item.goMedia',     kind: 'navigation', icon: ImageIcon,   to: '/media',         weight: 10 },
 
     // ---- Session actions ----
     { id: 'sess.new',    labelKey: 'palette.item.newSession',    hintKey: 'palette.item.newSessionHint',   kind: 'session', icon: Plus,    run: newSession, weight: 5 },

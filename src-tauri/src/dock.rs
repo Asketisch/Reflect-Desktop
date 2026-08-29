@@ -78,10 +78,6 @@ pub fn set_dock_badge<R: Runtime>(app: &AppHandle<R>, label: Option<String>) {
     }
 }
 
-/// Tauri command —— 前端可通过 `invoke('reflect_set_dock_badge', { label: '3' })` 设置。
-///
-/// 输入 `null` / `None` 等价清空。
-#[tauri::command]
-pub fn reflect_set_dock_badge(app: tauri::AppHandle, label: Option<String>) {
-    set_dock_badge(&app, label);
-}
+// Tauri command `reflect_set_dock_badge` 已按领域约定移至
+// `src-tauri/src/commands/dock.rs`(薄包装,调用本模块的
+// [`set_dock_badge`]);lib.rs 经 `commands` 重导出注册。

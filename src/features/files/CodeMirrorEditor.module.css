@@ -1,0 +1,79 @@
+/* CodeMirrorEditor —— CM6 宿主与 agent 变更装饰(Cursor 式 review)。
+ *
+ * CM 自身注入的类(.cm-*)经 :global 定制;颜色全部走 tokens.css 变量,
+ * 避免硬编码。绿/红采用低饱和背景 + 左侧亮边的 diff 惯例。 */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.host {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.host :global(.cm-editor) {
+  height: 100%;
+}
+
+.host :global(.cm-scroller) {
+  font-family: var(--font-mono);
+  line-height: 1.55;
+}
+
+/* 新增行:绿色背景 + 左侧绿色亮边 */
+.host :global(.cm-addedLine) {
+  background: color-mix(in srgb, var(--success, #4ade80) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--success, #4ade80);
+}
+
+/* hunk 悬浮控件:Accept/Reject 栏 + 被删除行的红色块 */
+.hunkWidget {
+  border-top: 1px dashed color-mix(in srgb, var(--danger, #f87171) 60%, transparent);
+}
+
+.hunkBar {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  margin: 2px 0 2px 24px;
+}
+
+.hunkBtn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs, 11px);
+  padding: 1px 8px;
+  border-radius: var(--radius-xs, 3px);
+  cursor: pointer;
+}
+
+.hunkAccept:hover {
+  background: color-mix(in srgb, var(--success, #4ade80) 22%, transparent);
+  color: var(--text-primary);
+}
+
+.hunkReject:hover {
+  background: color-mix(in srgb, var(--danger, #f87171) 22%, transparent);
+  color: var(--text-primary);
+}
+
+.removedLine {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 0 8px 0 32px;
+  white-space: pre;
+  background: color-mix(in srgb, var(--danger, #f87171) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--danger, #f87171);
+  color: var(--text-secondary);
+}

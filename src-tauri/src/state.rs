@@ -24,7 +24,9 @@ pub use remote_config::{RemoteConfig, RemoteStatus};
 
 mod agent;
 mod install;
+pub(crate) mod quota;
 pub(crate) mod rebind;
+pub(crate) mod reload;
 mod remote_config;
 mod session;
 mod submit;

@@ -6,10 +6,12 @@
 export { Sidebar } from './components/Sidebar';
 export { SessionItem } from './components/SessionItem';
 export { BucketGroup } from './components/BucketGroup';
+export { WorkspaceGroup } from './components/WorkspaceGroup';
 export {
   useSessions,
   useActiveSession,
   SESSIONS_QUERY_KEY,
+  WORKSPACES_QUERY_KEY,
 } from './hooks/useSessions';
 export type { SessionBucket, SessionBucketLabel } from './utils/buckets';
 export {
@@ -18,3 +20,11 @@ export {
   displayTitle,
   SESSION_BUCKET_LABELS,
 } from './utils/buckets';
+export {
+  groupSessionsByWorkspace,
+  groupKeyFor,
+  basename,
+  isPlaceholderWorkspace,
+  UNASSIGNED_GROUP_KEY,
+} from './utils/workspaceGroups';
+export type { WorkspaceSessionGroup } from './utils/workspaceGroups';

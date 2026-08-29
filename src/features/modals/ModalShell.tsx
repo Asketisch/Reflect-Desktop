@@ -17,8 +17,8 @@ interface Props {
   title: string;
   open: boolean;
   onClose: () => void;
-  primaryAction?: { label: string; onClick: () => void; autoFocus?: boolean };
-  secondaryAction?: { label: string; onClick: () => void };
+  primaryAction?: { label: string; onClick: () => void; autoFocus?: boolean; dataTestId?: string };
+  secondaryAction?: { label: string; onClick: () => void; dataTestId?: string };
   tertiaryAction?: { label: string; onClick: () => void };
   children: ReactNode;
 }
@@ -135,21 +135,26 @@ export function ModalShell({
               </button>
             )}
             <div className={s.footerRight}>
-              {secondaryAction && (
-                <button className={s.btnSecondary} onClick={secondaryAction.onClick}>
-                  {secondaryAction.label}
-                </button>
-              )}
-              {primaryAction && (
-                <button
-                  ref={primaryRef}
-                  className={s.btnPrimary}
-                  onClick={primaryAction.onClick}
-                  autoFocus={primaryAction.autoFocus}
-                >
-                  {primaryAction.label}
-                </button>
-              )}
+            {secondaryAction && (
+              <button
+                className={s.btnSecondary}
+                onClick={secondaryAction.onClick}
+                data-testid={secondaryAction.dataTestId}
+              >
+                {secondaryAction.label}
+              </button>
+            )}
+            {primaryAction && (
+              <button
+                ref={primaryRef}
+                className={s.btnPrimary}
+                onClick={primaryAction.onClick}
+                autoFocus={primaryAction.autoFocus}
+                data-testid={primaryAction.dataTestId}
+              >
+                {primaryAction.label}
+              </button>
+            )}
             </div>
           </footer>
         )}

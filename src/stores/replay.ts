@@ -1,9 +1,10 @@
 import type { ReflectRolloutRecord } from '@/utils/types';
-import type { Turn, TurnItem } from './agent/types';
+import type { CompactionStats, Turn, TurnItem } from './agent/types';
 import { summarizeArgs, summarizeToolOutput } from './agent/turns';
 
 /**
- * 把 `reflect_replay_session` 返回的 rollout record 流构建为转数列表。
+ * 把 `reflect_replay_session` 返回的 rollout record 流构建为转数列表 +
+ * 压缩聚合统计。
  *
  * 线格式为 `reflect_protocol::RolloutRecord` —— serde tagged union
  * (tag = `type`,snake_case),每条 record 是一个扁平对象:
@@ -11,14 +12,19 @@ import { summarizeArgs, summarizeToolOutput } from './agent/turns';
  * - `{ type: "message", turn_id, role, content }` —— `content` 是纯字符串
  *   或 `ContentBlock` 数组(`text` / `tool_use` / `tool_result` / `image` /
  *   `diff`);同一 turn 内 user 与 assistant 消息共享 `turn_id`;
- * - `{ type: "compaction", turn_id, strategy, removed_count, summary }`;
+ * - `{ type: "compaction", turn_id, strategy, removed_count, summary }` ——
+ *   不进对话流,聚合进 `compactions`(与 live `context_compacted` 一致,
+ *   仅 Inspector 概览展示;record 无 token 数,`tokensSaved` 不含历史);
  * - 其余(`session_meta` / `token_count` / `plan_*` / `checkpoint` / ...)
  *   不承载 turn 级渲染信息,跳过。
  *
  * turn 按 `turn_id` 分组,顺序 = 文件中首次出现顺序(chronological);
  * 历史 turn 一律 `status: 'done'`。
  */
-export function turnsFromRollout(records: ReflectRolloutRecord[]): Turn[] {
+export function turnsFromRollout(records: ReflectRolloutRecord[]): {
+  turns: Turn[];
+  compactions: CompactionStats;
+} {
   const turns: Turn[] = [];
   const index = new Map<string, number>();
   const ensureTurn = (turnId: string): Turn => {
@@ -28,6 +34,12 @@ export function turnsFromRollout(records: ReflectRolloutRecord[]): Turn[] {
     index.set(turnId, turns.length);
     turns.push(turn);
     return turn;
+  };
+  const compactions: CompactionStats = {
+    count: 0,
+    removedMessages: 0,
+    tokensSaved: 0, // 历史 record 不带 token 数,仅 live 事件累计。
+    last: null,
   };
 
   for (const record of records) {
@@ -40,17 +52,16 @@ export function turnsFromRollout(records: ReflectRolloutRecord[]): Turn[] {
       const items = contentToItems(record.content, role);
       if (items.length > 0) ensureTurn(turnId).items.push(...items);
     } else if (type === 'compaction') {
-      // 与 live `context_compacted` 渲染一致:单行摘要,不展开完整
-      // `summary`(可达 16 KiB 的合成消息正文)。
-      if (turnId) {
-        const strategy = typeof record.strategy === 'string' ? record.strategy : 'compact';
-        const removed = typeof record.removed_count === 'number' ? record.removed_count : 0;
-        ensureTurn(turnId).items.push({ kind: 'compacted', summary: `${strategy}: ${removed} msgs` });
-      }
+      // 不展开完整 `summary`(可达 16 KiB 的合成消息正文),只取统计字段。
+      const strategy = typeof record.strategy === 'string' ? record.strategy : 'compact';
+      const removed = typeof record.removed_count === 'number' ? record.removed_count : 0;
+      compactions.count += 1;
+      compactions.removedMessages += removed;
+      compactions.last = `${strategy}: ${removed} msgs`;
     }
     // 其余 record 类型 → skip。
   }
-  return turns;
+  return { turns, compactions };
 }
 
 /**
@@ -93,26 +104,23 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
       case 'tool_result': {
         const callId = typeof b.call_id === 'string' ? b.call_id : '';
         const output = (b.output ?? {}) as Record<string, unknown>;
-        const blocks = Array.isArray(output.content) ? output.content : [];
-        const text = blocks
-          .filter(
-            (x): x is Record<string, unknown> =>
-              Boolean(x && typeof x === 'object' && (x as Record<string, unknown>).type === 'text'),
-          )
-          .map((x) => (typeof x.text === 'string' ? x.text : ''))
-          .join('\n')
-          .trim();
-        if (!callId || !text) break;
+        if (!callId) break;
+        // 整体交给 summarizeToolOutput：text 块拼接 + diff 块提取
+        // （edit/write 的改动在历史视图中同样可见）。
+        const summary = summarizeToolOutput(output);
+        if (!summary.text && !summary.diff) break;
         items.push({
           kind: 'tool_output',
           callId,
-          text: summarizeToolOutput(text),
+          text: summary.text,
+          diff: summary.diff,
+          path: summary.path,
           isError: Boolean(output.is_error),
         });
         break;
       }
       default:
-        // image / diff 等块暂不进历史视图(image 是 base64 负载)。
+        // image 等块暂不进历史视图(base64 负载);diff 已由 tool_result 提取。
         break;
     }
   }

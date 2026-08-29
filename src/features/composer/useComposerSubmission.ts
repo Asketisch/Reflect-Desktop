@@ -20,8 +20,15 @@ import {
   reflect_set_permission_mode,
   reflect_export_session,
 } from '@/utils/commands';
-import { useAgentStore } from '@/stores/agentStore';
+import {
+  useAgentStore,
+  selectIsTurnRunning,
+} from '@/stores/agentStore';
+import type { UserInputItem } from '@/types/protocol';
 import type { PromptHistoryApi } from './usePromptHistory';
+
+/** C：运行中发送的两种语义 —— 排队（默认）或转向（中断当前 run 立即发送）。 */
+export type SendMode = 'queue' | 'steer';
 
 interface UseComposerSubmissionOptions {
   text: string;
@@ -33,6 +40,23 @@ interface UseComposerSubmissionOptions {
   focus: () => void;
   /** v1.x：当前工作区绝对路径；提交时注入 `ReflectSubmission.workspace`。 */
   currentWorkspace?: string | null;
+  /** C：Queue/Steer 模式（仅 turn 运行中发送时生效）。 */
+  sendMode?: SendMode;
+  /** P3：`!` 终端直通 —— 文本以 `!` 开头时本地执行，不进 agent 循环。 */
+  onBangCommand?: (command: string) => Promise<void>;
+}
+
+/**
+ * steer：中断当前 turn，等它真正收尾（turn_aborted → 无 streaming turn）
+ * 后再提交。轮询 store 而非订阅事件，避免一次性订阅的清理复杂度；
+ * 超时兜底直接提交 —— 后端 mpsc 保序，中断先于新消息被处理。
+ */
+async function waitTurnSettled(timeoutMs = 8000): Promise<void> {
+  const start = Date.now();
+  while (selectIsTurnRunning(useAgentStore.getState())) {
+    if (Date.now() - start > timeoutMs) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 }
 
 export function useComposerSubmission({
@@ -44,6 +68,8 @@ export function useComposerSubmission({
   setSlashVisible,
   focus,
   currentWorkspace,
+  sendMode = 'queue',
+  onBangCommand,
 }: UseComposerSubmissionOptions) {
   const { submit } = useAgent();
   const { activeId } = useActiveSession();
@@ -98,15 +124,34 @@ export function useComposerSubmission({
     }
   }, [activeId, pushToast, rename, t]);
 
-  return useCallback(async () => {
+  return useCallback(async (options?: { reverseMode?: boolean }) => {
     const value = text.trim();
     if (!value && attachments.attachments.length === 0) return;
+
+    // 单次反转：Shift+Cmd/Ctrl+Enter 时本次发送用对侧模式。
+    const mode: SendMode = options?.reverseMode
+      ? sendMode === 'queue'
+        ? 'steer'
+        : 'queue'
+      : sendMode;
 
     setBusy(true);
     setText('');
     setSlashVisible(false);
     history.resetNavigation();
     try {
+      // P3：`!` 终端直通 —— 本地执行，不进 agent 循环、不写会话历史；
+      // 附件保留在输入框（用户可能接着补充说明再发送）。
+      if (value.startsWith('!') && onBangCommand) {
+        const command = value.slice(1).trim();
+        if (command) {
+          history.commit(value);
+          await onBangCommand(command);
+        } else {
+          setText('!');
+        }
+        return;
+      }
       const parsed = dispatch(value, { activeSessionId: activeId, now: () => new Date() });
       if ('kind' in parsed) {
         if (parsed.kind === 'submit_with_submission' && parsed.submission) {
@@ -119,21 +164,34 @@ export function useComposerSubmission({
           pushToast({ kind: 'info', message: parsed.message ?? t('composer.commandHandled') });
         }
       } else {
-        if (attachments.attachments.length > 0) {
-          await useAgentStore.getState().submitItems(
-            [
-              ...(value ? [{ type: 'text' as const, text: value }] : []),
-              ...attachments.toUserInputItems(),
-            ],
-            currentWorkspace ?? null,
-          );
+        const items: UserInputItem[] = [
+          ...(value ? [{ type: 'text' as const, text: value }] : []),
+          ...attachments.toUserInputItems(),
+        ];
+        const running = selectIsTurnRunning(useAgentStore.getState());
+        if (running && mode === 'steer') {
+          // Steer：中断当前 run，收尾后立即发送；已完成工具调用保留在
+          // 会话历史中，模型带着进度从新指令继续。
+          await reflect_interrupt();
+          await waitTurnSettled();
+          await useAgentStore.getState().submitItems(items, currentWorkspace ?? null);
+          history.commit(value);
+          void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+        } else if (running) {
+          // Queue：留在前端队列（不发后端），turn 收尾后自动排空；
+          // 队列消息在消息流底部可见、可编辑、可撤销。
+          useAgentStore.getState().enqueueMessage(items, currentWorkspace ?? null);
+        } else if (attachments.attachments.length > 0) {
+          await useAgentStore.getState().submitItems(items, currentWorkspace ?? null);
+          history.commit(value);
+          void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
         } else {
           await submit(value, currentWorkspace ?? null);
+          history.commit(value);
+          // 刷新侧边栏会话列表:新会话的首条消息会派生标题,
+          // 不等下一次手动刷新/缓存过期即可见。
+          void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
         }
-        history.commit(value);
-        // 刷新侧边栏会话列表:新会话的首条消息会派生标题,
-        // 不等下一次手动刷新/缓存过期即可见。
-        void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
       }
       attachments.clear();
     } catch (error) {
@@ -150,8 +208,10 @@ export function useComposerSubmission({
     dispatchSubmission,
     focus,
     history,
+    onBangCommand,
     pushToast,
     qc,
+    sendMode,
     setBusy,
     setSlashVisible,
     setText,

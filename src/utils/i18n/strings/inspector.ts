@@ -30,10 +30,26 @@ const inspector: Record<string, StringEntry> = {
   'inspector.tokenCacheWrite':   { en: 'Cache write',                 'zh-CN': '缓存写入' },
   'inspector.tokenCacheWriteHint': { en: 'cache_creation — subset of input, not added to total', 'zh-CN': 'cache_creation —— 输入的子集,不计入 total' },
   'inspector.tokenTotal':        { en: 'Total',                       'zh-CN': '合计' },
-  'inspector.tokenCost':         { en: 'Cost',                        'zh-CN': '成本' },
   'inspector.tokenProvider':     { en: 'Provider',                    'zh-CN': '提供商' },
   'inspector.tokenCredential':   { en: 'Credential',                  'zh-CN': '凭据' },
   'inspector.contextWindow':     { en: 'Context window: {tokens} tokens', 'zh-CN': '上下文窗口: {tokens} tokens' },
+
+  // ===== v1.x P2：概览 / 文件 / 改动 三 tab =====
+  'inspector.tab.overview':      { en: 'Overview',                    'zh-CN': '概览' },
+  'inspector.tab.files':         { en: 'Files',                       'zh-CN': '文件' },
+  'inspector.tab.changes':       { en: 'Changes',                     'zh-CN': '改动' },
+  'inspector.contextGauge':      { en: 'Context window',              'zh-CN': '上下文窗口' },
+  'inspector.contextEmpty':      { en: 'No context usage reported yet.', 'zh-CN': '尚未上报上下文用量。' },
+  'inspector.compactions':       { en: 'Context compactions',         'zh-CN': '上下文压缩' },
+  'inspector.compactionsSaved':  { en: 'Tokens saved by pruning',     'zh-CN': '压缩节省 tokens' },
+  'inspector.sessionMetrics':    { en: 'Session metrics',             'zh-CN': '会话指标' },
+  'inspector.metricTurns':       { en: 'Turns',                       'zh-CN': '轮数' },
+  'inspector.metricTotalTokens': { en: 'Total tokens',                'zh-CN': '累计 tokens' },
+  'inspector.comp.input':        { en: 'Input',                       'zh-CN': '提示词' },
+  'inspector.comp.cached':       { en: 'Cache hit',                   'zh-CN': '缓存命中' },
+  'inspector.comp.cacheWrite':   { en: 'Cache write',                 'zh-CN': '缓存写入' },
+  'inspector.comp.output':       { en: 'Output',                      'zh-CN': '回复' },
+  'inspector.filesEmpty':        { en: 'No workspace open (or empty).', 'zh-CN': '未打开工作区（或目录为空）。' },
 };
 
 export default inspector;

@@ -156,7 +156,6 @@ describe('reduceEvent', () => {
       cached: 0,
       cacheWrite: 0,
       total: 150,
-      cost: null,
       provider: null,
       credentialLabel: null,
     });

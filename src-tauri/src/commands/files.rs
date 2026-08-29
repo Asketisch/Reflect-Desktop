@@ -201,6 +201,25 @@ pub async fn reflect_read_file(
     })
 }
 
+/// 写回文本文件(编辑器 Reject 恢复原文 / 手动保存)。工作区沙盒内。
+///
+/// 供编辑器把恢复后的内容写回磁盘:`Reject` 会用 inverse-patch 重建原文,
+/// 经此命令落盘。文件不存在时创建(含父目录);按 UTF-8 覆盖写。
+#[tauri::command]
+pub async fn reflect_write_file(
+    agent: State<'_, MinimalAgent>,
+    path: String,
+    content: String,
+) -> CommandResult<String> {
+    let resolved = resolve_under_workspace(&agent.workspace(), &path)?;
+    if let Some(parent) = resolved.parent() {
+        std::fs::create_dir_all(parent).map_err(CommandError::from)?;
+    }
+    std::fs::write(&resolved, content.as_bytes()).map_err(CommandError::from)?;
+    tracing::info!(path = %resolved.display(), bytes = content.len(), "file written");
+    Ok(resolved.display().to_string())
+}
+
 /// 确保 `path` 解析后位于已配置的工作区之下,
 /// 防止 `..` 逃逸以及指向工作区外的绝对路径。
 pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandResult<PathBuf> {

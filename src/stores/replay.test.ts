@@ -33,7 +33,7 @@ const BASE_RECORDS: ReflectRolloutRecord[] = [
 
 describe('turnsFromRollout', () => {
   it('groups user + assistant messages by turn_id', () => {
-    const turns = turnsFromRollout(BASE_RECORDS);
+    const { turns } = turnsFromRollout(BASE_RECORDS);
     expect(turns).toHaveLength(1);
     const [turn] = turns;
     expect(turn.id).toBe(T1);
@@ -45,7 +45,7 @@ describe('turnsFromRollout', () => {
   });
 
   it('skips non-message records (session_meta / token_count / permission_mode_changed)', () => {
-    const turns = turnsFromRollout(BASE_RECORDS);
+    const { turns } = turnsFromRollout(BASE_RECORDS);
     for (const turn of turns) {
       for (const item of turn.items) {
         expect(['user_text', 'assistant_text']).toContain(item.kind);
@@ -54,7 +54,7 @@ describe('turnsFromRollout', () => {
   });
 
   it('handles plain-string content and block-array content in the same turn', () => {
-    const turns = turnsFromRollout([
+    const { turns } = turnsFromRollout([
       rec({ type: 'message', turn_id: T1, role: 'user', content: '纯字符串消息' }),
       rec({ type: 'message', turn_id: T1, role: 'assistant', content: [{ type: 'text', text: '块数组回复' }] }),
     ]);
@@ -65,7 +65,7 @@ describe('turnsFromRollout', () => {
   });
 
   it('orders turns by first appearance (chronological)', () => {
-    const turns = turnsFromRollout([
+    const { turns } = turnsFromRollout([
       rec({ type: 'message', turn_id: T1, role: 'user', content: 'first' }),
       rec({ type: 'message', turn_id: T2, role: 'user', content: 'second' }),
       rec({ type: 'message', turn_id: T1, role: 'assistant', content: 'first reply' }),
@@ -77,7 +77,7 @@ describe('turnsFromRollout', () => {
   });
 
   it('renders tool_use / tool_result blocks as tool_call / tool_output', () => {
-    const turns = turnsFromRollout([
+    const { turns } = turnsFromRollout([
       rec({ type: 'message', turn_id: T1, role: 'user', content: '读一下文件' }),
       rec({
         type: 'message',
@@ -103,7 +103,7 @@ describe('turnsFromRollout', () => {
   });
 
   it('marks tool_output as error when output.is_error is true', () => {
-    const turns = turnsFromRollout([
+    const { turns } = turnsFromRollout([
       rec({
         type: 'message',
         turn_id: T1,
@@ -122,8 +122,73 @@ describe('turnsFromRollout', () => {
     expect(output).toEqual({ kind: 'tool_output', callId: 'call-9', text: 'command failed', isError: true });
   });
 
-  it('renders compaction records as a one-line compacted item', () => {
-    const turns = turnsFromRollout([
+  it('extracts unified diff + path from tool_result content blocks', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 'call-2', name: 'edit', args: {} },
+          {
+            type: 'tool_result',
+            call_id: 'call-2',
+            output: {
+              content: [
+                { type: 'text', text: 'updated src/main.rs' },
+                {
+                  type: 'diff',
+                  unified_diff: '--- a/src/main.rs\n+++ b/src/main.rs\n@@ -1,2 +1,2 @@\n-old\n+new',
+                },
+              ],
+              is_error: false,
+              metadata: { path: 'src/main.rs' },
+            },
+          },
+        ],
+      }),
+    ]);
+    expect(turns[0].items[1]).toEqual({
+      kind: 'tool_output',
+      callId: 'call-2',
+      text: 'updated src/main.rs',
+      diff: '--- a/src/main.rs\n+++ b/src/main.rs\n@@ -1,2 +1,2 @@\n-old\n+new',
+      path: 'src/main.rs',
+      isError: false,
+    });
+  });
+
+  it('keeps diff-only tool_result even when there is no text block', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_result',
+            call_id: 'call-3',
+            output: {
+              content: [{ type: 'diff', unified_diff: '--- a\n+++ b\n@@ -1 +1 @@\n-a\n+b' }],
+              is_error: false,
+            },
+          },
+        ],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      {
+        kind: 'tool_output',
+        callId: 'call-3',
+        text: '',
+        diff: '--- a\n+++ b\n@@ -1 +1 @@\n-a\n+b',
+        isError: false,
+      },
+    ]);
+  });
+
+  it('compaction records 不进对话流,聚合到 compactions 统计', () => {
+    const { turns, compactions } = turnsFromRollout([
       rec({ type: 'message', turn_id: T1, role: 'user', content: 'x' }),
       rec({
         type: 'compaction',
@@ -132,15 +197,27 @@ describe('turnsFromRollout', () => {
         removed_count: 12,
         summary: '<summary>很长的合成摘要…</summary>',
       }),
+      rec({
+        type: 'compaction',
+        turn_id: T2,
+        strategy: 'smart_prune',
+        removed_count: 3,
+        summary: '',
+      }),
     ]);
-    expect(turns[0].items).toEqual([
-      { kind: 'user_text', text: 'x' },
-      { kind: 'compacted', summary: 'microcompact: 12 msgs' },
-    ]);
+    // 历史 compaction record 不再生成 turn item。
+    expect(turns[0].items).toEqual([{ kind: 'user_text', text: 'x' }]);
+    // record 无 token 数,tokensSaved 不含历史。
+    expect(compactions).toEqual({
+      count: 2,
+      removedMessages: 15,
+      tokensSaved: 0,
+      last: 'smart_prune: 3 msgs',
+    });
   });
 
   it('ignores records without a turn_id or with unparseable content', () => {
-    const turns = turnsFromRollout([
+    const { turns } = turnsFromRollout([
       rec({ type: 'message', role: 'user', content: 'no turn id' }),
       rec({ type: 'message', turn_id: T1, role: 'user', content: 42 }),
       rec({ type: 'message', turn_id: T1, role: 'system', content: 'system note' }),
@@ -151,7 +228,10 @@ describe('turnsFromRollout', () => {
     expect(turns).toHaveLength(0);
   });
 
-  it('returns an empty list for an empty record stream', () => {
-    expect(turnsFromRollout([])).toEqual([]);
+  it('returns empty turns and zeroed stats for an empty record stream', () => {
+    expect(turnsFromRollout([])).toEqual({
+      turns: [],
+      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
+    });
   });
 });

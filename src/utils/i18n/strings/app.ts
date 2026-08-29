@@ -9,6 +9,11 @@ import type { StringEntry } from '../types';
 const app: Record<string, StringEntry> = {
   'app.title':  { en: 'Reflect Desktop',  'zh-CN': 'Reflect Desktop' },
   'app.name':   { en: 'Reflect',          'zh-CN': 'Reflect' },
+  'notify.turnFinished': { en: 'Turn finished.', 'zh-CN': '任务已完成。' },
+  'notify.approvalBody': {
+    en: 'Reflect needs your attention (approval / question pending).',
+    'zh-CN': 'Reflect 需要你的处理（有待审批 / 待回答问题）。',
+  },
 };
 
 export default app;

@@ -5,12 +5,14 @@
  * `onArchive` 可选（调用方未接归档能力时不渲染该菜单项）。
  *
  * - rename 用内联表单轻量处理（避免引入新 modal 原语）；
- * - archive / delete 二次 confirm；
+ * - archive / delete 二次确认（应用内 ConfirmDialog —— window.confirm
+ *   在 Tauri WKWebView 不弹窗且恒返回 false，不能用作确认）；
  * - export 调 `reflect_export_session` 并短暂展示导出路径。
  */
 import { useState } from 'react';
 import type { ReflectSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
+import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import s from './SessionItemMenu.module.css';
 
 export interface SessionItemMenuProps {
@@ -20,9 +22,16 @@ export interface SessionItemMenuProps {
   onExport: () => Promise<string | null>;
   /** 可选：归档（移出会话列表，可在归档区恢复）。 */
   onArchive?: () => Promise<void>;
+  /** 可选：AI 重新生成标题（B；未接时隐藏菜单项）。 */
+  onGenerateTitle?: () => Promise<string>;
+  /** 可选：置顶切换（未接时隐藏菜单项）。 */
+  pinned?: boolean;
+  onTogglePin?: () => void;
+  /** 归档列表行：「归档」菜单项切换为「恢复」（onArchive 实际接 unarchive）。 */
+  archivedRow?: boolean;
 }
 
-export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchive }: SessionItemMenuProps) {
+export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchive, onGenerateTitle, pinned, onTogglePin, archivedRow }: SessionItemMenuProps) {
   const { t } = useI18n();
   const [renameOpen, setRenameOpen] = useState(false);
   // 预填充当前标题(自定义名或派生值;无标题的空会话为空串)。
@@ -63,16 +72,22 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchi
 
   const handleArchive = () =>
     run(async () => {
-      if (confirm(t('threads.archiveConfirm', { id: session.session_id }))) {
-        await onArchive?.();
-      }
+      const ok = await confirmDialog({
+        title: t('threads.archive'),
+        message: t('threads.archiveConfirm', { id: session.session_id }),
+        confirmLabel: t('threads.archive'),
+      });
+      if (ok) await onArchive?.();
     });
 
   const handleDelete = () =>
     run(async () => {
-      if (confirm(t('threads.deleteConfirm', { id: session.session_id }))) {
-        await onDelete();
-      }
+      const ok = await confirmDialog({
+        title: t('threads.delete'),
+        message: t('threads.deleteConfirm', { id: session.session_id }),
+        confirmLabel: t('common.delete'),
+      });
+      if (ok) await onDelete();
     });
 
   const handleExport = () =>
@@ -82,6 +97,11 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchi
         setExportPath(path);
         setTimeout(() => setExportPath(null), 3000);
       }
+    });
+
+  const handleGenerateTitle = () =>
+    run(async () => {
+      await onGenerateTitle?.();
     });
 
   if (renameOpen) {
@@ -119,6 +139,17 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchi
 
   return (
     <div className={s.menu} data-session-menu={session.session_id} role="menu" aria-label={t('threads.threadActions')}>
+      {onTogglePin && (
+        <button
+          type="button"
+          role="menuitem"
+          className={s.item}
+          onClick={onTogglePin}
+          data-testid={`session-pin-${session.session_id}`}
+        >
+          {pinned ? '📌' : '📍'} {pinned ? t('threads.unpin') : t('threads.pin')}
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"
@@ -129,6 +160,18 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchi
       >
         ✎ {t('threads.rename')}
       </button>
+      {onGenerateTitle && (
+        <button
+          type="button"
+          role="menuitem"
+          className={s.item}
+          onClick={() => void handleGenerateTitle()}
+          disabled={pending}
+          data-testid={`session-ai-rename-${session.session_id}`}
+        >
+          ✨ {t('threads.aiRename')}
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"
@@ -148,7 +191,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchi
           disabled={pending}
           data-testid={`session-archive-${session.session_id}`}
         >
-          📦 {t('threads.archive')}
+          📦 {archivedRow ? t('threads.unarchive') : t('threads.archive')}
         </button>
       )}
       <button

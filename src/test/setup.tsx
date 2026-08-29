@@ -12,6 +12,19 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup, render as rtlRender, type RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { resetUiPrefsForTests } from '@/utils/uiPrefs';
+import { resetPinsForTests } from '@/features/sessions/utils/pins';
+
+// ====== DOM polyfills(jsdom 缺失,CodeMirror 6 依赖) ======
+
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  (globalThis as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub;
+}
 
 // ====== Tauri invoke mock ======
 
@@ -82,13 +95,49 @@ beforeEach(() => {
 
   // reflect_bind_session —— 把后端 AgentThread 绑到指定 session id
   // (后端幂等;未知 id 走空历史分支,不报错 → mock 为 no-op)
-  mockInvoke('reflect_bind_session', async () => {});
+  mockInvoke('reflect_bind_session', async () => 'auto');
 
   // reflect_list_archived_sessions —— 默认无归档会话
   mockInvoke('reflect_list_archived_sessions', async () => []);
 
   // reflect_set_permission_mode
   mockInvoke('reflect_set_permission_mode', async () => {});
+
+  // ComposerControls / ModelsView —— 模型与 effort 读写默认 stub
+  // （具体测试可自行 override 返回值）。
+  mockInvoke('reflect_get_config', async () => '');
+  mockInvoke('reflect_agent_status', async () => ({
+    ready: false,
+    has_model: false,
+    model: 'stub/test',
+    workspace: '/tmp',
+    degraded_reason: null,
+  }));
+  mockInvoke('reflect_set_model', async (_provider: string, _model: string) => 'stub/test');
+  mockInvoke('reflect_get_effort', async () => 'low');
+  mockInvoke('reflect_set_effort', async () => 'ok');
+
+  // v1.x P1-P3 新命令默认 stub（具体测试可自行 override）。
+  mockInvoke('reflect_git_status', async () => ({
+    branch: null,
+    upstream: null,
+    ahead: 0,
+    behind: 0,
+    entries: [],
+    raw: '',
+    is_repo: false,
+  }));
+  mockInvoke('reflect_git_diff', async () => '');
+  mockInvoke('reflect_search_sessions', async () => []);
+  mockInvoke('reflect_list_skills', async () => []);
+  mockInvoke('reflect_list_hooks', async () => []);
+  mockInvoke('reflect_toggle_hook', async () => {});
+  mockInvoke('reflect_gh_pr_list', async () => []);
+  mockInvoke('reflect_git_stage', async () => {});
+  mockInvoke('reflect_git_unstage', async () => {});
+  mockInvoke('reflect_git_commit', async () => 'abc1234');
+  mockInvoke('reflect_list_dir', async () => ({ entries: [], cwd: '/tmp' }));
+  mockInvoke('reflect_run_shell', async () => ({ id: 'shell-test-1', command: 'x', cwd: '/tmp' }));
 
   // reflect_submit
   mockInvoke('reflect_submit', async (submission: { id: string }) => submission.id);
@@ -160,6 +209,10 @@ afterEach(() => {
   cleanup();
   resetMockEvents();
   vi.clearAllMocks();
+  // uiPrefs / pins 模块级缓存 + localStorage 跨测试复位，保证偏好类断言确定性。
+  resetUiPrefsForTests();
+  resetPinsForTests();
+  window.localStorage.clear();
 });
 
 // jsdom 没有实现 scrollIntoView,这里为需要自动滚动的组件做 stub。

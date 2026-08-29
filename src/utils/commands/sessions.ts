@@ -43,14 +43,30 @@ export async function reflect_create_session(): Promise<string> {
  *
  * 后端幂等:同 id 二次 bind 直接短路。未知 id(磁盘无对应 JSONL,
  * 如刚由 `reflect_create_session` 分配)走空历史分支,不报错。
+ *
+ * 返回绑定后线程的当前 PermissionMode(线格式字符串)。历史会话的
+ * 模式从 JSONL 审计轨迹恢复(绑定会话而非进程),前端据此同步
+ * 权限模式徽标/切换器。
  */
-export async function reflect_bind_session(id: string): Promise<void> {
-  return invoke<void>('reflect_bind_session', { id });
+export async function reflect_bind_session(id: string): Promise<string> {
+  return invoke<string>('reflect_bind_session', { id });
 }
 
 /** 按 id 重命名已有会话。 */
 export async function reflect_rename_session(id: string, new_name: string): Promise<void> {
   return invoke<void>('reflect_rename_session', { id, newName: new_name });
+}
+
+/**
+ * AI 生成会话标题（B）。返回最终标题文本。
+ *
+ * - `force = false`（省略）：turn 收尾自动触发 —— 已有自定义名或 AI 标题时
+ *   幂等返回，不重复调模型；
+ * - `force = true`：菜单「AI 重命名」—— 重新生成并覆盖 AI 标题
+ *   （自定义名仍然优先，不会被覆盖）。
+ */
+export async function reflect_generate_session_title(id: string, force = false): Promise<string> {
+  return invoke<string>('reflect_generate_session_title', { id, force });
 }
 
 /** 按 id 删除已有会话。 */
@@ -94,4 +110,20 @@ export async function reflect_export_session_markdown(
   id: string,
 ): Promise<ReflectMarkdownExportResult | null> {
   return invoke<ReflectMarkdownExportResult | null>('reflect_export_session_markdown', { id });
+}
+
+/** 跨会话内容搜索命中（后端 grep 会话 JSONL 的 user/assistant 文本）。 */
+export interface ReflectSessionSearchHit {
+  session_id: string;
+  title: string | null;
+  /** 首个命中片段（前后 ~60 字符，空白已折叠）。 */
+  snippet: string;
+  started_at: string;
+  message_count: number;
+  match_count: number;
+}
+
+/** 跨会话全文搜索（大小写不敏感；覆盖活跃树 + 归档树，最近 120 个会话）。 */
+export async function reflect_search_sessions(query: string, limit?: number): Promise<ReflectSessionSearchHit[]> {
+  return invoke<ReflectSessionSearchHit[]>('reflect_search_sessions', { query, limit });
 }

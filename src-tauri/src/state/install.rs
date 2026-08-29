@@ -48,10 +48,14 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     let registry = super::thread_factory::build_registry(&cfg_snapshot, Arc::clone(&tools));
     *agent.inner.model_registry.lock() = Some(registry.clone());
 
+    // 3a. coding plan 配额追踪器:config 声明了 quota 的 credential 才会
+    //     构建(Some);全无声明 → None(与 headless 行为对齐)。
+    super::quota::install_quota_tracker(agent, &cfg_snapshot);
+
     // 4. 构造占位 AgentThread(sid = None,不挂 recorder / 不固定 id)。
     //    占位 thread 给首条消息前的 health-check / 状态命令兜底;
     //    `reflect_bind_session` 会触发 rebind 把它换成带 recorder 的真 thread。
-    let thread = super::thread_factory::construct_thread(agent, None, vec![])
+    let thread = super::thread_factory::construct_thread(agent, None, vec![], None)
         .expect("install: construct_thread(占位) 不应失败");
 
     // 5. 写回 inner + 把共享 registry 记入 inner(rebind 复用)。
@@ -80,24 +84,19 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     // 7. MCP / LSP bootstrap—— 读 cfg 的 [mcp_servers]/[lsp_servers],
     //    启动 server + 注册 tool。lifecycle event 经 session broadcast 推前端。
     //    在 async runtime 里跑(bootstrap 内部 tokio::spawn + 网络 I/O)。
+    // MCP 保持安装即启动;LSP 改为按工作区手动开启(见 commands/lsp.rs):
+    // 默认不注册 `lsp` tool、不起 server,避免多项目同时撑起多份语言
+    // 服务拖累系统。前端在用户开启后调 `reflect_lsp_set_enabled`。
     let cfg_for_bootstrap = cfg_snapshot.clone();
     let tools_for_bootstrap = tools.clone();
     let session_tx_for_bootstrap = agent.inner.session_tx.clone();
-    let agent_clone = agent.clone();
     tauri::async_runtime::spawn(async move {
         let _ = crate::mcp::bootstrap_mcp(
-            &cfg_for_bootstrap,
-            tools_for_bootstrap.clone(),
-            session_tx_for_bootstrap.clone(),
-        )
-        .await;
-        let _ = crate::mcp::bootstrap_lsp(
             &cfg_for_bootstrap,
             tools_for_bootstrap,
             session_tx_for_bootstrap,
         )
         .await;
-        let _ = &agent_clone;
     });
 
     tracing::info!(

@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use reflect_core::{AgentConfig, AgentThread};
 use reflect_llm::{ChatMessage, ModelRegistry, SharedModelRegistry};
-use reflect_protocol::ThreadId;
+use reflect_protocol::{PermissionMode, ThreadId};
 use reflect_tools::{Sanitizer, ToolRegistry, builtins::EchoTool};
 use tracing::warn;
 
@@ -56,10 +56,15 @@ pub(crate) fn build_registry(
 /// `sid == None` 时不挂 recorder 也不固定 id —— 这是 install 阶段的占位
 /// thread,首条 submission 触发 `reflect_bind_session` 后再换为带 recorder
 /// 的真 thread。
+///
+/// `initial_mode`:会话级 PermissionMode 的恢复入口(v1.x 会话绑定)。
+/// rebind 历史会话时由 JSONL 审计轨迹末次 `PermissionModeChanged` 得出,
+/// 使模式随会话而非随进程;install 占位 thread 传 `None`(默认 Auto)。
 pub(crate) fn construct_thread(
     agent: &MinimalAgent,
     sid: Option<ThreadId>,
     preload: Vec<ChatMessage>,
+    initial_mode: Option<PermissionMode>,
 ) -> anyhow::Result<Arc<AgentThread>> {
     let cfg_snapshot = agent.inner.cfg.read().clone();
     let model_spec = cfg_snapshot
@@ -79,7 +84,12 @@ pub(crate) fn construct_thread(
 
     // 持久化:仅在 sid = Some 时挂 recorder + 固定 id。bind 命令前不挂,
     // 避免随机 id 产生空文件污染 `~/.reflect/sessions/`。
-    let mut cfg = AgentConfig::new(model_spec, agent.workspace()).with_approvals(true);
+    let mut cfg = AgentConfig::new(model_spec, agent.workspace())
+        .with_approvals(true)
+        // coding plan 配额追踪:config 声明了 `[[<provider>.credentials]].quota`
+        // 时为 Some;model_call 节点据此在调用后记录用量,窗口耗尽 → 冷却 +
+        // `QuotaExhausted` 事件 + 池内 failover(与 TUI/headless 行为对齐)。
+        .with_quota_tracker(agent.inner.quota_tracker.lock().clone());
     if let Some(sid) = sid {
         let m4 = match reflect::m4_bootstrap::build_default_m4(
             &agent.workspace(),
@@ -104,6 +114,9 @@ pub(crate) fn construct_thread(
     }
     if !preload.is_empty() {
         cfg = cfg.with_preload_messages(preload);
+    }
+    if let Some(mode) = initial_mode {
+        cfg = cfg.with_initial_permission_mode(mode);
     }
 
     Ok(Arc::new(AgentThread::new(

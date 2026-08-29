@@ -1,7 +1,10 @@
 /**
  * Git —— 通过 reflect_git_status / diff / log 直接展示 (B6)。
  *
- * 取代之前的 "ask the agent to run git" UX。
+ * v1.x P3 操作化：此前只读 —— 现在 working / staged 两个 tab 的条目
+ * 支持勾选 + Stage selected / Unstage selected（`reflect_git_stage` /
+ * `reflect_git_unstage`），并新增提交框（`reflect_git_commit`，成功后
+ * toast + 刷新）。push/pull 仍留给用户终端（远端凭证不进 GUI）。
  */
 import { useEffect, useState } from 'react';
 import {
@@ -9,17 +12,23 @@ import {
   GitCommitHorizontal,
   Check,
   ArrowRight,
+  ArrowUpToLine,
+  ArrowDownToLine,
 } from 'lucide-react';
 import {
   reflect_git_status,
   reflect_git_diff,
   reflect_git_log,
+  reflect_git_stage,
+  reflect_git_unstage,
+  reflect_git_commit,
   type ReflectGitStatus,
   type ReflectGitLogEntry,
 } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
-import { Card, Icon } from '@/features/design-system';
+import { Card, Icon, Button } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
+import { useAgentStore } from '@/stores/agentStore';
 import { DiffViewer } from './DiffViewer';
 import s from './GitView.module.css';
 
@@ -27,12 +36,18 @@ type Tab = 'working' | 'staged';
 
 export function GitView() {
   const { t } = useI18n();
+  const pushToast = useAgentStore((st) => st.pushToast);
   const [status, setStatus] = useState<ReflectGitStatus | null>(null);
   const [diff, setDiff] = useState('');
   const [tab, setTab] = useState<Tab>('working');
   const [log, setLog] = useState<ReflectGitLogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // P3：勾选的路径（按 tab 独立语义 —— working 里是待 stage，staged 里是待 unstage）
+  // + 提交信息 + 操作互斥锁。
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [commitMessage, setCommitMessage] = useState('');
+  const [mutating, setMutating] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -46,6 +61,7 @@ export function GitView() {
       setStatus(s_);
       setDiff(d_);
       setLog(l_);
+      setSelected(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -57,6 +73,63 @@ export function GitView() {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  const entries = status?.entries ?? [];
+  // staged 字段(后端从 porcelain index 列推导)区分「已暂存」与「仅工作区」
+  // —— trimmed status 码把 "M "/" M" 折叠成同一个 "M",不能用来分 tab。
+  // - staged tab:含 index 变更的条目(A/M/D/R...)。
+  // - working tab:含工作区变更的条目(未暂存,或 "MM"/"AM" 这类暂存后
+  //   又改的 —— 两者都出现);A/R(纯暂存操作)不出现在 working。
+  const stagedEntries = entries.filter((e) => e.staged);
+  const workingEntries = entries.filter(
+    (e) => !e.staged || (e.status.length > 1 && e.status[1] !== ' '),
+  );
+  const listEntries = tab === 'working' ? workingEntries : stagedEntries;
+  const allChecked = listEntries.length > 0 && listEntries.every((e) => selected.has(e.path));
+
+  const toggleEntry = (path: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelected(allChecked ? new Set() : new Set(listEntries.map((e) => e.path)));
+  };
+
+  const stageOrUnstage = async () => {
+    const paths = [...selected];
+    if (paths.length === 0 || mutating) return;
+    setMutating(true);
+    try {
+      if (tab === 'working') await reflect_git_stage(paths);
+      else await reflect_git_unstage(paths);
+      await refresh();
+    } catch (e) {
+      pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setMutating(false);
+    }
+  };
+
+  const commit = async () => {
+    const message = commitMessage.trim();
+    if (!message || mutating) return;
+    setMutating(true);
+    try {
+      const short = await reflect_git_commit(message);
+      pushToast({ kind: 'success', message: t('git.commitDone', { short }) });
+      setCommitMessage('');
+      await refresh();
+    } catch (e) {
+      pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setMutating(false);
+    }
+  };
 
   if (status && !status.is_repo) {
     return (
@@ -95,7 +168,7 @@ export function GitView() {
             data-active={tab === 'working'}
             onClick={() => setTab('working')}
           >
-            {t('git.working')} ({status?.entries.filter((e) => !e.status.startsWith('A') && !e.status.startsWith('R')).length ?? 0})
+            {t('git.working')} ({workingEntries.length ?? 0})
           </button>
           <button
             type="button"
@@ -103,28 +176,82 @@ export function GitView() {
             data-active={tab === 'staged'}
             onClick={() => setTab('staged')}
           >
-            {t('git.staged')}
+            {t('git.staged')} ({stagedEntries.length})
           </button>
         </div>
       </Card>
 
       <h3 className={s.sectionTitle}>{t('git.changes')}</h3>
       <Card level="flat" padding="none" className={s.entryList}>
-        {status?.entries.length === 0 ? (
+        {listEntries.length === 0 ? (
           <div className={s.emptyState}>{t('git.noChanges')}</div>
         ) : (
-          <ul>
-            {status?.entries.map((e, i) => (
-              <li key={i} className={s.entry}>
-                <span className={s.status} data-status={e.status}>{e.status}</span>
-                <span className={s.path}>
-                  {e.old_path ? `${e.old_path} → ` : ''}{e.path}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <div className={s.opsRow}>
+              <label className={s.checkAll}>
+                <input type="checkbox" checked={allChecked} onChange={toggleAll} aria-label={t('git.selectAll')} />
+                {t('git.selectAll')}
+              </label>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={selected.size === 0 || mutating}
+                loading={mutating && selected.size > 0}
+                onClick={() => void stageOrUnstage()}
+                leftIcon={<Icon icon={tab === 'working' ? ArrowUpToLine : ArrowDownToLine} size={13} />}
+                data-testid="git-stage-selected"
+              >
+                {tab === 'working' ? t('git.stageSelected') : t('git.unstageSelected')}
+              </Button>
+            </div>
+            <ul>
+              {listEntries.map((e, i) => (
+                <li key={i} className={s.entry}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(e.path)}
+                    onChange={() => toggleEntry(e.path)}
+                    aria-label={`${tab === 'working' ? t('git.stageSelected') : t('git.unstageSelected')}: ${e.path}`}
+                    data-testid={`git-entry-check-${e.path}`}
+                  />
+                  <span className={s.status} data-status={e.status}>{e.status}</span>
+                  <span className={s.path}>
+                    {e.old_path ? `${e.old_path} → ` : ''}{e.path}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </Card>
+
+      {tab === 'staged' && (
+        <Card level="flat" padding="md" className={s.commitCard}>
+          <textarea
+            className={s.commitInput}
+            rows={2}
+            value={commitMessage}
+            placeholder={t('git.commitPlaceholder')}
+            onChange={(e) => setCommitMessage(e.target.value)}
+            aria-label={t('git.commitPlaceholder')}
+            data-testid="git-commit-message"
+          />
+          <div className={s.commitRow}>
+            <span className={s.commitHint}>{t('git.commitHint')}</span>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={!commitMessage.trim() || mutating}
+              loading={mutating && Boolean(commitMessage.trim())}
+              onClick={() => void commit()}
+              leftIcon={<Icon icon={GitCommitHorizontal} size={13} />}
+              data-testid="git-commit-btn"
+            >
+              {t('git.commit')}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <h3 className={s.sectionTitle}>{t('git.diffTitle', { tab: t(`git.${tab}`) })}</h3>
       <DiffViewer diff={diff} emptyMessage={t('git.noDiff')} />

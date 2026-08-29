@@ -8,10 +8,12 @@ import {
   reflect_cycle_permission_mode,
   reflect_enter_plan_mode,
   reflect_exit_plan_mode,
+  reflect_get_config,
   reflect_hook_approval,
   reflect_interrupt,
   reflect_plan_approval,
   reflect_rewind,
+  reflect_save_config,
   reflect_set_effort,
   reflect_set_permission_mode,
   reflect_shutdown,
@@ -19,11 +21,40 @@ import {
   reflect_tool_approval,
 } from '@/utils/commands';
 import { turnsFromRollout } from '../replay';
+import {
+  createAutoCompactController,
+} from './autoCompact';
+import {
+  createPlanFailoverController,
+  extractExhaustionSignal,
+  isAutoFailoverEnabled,
+} from './planFailover';
 import { reduceEvent } from './reducer';
+import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
 import { createToastActions, uuid } from './toast';
 import type { AgentState } from './types';
 
-export const useAgentStore = create<AgentState>((set, get) => ({
+export const useAgentStore = create<AgentState>((set, get) => {
+  // 按 plan 最大上下文自动压缩控制器(内部有开关/节流/触发闩)。
+  const autoCompact = createAutoCompactController({
+    getConfig: () => reflect_get_config(),
+    compact: () => reflect_compact(),
+  });
+  // coding plan 耗尽自动切换控制器:闭包持有 get/set,防抖状态随 store 生命周期。
+  // getConfig/saveConfig 用箭头包装延迟解引用 —— 测试环境部分 mock
+  // @/utils/commands 时不至于在 store 构造期就触碰未导出的名字。
+  const planFailover = createPlanFailoverController({
+    getConfig: () => reflect_get_config(),
+    saveConfig: (toml) => reflect_save_config(toml),
+    pushToast: (input) => {
+      get().pushToast(input);
+    },
+    isEnabled: isAutoFailoverEnabled,
+    onSwitched: (from, to) => set({ planFailover: { from, to, at: Date.now() } }),
+    currentProvider: () => get().session?.provider ?? null,
+  });
+
+  return {
   turns: [],
   session: null,
   permissionMode: 'auto',
@@ -36,8 +67,10 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   lastError: null,
   subscribed: false,
   loadedSessionId: null,
-  hydrateSession: (id, records) =>
-    set({ turns: turnsFromRollout(records), loadedSessionId: id, lastError: null }),
+  hydrateSession: (id, records) => {
+    const { turns, compactions } = turnsFromRollout(records);
+    set({ turns, compactions, loadedSessionId: id, lastError: null, queuedMessages: [] });
+  },
   clearSession: () =>
     set({
       turns: [],
@@ -46,13 +79,17 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       pendingQuestions: [],
       pendingAskUser: [],
       pendingPlan: null,
+      queuedMessages: [],
     }),
   tokens: null,
   contextWindowSize: null,
+  queuedMessages: [],
   collabSessions: [],
   mcpInvocations: [],
   lastRouting: null,
   configReloadedAt: null,
+  planFailover: null,
+  compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
   toasts: [],
 
   subscribe: () => {
@@ -61,6 +98,19 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     const unsubscribe = subscribeAgentEvent((event: ReflectEvent) => {
       const patch = reduceEvent(get(), event);
       if (Object.keys(patch).length > 0) set(patch);
+      // C：turn 收尾后自动排空跟进队列（reduce 完成后再取最新 state 判断）。
+      if (event.msg.type === 'turn_complete' || event.msg.type === 'turn_aborted') {
+        void get().drainQueue();
+      }
+      // coding plan 额度耗尽 → 自动切换默认供应商（内部有开关 + 防抖）。
+      if (event.msg.type === 'quota_exhausted' || event.msg.type === 'error') {
+        const signal = extractExhaustionSignal(event.msg, get().session?.provider ?? null);
+        if (signal) void planFailover.handle(signal);
+      }
+      // plan 最大上下文 ≥80% → 自动压缩（内部有开关/节流/触发闩）。
+      if (event.msg.type === 'token_count') {
+        void autoCompact(event.msg.input_tokens ?? 0);
+      }
     });
     return () => {
       unsubscribe();
@@ -117,6 +167,59 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   interrupt: async () => {
     await reflect_interrupt();
   },
+
+  enqueueMessage: (items, workspace) => {
+    const firstText = items.find(
+      (item): item is { type: 'text'; text: string } => item.type === 'text',
+    );
+    set((state) => ({
+      queuedMessages: [
+        ...state.queuedMessages,
+        {
+          id: uuid(),
+          items,
+          text: firstText?.text ?? `(${items.length} attachments)`,
+          ...(workspace ? { workspace } : {}),
+          createdAt: Date.now(),
+        },
+      ],
+    }));
+  },
+
+  removeQueued: (id) => {
+    set((state) => ({ queuedMessages: state.queuedMessages.filter((m) => m.id !== id) }));
+  },
+
+  updateQueued: (id, text) => {
+    set((state) => ({
+      queuedMessages: state.queuedMessages.map((m) => {
+        if (m.id !== id) return m;
+        // 仅更新首个 text item；附件项原样保留。
+        let replaced = false;
+        const items = m.items.map((item) => {
+          if (!replaced && item.type === 'text') {
+            replaced = true;
+            return { ...item, text };
+          }
+          return item;
+        });
+        if (!replaced) items.unshift({ type: 'text', text });
+        return { ...m, items, text };
+      }),
+    }));
+  },
+
+  drainQueue: async () => {
+    const state = get();
+    if (state.queuedMessages.length === 0) return;
+    if (selectIsTurnRunning(state)) return;
+    // 审批/提问/输入/plan 等待中 → 暂停排空，处理完后由下一次事件再触发。
+    if (selectHasPendingInteraction(state)) return;
+    const [next, ...rest] = state.queuedMessages;
+    set({ queuedMessages: rest });
+    await state.submitItems(next.items, next.workspace ?? undefined);
+  },
+
   compact: async () => {
     await reflect_compact();
   },
@@ -159,6 +262,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   cyclePermissionMode: async () => {
     await reflect_cycle_permission_mode();
   },
+  syncPermissionMode: (mode) => {
+    set({ permissionMode: mode });
+  },
 
   answerQuestion: async (id, answers) => {
     set((state) => ({
@@ -177,7 +283,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   clearError: () => set({ lastError: null }),
   ...createToastActions(set),
 
-  reset: () =>
+  reset: () => {
+    planFailover.reset();
     set({
       turns: [],
       session: null,
@@ -192,10 +299,15 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       lastError: null,
       tokens: null,
       contextWindowSize: null,
+      queuedMessages: [],
       collabSessions: [],
       mcpInvocations: [],
       lastRouting: null,
       configReloadedAt: null,
+      planFailover: null,
+      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
       toasts: [],
-    }),
-}));
+    });
+  },
+  };
+});

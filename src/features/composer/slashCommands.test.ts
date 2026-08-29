@@ -22,15 +22,22 @@ describe('SLASH_COMMANDS', () => {
     }
   });
 
-  it('includes 9 toolbar commands (Tier A)', () => {
-    expect(TIER_A_TOOLBAR.length).toBeGreaterThanOrEqual(9);
+  it('includes 7 toolbar commands (Tier A)', () => {
+    expect(TIER_A_TOOLBAR.length).toBe(7);
     const toolbarNames = TIER_A_TOOLBAR.map((c) => c.name);
-    expect(toolbarNames).toContain('theme');
-    expect(toolbarNames).toContain('vim');
+    // 纯 TUI 镜像 stub（theme/vim）已下架。
+    expect(toolbarNames).not.toContain('theme');
+    expect(toolbarNames).not.toContain('vim');
     expect(toolbarNames).toContain('effort');
     expect(toolbarNames).toContain('compact');
     expect(toolbarNames).toContain('mode');
     expect(toolbarNames).toContain('model');
+  });
+
+  it('does not list TUI-only stub commands', () => {
+    const names = SLASH_COMMANDS.map((c) => c.name);
+    expect(names).not.toContain('theme');
+    expect(names).not.toContain('vim');
   });
 
   it('includes aliases where defined', () => {

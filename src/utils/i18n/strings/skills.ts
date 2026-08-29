@@ -20,6 +20,10 @@ const skills: Record<string, StringEntry> = {
   'skills.toolsCountSuffix':  { en: '-prefixed tools come from MCP servers.',                                   'zh-CN': '开头的工具来自 MCP 服务。' },
   'skills.mcp':               { en: 'MCP',                                                                      'zh-CN': 'MCP' },
   'skills.noneRegistered':    { en: 'None registered.',                                                         'zh-CN': '尚未注册。' },
+  'skills.installed':         { en: 'Installed skills',                                                         'zh-CN': '已安装技能' },
+  'skills.installedEmpty':    { en: 'No skills installed. Add SKILL.md folders under ~/.reflect/skills/.',      'zh-CN': '尚未安装技能。将 SKILL.md 目录放入 ~/.reflect/skills/ 即可。' },
+  'skills.triggers':          { en: 'Triggers',                                                                 'zh-CN': '触发词' },
+  'skills.allowedTools':      { en: 'Tools',                                                                    'zh-CN': '允许工具' },
 };
 
 export default skills;

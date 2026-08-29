@@ -1,0 +1,109 @@
+/* BangRunsPanel —— `!` 直通命令本地输出面板。 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.row {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset, var(--bg-elevated));
+  overflow: hidden;
+}
+
+.row[data-status='error'] {
+  border-color: var(--danger-border);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+}
+
+.command {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  padding: 0;
+}
+
+.expand:hover {
+  color: var(--text-primary);
+}
+
+.expand svg {
+  transition: transform var(--transition-fast);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.output,
+.outputExpanded {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.output {
+  max-height: 96px;
+  overflow: hidden;
+}
+
+.outputExpanded {
+  max-height: 240px;
+  overflow: auto;
+}
+
+.truncated {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.hint {
+  margin: 0;
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}

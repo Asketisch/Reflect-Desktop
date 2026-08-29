@@ -30,6 +30,20 @@
   gap: 2px;
 }
 
+/* 多选模式选择条（头部）：已选计数 + 批量删除 + 退出。 */
+.selectBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.selectedCount {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .actions {
   display: flex;
   flex-direction: column;
@@ -42,6 +56,12 @@
   flex: 1;
   overflow-y: auto;
   padding: 0 var(--space-2) var(--space-3);
+}
+
+.footer {
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .hint {
@@ -60,4 +80,51 @@
   background: var(--danger-bg);
   border: 1px solid var(--danger-border);
   border-radius: var(--radius-md);
+}
+
+/* ===== 归档区（可折叠，列表底部） ===== */
+
+.archivedSection {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-1);
+}
+
+.archivedToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  text-align: left;
+}
+
+.archivedToggle:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+}
+
+.archivedToggle > svg:first-child {
+  transition: transform var(--transition-fast);
+}
+
+.archivedToggle svg.chevronOpen,
+.archivedToggle svg[class*='chevronOpen'] {
+  transform: rotate(90deg);
+}
+
+.archivedCount {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.archivedItems {
+  display: flex;
+  flex-direction: column;
 }

@@ -13,6 +13,7 @@ import {
   reflect_autopilot_history,
   type ReflectAutopilotConfig,
 } from '@/utils/commands';
+import { useI18n } from '@/utils/i18n';
 import { useState } from 'react';
 import s from './AutopilotView.module.css';
 
@@ -26,6 +27,7 @@ const DEFAULT_CONFIG: ReflectAutopilotConfig = {
 
 export function AutopilotView() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const [draft, setDraft] = useState<ReflectAutopilotConfig | null>(null);
 
   const configQuery = useQuery({
@@ -56,8 +58,8 @@ export function AutopilotView() {
   return (
     <PageShell
       icon={Zap}
-      title="Autopilot"
-      subtitle="Automatic task scheduling. Create and execute tasks on a cron schedule."
+      title={t('autopilot.title')}
+      subtitle={t('autopilot.subtitle')}
       width="md"
     >
       {configQuery.isLoading ? (
@@ -69,10 +71,10 @@ export function AutopilotView() {
             <div className={s.configHeader}>
               <div className={s.configTitle}>
                 <Icon icon={Zap} size={18} />
-                <span>Configuration</span>
+                <span>{t('autopilot.configuration')}</span>
               </div>
               <Badge variant={config.enabled ? 'success' : 'neutral'}>
-                {config.enabled ? 'Enabled' : 'Disabled'}
+                {config.enabled ? t('autopilot.enabled') : t('autopilot.disabled')}
               </Badge>
             </div>
 
@@ -84,14 +86,14 @@ export function AutopilotView() {
                   onChange={(e) => update('enabled', e.target.checked)}
                   disabled={!isEditing}
                 />
-                <span>Enable autopilot</span>
+                <span>{t('autopilot.enable')}</span>
               </label>
             </div>
 
             <div className={s.formRow}>
-              <label className={s.fieldLabel}>Cron schedule</label>
+              <label className={s.fieldLabel}>{t('autopilot.cronSchedule')}</label>
               <Input
-                placeholder="0 9 * * 1-5 (weekdays at 9am)"
+                placeholder={t('autopilot.cronPlaceholder')}
                 value={config.schedule}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('schedule', e.target.value)}
                 disabled={!isEditing}
@@ -99,10 +101,10 @@ export function AutopilotView() {
             </div>
 
             <div className={s.formRow}>
-              <label className={s.fieldLabel}>Task template</label>
+              <label className={s.fieldLabel}>{t('autopilot.taskTemplate')}</label>
               <textarea
                 className={s.textarea}
-                placeholder="Prompt template for automatically created tasks..."
+                placeholder={t('autopilot.taskTemplatePlaceholder')}
                 value={config.taskTemplate}
                 onChange={(e) => update('taskTemplate', e.target.value)}
                 disabled={!isEditing}
@@ -111,9 +113,9 @@ export function AutopilotView() {
             </div>
 
             <div className={s.formRow}>
-              <label className={s.fieldLabel}>Agent</label>
+              <label className={s.fieldLabel}>{t('autopilot.agent')}</label>
               <Input
-                placeholder="default (optional)"
+                placeholder={t('autopilot.agentPlaceholder')}
                 value={config.agent ?? ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('agent', e.target.value || null)}
                 disabled={!isEditing}
@@ -121,7 +123,7 @@ export function AutopilotView() {
             </div>
 
             <div className={s.formRow}>
-              <label className={s.fieldLabel}>Max concurrent</label>
+              <label className={s.fieldLabel}>{t('autopilot.maxConcurrent')}</label>
               <Input
                 type="number"
                 value={config.maxConcurrent}
@@ -139,15 +141,15 @@ export function AutopilotView() {
                     onClick={() => updateMutation.mutate(draft!)}
                     disabled={updateMutation.isPending}
                   >
-                    Save
+                    {t('common.save')}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                 </>
               ) : (
                 <Button variant="ghost" size="sm" onClick={() => setDraft(config)}>
-                  Edit
+                  {t('autopilot.edit')}
                 </Button>
               )}
             </div>
@@ -158,7 +160,7 @@ export function AutopilotView() {
             <div className={s.configHeader}>
               <div className={s.configTitle}>
                 <Icon icon={History} size={18} />
-                <span>Run History</span>
+                <span>{t('autopilot.runHistory')}</span>
               </div>
               {historyQuery.data && historyQuery.data.length > 0 && (
                 <Badge variant="neutral">{historyQuery.data.length}</Badge>
@@ -170,8 +172,8 @@ export function AutopilotView() {
             ) : historyQuery.data?.length === 0 ? (
               <EmptyState
                 icon={<Icon icon={Clock} />}
-                title="No runs yet"
-                description="Autopilot runs will appear here once enabled."
+                title={t('autopilot.noRuns')}
+                description={t('autopilot.noRunsDesc')}
               />
             ) : (
               <div className={s.historyList}>

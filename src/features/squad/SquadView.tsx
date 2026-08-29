@@ -18,33 +18,35 @@ import {
   Button,
   Badge,
 } from '@/features/design-system';
+import { useI18n } from '@/utils/i18n';
 import { useSquadController } from './useSquadController';
 import type { ReflectSquadMember, ReflectTask } from '@/utils/commands';
 import s from './SquadView.module.css';
 
 export function SquadView() {
   const ctrl = useSquadController();
+  const { t, tp } = useI18n();
 
   return (
     <PageShell
       icon={Users}
-      title="Squad"
-      subtitle="Multi-agent teams with leader delegation."
+      title={t('squad.title')}
+      subtitle={t('squad.subtitle')}
       width="lg"
     >
       <div className={s.layout}>
         {/* ── Left: list + create form ──────────────────────────── */}
         <div className={s.col}>
           <div className={s.section}>
-            <h2 className={s.sectionTitle}>Squads</h2>
+            <h2 className={s.sectionTitle}>{t('squad.squads')}</h2>
             {ctrl.loading ? (
               <div className={s.loading}><Spinner size={20} /></div>
             ) : ctrl.squads.length === 0 ? (
               <Card level="flat" padding="none">
                 <EmptyState
                   icon={<Icon icon={Users} />}
-                  title="No squads yet"
-                  description="Create one below to start coordinating multi-agent work."
+                  title={t('squad.empty')}
+                  description={t('squad.emptyDesc')}
                 />
               </Card>
             ) : (
@@ -60,7 +62,7 @@ export function SquadView() {
                   >
                     <div className={s.listName}>{sq.name}</div>
                     <div className={s.listMeta}>
-                      {sq.members.length} member{sq.members.length === 1 ? '' : 's'}
+                      {tp('squad.memberCount', sq.members.length)}
                     </div>
                   </button>
                 ))}
@@ -69,17 +71,17 @@ export function SquadView() {
           </div>
 
           <div className={s.section}>
-            <h2 className={s.sectionTitle}>Create squad</h2>
+            <h2 className={s.sectionTitle}>{t('squad.createSquad')}</h2>
             <Card level="outlined" padding="md">
               <div className={s.form}>
                 <Input
-                  placeholder="squad-name (a-z0-9_-)"
+                  placeholder={t('squad.namePlaceholder')}
                   value={ctrl.draftName}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => ctrl.setDraftName(e.target.value)}
                   data-testid="squad-name"
                 />
                 <Textarea
-                  placeholder="Description (optional)"
+                  placeholder={t('squad.descriptionPlaceholder')}
                   value={ctrl.draftDescription}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => ctrl.setDraftDescription(e.target.value)}
                 />
@@ -95,7 +97,7 @@ export function SquadView() {
                   disabled={!ctrl.draftName || ctrl.isMutating}
                   data-testid="squad-create"
                 >
-                  <Icon icon={Plus} size={12} /> Create
+                  <Icon icon={Plus} size={12} /> {t('squad.create')}
                 </Button>
               </div>
             </Card>
@@ -110,8 +112,8 @@ export function SquadView() {
             <Card level="flat" padding="none">
               <EmptyState
                 icon={<Icon icon={Users} />}
-                title="Select a squad"
-                description="Pick a squad from the list to view members and delegate tasks."
+                title={t('squad.selectTitle')}
+                description={t('squad.selectDesc')}
               />
             </Card>
           )}
@@ -127,12 +129,13 @@ function SquadDetail(props: {
   ctrl: ReturnType<typeof useSquadController>;
 }) {
   const { ctrl } = props;
+  const { t } = useI18n();
   const squad = ctrl.selectedSquad!;
   return (
     <div className={s.detail}>
       <div className={s.detailHeader}>
         <h2 className={s.detailName}>{squad.name}</h2>
-        <Badge variant="accent">leader: {squad.leaderActor.actorId}</Badge>
+        <Badge variant="accent">{t('squad.leaderBadge', { id: squad.leaderActor.actorId })}</Badge>
         <div className={s.spacer} />
         <Button
           variant="ghost"
@@ -140,7 +143,7 @@ function SquadDetail(props: {
           onClick={() => void ctrl.remove(squad.name)}
           data-testid="squad-delete"
         >
-          <Icon icon={Trash2} size={12} /> Delete
+          <Icon icon={Trash2} size={12} /> {t('common.delete')}
         </Button>
       </div>
 
@@ -148,9 +151,9 @@ function SquadDetail(props: {
 
       {/* ── Members ────────────────────────────────────────────── */}
       <div className={s.section}>
-        <h3 className={s.subsectionTitle}>Members ({squad.members.length})</h3>
+        <h3 className={s.subsectionTitle}>{t('squad.membersCount', { count: squad.members.length })}</h3>
         {squad.members.length === 0 ? (
-          <p className={s.muted}>No additional members; the lead operates solo.</p>
+          <p className={s.muted}>{t('squad.noMembers')}</p>
         ) : (
           <div className={s.membersList} data-testid="squad-members">
             {squad.members.map((m) => (
@@ -171,7 +174,7 @@ function SquadDetail(props: {
       {/* ── Delegate / Tasks ──────────────────────────────────── */}
       <div className={s.section}>
         <div className={s.delegateHeader}>
-          <h3 className={s.subsectionTitle}>Tasks in this squad</h3>
+          <h3 className={s.subsectionTitle}>{t('squad.tasksTitle')}</h3>
           <Button
             variant="primary"
             size="sm"
@@ -179,13 +182,13 @@ function SquadDetail(props: {
             disabled={ctrl.isMutating}
             data-testid="squad-delegate"
           >
-            <Icon icon={Zap} size={12} /> Delegate next
+            <Icon icon={Zap} size={12} /> {t('squad.delegateNext')}
           </Button>
         </div>
 
         {ctrl.squadTasks.length === 0 ? (
           <p className={s.muted}>
-            No tasks yet. Create one via the Tasks board (<code>list_id={squad.name}</code>).
+            {t('squad.noTasksPrefix')}<code>list_id={squad.name}</code>{t('squad.noTasksSuffix')}
           </p>
         ) : (
           <div className={s.tasksList} data-testid="squad-tasks">
@@ -214,6 +217,7 @@ function SquadTaskRow(props: {
   onAssign: (assignee: string | null) => Promise<void>;
 }) {
   const { task, members, onAssign } = props;
+  const { t } = useI18n();
   const [selected, setSelected] = useState(task.owner ?? '');
   const [busy, setBusy] = useState(false);
   return (
@@ -227,7 +231,7 @@ function SquadTaskRow(props: {
             <Badge variant={task.status === 'completed' ? 'success' : task.status === 'in_progress' ? 'info' : 'neutral'}>
               {task.status.replace('_', ' ')}
             </Badge>
-            {task.owner && <span> · owner: {task.owner}</span>}
+            {task.owner && <span> · {t('squad.owner', { name: task.owner })}</span>}
           </div>
         </div>
         <div className={s.taskActions}>
@@ -237,7 +241,7 @@ function SquadTaskRow(props: {
             className={s.assignSelect}
             data-testid={`squad-assign-${task.id}`}
           >
-            <option value="">— unassigned —</option>
+            <option value="">{t('squad.unassigned')}</option>
             {members.map((m) => (
               <option key={m.actor.actorId} value={m.actor.actorId}>
                 {m.role} ({m.actor.actorId})
@@ -258,7 +262,7 @@ function SquadTaskRow(props: {
             }}
             data-testid={`squad-assign-btn-${task.id}`}
           >
-            <Icon icon={UserPlus} size={12} /> Assign
+            <Icon icon={UserPlus} size={12} /> {t('squad.assign')}
           </Button>
         </div>
       </div>
@@ -274,6 +278,7 @@ function MemberEditor(props: {
   squadName: string;
 }) {
   const { members, onChange, squadName } = props;
+  const { t } = useI18n();
   function addRow() {
     onChange([
       ...members,
@@ -314,7 +319,7 @@ function MemberEditor(props: {
       {members.map((m, i) => (
         <div key={i} className={s.memberEditorRow}>
           <Input
-            placeholder="role (e.g. architect)"
+            placeholder={t('squad.rolePlaceholder')}
             value={m.role}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateRole(i, e.target.value)}
             data-testid={`member-role-${i}`}
@@ -325,7 +330,7 @@ function MemberEditor(props: {
         </div>
       ))}
       <Button variant="ghost" size="sm" onClick={addRow} data-testid="member-add">
-        <Icon icon={Plus} size={12} /> Add member
+        <Icon icon={Plus} size={12} /> {t('squad.addMember')}
       </Button>
     </div>
   );

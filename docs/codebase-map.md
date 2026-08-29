@@ -40,8 +40,9 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 | 修改聊天渲染 | `src/features/messages/{ChatView,MessageList,ToolCells,Collapsible}.tsx` |
 | 更改 IDE shell（布局 / 活动栏 / 状态栏） | `src/features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx`。有状态的 shell 交互位于 `src/features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts`。 |
 | 更改审批 / 问题 / 计划模态框 | `src/features/modals/{ModalShell,index}.tsx`，各身体位于 `src/features/modals/{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` |
-| 更改会话列表（侧栏） | `src/features/sessions/components/Sidebar.tsx`、`src/features/sessions/hooks/useSessions.ts` |
-| 更改设置持久化 | `src/features/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
+| 更改会话列表（侧栏） | `src/features/sessions/components/{Sidebar,WorkspaceGroup}.tsx`、`src/features/sessions/utils/workspaceGroups.ts`、`src/features/sessions/hooks/{useSessions,useCollapsedGroups}.ts`（HomeView / ThreadsView 的时间分桶在 `src/features/sessions/utils/buckets.ts` + `BucketGroup.tsx`） |
+| 更改设置持久化 | `src/features/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml,plans}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection,PlansSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
+| 更改 coding plan / 供应商切换 / 额度 failover | `src/features/settings/config/plans.ts`（纯函数）、`src/features/settings/sections/PlansSection.tsx`（设置入口）、`src/features/models/ModelsView.tsx`(一键切换)、`src/stores/agent/planFailover.ts`（耗尽自动切换）、`src-tauri/src/state/{quota,reload}.rs`（tracker 构建 + 热重载）。设计文档 `docs/PLAN_FAILOVER.md` |
 | 更改主题 / 设计令牌 | `src/styles/tokens.css`、`src/features/design-system/DesignSystemView.tsx` |
 | 添加托盘图标 / 菜单 / 快捷键 | `src-tauri/src/{tray,menu,shortcut}.rs`、`src-tauri/src/lib.rs` |
 | macOS dock 徽标 | `src-tauri/src/dock.rs` |
@@ -63,7 +64,7 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 - Tauri IPC 包装器桶文件（兼容）：`src/utils/tauri.ts`、`src/utils/commands.ts`
 - Tauri IPC 包装器（规范，按域）：`src/utils/commands/{health,agent,approvals,plan,permissions,questions,config,sessions,events,workspaces,skills,memory,hooks,git,terminal,files,allowlist,updates,search}.ts`
 - Agent 钩子（事件扇出 + 提交）：`src/services/agent.ts`（遗留兼容 re-export）+ `src/services/agentEventBus.ts`（引用计数总线）
-- 全局 Zustand store：`src/stores/agentStore.ts`（兼容门面）→ `src/stores/agent/`（规范实现：`store.ts` + `reducer.ts` + `turns.ts` + `toast.ts` + `servers.ts` + `types.ts` + `useAgent.ts` + `index.ts`）
+- 全局 Zustand store：`src/stores/agentStore.ts`（兼容门面）→ `src/stores/agent/`（规范实现：`store.ts` + `reducer.ts` + `turns.ts` + `toast.ts` + `servers.ts` + `types.ts` + `useAgent.ts` + `selectors.ts` + `planFailover.ts` + `queue.ts` + `index.ts`）
 - 主题基础设施：`src/utils/theme.ts`
 - 设计令牌 / base reset：`src/styles/{tokens,base}.css` + `typography.module.css`
 - i18n 运行时：`src/utils/i18n.ts`（兼容桶文件）→ `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` + `src/utils/i18n/strings/index.ts` 合并 `src/utils/i18n/strings/` 下的域目录（about / app / apps / chat / collaboration / common / composer / debug / design / dictation / files / git / home / inspector / memory / mobile / modal / models / notifications / palette / permissionMode / plan / prompts / settings / shell / sidebar / skills / slash / terminal / threads / toast / update / workspaces）
@@ -77,17 +78,18 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 | `messages` | `features/messages/{ChatView,MessageList,ToolCells,Collapsible,Composer,Composer.module,MessageList.module,ChatView.module,ToolCells.module,Collapsible.module}.{tsx,css}` | 聊天滚动回退 + 行；Composer 现在是薄 re-export 存根 → `features/composer/Composer` |
 | `composer` | `features/composer/{Composer,SlashPopup,MentionPicker,AttachmentBar}.tsx` + `slashCommands.ts` + `slashEngine.ts` + `useComposerInput.ts` + `useComposerSubmission.ts` + `useAttachments.ts` + `usePromptHistory.ts` | 自有 Composer + 斜杠引擎 |
 | `shell` | `features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx` + `features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts` | IDE 5 栏布局 + 有状态 shell 钩子 |
-| `modals` | `features/modals/{ModalShell,index}.tsx` + `{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` | 审批 / 问题 / 计划 / AskUser + 历史 |
-| `sessions` | `features/sessions/{components/Sidebar,hooks/useSessions}.{tsx,ts}` + 测试 | 时间分桶侧栏 |
+| `modals` | `features/modals/{ModalShell,index}.tsx` + `{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal}.tsx` | 审批 / 问题 / 计划 / AskUser |
+| `sessions` | `features/sessions/{components/{Sidebar,WorkspaceGroup},hooks/useSessions}.{tsx,ts}` + `utils/{workspaceGroups,pins}.ts` + 测试 | 项目目录分组侧栏（可折叠；置顶区 + 归档区；时间分桶仍服务 HomeView / ThreadsView） |
 | `settings` | `features/settings/{SettingsView,ConfigForm,configSchema}.tsx` + `features/settings/config/{schema,toml}.ts` + `features/settings/components/{StructuredField,ComplexEditors}.tsx` + `features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection}.tsx` | 显示 / 编辑器 / 提供程序 + 结构化配置表单 |
 | `models` | `features/models/ModelsView.tsx` | 模型选择器 |
 | `workspaces` | `features/workspaces/WorkspacesView.tsx` | 工作区选择器（M3.x） |
-| `git` | `features/git/GitView.tsx` | Git 面板（M3.x） |
+| `git` | `features/git/{GitView,PullRequestsView}.tsx` | Git 面板（stage/unstage/commit 操作化）+ gh PR 列表（/pulls） |
 | `files` | `features/files/FilesView.tsx` | 文件树（M3.x） |
 | `plan` | `features/plan/PlanView.tsx` | 计划模式 UI |
 | `terminal` | `features/terminal/TerminalView.tsx` + `useTerminalController.ts` | 终端 dock + 控制器钩子 |
 | `memory` | `features/memory/MemoryView.tsx` + `MemoryRow.tsx` + `MemoryAddForm.tsx` + `useMemoryController.ts` | 记忆视图 + 控制器钩子 |
-| `skills` | `features/skills/SkillsView.tsx` | 技能目录 |
+| `skills` | `features/skills/SkillsView.tsx` | 技能目录（已安装 skills + 工具列表） |
+| `hooks` | `features/hooks/HooksView.tsx` | Hook 运行时启停面板（/hooks） |
 | `apps` | `features/apps/AppsView.tsx` | MCP 应用（M3.1+） |
 | `prompts` | `features/prompts/PromptsView.tsx` | 自定义提示库 |
 | `threads` | `features/threads/ThreadsView.tsx` + 测试 | 线程（M2.5 LRU） |

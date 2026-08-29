@@ -11,7 +11,7 @@
  * 7. Barrel exports —— features/<slice>/index.ts 全部可 import
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '@/features/shell/AppShell';
 
@@ -350,9 +350,11 @@ describe('Settings save flow', () => {
 
   it('clicking permission button triggers reflect_set_permission_mode mutation', async () => {
     render(wrap(<SettingsView />));
+    // 权限快捷控件只在 Permissions 页显示（v1.x:不再每个设置页签重复）。
+    fireEvent.click(screen.getByText('Permissions'));
 
     // permission 按钮(auto/prompt/deny/plan)直接 mutate。
-    const planBtn = await screen.findByText('plan');
+    const planBtn = await screen.findByText('plan', { selector: 'button' });
     await act(async () => {
       planBtn.click();
     });
@@ -501,14 +503,17 @@ describe('IPC parity (frontend ↔ backend)', () => {
     const frontend = await import('@/utils/commands');
     const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('reflect_'));
 
-    // 所有 19 个前端命令都必须出现在后端源码中
+    // 所有前端命令都必须出现在后端源码中（同步 `pub fn` 与 `pub async fn` 均可 ——
+    // 如 dock::reflect_set_dock_badge 是同步命令）。
     const missing = frontendNames.filter(
-      (n) => !backendSrc.includes(`pub async fn ${n}`),
+      (n) => !backendSrc.includes(`pub async fn ${n}`) && !backendSrc.includes(`pub fn ${n}`),
     );
     expect(missing).toEqual([]);
 
     // 后端的每个 reflect_ fn 也必须有对应的前端 wrapper
-    const backendMatches: RegExpMatchArray[] = [...backendSrc.matchAll(/pub async fn (reflect_\w+)/g)];
+    const backendMatches: RegExpMatchArray[] = [
+      ...backendSrc.matchAll(/pub (?:async )?fn (reflect_\w+)/g),
+    ];
     const backendNames: string[] = backendMatches.map((m: RegExpMatchArray) => m[1]);
     const orphan = backendNames.filter((n: string) => !frontendNames.includes(n));
     expect(orphan).toEqual([]);

@@ -1,8 +1,10 @@
 /**
  * StatusBar —— IDE 风底部状态栏。
  *
- * 左：model @ provider · permission · effort · workspace。
- * 右：MCP/LSP 状态点 · 错误计数 · 主题切换。
+ * 左：model @ provider · permission · 上下文占比。
+ *    （打开的目录 + git 分支已移至 Composer 下方上下文条 —— 它们是
+ *    对话框侧的会话上下文而非全局状态，见 ComposerContextBar。）
+ * 右：MCP/LSP 状态点 · 错误计数 · token · 主题切换。
  *
  * **数据优先级**（避免「no model」误报）：
  *   1. `useAgentStore.session` —— 由 `session_configured` 事件填充，最权威。
@@ -19,6 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 import { reflect_agent_status, reflect_list_sessions } from '@/utils/commands';
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
 import { useI18n } from '@/utils/i18n';
+import { useContextRatio } from './useContextRatio';
 import s from './StatusBar.module.css';
 
 export function StatusBar() {
@@ -43,6 +46,8 @@ export function StatusBar() {
     staleTime: 60_000,
   });
   const sessionCount = sessionsQ.data?.length ?? 0;
+
+  const ctx = useContextRatio();
 
   // 主题：resolved 态驱动图标，mode 驱动循环。
   const [resolved, setResolved] = useState<'light' | 'dark'>(() => getResolvedTheme());
@@ -74,7 +79,6 @@ export function StatusBar() {
         ? 'warn'
         : 'error';
   const modelTooltip = status?.degraded_reason ?? undefined;
-  const workspaceLabel = status?.workspace ? basename(status.workspace) : null;
 
   return (
     <footer className={s.bar}>
@@ -95,10 +99,19 @@ export function StatusBar() {
         <button className={s.btn} onClick={() => cyclePermission()} title={t('shell.cyclePermission')}>
           {permissionMode}
         </button>
-        {workspaceLabel && (
-          <span className={s.itemMuted} title={status?.workspace}>
-            {workspaceLabel}
-          </span>
+        {ctx.pct !== null && (
+          <Tooltip
+            label={t('shell.contextStatus', {
+              pct: String(ctx.pct),
+              used: ctx.usedTokens.toLocaleString(),
+              total: (ctx.windowSize ?? 0).toLocaleString(),
+            })}
+            side="top"
+          >
+            <span className={s.itemMuted} data-testid="statusbar-context" data-warn={ctx.warn || undefined}>
+              {ctx.pct}%
+            </span>
+          </Tooltip>
         )}
       </div>
 
@@ -131,7 +144,6 @@ export function StatusBar() {
               `${t('inspector.tokenCached')}: ${tokens.cached.toLocaleString()}`,
               `${t('inspector.tokenCacheWrite')}: ${tokens.cacheWrite.toLocaleString()}`,
               `${t('inspector.tokenTotal')}: ${tokens.total.toLocaleString()}`,
-              tokens.cost != null ? `${t('inspector.tokenCost')}: $${tokens.cost.toFixed(4)}` : '',
             ]
               .filter(Boolean)
               .join('\n')}
@@ -141,7 +153,6 @@ export function StatusBar() {
             <span className={s.itemMuted} data-testid="statusbar-tokens">
               <Icon icon={Coins} size={11} />
               {tokens.total.toLocaleString()}
-              {tokens.cost != null && ` · $${tokens.cost.toFixed(4)}`}
             </span>
           </Tooltip>
         )}
@@ -163,9 +174,4 @@ export function StatusBar() {
       </div>
     </footer>
   );
-}
-
-function basename(p: string): string {
-  const parts = p.replace(/\/$/, '').split('/');
-  return parts[parts.length - 1] || p;
 }

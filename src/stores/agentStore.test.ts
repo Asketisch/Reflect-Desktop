@@ -26,6 +26,9 @@ const emptyState = (): AgentState => ({
   subscribed: false,
   tokens: null,
   contextWindowSize: null,
+  queuedMessages: [],
+  planFailover: null,
+  compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
   collabSessions: [],
   mcpInvocations: [],
   lastRouting: null,
@@ -35,6 +38,10 @@ const emptyState = (): AgentState => ({
   subscribe: () => () => {},
   submit: async () => {},
   submitItems: async () => {},
+  enqueueMessage: () => {},
+  removeQueued: () => {},
+  updateQueued: () => {},
+  drainQueue: async () => {},
   interrupt: async () => {},
   compact: async () => {},
   rewind: async () => {},
@@ -46,6 +53,7 @@ const emptyState = (): AgentState => ({
   setEffort: async () => {},
   setPermissionMode: async () => {},
   cyclePermissionMode: async () => {},
+  syncPermissionMode: () => {},
   answerQuestion: async () => {},
   answerInput: async () => {},
   clearError: () => {},
@@ -199,7 +207,6 @@ describe('reduceEvent — LLM output', () => {
         cached_tokens: 200,
         cache_write_tokens: 500,
         total_tokens: 1500,
-        cost_usd: 0.0123,
         provider: 'anthropic',
         credential_label: 'main-key',
       }),
@@ -210,7 +217,6 @@ describe('reduceEvent — LLM output', () => {
       cached: 200,
       cacheWrite: 500,
       total: 1500,
-      cost: 0.0123,
       provider: 'anthropic',
       credentialLabel: 'main-key',
     });
@@ -230,7 +236,6 @@ describe('reduceEvent — LLM output', () => {
     );
     expect(patch.tokens).toMatchObject({
       total: 15,
-      cost: null,
       provider: null,
       credentialLabel: null,
       cacheWrite: 0,
@@ -275,10 +280,10 @@ describe('reduceEvent — tool', () => {
     const callItem = items.find((i) => i.kind === 'tool_call');
     expect(callItem && callItem.kind === 'tool_call' && callItem.status).toBe('done');
     const outItem = items.find((i) => i.kind === 'tool_output');
-    // summarizeToolOutput 返回 JSON 序列化形式（ToolOutput 对象的字符串）。
+    // 结构化 ToolOutput 的 text 块被提取为纯文本（不再 JSON 序列化整个对象）。
     expect(outItem && outItem.kind === 'tool_output').toBeTruthy();
     if (outItem && outItem.kind === 'tool_output') {
-      expect(outItem.text).toContain('"ok"');
+      expect(outItem.text).toBe('ok');
     }
   });
 });
@@ -334,20 +339,43 @@ describe('reduceEvent — approval / ask_user / bubble', () => {
 // ====== Compaction / Error ======
 
 describe('reduceEvent — compaction / error', () => {
-  it('context_compacted appends summary', () => {
-    const s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
+  it('context_compacted 聚合到 compactions 统计,不进对话流', () => {
+    const s: AgentState = {
+      ...emptyState(),
+      turns: [{ id: 't1', items: [], status: 'streaming' }],
+      compactions: { count: 1, removedMessages: 2, tokensSaved: 100, last: 'microcompact: 2 msgs' },
+    };
     const patch = reduceEvent(
       s,
       ev('t1', {
         type: 'context_compacted',
-        strategy: 'llm_summarize',
-        removed_messages: 5,
-        before_tokens: 1000,
-        after_tokens: 200,
+        strategy: 'smart_prune',
+        removed_messages: 0,
+        before_tokens: 7731,
+        after_tokens: 5344,
       }),
     );
-    const item = patch.turns![0].items[0];
-    expect(item).toMatchObject({ kind: 'compacted' });
+    expect(patch.turns).toBeUndefined();
+    expect(patch.compactions).toEqual({
+      count: 2,
+      removedMessages: 2,
+      tokensSaved: 100 + (7731 - 5344),
+      last: 'smart_prune: 0 msgs (7731 → 5344 tokens)',
+    });
+  });
+
+  it('context_compacted 无变化(noop)不计入统计', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('t1', {
+        type: 'context_compacted',
+        strategy: 'noop',
+        removed_messages: 0,
+        before_tokens: 500,
+        after_tokens: 500,
+      }),
+    );
+    expect(patch.compactions).toBeUndefined();
   });
 
   it('error (turn) appends formatted text', () => {

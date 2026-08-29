@@ -69,11 +69,20 @@ const ROUTES: RouteSpec[] = [
     commands: ['reflect_git_status', 'reflect_git_diff', 'reflect_git_log'],
     shows: ['feat: parser'],
   },
+  {
+    // P3：拉取请求（gh CLI）；fakeBackend 默认空列表。
+    route: '/pulls',
+    commands: ['reflect_gh_pr_list'],
+  },
+  {
+    // P3：hooks 运行时启停面板。
+    route: '/hooks',
+    commands: ['reflect_list_hooks'],
+  },
   { route: '/terminal' },
   { route: '/plan' },
   { route: '/prompts' },
   { route: '/about', commands: ['reflect_agent_status'] },
-  { route: '/update' },
   {
     // 默认 tab 为 inbox；activity 查询按 tab 启用。
     route: '/notifications',

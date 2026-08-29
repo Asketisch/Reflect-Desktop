@@ -17,6 +17,7 @@ import {
   type ReflectSideChannelInfo,
   type ReflectStartSideChannelResult,
 } from '@/utils/commands';
+import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 
 export const SIDECHANNEL_QUERY_KEY = ['side-channels'] as const;
@@ -48,6 +49,7 @@ export interface SideChannelController {
 export function useSideChannelController(): SideChannelController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { t } = useI18n();
 
   const [showForm, setShowForm] = useState(false);
   const [agentName, setAgentName] = useState('default');
@@ -72,7 +74,7 @@ export function useSideChannelController(): SideChannelController {
       void invalidate();
       pushToast({
         kind: 'success',
-        message: `Side-channel started: ${res.id.slice(0, 11)}…`,
+        message: t('sideChannel.toastStarted', { id: res.id.slice(0, 11) }),
       });
     },
   });
@@ -84,8 +86,8 @@ export function useSideChannelController(): SideChannelController {
       pushToast({
         kind: ok ? 'success' : 'warn',
         message: ok
-          ? `Cancelled ${id.slice(0, 11)}…`
-          : `${id.slice(0, 11)}… is already finished or unknown`,
+          ? t('sideChannel.toastCancelled', { id: id.slice(0, 11) })
+          : t('sideChannel.toastAlreadyFinished', { id: id.slice(0, 11) }),
       });
     },
   });
@@ -96,11 +98,11 @@ export function useSideChannelController(): SideChannelController {
     const trimmedName = agentName.trim();
     const trimmedPrompt = prompt.trim();
     if (!trimmedName) {
-      pushToast({ kind: 'warn', message: 'Agent name is required.' });
+      pushToast({ kind: 'warn', message: t('sideChannel.errorNameRequired') });
       return;
     }
     if (!trimmedPrompt) {
-      pushToast({ kind: 'warn', message: 'Prompt is required.' });
+      pushToast({ kind: 'warn', message: t('sideChannel.errorPromptRequired') });
       return;
     }
     try {
@@ -110,10 +112,10 @@ export function useSideChannelController(): SideChannelController {
     } catch (e) {
       pushToast({
         kind: 'error',
-        message: `Start failed: ${(e as Error).message}`,
+        message: t('sideChannel.errorStart', { message: (e as Error).message }),
       });
     }
-  }, [agentName, prompt, pushToast, startMut]);
+  }, [agentName, prompt, pushToast, startMut, t]);
 
   const cancel = useCallback(
     async (id: string) => {
@@ -122,11 +124,11 @@ export function useSideChannelController(): SideChannelController {
       } catch (e) {
         pushToast({
           kind: 'error',
-          message: `Cancel failed: ${(e as Error).message}`,
+          message: t('sideChannel.errorCancel', { message: (e as Error).message }),
         });
       }
     },
-    [cancelMut, pushToast],
+    [cancelMut, pushToast, t],
   );
 
   const channels = channelsQ.data ?? [];

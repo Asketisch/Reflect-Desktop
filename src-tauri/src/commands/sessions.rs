@@ -15,8 +15,15 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use reflect_protocol::{derive_title, MessageRole, RolloutRecord, SessionInfo, ThreadId};
+use reflect_llm::{
+    ChatEvent, ChatMessage, ChatRequest, ModelRegistry, SystemBlock, SystemBlocks, ContentBlock,
+    UserContent,
+};
+use reflect_protocol::{
+    derive_title, MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId,
+};
 use reflect_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
+use serde::Serialize;
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -28,7 +35,7 @@ use tauri::State;
 /// `default_base()` 路径语义等价但拼装独立,改为直接走 core 助手避免
 /// record 端(`reflect_rollout::JsonlRolloutWriter`)与 read 端(sessions_base)
 /// 因环境差异而分叉。两边现在都走同一函数。
-fn sessions_base() -> Option<PathBuf> {
+pub(crate) fn sessions_base() -> Option<PathBuf> {
     Some(reflect_rollout::path::default_base())
 }
 
@@ -54,14 +61,19 @@ pub async fn reflect_create_session() -> CommandResult<String> {
 ///   首条消息开始落盘。
 /// - 路由到历史会话 → replay 整段 JSONL → `records_to_preload` → 注入 preload,
 ///   LLM 恢复上下文;后续消息续写到同一文件。
+/// - 会话级 PermissionMode 从审计轨迹末次 `PermissionModeChanged` 恢复
+///   (模式绑定会话而非进程),`Bypass` 按核心 v1.3 安全基线降级 `Prompt`。
 ///
 /// 未知 id(磁盘上无对应 JSONL,例如刚创建未发消息的新会话)→ **不报错**,
 /// 走空历史分支,以兼容 New Chat 的 create → navigate → bind 序列。
+///
+/// 返回绑定后线程的当前 PermissionMode(线格式字符串,如 `"plan"`),
+/// 供前端在切换会话后同步徽标/切换器;同 id 短路时同样读实际线程返回。
 #[tauri::command]
 pub async fn reflect_bind_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
-) -> CommandResult<()> {
+) -> CommandResult<String> {
     if !agent.model_registry_ready() {
         return Err(CommandError {
             msg: "agent not installed yet".into(),
@@ -77,8 +89,27 @@ pub async fn reflect_bind_session(
             msg: format!("replay_session({id}) failed: {e:#}"),
         })?;
     let preload = reflect_core::resume::records_to_preload(&records);
-    crate::state::rebind::rebind_session(&agent, id, preload)
-        .map_err(|e| CommandError { msg: format!("rebind_session failed: {e:#}") })
+    // 权限模式随会话恢复:取时间序末次 PermissionModeChanged 的目标值。
+    // Bypass 绝不是合法运行时目标(见 reflect-core submission_loop 安全基线),
+    // 借旧审计记录回潮的路径同样降级为最严格的等价值。
+    let initial_mode = records.iter().rev().find_map(|r| match r {
+        RolloutRecord::PermissionModeChanged { to, .. } => Some(match to {
+            PermissionMode::Bypass => PermissionMode::Prompt,
+            other => *other,
+        }),
+        _ => None,
+    });
+    crate::state::rebind::rebind_session(&agent, id, preload, initial_mode)
+        .map_err(|e| CommandError { msg: format!("rebind_session failed: {e:#}") })?;
+    let mode = agent
+        .inner
+        .thread
+        .lock()
+        .as_ref()
+        .map(|t| crate::commands::agent::permission_mode_str(t.config().permission_mode()))
+        .unwrap_or("auto")
+        .to_string();
+    Ok(mode)
 }
 
 /// 列出 session,支持可选 workspace 过滤 + 分页。
@@ -127,6 +158,174 @@ pub async fn reflect_rename_session(id: ThreadId, new_name: String) -> CommandRe
         msg: "no home dir".into(),
     })?;
     rollout_index::rename_session(&base, id, &new_name).map_err(CommandError::from)
+}
+
+// ── AI 会话标题 ─────────────────────────────────────────────────────────
+//
+// 标题三级优先级(`refine_session_titles`):custom(_names) > AI(_titles) >
+// 首条 User 消息派生。手动 rename 写 _names、永远胜出,不被 AI 覆盖;
+// AI 标题写 `_titles/<id>.title`,归档/删除与 _names 同步搬移/清理。
+
+/// AI 生成会话标题。
+///
+/// 读 rollout 首条 User 消息 + 首条 Assistant 回复作为种子,经
+/// MinimalAgent 持有的 SharedModelRegistry one-shot 调用当前模型
+/// (`model_spec`,即 routing.main),生成 ≤48 字符标题并落盘
+/// `_titles/<id>.title`。
+///
+/// - 已有自定义名 → 不调模型,直接返回自定义名;
+/// - `force = false`(前端 turn 收尾自动触发)且 `_titles` 已有 → 幂等返回;
+/// - `force = true`(会话菜单「AI 重命名」)→ 重新生成并覆盖。
+#[tauri::command]
+pub async fn reflect_generate_session_title(
+    agent: State<'_, MinimalAgent>,
+    id: ThreadId,
+    force: Option<bool>,
+) -> CommandResult<String> {
+    let base = sessions_base().ok_or_else(|| CommandError {
+        msg: "no home dir".into(),
+    })?;
+    let id_str = id.to_string();
+
+    // 自定义名永远胜出 —— 不调模型、不落盘。
+    if let Some(name) = custom_names(&base).get(&id_str) {
+        return Ok(name.clone());
+    }
+    let titles_dir = base.join("_titles");
+    let title_path = titles_dir.join(format!("{id_str}.title"));
+    if force != Some(true)
+        && let Ok(existing) = std::fs::read_to_string(&title_path)
+    {
+        let trimmed = existing.trim().to_string();
+        if !trimmed.is_empty() {
+            return Ok(trimmed);
+        }
+    }
+
+    let records = replay_session(&base, &id).await.map_err(|e| CommandError {
+        msg: format!("replay_session({id}) failed: {e:#}"),
+    })?;
+    let (user_text, assistant_text) = extract_title_seed(&records);
+    let Some(user_text) = user_text else {
+        return Err(CommandError {
+            msg: "session has no user message to summarize".into(),
+        });
+    };
+
+    let registry = agent
+        .inner
+        .model_registry
+        .lock()
+        .clone()
+        .ok_or_else(|| CommandError {
+            msg: "agent not installed yet".into(),
+        })?;
+    let spec = agent.model_spec();
+    let client = registry.resolve(&spec).ok_or_else(|| CommandError {
+        msg: format!("no available client for model spec '{spec}'"),
+    })?;
+    let request = ChatRequest {
+        model: ModelRegistry::model_name(&spec).to_string(),
+        messages: vec![ChatMessage::User(UserContent {
+            blocks: vec![ContentBlock::text(format!(
+                "用户:{}\n助手:{}",
+                truncate_seed(&user_text, 2000),
+                truncate_seed(assistant_text.as_deref().unwrap_or("(无回复)"), 1000),
+            ))],
+        })],
+        system: SystemBlocks(vec![SystemBlock {
+            text: "根据对话开头为这个会话生成一个简短标题(不超过 20 个汉字或 8 个单词)。\
+                   只输出标题本身:不要引号、句号、前缀或任何解释;使用用户消息的语言。"
+                .to_string(),
+            cache_control: None,
+            ephemeral: false,
+        }]),
+        max_tokens: Some(64),
+        temperature: Some(0.3),
+        ..ChatRequest::default()
+    };
+
+    let mut stream = client
+        .stream(request, tokio_util::sync::CancellationToken::new())
+        .await
+        .map_err(|e| CommandError {
+            msg: format!("title generation request failed: {e}"),
+        })?;
+    let mut raw = String::new();
+    use futures::StreamExt;
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(ChatEvent::ContentDelta(delta)) => raw.push_str(&delta),
+            Ok(ChatEvent::MessageStop | ChatEvent::MessageStopTruncated { .. }) => break,
+            Ok(_) => {}
+            Err(e) => {
+                return Err(CommandError {
+                    msg: format!("title generation stream failed: {e}"),
+                })
+            }
+        }
+    }
+    // 与列表派生标题同一清洗规则(折叠空白 + ≤48 字符),保证列表排版一致。
+    let Some(title) = derive_title(&raw) else {
+        return Err(CommandError {
+            msg: "model returned an empty title".into(),
+        });
+    };
+
+    std::fs::create_dir_all(&titles_dir).map_err(CommandError::from)?;
+    std::fs::write(&title_path, &title).map_err(CommandError::from)?;
+    Ok(title)
+}
+
+/// 种子文本截断,避免超长首条消息把标题请求撑爆。
+fn truncate_seed(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+    let head: String = text.chars().take(max_chars).collect();
+    format!("{head}…")
+}
+
+/// 从回放记录提取标题种子:首条 User 消息文本 + 首条 Assistant 回复文本。
+fn extract_title_seed(records: &[RolloutRecord]) -> (Option<String>, Option<String>) {
+    let mut user: Option<String> = None;
+    let mut assistant: Option<String> = None;
+    for record in records {
+        if let RolloutRecord::Message { role, content, .. } = record {
+            match role {
+                MessageRole::User if user.is_none() => user = message_text(content),
+                MessageRole::Assistant if assistant.is_none() => assistant = message_text(content),
+                _ => {}
+            }
+            if user.is_some() && assistant.is_some() {
+                break;
+            }
+        }
+    }
+    (user, assistant)
+}
+
+/// 从消息 `content` 提取展示文本(字符串或 block 数组中的 `text` 块)。
+/// User / Assistant 通用 —— 历史 user 消息与新格式 assistant 回复都是
+/// 这两种形态。
+fn message_text(content: &serde_json::Value) -> Option<String> {
+    match content {
+        serde_json::Value::String(s) if !s.trim().is_empty() => Some(s.clone()),
+        serde_json::Value::Array(blocks) => {
+            let texts: Vec<&str> = blocks
+                .iter()
+                .filter(|b| b.get("type").and_then(|t| t.as_str()) == Some("text"))
+                .filter_map(|b| b.get("text").and_then(|t| t.as_str()))
+                .collect();
+            let joined = texts.join(" ");
+            if joined.trim().is_empty() {
+                None
+            } else {
+                Some(joined)
+            }
+        }
+        _ => None,
+    }
 }
 
 /// 删除 session:移除该 session 的全部 rollout 文件(含文件名错位副本、
@@ -231,6 +430,11 @@ fn move_session_tree(from: &Path, to: &Path, id: &ThreadId) -> CommandResult<usi
         move_file(&name, &to.join("_names").join(format!("{id}.name")))?;
         moved += 1;
     }
+    let ai_title = from.join("_titles").join(format!("{id}.title"));
+    if ai_title.exists() {
+        move_file(&ai_title, &to.join("_titles").join(format!("{id}.title")))?;
+        moved += 1;
+    }
     Ok(moved)
 }
 
@@ -261,6 +465,11 @@ fn delete_session_paths(base: &Path, id: &ThreadId) -> CommandResult<usize> {
     let name = base.join("_names").join(format!("{id}.name"));
     if name.exists() {
         std::fs::remove_file(&name).map_err(CommandError::from)?;
+        removed += 1;
+    }
+    let ai_title = base.join("_titles").join(format!("{id}.title"));
+    if ai_title.exists() {
+        std::fs::remove_file(&ai_title).map_err(CommandError::from)?;
         removed += 1;
     }
     // 旧布局:<base>/<id>/ 目录。
@@ -296,6 +505,15 @@ async fn replay_session(base: &Path, id: &ThreadId) -> anyhow::Result<Vec<Rollou
         }
     }
     Ok(records)
+}
+
+/// coding plan 热重载路径(`state/reload.rs`)复用:replay 全量历史 →
+/// `records_to_preload`。与 `reflect_bind_session` 的 preload 构造同源,
+/// 保证强制重绑后对话上下文不丢。
+pub(crate) async fn replay_for_preload(id: &ThreadId) -> anyhow::Result<Vec<ChatMessage>> {
+    let base = sessions_base().ok_or_else(|| anyhow::anyhow!("no HOME dir for sessions"))?;
+    let records = replay_session(&base, id).await?;
+    Ok(reflect_core::resume::records_to_preload(&records))
 }
 
 /// 把 session 导出为 JSON 到 `~/.reflect/exports/<id>.json` 并返回路径。供 ThreadsView / CommandPalette 的导出菜单使用。
@@ -389,29 +607,55 @@ fn filename_session_match(path: &Path, id_str: &str) -> Option<PathBuf> {
 
 // ── 列表标题精化 ────────────────────────────────────────────────────────
 //
-// 两级优先级:
+// 三级优先级:
 // 1. 用户自定义名(`<base>/_names/<id>.name`,由 `reflect_rename_session`
 //    写入;TUI 的「自定义名优先于派生值」语义在此镜像);
-// 2. 首条 User 消息重派生 —— `index::list_sessions` 的 `title` 对 block
+// 2. AI 生成标题(`<base>/_titles/<id>.title`,由
+//    `reflect_generate_session_title` 写入);
+// 3. 首条 User 消息重派生 —— `index::list_sessions` 的 `title` 对 block
 //    数组 `content`(user 消息新格式)是整段 JSON 字符串,不可用作标题。
 
-/// 精化 `sessions` 中每条的 `title`(原地)。custom name 永远胜出;
-/// 无 custom name 时用 block-aware 首条 User 消息覆盖(结果幂等:
-/// 纯字符串 content 的会话两边派生值相同)。
+/// 精化 `sessions` 中每条的 `title`(原地)。custom name > AI 标题 >
+/// block-aware 首条 User 消息派生(结果幂等:纯字符串 content 的会话
+/// 两边派生值相同)。
 fn refine_session_titles(base: &Path, sessions: &mut [SessionInfo]) {
     if sessions.is_empty() {
         return;
     }
     let custom = custom_names(base);
+    let ai = ai_titles(base);
     let derived = derived_titles(base);
     for s in sessions.iter_mut() {
         let id = s.session_id.to_string();
         if let Some(name) = custom.get(&id) {
             s.title = Some(name.clone());
+        } else if let Some(title) = ai.get(&id) {
+            s.title = Some(title.clone());
         } else if let Some(title) = derived.get(&id) {
             s.title = Some(title.clone());
         }
     }
+}
+
+/// 读 `<base>/_titles/*.title` → `session_id → AI 标题`。
+fn ai_titles(base: &Path) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    let Ok(entries) = std::fs::read_dir(base.join("_titles")) else {
+        return out;
+    };
+    for entry in entries.flatten() {
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        let Some(id) = file_name.strip_suffix(".title") else {
+            continue;
+        };
+        match std::fs::read_to_string(entry.path()) {
+            Ok(text) if !text.trim().is_empty() => {
+                out.insert(id.to_string(), text.trim().to_string());
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 /// 读 `<base>/_names/*.name` → `session_id → 自定义名`。
@@ -485,7 +729,7 @@ fn first_user_message_title_file(path: &Path) -> Option<(String, String)> {
                 content,
                 ..
             } => {
-                let Some(text) = user_message_text(&content) else {
+                let Some(text) = message_text(&content) else {
                     continue;
                 };
                 let Some(title) = derive_title(&text) else {
@@ -513,26 +757,198 @@ fn session_file_id(path: &Path) -> Option<String> {
     Some(stem.to_string())
 }
 
-/// 从 User 消息 `content` 提取展示文本:
-/// - 字符串 → 原样;
-/// - block 数组 → 所有 `text` 块以空格连接(跳过 image 等非文本块)。
-fn user_message_text(content: &serde_json::Value) -> Option<String> {
-    match content {
-        serde_json::Value::String(s) if !s.trim().is_empty() => Some(s.clone()),
-        serde_json::Value::Array(blocks) => {
-            let texts: Vec<&str> = blocks
-                .iter()
-                .filter(|b| b.get("type").and_then(|t| t.as_str()) == Some("text"))
-                .filter_map(|b| b.get("text").and_then(|t| t.as_str()))
-                .collect();
-            let joined = texts.join(" ");
-            if joined.trim().is_empty() {
-                None
-            } else {
-                Some(joined)
+// ── 跨会话内容搜索 ──────────────────────────────────────────────────────
+//
+// v1.x P1：搜索页「会话」tab 的后端。区别于 `reflect_search_files`
+//（工作区源码 grep），这里 grep 的是会话 JSONL 里的 user/assistant 文本，
+// 覆盖活跃树（`~/.reflect/sessions`）与归档树（`~/.reflect/sessions-archive`）。
+
+/// 单个会话的搜索命中。
+#[derive(Debug, Clone, Serialize)]
+pub struct SessionSearchHit {
+    pub session_id: String,
+    /// 派生标题（`derive_title`，与列表同源；空会话为 null）。
+    pub title: Option<String>,
+    /// 首个命中片段（命中词前后各 ~60 字符，单行折叠空白）。
+    pub snippet: String,
+    pub started_at: String,
+    pub message_count: usize,
+    /// 命中总次数（该会话内所有 user/assistant 文本的累计）。
+    pub match_count: usize,
+}
+
+const SESSION_SEARCH_SCAN_CAP: usize = 120;
+const SESSION_SNIPPET_CONTEXT: usize = 60;
+
+/// 跨会话全文搜索（大小写不敏感子串匹配）。
+///
+/// 扫描上限：最近 `SESSION_SEARCH_SCAN_CAP` 个会话（活跃树 + 归档树各自
+/// 按最近序），防止超大会话库把命令拖死；命中 `limit`（默认 20）即止。
+#[tauri::command]
+pub async fn reflect_search_sessions(
+    query: String,
+    limit: Option<usize>,
+) -> CommandResult<Vec<SessionSearchHit>> {
+    // ASCII 折叠（而非 Unicode lowercase）：保证字节偏移与原文一致，
+    // 命中窗口能映射回原文本；中文等无大小写字符不受影响。
+    let needle = query.trim().to_ascii_lowercase();
+    if needle.is_empty() {
+        return Ok(Vec::new());
+    }
+    let limit = limit.unwrap_or(20).max(1);
+
+    let Some(base) = sessions_base() else {
+        return Err(CommandError { msg: "no home dir".into() });
+    };
+    let mut candidates: Vec<SessionInfo> = Vec::new();
+    if let Ok(mut infos) = rollout_index::list_sessions(&base) {
+        candidates.append(&mut infos);
+    }
+    if let Some(archive) = archive_base() {
+        if let Ok(mut infos) = rollout_index::list_sessions(&archive) {
+            candidates.append(&mut infos);
+        }
+    }
+    // list_sessions 已按 started_at 倒序；两树拼接后重排一次再截断扫描窗口。
+    candidates.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    candidates.truncate(SESSION_SEARCH_SCAN_CAP);
+
+    let mut hits: Vec<SessionSearchHit> = Vec::new();
+    for info in candidates {
+        let Some(path) = rollout_index::find_session_path(&base, info.session_id)
+            .or_else(|| archive_base().and_then(|a| rollout_index::find_session_path(&a, info.session_id)))
+        else {
+            continue;
+        };
+        let records = match replay_path_quiet(&path).await {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::debug!(session_id = %info.session_id, path = %path.display(), err = %e, "replay failed; skipping");
+                continue;
+            }
+        };
+        let mut match_count = 0usize;
+        let mut snippet: Option<String> = None;
+        for record in &records {
+            let RolloutRecord::Message { content, .. } = record else {
+                continue;
+            };
+            let Some(text) = message_text(content) else {
+                continue;
+            };
+            let haystack = text.to_ascii_lowercase();
+            let mut from = 0usize;
+            while let Some(pos) = haystack[from..].find(&needle) {
+                match_count += 1;
+                if snippet.is_none() {
+                    snippet = Some(build_snippet(&text, from + pos, needle.len()));
+                }
+                from += pos + needle.len();
+                if from >= haystack.len() {
+                    break;
+                }
             }
         }
-        _ => None,
+        if match_count > 0 {
+            hits.push(SessionSearchHit {
+                session_id: info.session_id.to_string(),
+                title: info.title.clone(),
+                snippet: snippet.unwrap_or_default(),
+                started_at: info.started_at.to_rfc3339(),
+                message_count: info.message_count,
+                match_count,
+            });
+            if hits.len() >= limit {
+                break;
+            }
+        }
+    }
+    Ok(hits)
+}
+
+/// 回放失败静默（单个坏文件不应让整个搜索 500）。
+async fn replay_path_quiet(path: &Path) -> anyhow::Result<Vec<RolloutRecord>> {
+    rollout_reader::replay_path(path).await
+}
+
+/// 取命中位置前后 ~60 字符的窗口，折叠空白为单空格（JSONL 文本常带换行）。
+fn build_snippet(text: &str, match_start: usize, match_len: usize) -> String {
+    // filter + next_back：取满足「距命中 ≥ context」的最大字节位
+    //（CharIndices 经 map/filter 仍 DoubleEnded，无需 collect）。
+    let start = text
+        .char_indices()
+        .map(|(i, _)| i)
+        .filter(|i| *i <= match_start && match_start - *i >= SESSION_SNIPPET_CONTEXT)
+        .next_back()
+        .unwrap_or(0);
+    let end = text
+        .char_indices()
+        .map(|(i, _)| i)
+        .skip_while(|i| *i < match_start + match_len)
+        .find(|i| *i - (match_start + match_len) >= SESSION_SNIPPET_CONTEXT)
+        .unwrap_or(text.len());
+    let raw = &text[start..end];
+    let mut collapsed = String::with_capacity(raw.len());
+    let mut prev_space = true; // 折叠行首空白
+    for ch in raw.chars() {
+        if ch.is_whitespace() {
+            if !prev_space {
+                collapsed.push(' ');
+                prev_space = true;
+            }
+        } else {
+            collapsed.push(ch);
+            prev_space = false;
+        }
+    }
+    let mut out = String::from(if start > 0 { "…" } else { "" });
+    out.push_str(collapsed.trim());
+    if end < text.len() {
+        out.push('…');
+    }
+    out
+}
+
+
+/// ASCII 折叠搜索 + 片段窗口的纯函数单测（`reflect_search_sessions` 核心）。
+#[cfg(test)]
+mod search_tests {
+    use super::{build_snippet, SESSION_SNIPPET_CONTEXT};
+
+    #[test]
+    fn snippet_folds_whitespace_and_marks_ellipsis() {
+        let text = format!("{}target{}", "a".repeat(80), "b".repeat(80));
+        let snippet = build_snippet(&text, 80, 6);
+        assert!(snippet.starts_with('…'));
+        assert!(snippet.ends_with('…'));
+        assert!(snippet.contains("target"));
+        assert!(!snippet.contains('\n'));
+    }
+
+    #[test]
+    fn snippet_at_start_has_no_leading_ellipsis() {
+        let text = "target at the very beginning of a longer body";
+        let snippet = build_snippet(text, 0, 6);
+        assert!(!snippet.starts_with('…'));
+        assert!(snippet.contains("target"));
+    }
+
+    #[test]
+    fn snippet_window_respects_context_chars() {
+        let text = "x".repeat(SESSION_SNIPPET_CONTEXT * 3);
+        let snippet = build_snippet(&text, SESSION_SNIPPET_CONTEXT * 2, 1);
+        // 窗口总长 ≤ 前后 context + 命中 + 2 个省略号。
+        assert!(snippet.chars().count() <= SESSION_SNIPPET_CONTEXT * 2 + 1 + 2);
+    }
+
+    #[test]
+    fn ascii_case_folding_keeps_byte_offsets_aligned() {
+        // 'İ' 等 Unicode 字符经 to_lowercase 会变长 —— 我们用 ASCII 折叠，
+        // 字节长度恒等，中文/变音字符场景偏移不漂移。
+        let text = "İânside TARGET tail";
+        let snippet = build_snippet(text, text.find("TARGET").unwrap(), 6);
+        assert!(snippet.contains("TARGET"));
+        assert!(snippet.contains("İânside"));
     }
 }
 
@@ -594,6 +1010,89 @@ mod tests {
     fn pagination_offset_beyond_end_returns_empty() {
         let v: Vec<String> = (0..3).map(|i| format!("t-{i}")).collect();
         assert_eq!(paginate(v, None, Some(10)).len(), 0);
+    }
+
+    // ── AI 会话标题(B) ────────────────────────────────────────────────
+
+    use reflect_protocol::TurnId;
+
+    #[test]
+    fn refine_prefers_custom_over_ai_over_derived() {
+        let dir = tempdir().unwrap();
+        let base = dir.path();
+        let id = ThreadId::new();
+
+        // 三层都存在 → custom 胜出。
+        std::fs::create_dir_all(base.join("_names")).unwrap();
+        std::fs::write(base.join("_names").join(format!("{id}.name")), "手动名").unwrap();
+        std::fs::create_dir_all(base.join("_titles")).unwrap();
+        std::fs::write(base.join("_titles").join(format!("{id}.title")), "AI 标题").unwrap();
+        let mut sessions = vec![session_info(id, None)];
+        refine_session_titles(base, &mut sessions);
+        assert_eq!(sessions[0].title.as_deref(), Some("手动名"));
+
+        // 无 custom → AI 标题胜出(优先于派生)。
+        std::fs::remove_file(base.join("_names").join(format!("{id}.name"))).unwrap();
+        let mut sessions = vec![session_info(id, None)];
+        refine_session_titles(base, &mut sessions);
+        assert_eq!(sessions[0].title.as_deref(), Some("AI 标题"));
+    }
+
+    #[test]
+    fn ai_titles_ignores_non_title_files_and_empty_entries() {
+        let dir = tempdir().unwrap();
+        let base = dir.path();
+        std::fs::create_dir_all(base.join("_titles")).unwrap();
+        std::fs::write(base.join("_titles").join("not-a-title"), "x").unwrap();
+        let empty_id = ThreadId::new();
+        std::fs::write(
+            base.join("_titles").join(format!("{empty_id}.title")),
+            "  ",
+        )
+        .unwrap();
+        let ok_id = ThreadId::new();
+        std::fs::write(
+            base.join("_titles").join(format!("{ok_id}.title")),
+            "标题\n",
+        )
+        .unwrap();
+        let map = ai_titles(base);
+        assert_eq!(map.len(), 1);
+        assert_eq!(map[&ok_id.to_string()], "标题");
+    }
+
+    #[test]
+    fn extract_title_seed_takes_first_user_and_assistant() {
+        let turn = TurnId::new();
+        let records = vec![
+            RolloutRecord::Message {
+                turn_id: turn,
+                role: MessageRole::User,
+                content: serde_json::json!("第一问"),
+            },
+            RolloutRecord::Message {
+                turn_id: turn,
+                role: MessageRole::Assistant,
+                content: serde_json::json!("第一答"),
+            },
+            RolloutRecord::Message {
+                turn_id: turn,
+                role: MessageRole::User,
+                content: serde_json::json!("第二问"),
+            },
+        ];
+        let (user, assistant) = extract_title_seed(&records);
+        assert_eq!(user.as_deref(), Some("第一问"));
+        assert_eq!(assistant.as_deref(), Some("第一答"));
+    }
+
+    #[test]
+    fn truncate_seed_caps_long_text() {
+        let long = "字".repeat(3000);
+        let cut = truncate_seed(&long, 2000);
+        assert!(cut.chars().count() <= 2001);
+        assert!(cut.ends_with('…'));
+        assert_eq!(truncate_seed("短文本", 2000), "短文本");
     }
 
     // ── 历史会话文件定位 ────────────────────────────────────────────────
@@ -848,7 +1347,7 @@ mod tests {
     #[test]
     fn user_message_text_handles_string_and_block_array() {
         let string = serde_json::json!("直接文本");
-        assert_eq!(user_message_text(&string).as_deref(), Some("直接文本"));
+        assert_eq!(message_text(&string).as_deref(), Some("直接文本"));
 
         let blocks = serde_json::json!([
             {"type": "text", "text": "修复"},
@@ -856,14 +1355,14 @@ mod tests {
             {"type": "text", "text": "滚动条"}
         ]);
         assert_eq!(
-            user_message_text(&blocks).as_deref(),
+            message_text(&blocks).as_deref(),
             Some("修复 滚动条")
         );
 
         let empty = serde_json::json!("   ");
-        assert_eq!(user_message_text(&empty), None);
+        assert_eq!(message_text(&empty), None);
         let number = serde_json::json!(42);
-        assert_eq!(user_message_text(&number), None);
+        assert_eq!(message_text(&number), None);
     }
 
     #[test]

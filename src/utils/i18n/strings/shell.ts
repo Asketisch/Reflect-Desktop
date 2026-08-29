@@ -49,7 +49,6 @@ const shell: Record<string, StringEntry> = {
   'shell.title.notifications':    { en: 'Notifications',                                          'zh-CN': '通知' },
   'shell.title.settings':         { en: 'Settings',                                               'zh-CN': '设置' },
   'shell.title.about':            { en: 'About',                                                  'zh-CN': '关于' },
-  'shell.title.update':           { en: 'Updates',                                                'zh-CN': '更新' },
   'shell.title.debug':            { en: 'Debug',                                                  'zh-CN': '调试' },
   'shell.title.apps':             { en: 'Apps',                                                   'zh-CN': '应用' },
   'shell.title.collaboration':    { en: 'Collaboration',                                          'zh-CN': '协作' },
@@ -89,6 +88,15 @@ const shell: Record<string, StringEntry> = {
   'shell.nav.autopilot':          { en: 'Autopilot',                                             'zh-CN': '自动调度' },
   'shell.nav.squad':              { en: 'Squad',                                                 'zh-CN': '小队' },
   'shell.nav.media':              { en: 'Media',                                                 'zh-CN': '媒体' },
+  'shell.nav.search':             { en: 'Search',                                                'zh-CN': '搜索' },
+  'shell.nav.more':               { en: 'More',                                                  'zh-CN': '更多' },
+  'shell.more.title':             { en: 'All features',                                          'zh-CN': '全部功能' },
+  'shell.more.devTools':          { en: 'Developer tools',                                       'zh-CN': '开发工具' },
+  'shell.more.automation':        { en: 'Automation',                                            'zh-CN': '自动化' },
+  'shell.more.features':          { en: 'More features',                                         'zh-CN': '更多功能' },
+  'shell.contextStatus':          { en: 'Context {pct}% — {used} / {total} tokens',              'zh-CN': '上下文 {pct}% — {used} / {total} tokens' },
+  'shell.nav.pulls':              { en: 'Pull requests',                                         'zh-CN': '拉取请求' },
+  'shell.nav.hooks':              { en: 'Hooks',                                                 'zh-CN': 'Hooks' },
 };
 
 export default shell;

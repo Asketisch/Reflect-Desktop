@@ -5,6 +5,35 @@
   align-items: stretch;
 }
 
+/* 多选勾选框（selectMode 下渲染）。 */
+.checkbox {
+  flex: none;
+  align-self: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 var(--space-2) 0 var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-input);
+  color: var(--accent-fg);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.checkbox:hover {
+  border-color: var(--accent-border);
+}
+
+.checkbox[data-checked] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .link {
   flex: 1;
   display: block;

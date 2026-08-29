@@ -12,6 +12,10 @@ use crate::state::MinimalAgent;
 pub struct GitStatusEntry {
     pub path: String,
     pub status: String, // "M" | "A" | "D" | "??" | "R"
+    /// 该条目是否含已暂存(index)变更。`status` 是 trimmed 的 porcelain
+    /// 码,`"M "`(已暂存)与 `" M"`(仅工作区)折叠成同一个 "M" —— 前端
+    /// staged/working 分 tab 依赖本字段区分。
+    pub staged: bool,
     pub old_path: Option<String>,
 }
 
@@ -114,6 +118,7 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
                     entries.push(GitStatusEntry {
                         path: new.to_string(),
                         status: status.trim().to_string(),
+                        staged: !is_worktree_only(status),
                         old_path: Some(old.to_string()),
                     });
                     continue;
@@ -122,6 +127,7 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
             entries.push(GitStatusEntry {
                 path,
                 status: status.trim().to_string(),
+                staged: !is_worktree_only(status),
                 old_path: None,
             });
         }
@@ -135,6 +141,31 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
         raw,
         is_repo: true,
     })
+}
+
+/// porcelain v1 两字符码的**第一字符**(index 列)是否为「无暂存变更」:
+/// `' '`(仅工作区修改)或 `'?'`(untracked)。第二字符是工作区列,
+/// 不参与本判定。
+fn is_worktree_only(status: &str) -> bool {
+    matches!(status.as_bytes().first(), Some(b' ') | Some(b'?'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_worktree_only;
+
+    /// `"M "`(已暂存)与 `" M"`(仅工作区)经 trim 折叠成同一个 "M",
+    /// staged 判定必须吃原始两字符码的 index 列。
+    #[test]
+    fn porcelain_index_column_drives_staged() {
+        assert!(is_worktree_only(" M"));
+        assert!(is_worktree_only("??"));
+        assert!(!is_worktree_only("M "));
+        assert!(!is_worktree_only("MM"));
+        assert!(!is_worktree_only("AM"));
+        assert!(!is_worktree_only("A "));
+        assert!(!is_worktree_only("R "));
+    }
 }
 
 /// `git diff --no-color` → unified diff 文本(`staged=true` 时为 staged diff)。
@@ -183,4 +214,147 @@ pub async fn reflect_git_log(limit: Option<usize>) -> CommandResult<Vec<GitLogEn
         });
     }
     Ok(entries)
+}
+
+// ── P3：Git 操作化（stage / unstage / commit）──────────────────────────
+//
+// 此前 Git 视图只读；这里补齐最小写路径 —— 与 run_git 同一工作区、同一
+// 错误链路。不做 push/pull（远端操作涉及凭证，仍留给用户终端）。
+
+/// stage 文件（`git add -- <paths>`）。空 paths = add -A（全量）。
+#[tauri::command]
+pub async fn reflect_git_stage(paths: Vec<String>) -> CommandResult<()> {
+    let output = if paths.is_empty() {
+        run_git(&["add", "--all"])
+    } else {
+        // 路径以 `--` 分隔传入，防止以 `-` 开头的路径被解析为选项。
+        let mut args: Vec<&str> = vec!["add", "--"];
+        args.extend(paths.iter().map(|s| s.as_str()));
+        run_git(&args)
+    }?;
+    if !output.status.success() {
+        return Err(CommandError {
+            msg: format!("git add failed: {}", String::from_utf8_lossy(&output.stderr)),
+        });
+    }
+    Ok(())
+}
+
+/// unstage 文件（`git reset HEAD -- <paths>`；路径为空 = 全量 reset）。
+#[tauri::command]
+pub async fn reflect_git_unstage(paths: Vec<String>) -> CommandResult<()> {
+    let output = if paths.is_empty() {
+        run_git(&["reset", "HEAD"])
+    } else {
+        let mut args: Vec<&str> = vec!["reset", "HEAD", "--"];
+        args.extend(paths.iter().map(|s| s.as_str()));
+        run_git(&args)
+    }?;
+    if !output.status.success() {
+        return Err(CommandError {
+            msg: format!("git reset failed: {}", String::from_utf8_lossy(&output.stderr)),
+        });
+    }
+    Ok(())
+}
+
+/// 提交（`git commit -m <message>`）。要求非空 message；返回新 commit 短 hash。
+#[tauri::command]
+pub async fn reflect_git_commit(message: String) -> CommandResult<String> {
+    let trimmed = message.trim();
+    if trimmed.is_empty() {
+        return Err(CommandError { msg: "commit message is empty".into() });
+    }
+    let output = run_git(&["commit", "-m", trimmed])?;
+    if !output.status.success() {
+        return Err(CommandError {
+            msg: format!("git commit failed: {}", String::from_utf8_lossy(&output.stderr)),
+        });
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // 提取 `[branch abc1234] subject` 中的短 hash。
+    let short = stdout
+        .split('[')
+        .nth(1)
+        .and_then(|rest| rest.split(']').next())
+        .and_then(|head| head.split_whitespace().nth(1))
+        .unwrap_or("ok")
+        .to_string();
+    Ok(short)
+}
+
+/// 列出打开中的 GitHub PR（`gh pr list --json ...`）。gh 未安装 / 非 repo
+/// / 无 PR 时返回空列表 + 说明（前端可展示提示，不打断）。
+#[derive(Debug, Serialize)]
+pub struct GhPullRequest {
+    pub number: u64,
+    pub title: String,
+    pub head_ref: String,
+    pub author: String,
+    pub updated_at: String,
+    pub url: String,
+    pub draft: bool,
+}
+
+/// 列出当前工作区对应的 GitHub PR（调用 `gh pr list --json ...`）。
+///
+/// 失败语义:gh 未安装、非 git 仓库、未登录 gh → 返回 `Err` 带原因(由
+/// PROTOCOL_BRIDGE.md §git 约定)。前端在空态中展示 `msg`。
+#[tauri::command]
+pub async fn reflect_gh_pr_list(limit: Option<usize>) -> CommandResult<Vec<GhPullRequest>> {
+    let limit = limit.unwrap_or(20).clamp(1, 50);
+    let cwd = git_in_workspace().ok_or_else(|| CommandError { msg: "no workspace".into() })?;
+    let output = StdCommand::new("gh")
+        .current_dir(&cwd)
+        .args([
+            "pr",
+            "list",
+            "--limit",
+            &limit.to_string(),
+            "--json",
+            "number,title,headRefName,author,updatedAt,url,isDraft",
+        ])
+        .output()
+        .map_err(|e| CommandError {
+            msg: if e.kind() == std::io::ErrorKind::NotFound {
+                "gh CLI not found — install GitHub CLI to list pull requests".into()
+            } else {
+                format!("spawn gh: {e}")
+            },
+        })?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // 非 repo / 未登录 gh / gh 未安装 → Err 带原因（前端在空态中展示）。
+        return Err(CommandError { msg: stderr.trim().to_string() });
+    }
+    #[derive(serde::Deserialize)]
+    #[allow(non_snake_case)] // 字段名直接对应 `gh pr list --json` 的 key。
+    struct RawPr {
+        number: u64,
+        title: String,
+        headRefName: String,
+        author: Option<RawAuthor>,
+        updatedAt: String,
+        url: String,
+        isDraft: bool,
+    }
+    #[derive(serde::Deserialize)]
+    struct RawAuthor {
+        login: String,
+    }
+    let raw: Vec<RawPr> = serde_json::from_slice(&output.stdout).map_err(|e| CommandError {
+        msg: format!("parse gh output: {e}"),
+    })?;
+    Ok(raw
+        .into_iter()
+        .map(|pr| GhPullRequest {
+            number: pr.number,
+            title: pr.title,
+            head_ref: pr.headRefName,
+            author: pr.author.map(|a| a.login).unwrap_or_default(),
+            updated_at: pr.updatedAt,
+            url: pr.url,
+            draft: pr.isDraft,
+        })
+        .collect())
 }

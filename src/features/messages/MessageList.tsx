@@ -8,24 +8,26 @@
  *   - tool_call       可折叠 tool 调用（lucide 图标 + 状态徽标）
  *   - tool_output     可折叠输出（错误用 danger 主题）
  *   - error           红色错误条
- *   - compacted       上下文压缩提示
  *
+ * 上下文压缩（context_compacted）不进对话流 —— 聚合统计见 Inspector 概览。
  * session 状态行已移到 TitleBar（避免重复）。
  */
 import { useEffect, useRef } from 'react';
 import {
   Brain,
   Wrench,
-  Zap,
   AlertTriangle,
   MessageSquare,
+  FileDiff,
 } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { Markdown } from '@/components/Markdown';
 import { useAgentStore, type Turn, type TurnItem } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
+import { DiffViewer } from '@/features/git/DiffViewer';
 import { Collapsible } from './Collapsible';
 import { ToolCell } from './ToolCells';
+import { QueuedMessages } from './QueuedMessages';
 import s from './MessageList.module.css';
 
 const NEAR_BOTTOM_PX = 64;
@@ -57,6 +59,7 @@ export function MessageList() {
         {turns.map((t) => (
           <TurnView key={t.id} turn={t} />
         ))}
+        <QueuedMessages />
       </div>
     </div>
   );
@@ -105,7 +108,22 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
       );
     }
 
-    case 'tool_output':
+    case 'tool_output': {
+      // edit/write 类输出带 unified diff → 用 DiffViewer 渲染改动，
+      // 标题为目标文件路径；纯文本输出保持可折叠 pre。
+      if (item.diff) {
+        return (
+          <Collapsible
+            icon={<Icon icon={FileDiff} size={13} />}
+            accent="default"
+            label={item.path || t('chat.diffLabel')}
+            defaultOpen
+          >
+            <DiffViewer diff={item.diff} />
+            {item.text && <pre className={s.monoText}>{item.text}</pre>}
+          </Collapsible>
+        );
+      }
       return (
         <Collapsible
           icon={<Icon icon={Wrench} size={13} />}
@@ -115,20 +133,13 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
           <pre className={`${s.monoText} ${item.isError ? s.monoTextError : ''}`}>{item.text}</pre>
         </Collapsible>
       );
+    }
 
     case 'error':
       return (
         <div className={s.errorRow}>
           <Icon icon={AlertTriangle} size={14} />
           <span>{item.text}</span>
-        </div>
-      );
-
-    case 'compacted':
-      return (
-        <div className={s.compactedRow}>
-          <Icon icon={Zap} size={13} />
-          <span>{item.summary}</span>
         </div>
       );
 

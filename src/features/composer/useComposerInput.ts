@@ -25,7 +25,12 @@ export interface UseComposerInputOptions {
   setMentionVisible: (visible: boolean) => void;
   setMentionQuery: (query: string) => void;
   history: PromptHistoryApi;
-  submit: () => void;
+  /** `reverseMode`：单次反转 Queue/Steer 模式发送（Shift+Cmd/Ctrl+Enter）。 */
+  submit: (options?: { reverseMode?: boolean }) => void;
+  /** P3：slash 弹层键盘导航 —— 焦点保持在 textarea，由这里路由按键。 */
+  onSlashNav?: (direction: 'up' | 'down') => void;
+  /** P3：Enter/Tab 选中当前弹层项（返回 true 表示已消费，不再发送）。 */
+  onSlashPick?: () => boolean;
 }
 
 function isCompositionEvent(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
@@ -44,6 +49,8 @@ export function useComposerInput({
   setMentionQuery,
   history,
   submit,
+  onSlashNav,
+  onSlashPick,
 }: UseComposerInputOptions) {
   const onChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     const value = event.target.value;
@@ -64,6 +71,34 @@ export function useComposerInput({
 
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (isCompositionEvent(event)) return;
+
+    // Shift+Cmd/Ctrl+Enter：单次反转 Queue/Steer 模式发送。
+    if (event.key === 'Enter' && event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      submit({ reverseMode: true });
+      return;
+    }
+
+    // P3：slash 弹层打开时接管 Enter/Tab/箭头 —— 选中候选而非发送；
+    // 焦点保持在 textarea（继续输入过滤词）。
+    if (slashVisible) {
+      if (event.key === 'ArrowDown' && onSlashNav) {
+        event.preventDefault();
+        onSlashNav('down');
+        return;
+      }
+      if (event.key === 'ArrowUp' && onSlashNav) {
+        event.preventDefault();
+        onSlashNav('up');
+        return;
+      }
+      if ((event.key === 'Enter' || event.key === 'Tab') && !event.shiftKey && onSlashPick) {
+        if (onSlashPick()) {
+          event.preventDefault();
+          return;
+        }
+      }
+    }
 
     // Enter 默认发送(meta/ctrl+Enter 同路径兼容旧习惯);
     // Shift+Enter 走浏览器默认行为插入换行。
@@ -98,7 +133,7 @@ export function useComposerInput({
     } else if (event.key === 'ArrowDown' && onLastLine && history.isBrowsing()) {
       if (history.recallNext(setText)) event.preventDefault();
     }
-  }, [history, mentionVisible, setMentionVisible, setSlashVisible, setText, slashVisible, submit, text, textareaRef]);
+  }, [history, mentionVisible, onSlashNav, onSlashPick, setMentionVisible, setSlashVisible, setText, slashVisible, submit, text, textareaRef]);
 
   return { onChange, onKeyDown };
 }

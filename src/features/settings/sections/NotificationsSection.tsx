@@ -102,6 +102,57 @@ export function NotificationsSection() {
           />
           <span>{t('settings.notifications.desktop')}</span>
         </label>
+
+        <label className={s.row}>
+          <input
+            type="checkbox"
+            checked={opts.onlyUnfocused ?? true}
+            disabled={perm !== 'granted' || !opts.system}
+            onChange={(e) => setOpts({ ...opts, onlyUnfocused: e.target.checked })}
+          />
+          <span>{t('settings.notifications.onlyUnfocused')}</span>
+        </label>
+        <p className={s.cardDesc}>{t('settings.notifications.onlyUnfocusedHelp')}</p>
+
+        <label className={s.row}>
+          <span>{t('settings.notifications.minDuration')}</span>
+          <select
+            value={String(opts.minDurationMs ?? 60_000)}
+            disabled={perm !== 'granted' || !opts.system}
+            onChange={(e) => setOpts({ ...opts, minDurationMs: Number(e.target.value) })}
+          >
+            <option value="0">{t('settings.notifications.minDurationOff')}</option>
+            <option value="30000">{t('settings.notifications.minDuration30s')}</option>
+            <option value="60000">{t('settings.notifications.minDuration60s')}</option>
+            <option value="120000">{t('settings.notifications.minDuration2m')}</option>
+          </select>
+        </label>
+
+        <label className={s.row}>
+          <input
+            type="checkbox"
+            checked={opts.notifyApproval ?? true}
+            disabled={perm !== 'granted' || !opts.system}
+            onChange={(e) => setOpts({ ...opts, notifyApproval: e.target.checked })}
+          />
+          <span>{t('settings.notifications.approval')}</span>
+        </label>
+        <p className={s.cardDesc}>{t('settings.notifications.approvalHelp')}</p>
+      </Card>
+
+      <Card level="flat" padding="lg">
+        <h3 className={s.cardTitle}>
+          <Icon icon={Bell} size={16} /> {t('settings.notifications.dockBadge')}
+        </h3>
+        <p className={s.cardDesc}>{t('settings.notifications.dockBadgeHelp')}</p>
+        <label className={s.row}>
+          <input
+            type="checkbox"
+            checked={opts.dockBadge ?? false}
+            onChange={(e) => setOpts({ ...opts, dockBadge: e.target.checked })}
+          />
+          <span>{t('settings.notifications.dockBadge')}</span>
+        </label>
       </Card>
     </div>
   );

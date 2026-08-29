@@ -62,3 +62,11 @@ export async function listDirForMention(
 export async function reflect_read_file(path: string): Promise<ReflectFileReadResult> {
   return invoke<ReflectFileReadResult>('reflect_read_file', { path });
 }
+
+/**
+ * 写回文本文件(工作区沙盒内)。编辑器 Reject 恢复原文时用 inverse-patch
+ * 重建内容后经此落盘;文件不存在时创建(含父目录)。
+ */
+export async function reflect_write_file(path: string, content: string): Promise<string> {
+  return invoke<string>('reflect_write_file', { path, content });
+}

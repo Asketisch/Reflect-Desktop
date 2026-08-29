@@ -149,7 +149,6 @@ describe('LLM output events', () => {
       cached_tokens: 20,
       cache_write_tokens: 5,
       total_tokens: 150,
-      cost_usd: 0.003,
       provider: 'anthropic',
       credential_label: 'main',
     });
@@ -158,7 +157,6 @@ describe('LLM output events', () => {
       output: 50,
       cached: 20,
       total: 150,
-      cost: 0.003,
       provider: 'anthropic',
       credentialLabel: 'main',
     });
@@ -265,7 +263,7 @@ describe('approval & question events', () => {
 });
 
 describe('context / error / routing events', () => {
-  it('context_compacted appends a compacted summary item', () => {
+  it('context_compacted 聚合进 compactions 统计,不产生对话 item', () => {
     seedTurn();
     emitEvent(TURN, {
       type: 'context_compacted',
@@ -274,8 +272,13 @@ describe('context / error / routing events', () => {
       before_tokens: 100_000,
       after_tokens: 20_000,
     });
-    const item = turnItems(TURN).find((i) => i.kind === 'compacted');
-    expect(item && item.kind === 'compacted' ? item.summary : '').toContain('llm_summarize: 12 msgs');
+    expect(turnItems(TURN).find((i) => i.kind === 'compacted')).toBeUndefined();
+    expect(st().compactions).toEqual({
+      count: 1,
+      removedMessages: 12,
+      tokensSaved: 80_000,
+      last: 'llm_summarize: 12 msgs (100000 → 20000 tokens)',
+    });
   });
 
   it('error on session level sets lastError; on turn level appends an error item', () => {

@@ -13,6 +13,12 @@ const threads: Record<string, StringEntry> = {
   'threads.searchPlaceholder':  { en: 'Search threads…',                      'zh-CN': '搜索会话…' },
   'threads.msgCount':           { en: '{count} message{plural}',              'zh-CN': '{count} 条消息' },
   'threads.rename':             { en: 'Rename',                               'zh-CN': '重命名' },
+  'threads.aiRename':           { en: 'AI rename',                            'zh-CN': 'AI 重命名' },
+  'threads.select':             { en: 'Select',                               'zh-CN': '多选' },
+  'threads.exitSelect':         { en: 'Done',                                 'zh-CN': '完成' },
+  'threads.selectedCount':      { en: '{n} selected',                         'zh-CN': '已选 {n} 项' },
+  'threads.deleteSelected':     { en: 'Delete selected',                      'zh-CN': '删除所选' },
+  'threads.deleteSelectedConfirm': { en: 'Delete {n} selected sessions? This cannot be undone.', 'zh-CN': '删除所选的 {n} 个会话？此操作不可撤销。' },
   'threads.export':             { en: 'Export',                               'zh-CN': '导出' },
   'threads.delete':             { en: 'Delete',                               'zh-CN': '删除' },
   'threads.cancel':             { en: 'Cancel',                               'zh-CN': '取消' },
@@ -28,6 +34,9 @@ const threads: Record<string, StringEntry> = {
   'threads.archived':           { en: 'Archived',                             'zh-CN': '已归档' },
   'threads.archivedEmpty':      { en: 'No archived threads.',                 'zh-CN': '暂无已归档的会话。' },
   'threads.restore':            { en: 'Restore',                              'zh-CN': '恢复' },
+  'threads.unarchive':          { en: 'Restore from archive',                 'zh-CN': '从归档恢复' },
+  'threads.pin':                { en: 'Pin to top',                           'zh-CN': '置顶' },
+  'threads.unpin':              { en: 'Unpin',                                'zh-CN': '取消置顶' },
 };
 
 export default threads;

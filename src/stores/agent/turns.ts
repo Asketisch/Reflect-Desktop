@@ -85,12 +85,53 @@ export function summarizeArgs(args: unknown): string {
   }
 }
 
-export function summarizeToolOutput(output: unknown): string {
-  if (output == null) return '';
-  if (typeof output === 'string') return output;
+export interface ToolOutputSummary {
+  text: string;
+  /** edit/write 类工具产出的 unified diff（ContentBlock::Diff → `type:"diff"`）。 */
+  diff?: string;
+  /** 工具目标文件路径（ToolOutput.metadata.path）。 */
+  path?: string;
+}
+
+/**
+ * 把协议 `ToolOutput`（或历史回放中的同构对象）归一化为渲染用摘要。
+ *
+ * - 纯字符串（旧事件 / 简单输出）→ 原样作为 text；
+ * - 结构化 `{ content: ContentBlock[], metadata }` → 拼接 text 块、提取
+ *   `type:"diff"` 块的 `unified_diff` 与 `metadata.path`；
+ * - 其余对象 → JSON 美化兜底（保持旧行为）。
+ */
+export function summarizeToolOutput(output: unknown): ToolOutputSummary {
+  if (output == null) return { text: '' };
+  if (typeof output === 'string') return { text: output };
+  if (typeof output === 'object') {
+    const o = output as Record<string, unknown>;
+    if (Array.isArray(o.content)) {
+      const texts: string[] = [];
+      let diff: string | undefined;
+      for (const block of o.content) {
+        if (!block || typeof block !== 'object') continue;
+        const b = block as Record<string, unknown>;
+        if (b.type === 'text' && typeof b.text === 'string') {
+          texts.push(b.text);
+        } else if (b.type === 'diff' && typeof b.unified_diff === 'string') {
+          diff = b.unified_diff;
+        }
+      }
+      const meta =
+        o.metadata && typeof o.metadata === 'object'
+          ? (o.metadata as Record<string, unknown>)
+          : null;
+      const path = meta && typeof meta.path === 'string' ? meta.path : undefined;
+      const result: ToolOutputSummary = { text: texts.join('\n').trim() };
+      if (diff) result.diff = diff;
+      if (path) result.path = path;
+      return result;
+    }
+  }
   try {
-    return JSON.stringify(output, null, 2);
+    return { text: JSON.stringify(output, null, 2) };
   } catch {
-    return String(output);
+    return { text: String(output) };
   }
 }

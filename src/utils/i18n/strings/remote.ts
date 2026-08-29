@@ -1,0 +1,49 @@
+/**
+ * i18n 命名空间 - remote.*
+ */
+import type { StringEntry } from '../types';
+
+const remote: Record<string, StringEntry> = {
+  'remote.title':              { en: 'Remote', 'zh-CN': '远程' },
+  'remote.subtitle':           { en: 'Tailscale + iOS companion app. Configure the desktop daemon endpoint your iOS app connects to.', 'zh-CN': 'Tailscale + iOS 伴生应用。配置你的 iOS 应用所连接的桌面守护进程端点。' },
+  'remote.iosConnection':      { en: 'iOS connection', 'zh-CN': 'iOS 连接' },
+  'remote.iosHint':            { en: 'Endpoint + shared token your iOS app uses to reach this desktop.', 'zh-CN': '你的 iOS 应用访问本桌面所用的端点 + 共享 token。' },
+  'remote.ready':              { en: 'ready', 'zh-CN': '就绪' },
+  'remote.notConfigured':      { en: 'not configured', 'zh-CN': '未配置' },
+  'remote.edit':               { en: 'Edit', 'zh-CN': '编辑' },
+  'remote.configure':          { en: 'Configure', 'zh-CN': '配置' },
+  'remote.endpoint':           { en: 'Endpoint', 'zh-CN': '端点' },
+  'remote.emptyValue':         { en: '(empty)', 'zh-CN': '（空）' },
+  'remote.host':               { en: 'Host', 'zh-CN': '主机' },
+  'remote.port':               { en: 'Port', 'zh-CN': '端口' },
+  'remote.authToken':          { en: 'Auth token', 'zh-CN': '认证 token' },
+  'remote.notSet':             { en: '(not set)', 'zh-CN': '（未设置）' },
+  'remote.autoConnect':        { en: 'Auto-connect', 'zh-CN': '自动连接' },
+  'remote.yes':                { en: 'yes', 'zh-CN': '是' },
+  'remote.no':                 { en: 'no', 'zh-CN': '否' },
+  'remote.hostPlaceholder':    { en: 'e.g. node.tail.net or 100.64.0.1', 'zh-CN': '如 node.tail.net 或 100.64.0.1' },
+  'remote.tokenPlaceholder':   { en: 'shared bearer token', 'zh-CN': '共享 bearer token' },
+  'remote.autoConnectLabel':   { en: 'Auto-connect on launch (driver TBD)', 'zh-CN': '启动时自动连接（驱动待定）' },
+  'remote.tailscale':          { en: 'Tailscale', 'zh-CN': 'Tailscale' },
+  'remote.tailscaleHint':      { en: 'Detects the local daemon + suggests the MagicDNS hostname for iOS.', 'zh-CN': '检测本地守护进程 + 为 iOS 推荐 MagicDNS 主机名。' },
+  'remote.running':            { en: 'running', 'zh-CN': '运行中' },
+  'remote.installed':          { en: 'installed', 'zh-CN': '已安装' },
+  'remote.notInstalled':       { en: 'not installed', 'zh-CN': '未安装' },
+  'remote.suggestedHost':      { en: 'Suggested host', 'zh-CN': '推荐主机' },
+  'remote.noDnsOrIp':          { en: '(no DNS or IP)', 'zh-CN': '（无 DNS 或 IP）' },
+  'remote.dns':                { en: 'DNS', 'zh-CN': 'DNS' },
+  'remote.tailnet':            { en: 'Tailnet', 'zh-CN': 'Tailnet' },
+  'remote.ipv4':               { en: 'IPv4', 'zh-CN': 'IPv4' },
+  'remote.message':            { en: 'Message', 'zh-CN': '消息' },
+  'remote.daemonHintTitle':    { en: 'Desktop daemon hint', 'zh-CN': '桌面守护进程提示' },
+  'remote.daemonHintDesc':     { en: 'Run this on the desktop to expose the JSON-RPC endpoint for iOS.', 'zh-CN': '在桌面上运行此命令，为 iOS 暴露 JSON-RPC 端点。' },
+  'remote.previewUnavailable': { en: 'Preview unavailable', 'zh-CN': '预览不可用' },
+  'remote.previewUnavailableDesc': { en: 'The Tailscale daemon helper could not render a preview.', 'zh-CN': 'Tailscale 守护进程助手无法渲染预览。' },
+  'remote.transportStatus':    { en: 'Transport status', 'zh-CN': '传输状态' },
+  'remote.transportHint':      { en: 'Live connection state to the configured iOS / 远端 daemon.', 'zh-CN': '与所配置 iOS / 远端守护进程的实时连接状态。' },
+  'remote.unknown':            { en: 'unknown', 'zh-CN': '未知' },
+  'remote.toastSaved':         { en: 'Remote config saved.', 'zh-CN': '远程配置已保存。' },
+  'remote.toastSaveFailed':    { en: 'Save failed: {message}', 'zh-CN': '保存失败：{message}' },
+} as const;
+
+export default remote;

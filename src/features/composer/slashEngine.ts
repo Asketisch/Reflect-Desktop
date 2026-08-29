@@ -130,12 +130,9 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     }
     case 'model':
     case 'provider':
-      // 后续在 ModelsView 处理;此处仅路由标记。
-      return { kind: 'no-op', message: `Open Settings → Models to change ${cmd.name}.` };
-    case 'theme':
-      return { kind: 'no-op', message: 'Open Settings → Theme.' };
-    case 'vim':
-      return { kind: 'no-op', message: 'Toggle vim mode in Settings → Keymap.' };
+      // 计划/供应商切换入口:Models 页(编码计划一键设默认)与 Settings → 编码计划;
+      // 额度耗尽时前端 planFailover 控制器还会自动切换。
+      return { kind: 'no-op', message: `Open Models (Coding Plans) or Settings → Coding Plans to change ${cmd.name}.` };
     case 'status':
       return { kind: 'no-op', message: 'See StatusBar at the bottom of the window.' };
     case 'help':
@@ -173,7 +170,6 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     // /usage /cost /context 的数据由 StatusBar + Inspector 实时展示,
     // 这里返回引导提示而非副作用(engine 保持纯函数)。
     case 'usage':
-    case 'cost':
     case 'context':
     case 'stats':
     case 'insights':

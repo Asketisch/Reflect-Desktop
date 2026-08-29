@@ -23,6 +23,7 @@ import {
   type ReflectTailscaleStatus,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
 
 export const REMOTE_QUERY_KEY = ['remote'] as const;
 const REMOTE_STALE_MS = 15_000;
@@ -69,6 +70,7 @@ export function emptyRemoteDraft(c?: ReflectRemoteConfigSnapshot | null): Remote
 export function useRemoteController(): RemoteController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { t } = useI18n();
 
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState<RemoteConfigDraft>(emptyRemoteDraft());
@@ -126,15 +128,15 @@ export function useRemoteController(): RemoteController {
   const save = useCallback(async () => {
     try {
       await updateMut.mutateAsync(draft);
-      pushToast({ kind: 'success', message: 'Remote config saved.' });
+      pushToast({ kind: 'success', message: t('remote.toastSaved') });
       setShowForm(false);
     } catch (e) {
       pushToast({
         kind: 'error',
-        message: `Save failed: ${(e as Error).message}`,
+        message: t('remote.toastSaveFailed', { message: (e as Error).message }),
       });
     }
-  }, [draft, pushToast, updateMut]);
+  }, [draft, pushToast, t, updateMut]);
 
   const resetForm = useCallback(() => {
     setDraft(emptyRemoteDraft(cfgQ.data));

@@ -54,6 +54,8 @@ describe('settings status badge', () => {
     await waitFor(() =>
       expect(document.body.textContent).toContain('anthropic/claude-sonnet-4'),
     );
+    // 权限快捷控件只在 Permissions 页显示（不再每个设置页签重复）。
+    fireEvent.click(screen.getByText('Permissions'));
     const planBtn = await waitFor(() => {
       const btn = screen.getByText('plan', { selector: 'button' });
       expect(btn).toBeDefined();
@@ -69,6 +71,7 @@ describe('settings status badge', () => {
 describe('permission mode controls', () => {
   it('quick buttons dispatch reflect_set_permission_mode', async () => {
     await openSettings();
+    fireEvent.click(screen.getByText('Permissions'));
     const planBtn = await waitFor(() => {
       const btn = screen.getByText('plan', { selector: 'button' });
       expect(btn).toBeDefined();
@@ -148,7 +151,8 @@ describe('config editing & save round-trip', () => {
 describe('settings i18n', () => {
   it('switching language to zh-CN re-renders settings chrome', async () => {
     await openSettings();
-    await waitFor(() => expect(document.body.textContent).toContain('Permission mode'));
+    // 语言下拉在 Provider 页（默认页）；顺带断言该页 chrome 已渲染。
+    await waitFor(() => expect(document.body.textContent).toContain('Configuration fields'));
 
     // Language 下拉无关联 label；页面有多个 combobox，按含 en/zh-CN 选项定位。
     const select = screen

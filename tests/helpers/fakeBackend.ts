@@ -197,6 +197,8 @@ export interface FakeBackend {
     rollouts: Record<string, Array<Record<string, unknown>>>;
     configToml: string;
     permissionMode: string;
+    // 编辑器 Reject 恢复链路:reflect_write_file 的最后一次写入。
+    lastWriteFile: { path: string; content: string } | null;
     /** 目标模式状态(Op::EnterGoalMode / ExitGoalMode)。 */
     goal: {
       active: boolean;
@@ -225,6 +227,13 @@ export interface FakeBackend {
     gitStatus: Record<string, unknown>;
     gitDiff: string;
     gitLog: Array<Record<string, unknown>>;
+    /** P3：stage/unstage/commit 语义捕获。 */
+    gitStaged: string[];
+    gitCommits: string[];
+    /** P3：`gh pr list` 模拟返回（默认空）。 */
+    pullRequests: Array<Record<string, unknown>>;
+    /** P3：跨会话搜索的语料（session hit 形态）。 */
+    rolloutsSearch: Array<{ session_id: string; title: string | null; snippet: string; started_at: string; message_count: number; match_count: number; text: string }>;
     shellSessions: string[];
     searchResult: Record<string, unknown> | null;
     /** 指定命令抛错（模拟后端故障）。 */
@@ -283,6 +292,7 @@ export function installFakeBackend(): FakeBackend {
       ],
       rollouts: defaultRollouts(),
       configToml: '[active]\nprovider = "anthropic"\nmodel = "claude-sonnet-4"\n',
+      lastWriteFile: null,
       permissionMode: 'prompt',
       goal: { active: false, goal: null, verifyCommand: null, tokenBudget: null },
       agentStatus: {
@@ -383,8 +393,8 @@ export function installFakeBackend(): FakeBackend {
         ahead: 2,
         behind: 0,
         entries: [
-          { path: 'src/lib.rs', status: 'M', old_path: null },
-          { path: 'docs/new.md', status: 'A', old_path: null },
+          { path: 'src/lib.rs', status: 'M', staged: true, old_path: null },
+          { path: 'docs/new.md', status: 'A', staged: true, old_path: null },
         ],
         raw: 'M  src/lib.rs\nA  docs/new.md\n',
         is_repo: true,
@@ -395,6 +405,10 @@ export function installFakeBackend(): FakeBackend {
         { hash: 'def5678901', short_hash: 'def5678', author: 'dev', timestamp: Math.floor(Date.now() / 1000) - 172_800, subject: 'chore: deps' },
       ],
       shellSessions: ['shell-a', 'shell-b'],
+      gitStaged: [],
+      gitCommits: [],
+      pullRequests: [],
+      rolloutsSearch: [],
       searchResult: {
         query: 'verify_token',
         matches: [
@@ -448,6 +462,10 @@ export function installFakeBackend(): FakeBackend {
 
   async function runScript(submissionId: string): Promise<void> {
     const token = ++runToken;
+    // 对齐真实 AgentThread 的 turn 生命周期:submission 受理即
+    // turn_started,编排跑完(无 gate 挂起)即 turn_complete ——
+    // 前端的运行中判定(运行中发送 → 入队)依赖这对事件收尾。
+    emitEvent(submissionId, { type: 'turn_started', turn_id: submissionId });
     let i = 0;
     while (i < backend.agent.script.length) {
       if (token !== runToken) return; // 新 submission 到达，旧编排作废
@@ -466,6 +484,18 @@ export function installFakeBackend(): FakeBackend {
         i += 1;
       }
     }
+    emitEvent(submissionId, {
+      type: 'turn_complete',
+      turn_id: submissionId,
+      usage: {
+        input_tokens: 0,
+        output_tokens: 0,
+        cached_tokens: 0,
+        cache_write_tokens: 0,
+        total_tokens: 0,
+      },
+      status: 'success',
+    });
     backend.agent.finished = true;
   }
 
@@ -618,10 +648,13 @@ export function installFakeBackend(): FakeBackend {
   );
   // reflect_bind_session：把后端 AgentThread 绑到指定 session id。
   // 后端幂等(同 id 短路);fakeBackend 记录最近绑定的 id 供断言。
+  // 返回值 = 绑定后线程的 PermissionMode(线格式字符串,真实后端从会话
+  // 审计轨迹恢复);ChatView 用它同步本地徽标,不能返回 undefined。
   handle(
     'reflect_bind_session',
     handler((args) => {
       backend.state.boundSessionId = String(args?.id ?? '');
+      return backend.state.permissionMode;
     }),
   );
   handle(
@@ -633,6 +666,14 @@ export function installFakeBackend(): FakeBackend {
     handler((args) => {
       const s = backend.state.sessions.find((x) => x.session_id === args?.id);
       if (s) s.title = String(args?.newName);
+    }),
+  );
+  handle(
+    'reflect_generate_session_title',
+    handler((args) => {
+      const s = backend.state.sessions.find((x) => x.session_id === args?.id);
+      if (s && !s.title) s.title = 'AI 生成的标题';
+      return s?.title ?? 'AI 生成的标题';
     }),
   );
   handle(
@@ -685,6 +726,98 @@ export function installFakeBackend(): FakeBackend {
     'reflect_save_config',
     handler((args) => {
       backend.state.configToml = String(args?.toml ?? '');
+    }),
+  );
+  // 模型热切换：镜像后端「改 active/provider 段 → resolved spec 变化」，
+  // 这里仅同步 agentStatus.model（真实 TOML 手术在后端）。
+  handle(
+    'reflect_set_model',
+    handler((args) => {
+      const spec = `${String(args?.provider)}/${String(args?.model ?? '')}`;
+      backend.state.agentStatus = {
+        ...backend.state.agentStatus,
+        model: spec,
+        has_model: true,
+        ready: true,
+        degraded_reason: null,
+      };
+      return spec;
+    }),
+  );
+  handle('reflect_get_effort', handler(() => 'low'));
+  // plan 余量查询：默认返回一个成功快照（真实厂商 HTTP 查询在后端）。
+  handle(
+    'reflect_query_plan_quota',
+    handler(() => ({
+      success: true,
+      error: null,
+      utilization: 42.0,
+      remaining_tokens: 80000,
+      max_tokens: 120000,
+      resets_at: '2026-08-28T18:00:00Z',
+    })),
+  );
+  // provider 模型列表：默认返回两条（一条带 vision 能力标记，一条无）。
+  handle(
+    'reflect_list_provider_models',
+    handler(() => ({
+      endpoint: String('openai'),
+      models: [
+        { id: 'gpt-4o', display_name: 'gpt-4o', supports_vision: true },
+        { id: 'gpt-4o-mini', display_name: 'gpt-4o-mini', supports_vision: null },
+      ],
+    })),
+  );
+  // LSP：默认关闭；开关只翻转状态，warmup 报告未预热。
+  let lspEnabled = false;
+  handle('reflect_lsp_set_enabled', handler((args) => {
+    lspEnabled = Boolean(args?.enabled);
+    return { enabled: lspEnabled, servers: lspEnabled ? ['rust-analyzer'] : [] };
+  }));
+  handle('reflect_lsp_status', handler(() => ({ enabled: lspEnabled, servers: [] })));
+  handle('reflect_lsp_warmup', handler(() => ({ warmed: lspEnabled, server: null })));
+  // 「你好」测试消息：返回固定回复（真实厂商 HTTP 调用在后端）。
+  handle(
+    'reflect_test_provider_chat',
+    handler(() => ({ reply: '你好！有什么可以帮你？' })),
+  );
+  handle(
+    'reflect_git_stage',
+    handler((args) => {
+      backend.state.gitStaged.push(...((args?.paths as string[]) ?? []));
+    }),
+  );
+  handle(
+    'reflect_git_unstage',
+    handler((args) => {
+      const paths = (args?.paths as string[]) ?? [];
+      backend.state.gitStaged = backend.state.gitStaged.filter((p) => !paths.includes(p));
+    }),
+  );
+  handle(
+    'reflect_git_commit',
+    handler((args) => {
+      backend.state.gitCommits.push(String(args?.message ?? ''));
+      return `a${backend.state.gitCommits.length}bcdef`;
+    }),
+  );
+  handle('reflect_gh_pr_list', handler(() => backend.state.pullRequests));
+  // 写回文件：记录最后写入，供编辑器 Reject 恢复链路测试。
+  handle(
+    'reflect_write_file',
+    handler((args) => {
+      backend.state.lastWriteFile = { path: String(args?.path ?? ''), content: String(args?.content ?? '') };
+      return backend.state.lastWriteFile.path;
+    }),
+  );
+  handle(
+    'reflect_search_sessions',
+    handler((args) => {
+      const q = String(args?.query ?? '').toLowerCase();
+      if (!q) return [];
+      return backend.state.rolloutsSearch
+        .filter((r) => r.text.toLowerCase().includes(q))
+        .slice(0, Number(args?.limit ?? 20));
     }),
   );
   handle('reflect_agent_status', handler(() => wire(backend.state.agentStatus)));
@@ -954,7 +1087,24 @@ export function installFakeBackend(): FakeBackend {
     endpoint: null,
     sinceMs: null,
   })));
-  handle('reflect_tailscale_status', handler(() => ({ online: false, addresses: [] })));
+  // 线契约见 src/utils/commands/remote.ts::ReflectTailscaleStatus ——
+  // ipv4/ipv6 等字段必须存在（此前缺 ipv4 会让 RemoteView 在数据先于
+  // 断言到达时读 `undefined.length` 崩溃,表现为重负载下的偶发失败）。
+  handle(
+    'reflect_tailscale_status',
+    handler(() => ({
+      installed: false,
+      running: false,
+      version: null,
+      dns_name: null,
+      host_name: null,
+      tailnet_name: null,
+      ipv4: [],
+      ipv6: [],
+      suggested_remote_host: null,
+      message: null,
+    })),
+  );
   handle('reflect_tailscale_daemon_command_preview', handler(() => 'tailscale up'));
   handle('reflect_tailscale_daemon_start', handler(() => 'started'));
   handle('reflect_tailscale_daemon_stop', handler(() => 'stopped'));

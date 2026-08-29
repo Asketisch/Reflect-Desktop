@@ -99,4 +99,28 @@ describe('MessageList', () => {
     render(wrap(<MessageList />));
     expect(screen.getByText(/something broke/)).toBeDefined();
   });
+
+  it('renders diff outputs through DiffViewer with the file path as label', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't4',
+          status: 'done',
+          items: [
+            {
+              kind: 'tool_output',
+              callId: 'c2',
+              text: 'wrote 12 bytes',
+              diff: '--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+new',
+              path: 'src/a.ts',
+              isError: false,
+            },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    expect(screen.getByText('src/a.ts')).toBeDefined();
+    expect(document.querySelector('[data-testid="diff-viewer"]')).not.toBeNull();
+  });
 });

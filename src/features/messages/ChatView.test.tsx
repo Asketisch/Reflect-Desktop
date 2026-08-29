@@ -54,7 +54,7 @@ describe('ChatView', () => {
     resetMockInvoke();
     // v1.x:ChatView 加载序列第一步是 bind;默认 mock 为 no-op
     // (resetMockInvoke 会清掉 setup 里的默认 mock,需在本文件重注册)。
-    mockInvoke('reflect_bind_session', async () => {});
+    mockInvoke('reflect_bind_session', async () => 'auto');
     saveLocale('en');
     window.__chatTestSessionId = undefined;
     window.__chatTestPath = '/chat';
@@ -163,6 +163,7 @@ describe('ChatView', () => {
     const order: string[] = [];
     mockInvoke('reflect_bind_session', async (_cmd: string, args?: { id: string }) => {
       order.push(`bind:${args?.id ?? ''}`);
+      return 'auto';
     });
     mockInvoke('reflect_replay_session', async () => {
       order.push('replay');
@@ -190,6 +191,7 @@ describe('ChatView', () => {
     const binds: string[] = [];
     mockInvoke('reflect_bind_session', async (_cmd: string, args?: { id: string }) => {
       binds.push(args?.id ?? '');
+      return 'auto';
     });
     mockInvoke('reflect_replay_session', async () => []);
 
@@ -242,5 +244,75 @@ describe('ChatView', () => {
     await waitFor(() => {
       expect((useAgentStore.getState() as any).loadedSessionId).toBeNull();
     });
+  });
+});
+
+// ===========================================================================
+// 首页工作台英雄态（新对话空态 = 问候语 + 快捷模板 + 居中 Composer）
+// ===========================================================================
+
+describe('ChatView hero (new-chat home)', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    mockInvoke('reflect_bind_session', async () => 'auto');
+    saveLocale('en');
+    window.__chatTestSessionId = undefined;
+    window.__chatTestPath = '/chat';
+    useAgentStore.setState({
+      turns: [],
+      loadedSessionId: null,
+      pendingApprovals: [],
+      pendingQuestions: [],
+      pendingAskUser: [],
+      pendingPlan: null,
+    } as any);
+  });
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('renders greeting, workspace hint and quick prompt chips', async () => {
+    mockInvoke('reflect_current_workspace', async () => '/Users/me/Code/alpha');
+
+    const { container } = renderWithProviders(<ChatView />);
+
+    expect(screen.getByTestId('chat-hero-greeting')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-hero-workspace')).toBeDefined();
+    });
+    expect(screen.getByTestId('chat-hero-workspace').textContent).toContain('alpha');
+    expect(screen.getByTestId('quick-prompt-explore')).toBeDefined();
+    expect(screen.getByTestId('quick-prompt-build')).toBeDefined();
+    expect(screen.getByTestId('quick-prompt-review')).toBeDefined();
+    expect(screen.getByTestId('quick-prompt-fix')).toBeDefined();
+    // 英雄态下 MessageList 仅视觉隐藏（保持 role="log" 挂载）。
+    expect(container.querySelector('[data-testid="chat-messages-area"]')?.getAttribute('data-hero')).toBe('on');
+  });
+
+  it('prefills the composer draft (no auto-send) when a quick prompt chip is clicked', async () => {
+    await act(async () => {
+      renderWithProviders(<ChatView />);
+    });
+
+    fireEvent.click(screen.getByTestId('quick-prompt-fix'));
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(input.value).toContain('Fix the following problem');
+    });
+    // 预填不自动发送：不应产生任何 turn。
+    expect(useAgentStore.getState().turns.length).toBe(0);
+  });
+
+  it('leaves hero state once the new chat has turns', async () => {
+    const { container } = renderWithProviders(<ChatView />);
+    expect(screen.getByTestId('chat-hero-greeting')).toBeDefined();
+
+    // 首条消息提交后 turn 乐观出现（此时路由尚未切到 /chat/$id）。
+    await act(async () => {
+      useAgentStore.setState({ turns: [{ id: 'turn-1', items: [] }] } as any);
+    });
+
+    expect(screen.queryByTestId('chat-hero-greeting')).toBeNull();
+    expect(container.querySelector('[data-testid="chat-messages-area"]')?.getAttribute('data-hero')).toBe('off');
   });
 });

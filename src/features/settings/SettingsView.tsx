@@ -28,11 +28,11 @@ import { useI18n } from '@/utils/i18n';
 import { ConfigForm } from './ConfigForm';
 import { DisplaySection } from './sections/DisplaySection';
 import { NotificationsSection } from './sections/NotificationsSection';
-import { UpdatesSection } from './sections/UpdatesSection';
+import { PlansSection } from './sections/PlansSection';
 import s from './SettingsView.module.css';
 
 type PermissionMode = 'auto' | 'prompt' | 'deny' | 'plan' | 'accept_edits' | 'bubble' | 'bypass';
-type Section = 'provider' | 'permissions' | 'display' | 'notifications' | 'updates' | 'advanced';
+type Section = 'provider' | 'plans' | 'permissions' | 'display' | 'notifications' | 'advanced';
 
 export function SettingsView({ onClose }: { onClose?: () => void }) {
   const qc = useQueryClient();
@@ -96,6 +96,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           <NavBtn active={section === 'provider'} onClick={() => setSection('provider')}>
             {t('settings.provider')}
           </NavBtn>
+          <NavBtn active={section === 'plans'} onClick={() => setSection('plans')}>
+            {t('settings.nav.plans')}
+          </NavBtn>
           <NavBtn active={section === 'permissions'} onClick={() => setSection('permissions')}>
             {t('settings.permissions')}
           </NavBtn>
@@ -104,9 +107,6 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           </NavBtn>
           <NavBtn active={section === 'notifications'} onClick={() => setSection('notifications')}>
             {t('settings.nav.notifications')}
-          </NavBtn>
-          <NavBtn active={section === 'updates'} onClick={() => setSection('updates')}>
-            {t('settings.nav.updates')}
           </NavBtn>
           <NavBtn active={section === 'advanced'} onClick={() => setSection('advanced')}>
             {t('settings.advanced')}
@@ -120,18 +120,6 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
       </aside>
 
       <main className={s.content}>
-        {/* 状态徽标 —— 契约 'Agent ready' */}
-        <div className={s.statusBar} data-ok={hasModel || undefined}>
-          <Icon icon={hasModel ? CheckCircle2 : AlertTriangle} size={14} />
-          <span>
-            {configQuery.isLoading || statusQuery.isLoading
-              ? t('settings.loading')
-              : hasModel
-                ? <>{t('settings.status.ready', { model: status?.model ?? '' })} <code className={s.codeInline}>{status?.model}</code></>
-                : <>{t('settings.status.degraded', { reason: status?.degraded_reason ?? t('settings.status.noProvider') })} {t('settings.status.noProviderHint')}</>}
-          </span>
-        </div>
-
         {error && (
           <div className={s.errorBar}>
             <Icon icon={AlertTriangle} size={14} />
@@ -139,25 +127,20 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           </div>
         )}
 
-        {/* Permission mode 快捷控件（始终可见，高频操作）—— 4 个常用模式，高级模式见 /mode 命令。 */}
-        <div className={s.quickPerm}>
-          <span className={s.quickPermLabel}>{t('settings.permissionMode')}</span>
-          <div className={s.quickPermBtns}>
-            {(['auto', 'prompt', 'deny', 'plan'] as PermissionMode[]).map((m) => (
-              <button
-                key={m}
-                className={s.quickPermBtn}
-                onClick={() => onPermission(m)}
-                disabled={permMutation.isPending}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {section === 'provider' && (
           <section>
+            {/* 状态徽标 —— 契约 'Agent ready'。只在该页显示:它反映的是
+                provider 配置的就绪状态,与其他设置页无关。 */}
+            <div className={s.statusBar} data-ok={hasModel || undefined}>
+              <Icon icon={hasModel ? CheckCircle2 : AlertTriangle} size={14} />
+              <span>
+                {configQuery.isLoading || statusQuery.isLoading
+                  ? t('settings.loading')
+                  : hasModel
+                    ? <>{t('settings.status.ready', { model: status?.model ?? '' })} <code className={s.codeInline}>{status?.model}</code></>
+                    : <>{t('settings.status.degraded', { reason: status?.degraded_reason ?? t('settings.status.noProvider') })} {t('settings.status.noProviderHint')}</>}
+              </span>
+            </div>
             <h3 className={s.sectionTitle}>{t('settings.provider')}</h3>
             <p className={s.sectionDesc}>
               {t('settings.providerDescription', { path: t('settings.providerPath') })}{' '}
@@ -183,8 +166,29 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           </section>
         )}
 
+        {section === 'plans' && (
+          <PlansSection rawToml={rawToml} onChange={setRawToml} />
+        )}
+
         {section === 'permissions' && (
           <section>
+            {/* Permission mode 快捷控件（高频操作）—— 4 个常用模式，高级模式见 /mode 命令。
+                只在该页显示,避免每个设置页签都重复。 */}
+            <div className={s.quickPerm}>
+              <span className={s.quickPermLabel}>{t('settings.permissionMode')}</span>
+              <div className={s.quickPermBtns}>
+                {(['auto', 'prompt', 'deny', 'plan'] as PermissionMode[]).map((m) => (
+                  <button
+                    key={m}
+                    className={s.quickPermBtn}
+                    onClick={() => onPermission(m)}
+                    disabled={permMutation.isPending}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
             <h3 className={s.sectionTitle}>{t('settings.permissions')}</h3>
             <p className={s.sectionDesc}>
               {t('settings.permissionsDescription')}
@@ -208,8 +212,6 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
         {section === 'display' && <DisplaySection />}
 
         {section === 'notifications' && <NotificationsSection />}
-
-        {section === 'updates' && <UpdatesSection />}
 
         {section === 'advanced' && (
           <section>

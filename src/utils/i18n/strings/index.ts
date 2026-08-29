@@ -9,6 +9,7 @@ import type { StringEntry } from '../types';
 
 import about from './about';
 import agents from './agents';
+import autopilot from './autopilot';
 import app from './app';
 import apps from './apps';
 import chat from './chat';
@@ -21,7 +22,10 @@ import dictation from './dictation';
 import files from './files';
 import git from './git';
 import home from './home';
+import hooks from './hooks';
+import kms from './kms';
 import inspector from './inspector';
+import media from './media';
 import memory from './memory';
 import mobile from './mobile';
 import modal from './modal';
@@ -31,23 +35,26 @@ import palette from './palette';
 import permissionMode from './permissionMode';
 import plan from './plan';
 import prompts from './prompts';
+import remote from './remote';
 import schedule from './schedule';
 import session from './session';
+import sideChannel from './sideChannel';
 import settings from './settings';
 import shell from './shell';
 import sidebar from './sidebar';
 import skills from './skills';
 import slash from './slash';
+import squad from './squad';
 import tasks from './tasks';
 import terminal from './terminal';
 import threads from './threads';
 import toast from './toast';
-import update from './update';
 import workspaces from './workspaces';
 
 export const STRINGS: Record<string, StringEntry> = {
   ...about,
   ...agents,
+  ...autopilot,
   ...app,
   ...apps,
   ...chat,
@@ -60,7 +67,10 @@ export const STRINGS: Record<string, StringEntry> = {
   ...files,
   ...git,
   ...home,
+  ...hooks,
+  ...kms,
   ...inspector,
+  ...media,
   ...memory,
   ...mobile,
   ...modal,
@@ -70,18 +80,20 @@ export const STRINGS: Record<string, StringEntry> = {
   ...permissionMode,
   ...plan,
   ...prompts,
+  ...remote,
   ...schedule,
   ...session,
+  ...sideChannel,
   ...settings,
   ...shell,
   ...sidebar,
   ...skills,
   ...slash,
+  ...squad,
   ...tasks,
   ...terminal,
   ...threads,
   ...toast,
-  ...update,
   ...workspaces,
 };
 

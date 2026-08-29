@@ -1,10 +1,17 @@
 /**
  * M1.5 Slash 命令静态列表 —— 镜像 `crates/reflect-tui/src/slash.rs` 的命令。
  *
- * Tier A (toolbar 显示) 9 个 + 剩余弹 popup。 M2.x 把 active command
+ * Tier A (toolbar 显示) 7 个 + 剩余弹 popup。 M2.x 把 active command
  * 接到对应 Tauri command / API。
  *
  * summary 是 i18n key,渲染时通过 t(summaryKey) 拿到当前 locale 文本。
+ *
+ * v1.x P3 清理：纯 no-op stub（镜像 TUI 但 GUI 无对应实装/视图）标记
+ * `hidden: true` —— 不再出现在弹层候选里（此前 50+ 个候选淹没有效命令）。
+ * 命令仍留在数组中：手输 `/<name>` 时 engine 的引导提示照常生效。
+ *
+ * v1.x：`/theme` `/vim` 是纯 TUI 镜像 stub（GUI 无 vim 实装,主题切换
+ * 由 Settings → Display / StatusBar / 命令面板承担），已从清单删除。
  */
 export interface SlashCmd {
   name: string;
@@ -12,11 +19,11 @@ export interface SlashCmd {
   category: 'theme' | 'mode' | 'model' | 'session' | 'memory' | 'tasks' | 'permissions' | 'skills' | 'shortcuts' | 'help' | 'system';
   summaryKey: string;
   toolbared?: boolean;
+  /** true = 弹层不展示（no-op stub，手输仍给引导）。 */
+  hidden?: boolean;
 }
 
 export const SLASH_COMMANDS: SlashCmd[] = [
-  { name: 'theme', category: 'theme', summaryKey: 'slash.theme.desc', toolbared: true },
-  { name: 'vim', category: 'mode', summaryKey: 'slash.vim.desc', toolbared: true },
   { name: 'effort', category: 'mode', summaryKey: 'slash.effort.desc', toolbared: true },
   { name: 'compact', category: 'session', summaryKey: 'slash.compact.desc', toolbared: true },
   { name: 'mode', category: 'permissions', summaryKey: 'slash.mode.desc', toolbared: true },
@@ -25,48 +32,62 @@ export const SLASH_COMMANDS: SlashCmd[] = [
   { name: 'status', category: 'system', summaryKey: 'slash.status.desc', toolbared: true },
   { name: 'help', aliases: ['?'], category: 'help', summaryKey: 'slash.help.desc', toolbared: true },
 
-  { name: 'init', category: 'system', summaryKey: 'slash.init.desc' },
+  { name: 'init', category: 'system', summaryKey: 'slash.init.desc', hidden: true },
   { name: 'clear', category: 'session', summaryKey: 'slash.clear.desc' },
   { name: 'interrupt', category: 'session', summaryKey: 'slash.interrupt.desc' },
   { name: 'resume', category: 'session', summaryKey: 'slash.resume.desc' },
   { name: 'rename', category: 'session', summaryKey: 'slash.rename.desc' },
   { name: 'export', category: 'session', summaryKey: 'slash.export.desc' },
-  { name: 'share', category: 'session', summaryKey: 'slash.share.desc' },
-  { name: 'session', aliases: ['sessions'], category: 'session', summaryKey: 'slash.session.desc' },
-  { name: 'diff', category: 'system', summaryKey: 'slash.diff.desc' },
-  { name: 'files', category: 'system', summaryKey: 'slash.files.desc' },
-  { name: 'branch', category: 'system', summaryKey: 'slash.branch.desc' },
-  { name: 'commit', category: 'system', summaryKey: 'slash.commit.desc' },
-  { name: 'commit-push-pr', category: 'system', summaryKey: 'slash.commitPushPr.desc' },
-  { name: 'review', category: 'system', summaryKey: 'slash.review.desc' },
-  { name: 'ultrareview', category: 'system', summaryKey: 'slash.ultrareview.desc' },
-  { name: 'cost', category: 'system', summaryKey: 'slash.cost.desc' },
+  { name: 'share', category: 'session', summaryKey: 'slash.share.desc', hidden: true },
+  { name: 'session', aliases: ['sessions'], category: 'session', summaryKey: 'slash.session.desc', hidden: true },
+  { name: 'diff', category: 'system', summaryKey: 'slash.diff.desc', hidden: true },
+  { name: 'files', category: 'system', summaryKey: 'slash.files.desc', hidden: true },
+  { name: 'branch', category: 'system', summaryKey: 'slash.branch.desc', hidden: true },
+  { name: 'commit', category: 'system', summaryKey: 'slash.commit.desc', hidden: true },
+  { name: 'commit-push-pr', category: 'system', summaryKey: 'slash.commitPushPr.desc', hidden: true },
+  { name: 'review', category: 'system', summaryKey: 'slash.review.desc', hidden: true },
+  { name: 'ultrareview', category: 'system', summaryKey: 'slash.ultrareview.desc', hidden: true },
   { name: 'usage', category: 'system', summaryKey: 'slash.usage.desc' },
-  { name: 'copy', category: 'shortcuts', summaryKey: 'slash.copy.desc' },
-  { name: 'editor', category: 'shortcuts', summaryKey: 'slash.editor.desc' },
-  { name: 'stats', category: 'system', summaryKey: 'slash.stats.desc' },
-  { name: 'insights', category: 'system', summaryKey: 'slash.insights.desc' },
+  { name: 'copy', category: 'shortcuts', summaryKey: 'slash.copy.desc', hidden: true },
+  { name: 'editor', category: 'shortcuts', summaryKey: 'slash.editor.desc', hidden: true },
+  { name: 'stats', category: 'system', summaryKey: 'slash.stats.desc', hidden: true },
+  { name: 'insights', category: 'system', summaryKey: 'slash.insights.desc', hidden: true },
   { name: 'context', category: 'system', summaryKey: 'slash.context.desc' },
-  { name: 'ctx_viz', aliases: ['ctxviz'], category: 'system', summaryKey: 'slash.ctxViz.desc' },
-  { name: 'color', category: 'theme', summaryKey: 'slash.color.desc' },
-  { name: 'sandbox-toggle', category: 'permissions', summaryKey: 'slash.sandboxToggle.desc' },
-  { name: 'memory', category: 'memory', summaryKey: 'slash.memory.desc' },
-  { name: 'hooks', category: 'system', summaryKey: 'slash.hooks.desc' },
-  { name: 'tasks', category: 'tasks', summaryKey: 'slash.tasks.desc' },
-  { name: 'permissions', category: 'permissions', summaryKey: 'slash.permissions.desc' },
-  { name: 'skills', category: 'skills', summaryKey: 'slash.skills.desc' },
+  { name: 'ctx_viz', aliases: ['ctxviz'], category: 'system', summaryKey: 'slash.ctxViz.desc', hidden: true },
+  { name: 'color', category: 'theme', summaryKey: 'slash.color.desc', hidden: true },
+  { name: 'sandbox-toggle', category: 'permissions', summaryKey: 'slash.sandboxToggle.desc', hidden: true },
+  { name: 'memory', category: 'memory', summaryKey: 'slash.memory.desc', hidden: true },
+  { name: 'hooks', category: 'system', summaryKey: 'slash.hooks.desc', hidden: true },
+  { name: 'tasks', category: 'tasks', summaryKey: 'slash.tasks.desc', hidden: true },
+  { name: 'permissions', category: 'permissions', summaryKey: 'slash.permissions.desc', hidden: true },
+  { name: 'skills', category: 'skills', summaryKey: 'slash.skills.desc', hidden: true },
   { name: 'plan', category: 'mode', summaryKey: 'slash.enterPlan.desc' },
   { name: 'exit-plan', aliases: ['exitplan'], category: 'mode', summaryKey: 'slash.exitPlan.desc' },
   { name: 'goal', category: 'mode', summaryKey: 'slash.goal.desc' },
-  { name: 'keybindings', aliases: ['keys', 'bindings'], category: 'shortcuts', summaryKey: 'slash.keybindings.desc' },
-  { name: 'statusline', aliases: ['status-line'], category: 'shortcuts', summaryKey: 'slash.statusline.desc' },
-  { name: 'output-style', category: 'shortcuts', summaryKey: 'slash.outputStyle.desc' },
-  { name: 'mcp', category: 'system', summaryKey: 'slash.mcp.desc' },
-  { name: 'plugin', category: 'system', summaryKey: 'slash.plugin.desc' },
-  { name: 'ide', category: 'system', summaryKey: 'slash.ide.desc' },
-  { name: 'desktop', category: 'system', summaryKey: 'slash.desktop.desc' },
-  { name: 'mobile', category: 'system', summaryKey: 'slash.mobile.desc' },
-  { name: 'exit', aliases: ['quit'], category: 'system', summaryKey: 'slash.exit.desc' },
+  { name: 'keybindings', aliases: ['keys', 'bindings'], category: 'shortcuts', summaryKey: 'slash.keybindings.desc', hidden: true },
+  { name: 'statusline', aliases: ['status-line'], category: 'shortcuts', summaryKey: 'slash.statusline.desc', hidden: true },
+  { name: 'output-style', category: 'shortcuts', summaryKey: 'slash.outputStyle.desc', hidden: true },
+  { name: 'mcp', category: 'system', summaryKey: 'slash.mcp.desc', hidden: true },
+  { name: 'plugin', category: 'system', summaryKey: 'slash.plugin.desc', hidden: true },
+  { name: 'ide', category: 'system', summaryKey: 'slash.ide.desc', hidden: true },
+  { name: 'desktop', category: 'system', summaryKey: 'slash.desktop.desc', hidden: true },
+  { name: 'mobile', category: 'system', summaryKey: 'slash.mobile.desc', hidden: true },
+  { name: 'exit', aliases: ['quit'], category: 'system', summaryKey: 'slash.exit.desc', hidden: true },
 ];
 
 export const TIER_A_TOOLBAR = SLASH_COMMANDS.filter((c) => c.toolbared);
+
+/**
+ * 弹层候选过滤：剔除 hidden stub + 按 query 前缀匹配（name / alias）。
+ * Composer 与 SlashPopup 共用，保证「键盘选中项」与「渲染列表」同源。
+ */
+export function filterSlashCommands(query: string): SlashCmd[] {
+  const q = query.toLowerCase().replace(/^\//, '');
+  const visible = SLASH_COMMANDS.filter((c) => !c.hidden);
+  if (!q) return visible;
+  return visible.filter(
+    (c) =>
+      c.name.toLowerCase().startsWith(q) ||
+      c.aliases?.some((a) => a.toLowerCase().startsWith(q)),
+  );
+}

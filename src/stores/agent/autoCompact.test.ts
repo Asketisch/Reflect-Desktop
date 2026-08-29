@@ -1,0 +1,102 @@
+/**
+ * autoCompact 控制器单元测试 —— 依赖注入,不触碰 zustand / Tauri IPC。
+ *
+ * 覆盖:阈值触发、触发闩(压缩后不连环)、回落复位、节流、开关、
+ * max_context 解析([context_windows][model],段级 model 覆盖优先)。
+ */
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import {
+  AUTO_COMPACT_PREF_KEY,
+  createAutoCompactController,
+} from './autoCompact';
+
+const TOML = `[active]
+provider = "openai"
+
+[openai]
+api_key = "sk-1"
+model = "glm-4.7"
+
+[context_windows]
+"glm-4.7" = 100000
+`;
+
+function makeController(overrides?: { toml?: string; compact?: () => Promise<unknown> }) {
+  const compacts: number[] = [];
+  const controller = createAutoCompactController({
+    getConfig: async () => overrides?.toml ?? TOML,
+    compact: async () => {
+      compacts.push(compacts.length + 1);
+      return overrides?.compact ? overrides.compact() : null;
+    },
+  });
+  return { controller, compacts };
+}
+
+describe('autoCompact controller', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.removeItem(AUTO_COMPACT_PREF_KEY);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.removeItem(AUTO_COMPACT_PREF_KEY);
+  });
+
+  const tick = () => vi.advanceTimersByTimeAsync(31_000);
+
+  it('输入达到 max_context 的 80% 时触发一次压缩', async () => {
+    const { controller, compacts } = makeController();
+    await controller(85_000); // ≥ 100000 × 0.8
+    expect(compacts).toHaveLength(1);
+  });
+
+  it('触发后有闩:同窗口不连环压缩,回落 50% 以下重新武装', async () => {
+    const { controller, compacts } = makeController();
+    await controller(90_000);
+    expect(compacts).toHaveLength(1);
+    await tick();
+    await controller(88_000); // 闩未复位,不触发
+    expect(compacts).toHaveLength(1);
+    await tick();
+    await controller(40_000); // < 50% → 复位
+    await tick();
+    await controller(95_000); // 再次越线 → 再触发
+    expect(compacts).toHaveLength(2);
+  });
+
+  it('30s 节流窗口内的重复 token_count 不重复解析 config', async () => {
+    const { controller, compacts } = makeController();
+    await controller(99_000);
+    await controller(99_500); // 节流窗口内直接忽略
+    expect(compacts).toHaveLength(1);
+  });
+
+  it('未设置 [context_windows] 时不触发', async () => {
+    const { controller, compacts } = makeController({
+      toml: '[active]\nprovider = "openai"\n\n[openai]\napi_key = "sk-1"\nmodel = "glm-4.7"\n',
+    });
+    await controller(999_999);
+    expect(compacts).toHaveLength(0);
+  });
+
+  it('关闭开关后不触发', async () => {
+    localStorage.setItem(AUTO_COMPACT_PREF_KEY, 'off');
+    const { controller, compacts } = makeController();
+    await controller(99_000);
+    expect(compacts).toHaveLength(0);
+  });
+
+  it('compact 抛错时闩复位,允许重试', async () => {
+    const { controller, compacts } = makeController({
+      compact: async () => {
+        throw new Error('backend busy');
+      },
+    });
+    await controller(90_000);
+    expect(compacts).toHaveLength(1);
+    await tick();
+    await controller(91_000); // 闩已复位(失败),再次触发
+    expect(compacts).toHaveLength(2);
+  });
+});

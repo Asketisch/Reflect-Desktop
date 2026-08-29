@@ -1,5 +1,5 @@
 /**
- * 会话生命周期 —— 列表分桶 / 重命名 / 删除 / 切换回放水合 / 新会话。
+ * 会话生命周期 —— 列表项目分组 / 重命名 / 删除 / 切换回放水合 / 新会话。
  *
  * 真实应用挂载 + 真实路由导航（/chat/$sessionId），数据流经
  * TanStack Query → fakeBackend 状态 → Sidebar/ChatView 渲染。
@@ -27,28 +27,28 @@ async function typeAndSend(text: string): Promise<void> {
   fireEvent.keyDown(textarea, { key: 'Enter' });
 }
 
-describe('session list & buckets', () => {
-  it('renders all five time buckets with their sessions', async () => {
+describe('session list & project groups', () => {
+  it('groups sidebar sessions by project directory (known empty project included)', async () => {
     renderApp();
     const sidebar = await screen.findByTestId('shell-sidebar');
 
     await waitFor(() => expect(sidebar.textContent).toContain('Fix login bug'));
-    // BucketGroup 经 i18n 渲染分桶标题（sidebar.bucket.*）。
-    for (const label of ['Now', 'Today', 'Yesterday', 'This Week', 'Older']) {
-      expect(sidebar.textContent).toContain(label);
-    }
-    // 分桶内容正确：Now = Fix login bug；Older = Old experiment。
-    const nowIdx = sidebar.textContent!.indexOf('Now');
+    // 项目分组头：workspaces.json 的两个已知项目都显示（含空项目 scratch）。
+    expect(sidebar.textContent).toContain('project');
+    expect(sidebar.textContent).toContain('scratch');
+    // 组内会话按最近活跃在前：Fix login bug（5 分钟前）→ Old experiment（3 周前）。
+    const projIdx = sidebar.textContent!.indexOf('project');
     const bugIdx = sidebar.textContent!.indexOf('Fix login bug');
-    expect(bugIdx).toBeGreaterThan(nowIdx);
-    expect(sidebar.textContent).toContain('Old experiment');
+    const oldIdx = sidebar.textContent!.indexOf('Old experiment');
+    expect(bugIdx).toBeGreaterThan(projIdx);
+    expect(oldIdx).toBeGreaterThan(bugIdx);
   });
 
-  it('empty session list renders empty state without buckets', async () => {
+  it('empty session list renders no stale time grouping', async () => {
     backend.state.sessions = [];
     renderApp();
     const sidebar = await screen.findByTestId('shell-sidebar');
-    // 等待 query 完成 —— 没有任何分桶标题。
+    // 等待 query 完成 —— 时间分桶文案不应再出现（已知项目组仍显示，但无会话）。
     await waitFor(() => {
       expect(backend.callsOf('reflect_list_sessions').length).toBeGreaterThanOrEqual(1);
     });
@@ -166,12 +166,13 @@ describe('session mutations through the real UI', () => {
   });
 
   it('sidebar kebab archive moves the session out of the active list', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderApp();
     await screen.findByText('Fix login bug');
 
     fireEvent.click(screen.getByTestId('session-kebab-sess-alpha'));
     fireEvent.click(await screen.findByTestId('session-archive-sess-alpha'));
+    // 应用内确认框（window.confirm 在 Tauri WKWebView 不可用）→ 确认。
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
     await waitFor(() =>
       expect(backend.callsOf('reflect_archive_session').length).toBe(1),
@@ -180,27 +181,24 @@ describe('session mutations through the real UI', () => {
     // invalidate 后侧边栏不再显示该会话。
     await waitFor(() => expect(screen.queryByText('Fix login bug')).toBeNull());
     expect(backend.state.archived.find((s) => s.session_id === 'sess-alpha')).toBeDefined();
-    confirmSpy.mockRestore();
   });
 
-  it('sidebar kebab delete removes the session after confirm', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('sidebar kebab delete removes the session after in-app confirm', async () => {
     renderApp();
     await screen.findByText('Refactor parser');
 
     fireEvent.click(screen.getByTestId('session-kebab-sess-beta'));
     fireEvent.click(await screen.findByTestId('session-delete-sess-beta'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
     await waitFor(() =>
       expect(backend.callsOf('reflect_delete_session').length).toBe(1),
     );
     expect(backend.lastArgsOf('reflect_delete_session')).toEqual({ id: 'sess-beta' });
     await waitFor(() => expect(screen.queryByText('Refactor parser')).toBeNull());
-    confirmSpy.mockRestore();
   });
 
   it('archiving the open session navigates back to /chat', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const app = renderApp();
     await app.navigate('/chat/sess-alpha');
     await screen.findByRole('log');
@@ -208,9 +206,9 @@ describe('session mutations through the real UI', () => {
 
     fireEvent.click(screen.getByTestId('session-kebab-sess-alpha'));
     fireEvent.click(await screen.findByTestId('session-archive-sess-alpha'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
     await waitFor(() => expect(app.pathname()).toBe('/chat'));
-    confirmSpy.mockRestore();
   });
 
   it('threads view lists archived sessions and restore moves them back', async () => {
