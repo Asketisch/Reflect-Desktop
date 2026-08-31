@@ -54,18 +54,3 @@ pub(super) fn map_sandbox_policy(
         reflect_protocol::SandboxPolicy::FullAccess => crate::state::SandboxPolicy::FullAccess,
     }
 }
-
-/// 将协议层 ApprovalPolicy 映射为 PermissionMode。
-///
-/// SessionConfiguredEvent 仅携带 ApprovalPolicy；直接将交集变体一一对应。
-/// PermissionMode 独占的变体（Plan / AcceptEdits / Bubble / Bypass）
-/// 无法从 ApprovalPolicy 推导，回退为 Auto。
-pub(super) fn map_permission_mode(
-    policy: &reflect_protocol::ApprovalPolicy,
-) -> reflect_protocol::PermissionMode {
-    match policy {
-        reflect_protocol::ApprovalPolicy::Auto => reflect_protocol::PermissionMode::Auto,
-        reflect_protocol::ApprovalPolicy::Prompt => reflect_protocol::PermissionMode::Prompt,
-        reflect_protocol::ApprovalPolicy::Deny => reflect_protocol::PermissionMode::Deny,
-    }
-}

@@ -13,9 +13,7 @@ use crate::state::{
     TurnStatus,
 };
 
-use super::state_mut::{
-    map_approval_policy, map_permission_mode, map_sandbox_policy, turn_mut, upsert_server,
-};
+use super::state_mut::{map_approval_policy, map_sandbox_policy, turn_mut, upsert_server};
 
 /// 处理会话级事件：SessionConfigured / TurnStarted / TurnComplete / TurnAborted / TurnRewound / ShutdownComplete。
 pub(super) fn apply_session(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
@@ -27,13 +25,22 @@ pub(super) fn apply_session(state: &mut RenderState, msg: EventMsg, turn_id: Opt
             state.approval_policy = map_approval_policy(&e.approval_policy);
             state.sandbox_policy = map_sandbox_policy(&e.sandbox_policy);
             state.context_window_size = e.context_window_size;
-            state.permission_mode = map_permission_mode(&e.approval_policy);
+            // 注意:不在这里写 permission_mode。协议端 SessionConfiguredEvent
+            // 恒定携带默认 ApprovalPolicy::Auto,若据此覆盖会把 bind 时恢复的
+            // Plan/Prompt 等模式冲掉;权限模式的唯一事实源是
+            // PermissionModeChanged 事件(与 TS reducer 行为一致)。
             state.last_error = None;
         }
         EventMsg::TurnStarted(e) => {
-            if !state.turns.iter().any(|t| Some(t.id) == turn_id) {
+            // turn 身份键必须与后续 per-turn 事件(AgentMessageDelta /
+            // ToolCallBegin / TurnComplete ...)的查找键一致 —— 后端线格式里
+            // 事件信封 id = submission id,而 payload 里的 e.turn_id 是另一个
+            // 随机 UUID。统一用 event.id 派生的 turn_id(与 TS reducer 对齐),
+            // 否则去重失效、所有 per-turn 事件永远挂不上 turn。
+            let key = turn_id.unwrap_or(e.turn_id);
+            if !state.turns.iter().any(|t| t.id == key) {
                 state.turns.push(Turn {
-                    id: e.turn_id,
+                    id: key,
                     user_text: None,
                     assistant_text: String::new(),
                     thinking: String::new(),
@@ -45,7 +52,7 @@ pub(super) fn apply_session(state: &mut RenderState, msg: EventMsg, turn_id: Opt
                 });
             }
             state.busy = true;
-            state.streaming_turn = Some(e.turn_id);
+            state.streaming_turn = Some(key);
         }
         EventMsg::TurnComplete(_) => {
             if let Some(t) = turn_mut(state, turn_id) {
@@ -64,8 +71,13 @@ pub(super) fn apply_session(state: &mut RenderState, msg: EventMsg, turn_id: Opt
             state.streaming_turn = None;
         }
         EventMsg::TurnRewound(e) => {
+            // TurnId 是随机 v4 UUID,字节序与时间顺序无关,不能比较大小;
+            // 按目标 turn 在列表中的索引截断,未知 id 保持不动(后端是
+            // 单一事实源,下一次回放会对齐)。与 TS reducer 行为一致。
             if let Some(target_turn) = e.to_turn_id.and_then(|s| TurnId::parse_str(&s).ok()) {
-                state.turns.retain(|t| t.id.0 <= target_turn.0);
+                if let Some(idx) = state.turns.iter().position(|t| t.id == target_turn) {
+                    state.turns.truncate(idx + 1);
+                }
             }
         }
         EventMsg::ShutdownComplete => {
@@ -237,22 +249,13 @@ pub(super) fn apply_ask_user(state: &mut RenderState, msg: EventMsg, turn_id: Op
     }
 }
 
-/// 处理上下文压缩事件：ContextCompacted → 在 Turn 中记录压缩摘要。
+/// 处理上下文压缩事件：ContextCompacted。
 pub(super) fn apply_context(state: &mut RenderState, msg: EventMsg, turn_id: Option<TurnId>) {
     match msg {
-        EventMsg::ContextCompacted(e) => {
-            if let Some(t) = turn_mut(state, turn_id) {
-                t.error = Some(format!(
-                    "[compacted:{} removed={} tokens {}→{}]",
-                    serde_json::to_value(&e.strategy)
-                        .ok()
-                        .and_then(|v| v.as_str().map(|s| s.to_string()))
-                        .unwrap_or_default(),
-                    e.removed_messages,
-                    e.before_tokens,
-                    e.after_tokens
-                ));
-            }
+        EventMsg::ContextCompacted(_) => {
+            // 压缩是信息性事件(此前被写进 Turn.error,把正常压缩标成错误);
+            // RenderState 暂无压缩聚合字段,先不落 turn 状态。
+            let _ = (state, turn_id);
         }
         _ => unreachable!("context matcher received another event domain"),
     }

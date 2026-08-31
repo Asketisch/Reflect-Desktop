@@ -85,13 +85,18 @@ pub async fn daemon_command_preview() -> String {
 
 async fn run_probe() -> std::result::Result<TailscaleStatus, String> {
     // 1. 尝试 `tailscale version`（开销低且无需网络）。
-    let version_output = Command::new("tailscale")
-        .arg("version")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|e| format!("tailscale CLI not found: {e}"))?;
+    // 同样套超时:CLI 挂起(损坏的安装/网络盘上的二进制)时不能拖死探测。
+    let version_output = tokio::time::timeout(
+        PROBE_TIMEOUT,
+        Command::new("tailscale")
+            .arg("version")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output(),
+    )
+    .await
+    .map_err(|_| "tailscale version timed out".to_string())?
+    .map_err(|e| format!("tailscale CLI not found: {e}"))?;
     if !version_output.status.success() {
         return Err("tailscale CLI failed (not running?)".into());
     }
