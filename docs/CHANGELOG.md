@@ -4,6 +4,20 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 移除 — 已完成/过时的历史设计文档
+
+- 删除 `docs/PLAN_FAILOVER.md`：coding plan 多计划配置、默认供应商热切换与
+  额度耗尽自动 failover 已全部落地（`src/features/settings/config/plans.ts`、
+  `sections/PlansSection.tsx`、`src/features/models/ModelsView.tsx`、
+  `src/stores/agent/planFailover.ts`、`src-tauri/src/state/{quota,reload,rebind}.rs`），
+  用户可见能力并入 README「功能特性 → Coding Plan 与额度自动切换」；
+  `docs/PROTOCOL_BRIDGE.md` / `docs/codebase-map.md` 中的引用改为直接指向代码。
+- 删除 `docs/reflect-agent-token-persistence.md`：会话 token/cost 持久化 PR
+  已在 Reflect-Agent 上游落地（`RolloutRecord::TokenCount` 变体 + `SessionInfo`
+  聚合字段随 submodule 进入本仓库），PR 设计稿使命完成。
+- 删除 `docs/REVIEW_LEDGER.md`：2026-07-28 的逐文件审查快照，内容已随后续
+  大规模重构过时，按「文档仅保留当前有效状态」的仓库约定移除。
+
 ### 移除 — app-core 未接线的 Rust 渲染状态管线（B2 脚手架）
 
 - 删除 `app-core/src/{reducer,protocol,state}` 三个模块（约 1.4k 行）：
@@ -495,7 +509,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - 一个 coding plan = `[[<provider>.credentials]]` 一条带 `label` 的凭证
     （`api_key` / `base_url` / `model` / `weight` / `quota`）；顶层
     `[provider].api_key` 视为隐式 `default` 计划；默认供应商 =
-    `[active].provider`。设计详见 `docs/PLAN_FAILOVER.md`。
+    `[active].provider`。功能说明见 README「Coding Plan 与额度自动切换」。
 - **后端热生效闭环**（此前改配置必须重启）：
   - `src-tauri/src/state/quota.rs`（新）：按 config 中 `quota` 声明构建
     `QuotaTracker`（GLM/Kimi/MiniMax/Zenmux 用量 API），随

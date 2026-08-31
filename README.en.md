@@ -73,6 +73,14 @@ The terminal mode (`reflect tui`) and the headless mode (`reflect exec "..."`) o
 - Providers (default provider + API key placeholder)
 - `ConfigForm` covers every section of `reflect-agent/crates/resources/reflect-config/src/schema.rs`; an advanced raw TOML editor remains as an escape hatch
 
+### Coding plans & quota failover
+
+- Multiple plans per provider via `[[<provider>.credentials]]` entries (label / api_key / base_url / model / quota window), managed in Settings → Coding Plans or the Models page
+- One-click default provider switch (`[active].provider`): saving hot-rebuilds the credential pool and force-rebinds the current session — no restart, context preserved
+- Within a provider pool, 401 / 429 / 5xx / network errors rotate credentials automatically; `routing` events surface each switch in the status bar
+- Cross-provider failover on quota exhaustion: `quota_exhausted` and exhaustion-shaped errors trigger an automatic switch to the next provider with an available plan, with a toast notification (toggleable in Settings, 60s debounce)
+- Quota checks via official usage APIs: zhipu / kimi / minimax / zenmux; other providers fall back to local token accounting
+
 ---
 
 ## Requirements

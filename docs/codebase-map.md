@@ -42,7 +42,7 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 | 更改审批 / 问题 / 计划模态框 | `src/features/modals/{ModalShell,index}.tsx`，各身体位于 `src/features/modals/{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` |
 | 更改会话列表（侧栏） | `src/features/sessions/components/{Sidebar,WorkspaceGroup}.tsx`、`src/features/sessions/utils/workspaceGroups.ts`、`src/features/sessions/hooks/{useSessions,useCollapsedGroups}.ts`（HomeView / ThreadsView 的时间分桶在 `src/features/sessions/utils/buckets.ts` + `BucketGroup.tsx`） |
 | 更改设置持久化 | `src/features/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml,plans}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection,PlansSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
-| 更改 coding plan / 供应商切换 / 额度 failover | `src/features/settings/config/plans.ts`（纯函数）、`src/features/settings/sections/PlansSection.tsx`（设置入口）、`src/features/models/ModelsView.tsx`(一键切换)、`src/stores/agent/planFailover.ts`（耗尽自动切换）、`src-tauri/src/state/{quota,reload}.rs`（tracker 构建 + 热重载）。设计文档 `docs/PLAN_FAILOVER.md` |
+| 更改 coding plan / 供应商切换 / 额度 failover | `src/features/settings/config/plans.ts`（纯函数）、`src/features/settings/sections/PlansSection.tsx`（设置入口）、`src/features/models/ModelsView.tsx`(一键切换)、`src/stores/agent/planFailover.ts`（耗尽自动切换）、`src-tauri/src/state/{quota,reload}.rs`（tracker 构建 + 热重载） |
 | 更改主题 / 设计令牌 | `src/styles/tokens.css`、`src/features/design-system/DesignSystemView.tsx` |
 | 添加托盘图标 / 菜单 / 快捷键 | `src-tauri/src/{tray,menu,shortcut}.rs`、`src-tauri/src/lib.rs` |
 | macOS dock 徽标 | `src-tauri/src/dock.rs` |

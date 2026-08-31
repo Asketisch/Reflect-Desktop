@@ -50,7 +50,7 @@ pub struct Event {
 | `reflect_submit` | `{ submission }` | `string`（submission id） | `commands/agent.rs` / `commands/agent.ts`。**图片附件归一**：前端 Composer 的图片是 data-URL（base64）字符串，协议 `UserInputItem::Image.data` 是 `Vec<u8>`（serde 要求数字数组）；应用层在反序列化前把 `type:"image"` 条目的字符串 data（data-URL 或裸 base64）解码为字节数组，再交 serde。线格式保持紧凑，协议层不变 |
 | `reflect_agent_status` | `null` | `{ ready, has_model, model, workspace, degraded_reason }` | `commands/agent.rs` / `commands/agent.ts` |
 | `reflect_get_config` | `null` | `string` (TOML) | `commands/config.rs` / `commands/config.ts` |
-| `reflect_save_config` | `{ toml }` | `null` | `commands/config.rs` / `commands/config.ts`。写盘前 `load_from_str` 校验；provider 相关段（`active` / `anthropic` / `openai` / `ollama` / `routing`）变化时重建 ModelRegistry + QuotaTracker 并强制重绑当前会话（coding plan 切换无需重启，见 `state/reload.rs` 与 `docs/PLAN_FAILOVER.md`） |
+| `reflect_save_config` | `{ toml }` | `null` | `commands/config.rs` / `commands/config.ts`。写盘前 `load_from_str` 校验；provider 相关段（`active` / `anthropic` / `openai` / `ollama` / `routing`）变化时重建 ModelRegistry + QuotaTracker 并强制重绑当前会话（coding plan 切换无需重启，见 `state/reload.rs`） |
 | `reflect_set_model` | `{ provider, model }` | `string`（解析后的完整 spec） | `commands/config.rs` / `commands/config.ts`。运行中切换模型（协议 `Op` 无 SetModel）：改 `[active].provider` + `[<provider>].model` → 复用 `reflect_save_config` 同款写盘 + `hot_reload_provider_stack`（重建 registry + 强制重绑），下一个 turn 生效。`provider` 仅接受 `anthropic \| openai \| ollama`；`model` 空串 = 清除段级覆盖回落内置默认。Composer 内联模型选择器消费 |
 | `reflect_query_plan_quota` | `{ baseUrl, apiKey, checkVia }` | `PlanQuotaSnapshot`（`{ success, error, utilization, remaining_tokens, max_tokens, resets_at }`） | `commands/config.rs` / `commands/config.ts`。手动查询 coding plan 用量（Settings → Coding Plans 的「查询用量」按钮，仅对配置了 `quota.check_via` 的 coding plan / token plan 开放）：`checkVia`（`kimi \| zhipu \| minimax \| zenmux`）经 `state/quota.rs::make_provider` 同一份映射实例化 `reflect_llm::QuotaProvider`，对着厂商用量 API 查询（端点与 cc-switch 一致），与运行时 failover 判定共用实现。传显式 `baseUrl`/`apiKey`（非 provider+label），编辑中未保存的表单也能试查。`volcengine` / `anthropic_usage` / `open_a_i_usage` 暂未实现 → 命令报错；网络瞬时失败折叠为 `success=false`（与确定性失败同形，UI 处理一致） |
 | `reflect_get_effort` | `null` | `string`（`low \| medium \| high`） | `commands/agent.rs` / `commands/permissions.ts`。直读线程内 `AgentConfig::current_effort()`（协议无 effort 回读事件）；线程未安装时回落 `low`。Composer 内联思考深度与 Models 页分段控件初始化用 |
@@ -211,7 +211,7 @@ pub struct Submission {
 > **Coding plan 自动切换**：前端 `stores/agent/planFailover.ts` 消费
 > `quota_exhausted`（§3.x 生命周期/插件组）与耗尽特征的 `error` 事件，
 > 自动改写 `[active].provider` 并 `reflect_save_config`（触发 §2.0 的热
-> 重载链路），toast 告知切换结果。详见 `docs/PLAN_FAILOVER.md`。
+> 重载链路），toast 告知切换结果。
 
 ### 3.7 MCP (3)
 
