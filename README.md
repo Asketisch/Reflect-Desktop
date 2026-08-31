@@ -1,10 +1,15 @@
 # ReflectDesktop
 
-> Reflect Agent 独立桌面应用：Tauri 2 + React 19，通过 `reflect-protocol` 协议桥接 Reflect Agent 核心。
+[简体中文](README.md) | [English](README.en.md)
 
-[![v0.1.0](https://img.shields.io/badge/version-0.1.0-blue)]()
+[![CI](https://github.com/Asketisch/ReflectDesktop/actions/workflows/ci.yml/badge.svg)](https://github.com/Asketisch/ReflectDesktop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Asketisch/ReflectDesktop)](https://github.com/Asketisch/ReflectDesktop/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-orange)]()
 [![React 19](https://img.shields.io/badge/React-19-149eca)]()
+[![English](https://img.shields.io/badge/README-English-blue.svg)](README.en.md)
+
+> Reflect Agent 独立桌面应用：Tauri 2 + React 19，通过 `reflect-protocol` 协议桥接 Reflect Agent 核心。
 
 ---
 
@@ -94,7 +99,7 @@ bash scripts/install.sh
 ### 从源码构建
 
 ```bash
-git clone https://github.com/CNB/ReflectDesktop.git
+git clone --recursive https://github.com/Asketisch/ReflectDesktop.git
 cd ReflectDesktop
 pnpm install
 git submodule update --init --recursive
@@ -229,4 +234,4 @@ git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
 
 ## 许可证
 
-MIT — 详见 [`LICENSE`](LICENSE)。
+[Apache-2.0](LICENSE) — 安全漏洞请勿公开提交,流程见 [`SECURITY.md`](SECURITY.md)。

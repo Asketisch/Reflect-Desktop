@@ -23,10 +23,10 @@ use crate::state::MinimalAgent;
 pub(crate) fn make_provider(
     src: &reflect_config::QuotaSource,
 ) -> Option<std::sync::Arc<dyn reflect_llm::QuotaProvider>> {
-    use std::sync::Arc as StdArc;
     use reflect_llm::{
         KimiQuotaProvider, MinimaxQuotaProvider, ZenmuxQuotaProvider, ZhipuQuotaProvider,
     };
+    use std::sync::Arc as StdArc;
     match src {
         reflect_config::QuotaSource::Kimi => {
             Some(StdArc::new(KimiQuotaProvider) as StdArc<dyn reflect_llm::QuotaProvider>)
@@ -112,10 +112,7 @@ pub(crate) fn build_quota_tracker(
 
 /// install 阶段调用:构建 tracker 并写入 inner(随 `construct_thread` 进入
 /// 每个 AgentConfig)。
-pub(crate) fn install_quota_tracker(
-    agent: &MinimalAgent,
-    cfg: &reflect_config::ReflectConfig,
-) {
+pub(crate) fn install_quota_tracker(agent: &MinimalAgent, cfg: &reflect_config::ReflectConfig) {
     let tracker = build_quota_tracker(cfg);
     *agent.inner.quota_tracker.lock() = tracker;
 }

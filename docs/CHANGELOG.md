@@ -4,6 +4,41 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 变更 — GitHub 开源铺垫批次
+
+仓库身份与元数据：
+
+- **仓库地址统一为 GitHub `Asketisch` 组织**：`Cargo.toml`（repository +
+  homepage + rust-version 1.85）、`src-tauri/tauri.conf.json`（identifier
+  `com.asketisch.reflectdesktop`、publisher、homepage、copyright）、
+  README / SUBMODULE.md / USER_GUIDE / docs 站点中的克隆与链接地址。
+  ⚠️ identifier 变更后应用数据目录从
+  `~/Library/Application Support/com.cnb.reflectdesktop.app` 变为
+  `~/Library/Application Support/com.asketisch.reflectdesktop`，旧目录数据
+  需手动迁移。
+- **更新检查端点修正**（`commands/update.rs`）：`DEFAULT_UPDATE_URL` 指向
+  `Asketisch/ReflectDesktop` 的 GitHub Releases。
+- **许可证口径统一为 Apache-2.0**：LICENSE 替换为完整 Apache-2.0 文本；
+  README / docs 站点此前误标 MIT 的地方已更正。
+
+开源社区与 CI 配套（对齐 Reflect-Agent / Reflect-TUI）：
+
+- 新增 `.github/workflows/ci.yml`（前端 typecheck+test；Rust fmt/clippy/test，
+  ubuntu + macOS 矩阵，递归 checkout submodule）与 `audit.yml`（每周
+  cargo-audit，结果上报 Security tab）。
+- 警告拒绝策略改为成员 crate 清单级 `[lints]`（`rust.warnings = deny`、
+  `clippy.all = deny`）：只约束自有 crate，submodule path 依赖的上游警告
+  不阻塞本仓库 CI。
+- 自有 crate 全量 `cargo fmt` + clippy 违规清零（约 60 个文件机械格式化；
+  修复 deprecated `TempDir::into_path`、`sort_by` → `sort_by_key`、
+  `walk_dir` 冗余参数、`Default` 实现等）。
+- 新增 `.github/dependabot.yml`（cargo + github-actions 每周一）、
+  `SECURITY.md`、`.editorconfig`、`.gitattributes`、`rust-toolchain.toml`。
+- 新增英文版 `README.en.md`；README 徽章改为真实 CI / Release / License
+  徽章并加中英切换。
+- 文档脱敏：内部绝对路径（`/Users/admin/...`）规范为 `~/...`；submodule
+  指针说明去除过时分支信息。
+
 ### 修复 — 全量代码 review 批次（5 路并行审查,P0/P1 全修 + 高价值 P2）
 
 交互与弹窗：

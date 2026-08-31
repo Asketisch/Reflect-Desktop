@@ -37,7 +37,9 @@ pub struct ProviderModelsResult {
 pub(crate) fn build_models_url(base_url: &str, endpoint: &str) -> Result<String, CommandError> {
     let base = base_url.trim_end_matches('/');
     if base.is_empty() {
-        return Err(CommandError { msg: "base_url is empty".into() });
+        return Err(CommandError {
+            msg: "base_url is empty".into(),
+        });
     }
     match endpoint {
         "openai" => Ok(format!("{base}/models")),
@@ -64,7 +66,12 @@ fn detect_vision(item: &Value) -> Option<bool> {
         .and_then(|a| a.get("input_modalities"))
         .or_else(|| item.get("input_modalities"))?
         .as_array()?;
-    Some(modalities.iter().filter_map(|v| v.as_str()).any(|s| s.eq_ignore_ascii_case("image")))
+    Some(
+        modalities
+            .iter()
+            .filter_map(|v| v.as_str())
+            .any(|s| s.eq_ignore_ascii_case("image")),
+    )
 }
 
 /// 解析 /models 响应体。两种端口同为 `{ data: [...] }` 外层;
@@ -73,14 +80,20 @@ pub(crate) fn parse_models_response(
     endpoint: &str,
     body: &[u8],
 ) -> Result<Vec<ProviderModelInfo>, CommandError> {
-    let v: Value = serde_json::from_slice(body)
-        .map_err(|e| CommandError { msg: format!("failed to parse models response: {e}") })?;
-    let data = v.get("data").and_then(|d| d.as_array()).ok_or_else(|| CommandError {
-        msg: "models response missing 'data' array".into(),
+    let v: Value = serde_json::from_slice(body).map_err(|e| CommandError {
+        msg: format!("failed to parse models response: {e}"),
     })?;
+    let data = v
+        .get("data")
+        .and_then(|d| d.as_array())
+        .ok_or_else(|| CommandError {
+            msg: "models response missing 'data' array".into(),
+        })?;
     let mut out = Vec::with_capacity(data.len());
     for item in data {
-        let Some(id) = item.get("id").and_then(|i| i.as_str()) else { continue };
+        let Some(id) = item.get("id").and_then(|i| i.as_str()) else {
+            continue;
+        };
         let display_name = item
             .get("display_name")
             .and_then(|d| d.as_str())
@@ -88,7 +101,11 @@ pub(crate) fn parse_models_response(
         out.push(ProviderModelInfo {
             id: id.to_string(),
             display_name: display_name.to_string(),
-            supports_vision: if endpoint == "openai" { detect_vision(item) } else { None },
+            supports_vision: if endpoint == "openai" {
+                detect_vision(item)
+            } else {
+                None
+            },
         });
     }
     // id 去重(部分网关同一 id 返回多条)并保持返回顺序。
@@ -108,14 +125,18 @@ pub async fn reflect_list_provider_models(
     endpoint: String,
 ) -> CommandResult<ProviderModelsResult> {
     if api_key.trim().is_empty() {
-        return Err(CommandError { msg: "api_key is empty".into() });
+        return Err(CommandError {
+            msg: "api_key is empty".into(),
+        });
     }
     let url = build_models_url(&base_url, &endpoint)?;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .build()
-        .map_err(|e| CommandError { msg: format!("http client: {e}") })?;
+        .map_err(|e| CommandError {
+            msg: format!("http client: {e}"),
+        })?;
     let mut req = client.get(&url);
     req = match endpoint.as_str() {
         // 智谱等兼容端点同样吃 Bearer;Anthropic 用 x-api-key + 版本头。
@@ -129,7 +150,9 @@ pub async fn reflect_list_provider_models(
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| CommandError { msg: format!("network error: {e}") })?;
+        .map_err(|e| CommandError {
+            msg: format!("network error: {e}"),
+        })?;
 
     let status = resp.status();
     if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
@@ -145,10 +168,9 @@ pub async fn reflect_list_provider_models(
         });
     }
     // 先读完整 body(读体失败 = 瞬时),再解析(解析失败 = 确定性)。
-    let body = resp
-        .bytes()
-        .await
-        .map_err(|e| CommandError { msg: format!("failed to read response: {e}") })?;
+    let body = resp.bytes().await.map_err(|e| CommandError {
+        msg: format!("failed to read response: {e}"),
+    })?;
     let models = parse_models_response(&endpoint, &body)?;
     tracing::info!(endpoint = %endpoint, count = models.len(), "provider models listed");
     Ok(ProviderModelsResult { endpoint, models })
@@ -172,7 +194,9 @@ pub struct ProviderChatTestResult {
 pub(crate) fn build_chat_test_url(base_url: &str, endpoint: &str) -> Result<String, CommandError> {
     let base = base_url.trim_end_matches('/');
     if base.is_empty() {
-        return Err(CommandError { msg: "base_url is empty".into() });
+        return Err(CommandError {
+            msg: "base_url is empty".into(),
+        });
     }
     match endpoint {
         "openai" => Ok(format!("{base}/chat/completions")),
@@ -201,8 +225,9 @@ pub(crate) fn build_chat_test_body(model: &str) -> Value {
 
 /// 从两种端点的响应里提取文本回复。
 pub(crate) fn parse_chat_test_reply(endpoint: &str, body: &[u8]) -> Result<String, CommandError> {
-    let v: Value = serde_json::from_slice(body)
-        .map_err(|e| CommandError { msg: format!("failed to parse chat response: {e}") })?;
+    let v: Value = serde_json::from_slice(body).map_err(|e| CommandError {
+        msg: format!("failed to parse chat response: {e}"),
+    })?;
     let reply = match endpoint {
         // OpenAI:`choices[0].message.content`(可为 null)。
         "openai" => v
@@ -228,7 +253,7 @@ pub(crate) fn parse_chat_test_reply(endpoint: &str, body: &[u8]) -> Result<Strin
         other => {
             return Err(CommandError {
                 msg: format!("unknown endpoint: {other}"),
-            })
+            });
         }
     };
     Ok(reply)
@@ -246,20 +271,24 @@ pub async fn reflect_test_provider_chat(
     model: String,
 ) -> CommandResult<ProviderChatTestResult> {
     if api_key.trim().is_empty() {
-        return Err(CommandError { msg: "api_key is empty".into() });
+        return Err(CommandError {
+            msg: "api_key is empty".into(),
+        });
     }
     if model.trim().is_empty() {
-        return Err(CommandError { msg: "model is empty — fetch or enter a model first".into() });
+        return Err(CommandError {
+            msg: "model is empty — fetch or enter a model first".into(),
+        });
     }
     let url = build_chat_test_url(&base_url, &endpoint)?;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .build()
-        .map_err(|e| CommandError { msg: format!("http client: {e}") })?;
-    let mut req = client
-        .post(&url)
-        .json(&build_chat_test_body(model.trim()));
+        .map_err(|e| CommandError {
+            msg: format!("http client: {e}"),
+        })?;
+    let mut req = client.post(&url).json(&build_chat_test_body(model.trim()));
     req = match endpoint.as_str() {
         "openai" => req.header("Authorization", format!("Bearer {api_key}")),
         "anthropic" => req
@@ -267,7 +296,9 @@ pub async fn reflect_test_provider_chat(
             .header("anthropic-version", "2023-06-01"),
         _ => unreachable!("build_chat_test_url validated endpoint"),
     };
-    let resp = req.send().await.map_err(|e| CommandError { msg: format!("network error: {e}") })?;
+    let resp = req.send().await.map_err(|e| CommandError {
+        msg: format!("network error: {e}"),
+    })?;
 
     let status = resp.status();
     if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
@@ -282,10 +313,9 @@ pub async fn reflect_test_provider_chat(
             msg: format!("API error (HTTP {status}): {snippet}"),
         });
     }
-    let body = resp
-        .bytes()
-        .await
-        .map_err(|e| CommandError { msg: format!("failed to read response: {e}") })?;
+    let body = resp.bytes().await.map_err(|e| CommandError {
+        msg: format!("failed to read response: {e}"),
+    })?;
     let reply = parse_chat_test_reply(&endpoint, &body)?;
     tracing::info!(endpoint = %endpoint, reply_len = reply.len(), "provider chat test ok");
     Ok(ProviderChatTestResult { reply })
@@ -402,11 +432,15 @@ mod tests {
             ]
         }))
         .unwrap();
-        assert_eq!(parse_chat_test_reply("anthropic", &anthropic).unwrap(), "你好！");
+        assert_eq!(
+            parse_chat_test_reply("anthropic", &anthropic).unwrap(),
+            "你好！"
+        );
 
         // content 为 null / 缺字段 → 空串而非报错。
         let null_content =
-            serde_json::to_vec(&json!({ "choices": [{ "message": { "content": null } }] })).unwrap();
+            serde_json::to_vec(&json!({ "choices": [{ "message": { "content": null } }] }))
+                .unwrap();
         assert_eq!(parse_chat_test_reply("openai", &null_content).unwrap(), "");
     }
 }

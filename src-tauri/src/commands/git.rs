@@ -67,7 +67,7 @@ fn run_git(args: &[&str]) -> Result<std::process::Output, CommandError> {
 #[tauri::command]
 pub async fn reflect_git_status() -> CommandResult<GitStatus> {
     // 首先确认这是否真的是 git 仓库。
-    let probe = run_git(&["rev-parse", "--is-inside-work-tree"]).map_err(CommandError::from)?;
+    let probe = run_git(&["rev-parse", "--is-inside-work-tree"])?;
     let is_repo = String::from_utf8_lossy(&probe.stdout).trim() == "true";
     if !is_repo {
         return Ok(GitStatus {
@@ -80,7 +80,7 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
             is_repo: false,
         });
     }
-    let out = run_git(&["status", "--porcelain=v1", "--branch"]).map_err(CommandError::from)?;
+    let out = run_git(&["status", "--porcelain=v1", "--branch"])?;
     if !out.status.success() {
         return Err(CommandError {
             msg: format!(
@@ -180,7 +180,7 @@ pub async fn reflect_git_diff(staged: Option<bool>) -> CommandResult<String> {
     } else {
         vec!["diff", "--no-color"]
     };
-    let out = run_git(&args).map_err(CommandError::from)?;
+    let out = run_git(&args)?;
     if !out.status.success() {
         return Err(CommandError {
             msg: format!("git diff failed: {}", String::from_utf8_lossy(&out.stderr)),
@@ -194,8 +194,7 @@ pub async fn reflect_git_diff(staged: Option<bool>) -> CommandResult<String> {
 pub async fn reflect_git_log(limit: Option<usize>) -> CommandResult<Vec<GitLogEntry>> {
     let n = limit.unwrap_or(20).to_string();
     let fmt = "%H%x1f%h%x1f%an%x1f%at%x1f%s";
-    let out = run_git(&["log", &format!("--pretty=format:{fmt}"), "-n", &n])
-        .map_err(CommandError::from)?;
+    let out = run_git(&["log", &format!("--pretty=format:{fmt}"), "-n", &n])?;
     if !out.status.success() {
         return Err(CommandError {
             msg: format!("git log failed: {}", String::from_utf8_lossy(&out.stderr)),
@@ -238,7 +237,10 @@ pub async fn reflect_git_stage(paths: Vec<String>) -> CommandResult<()> {
     }?;
     if !output.status.success() {
         return Err(CommandError {
-            msg: format!("git add failed: {}", String::from_utf8_lossy(&output.stderr)),
+            msg: format!(
+                "git add failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ),
         });
     }
     Ok(())
@@ -256,7 +258,10 @@ pub async fn reflect_git_unstage(paths: Vec<String>) -> CommandResult<()> {
     }?;
     if !output.status.success() {
         return Err(CommandError {
-            msg: format!("git reset failed: {}", String::from_utf8_lossy(&output.stderr)),
+            msg: format!(
+                "git reset failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ),
         });
     }
     Ok(())
@@ -267,12 +272,17 @@ pub async fn reflect_git_unstage(paths: Vec<String>) -> CommandResult<()> {
 pub async fn reflect_git_commit(message: String) -> CommandResult<String> {
     let trimmed = message.trim();
     if trimmed.is_empty() {
-        return Err(CommandError { msg: "commit message is empty".into() });
+        return Err(CommandError {
+            msg: "commit message is empty".into(),
+        });
     }
     let output = run_git(&["commit", "-m", trimmed])?;
     if !output.status.success() {
         return Err(CommandError {
-            msg: format!("git commit failed: {}", String::from_utf8_lossy(&output.stderr)),
+            msg: format!(
+                "git commit failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ),
         });
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -307,7 +317,9 @@ pub struct GhPullRequest {
 #[tauri::command]
 pub async fn reflect_gh_pr_list(limit: Option<usize>) -> CommandResult<Vec<GhPullRequest>> {
     let limit = limit.unwrap_or(20).clamp(1, 50);
-    let cwd = git_in_workspace().ok_or_else(|| CommandError { msg: "no workspace".into() })?;
+    let cwd = git_in_workspace().ok_or_else(|| CommandError {
+        msg: "no workspace".into(),
+    })?;
     let output = StdCommand::new("gh")
         .current_dir(&cwd)
         .args([
@@ -329,7 +341,9 @@ pub async fn reflect_gh_pr_list(limit: Option<usize>) -> CommandResult<Vec<GhPul
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         // 非 repo / 未登录 gh / gh 未安装 → Err 带原因（前端在空态中展示）。
-        return Err(CommandError { msg: stderr.trim().to_string() });
+        return Err(CommandError {
+            msg: stderr.trim().to_string(),
+        });
     }
     #[derive(serde::Deserialize)]
     #[allow(non_snake_case)] // 字段名直接对应 `gh pr list --json` 的 key。

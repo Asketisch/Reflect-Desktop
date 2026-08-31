@@ -20,7 +20,8 @@ use std::path::Path;
 
 use enigo::{
     Axis::{Horizontal, Vertical},
-    Button, Coordinate::Abs,
+    Button,
+    Coordinate::Abs,
     Direction::{self, Click},
     Enigo, Key, Keyboard, Mouse, Settings,
 };
@@ -29,7 +30,6 @@ use reflect_app_core::media::{
     BackendCapability, ComputerBackend, ComputerUseAction, ImageBackend, ImageFormat,
     ImageProcessResult, ImageProcessSpec, MediaAsset, MediaError,
 };
-
 
 /// 基于 `image` crate 的图像处理器。
 ///
@@ -75,7 +75,10 @@ impl ImageBackend for RealImageBackend {
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
         // 尽力读维(失败不算 error,返回 None)。
-        let (width, height) = image::image_dimensions(path).ok().map(|(w, h)| (Some(w), Some(h))).unwrap_or((None, None));
+        let (width, height) = image::image_dimensions(path)
+            .ok()
+            .map(|(w, h)| (Some(w), Some(h)))
+            .unwrap_or((None, None));
         Ok(MediaAsset {
             path: path.to_path_buf(),
             filename,
@@ -218,9 +221,10 @@ impl ComputerBackend for RealComputerBackend {
         let mut buf: Vec<u8> = Vec::new();
         {
             let mut cursor = Cursor::new(&mut buf);
-            rgba.write_to(&mut cursor, ImgFmt::Png).map_err(|e| MediaError::Other {
-                message: format!("png encode failed: {e}"),
-            })?;
+            rgba.write_to(&mut cursor, ImgFmt::Png)
+                .map_err(|e| MediaError::Other {
+                    message: format!("png encode failed: {e}"),
+                })?;
         }
         Ok(buf)
     }
@@ -297,7 +301,11 @@ fn parse_button(s: &str) -> Button {
 
 /// 把 `"ctrl+c"` / `"cmd+shift+p"` 字符串解析成组合键并依次按下 / 释放。
 fn press_combo(enigo: &mut Enigo, keys: &str) -> Result<(), MediaError> {
-    let parts: Vec<&str> = keys.split('+').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    let parts: Vec<&str> = keys
+        .split('+')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
     if parts.is_empty() {
         return Err(MediaError::Other {
             message: format!("empty combo: {keys:?}"),

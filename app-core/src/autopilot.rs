@@ -73,6 +73,12 @@ pub struct AutopilotManager {
     history_path: PathBuf,
 }
 
+impl Default for AutopilotManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AutopilotManager {
     /// 使用默认路径创建 AutopilotManager。
     pub fn new() -> Self {
@@ -157,7 +163,7 @@ mod tests {
     fn fresh_manager() -> AutopilotManager {
         let dir = tempfile::tempdir().expect("tempdir");
         // 泄漏 tempdir 使文件在测试期间存活（test 进程退出时清理）。
-        let path = dir.into_path();
+        let path = dir.keep();
         AutopilotManager::new_with_root(path)
     }
 
@@ -178,9 +184,11 @@ mod tests {
     #[test]
     fn save_and_load_config() {
         let manager = fresh_manager();
-        let mut config = AutopilotConfig::default();
-        config.enabled = true;
-        config.schedule = "0 * * * *".to_string();
+        let config = AutopilotConfig {
+            enabled: true,
+            schedule: "0 * * * *".to_string(),
+            ..AutopilotConfig::default()
+        };
         manager.save_config(&config).unwrap();
 
         let loaded = manager.load_config();

@@ -40,7 +40,7 @@
 
 ## 2. multica-main —— 多 agent 协调平台(核心蓝本)
 
-> 仓库路径:`/Users/admin/Code/Github/AgentGUI/multica-main`
+> 仓库路径:`~/Code/Github/AgentGUI/multica-main`
 > 一句话:**Go 后端做调度,Electron 桌面做 UI,本地 daemon 跑 agent CLI**。agent 是 workspace 内的一等公民,有 profile、可被 assign、能评论、能创建 issue。
 
 ### 2.1 技术栈与目录结构
@@ -149,7 +149,7 @@
 
 ## 3. CodexMonitor-main —— Codex 监控桌面端(架构近亲)
 
-> 仓库路径:`/Users/admin/Code/Github/AgentGUI/CodexMonitor-main`
+> 仓库路径:`~/Code/Github/AgentGUI/CodexMonitor-main`
 > 一句话:**Tauri 2 + React 19**(与 ReflectDesktop 几乎同构),每 workspace spawn 一个 `codex app-server` 子进程,通过 stdio JSON-RPC 通信。
 
 ### 3.1 技术栈与目录结构
@@ -217,7 +217,7 @@
 
 ## 4. DeepSeek-Reasonix —— 推理引擎 + 多前端
 
-> 仓库路径:`/Users/admin/Code/Github/AgentGUI/DeepSeek-Reasonix-main-v2`
+> 仓库路径:`~/Code/Github/AgentGUI/DeepSeek-Reasonix-main-v2`
 > 一句话:**Go 单二进制**内核(`internal/`),三种前端共享同一 `control.Controller`:bubbletea TUI、Wails 桌面、VS Code 扩展。cache-first(系统 prompt prefix 字节稳定以命中 DeepSeek 前缀缓存)。
 
 ### 4.1 技术栈与目录结构
@@ -303,7 +303,7 @@
 
 ## 5. goose-main —— Rust agent + MCP + Schedule
 
-> 仓库路径:`/Users/admin/Code/Github/AgentGUI/goose-main`
+> 仓库路径:`~/Code/Github/AgentGUI/goose-main`
 > 一句话:**Rust workspace**(crates/*)+ **Electron 桌面**(ui/desktop)+ CLI + Server。AAIF/Linux 基金会项目,15+ provider,70+ MCP 扩展。
 
 ### 5.1 技术栈与目录结构
@@ -400,7 +400,7 @@
 
 ## 6. Kun-master —— Electron 需求先行工作台
 
-> 仓库路径:`/Users/admin/Code/Github/AgentGUI/Kun-master`
+> 仓库路径:`~/Code/Github/AgentGUI/Kun-master`
 > 一句话:**Electron 34 + React 19** 桌面壳 + 本地 `kun` 运行时(独立 Node/TS 项目,`kun/`,HTTP/SSE 通信)。需求先行:Code / Design / Write 三模式。
 
 ### 6.1 技术栈与目录结构
@@ -500,7 +500,7 @@
 
 ## 7. thClaws-main —— 单 Rust 二进制 + 三层编排
 
-> 仓库路径:`/Users/admin/Code/Github/AgentGUI/thClaws-main`
+> 仓库路径:`~/Code/Github/AgentGUI/thClaws-main`
 > 一句话:**单 Rust crate**(`crates/core`)+ **React 前端**(`frontend/`,wry 内嵌,`include_str!` 编译期嵌入)。**与 ReflectDesktop 架构最接近**(都是 Rust 引擎 + React 前端 + IPC)。三层 agent 编排:模型驱动 subagent / 用户驱动 side-channel / 多进程 Team。
 
 ### 7.1 技术栈与目录结构
@@ -638,7 +638,7 @@
 
 ## 8. ReflectDesktop 现状与缺口
 
-> 基于本地仓库实测(`/Users/admin/Code/CNB/ReflectDesktop`)。
+> 基于本地仓库实测(`~/Code/CNB/ReflectDesktop`)。
 
 ### 8.1 已具备的能力(底层已落地)
 

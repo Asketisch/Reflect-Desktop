@@ -4,8 +4,8 @@
 //! 由 `media_backend::{RealImageBackend, RealComputerBackend}` 提供。
 
 use reflect_app_core::media::{
-    scan_dir_for_assets, BackendCapability, ComputerBackend, ComputerUseAction, ImageBackend,
-    ImageProcessResult, ImageProcessSpec, MediaAsset, MediaError,
+    BackendCapability, ComputerBackend, ComputerUseAction, ImageBackend, ImageProcessResult,
+    ImageProcessSpec, MediaAsset, MediaError, scan_dir_for_assets,
 };
 use tauri::State;
 
@@ -68,7 +68,9 @@ pub async fn reflect_media_capabilities() -> CommandResult<MediaCapabilities> {
             (BackendCapability::Full, BackendCapability::Full) => {
                 "image + xcap + enigo backends are live.".into()
             }
-            (BackendCapability::Full, _) => "image backend live; computer backend unavailable (permission?)".into(),
+            (BackendCapability::Full, _) => {
+                "image backend live; computer backend unavailable (permission?)".into()
+            }
             _ => "backends unavailable in this environment".into(),
         },
     })
@@ -87,9 +89,8 @@ pub struct MediaCapabilities {
 }
 
 pub(crate) fn base64_encode(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0];
         let b1 = chunk.get(1).copied().unwrap_or(0);

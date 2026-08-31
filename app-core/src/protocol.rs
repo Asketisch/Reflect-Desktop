@@ -7,7 +7,10 @@
 //! `crypto.randomUUID`）；本模块为进程内构造器（例如 NAPI
 //! binding、原生测试）提供权威的 Rust 辅助函数。
 
-use reflect_protocol::{AskUserAnswer, Op, PermissionMode, PlanApprovalChoice, ReasoningEffortMirror, ReviewDecision, Submission, UserInputItem};
+use reflect_protocol::{
+    AskUserAnswer, Op, PermissionMode, PlanApprovalChoice, ReasoningEffortMirror, ReviewDecision,
+    Submission, UserInputItem,
+};
 
 /// 使用新的 UUID v4 id 构造 Submission。
 pub fn new_submission(op: Op) -> Submission {

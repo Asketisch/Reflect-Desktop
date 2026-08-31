@@ -16,7 +16,7 @@ bash scripts/install.sh
 ### 从源码
 
 ```bash
-git clone https://github.com/CNB/ReflectDesktop.git
+git clone https://github.com/Asketisch/ReflectDesktop.git
 cd ReflectDesktop
 pnpm install
 git submodule update --init --recursive

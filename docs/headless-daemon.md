@@ -82,9 +82,9 @@ cargo build --bin reflect-desktop-daemonctl
 ```bash
 ./target/debug/reflect-desktop-daemonctl command-preview
 # reflect-desktop-daemon \
-#   --data-dir /Users/admin/Library/Application\ Support/com.cnb.reflectdesktop.app \
+#   --data-dir ~/Library/Application Support/com.asketisch.reflectdesktop \
 #   --listen 0.0.0.0:4732 \
-#   --token $(cat /Users/admin/Library/Application\ Support/com.cnb.reflectdesktop.app/remote.token)
+#   --token $(cat ~/Library/Application Support/com.asketisch.reflectdesktop/remote.token)
 ```
 
 ## 参见

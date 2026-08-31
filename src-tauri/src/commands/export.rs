@@ -26,9 +26,7 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
     })?;
     // 与 bind/replay/JSON 导出同源的回放入口(全树按时间序)。
     // 此前只走三日快路径,旧会话导出为不报错的空稿。
-    let records = replay_for_export(&id)
-        .await
-        .map_err(CommandError::from)?;
+    let records = replay_for_export(&id).await.map_err(CommandError::from)?;
 
     let mut out = String::new();
     out.push_str(&format!("# Reflect session `{id}`\n\n"));
@@ -98,7 +96,6 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
             RolloutRecord::Rewind {
                 target_sha,
                 from_sha,
-                at: _,
                 ..
             } => {
                 out.push_str(&format!("\n*rewind* (`{from_sha}` → `{target_sha}`)\n\n"));

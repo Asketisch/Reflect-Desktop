@@ -133,7 +133,9 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let autopilot_manager = reflect_app_core::autopilot::AutopilotManager::new();
     let activity_logger = Arc::new(reflect_app_core::activity::ActivityLogger::with_default_home());
     // SquadManager 复用 task_manager(team 存储),必须在 task_manager 之后构造。
-    let squad_manager = Arc::new(reflect_app_core::squad::SquadManager::new(Arc::clone(&task_manager)));
+    let squad_manager = Arc::new(reflect_app_core::squad::SquadManager::new(Arc::clone(
+        &task_manager,
+    )));
     MinimalAgentInner {
         thread: ParkingMutex::new(None),
         session_tx,

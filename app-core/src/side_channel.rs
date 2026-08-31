@@ -31,8 +31,8 @@
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
@@ -216,11 +216,7 @@ impl SideChannelRegistry {
 
     /// 插入新的 side-channel。返回分配的 id 和
     /// 调用方必须持有的取消 handle，并发送 `Started` event。
-    pub fn start(
-        &self,
-        agent_name: String,
-        prompt: String,
-    ) -> (SideChannelId, CancellationToken) {
+    pub fn start(&self, agent_name: String, prompt: String) -> (SideChannelId, CancellationToken) {
         // 计算新的 id；发生冲突时使用进程唯一的 seq 重试。
         let epoch_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -340,7 +336,7 @@ impl SideChannelRegistry {
             .iter()
             .map(|(id, h)| (id.clone(), h.snapshot(id)))
             .collect();
-        v.sort_by(|a, b| a.1.started_at_ms.cmp(&b.1.started_at_ms));
+        v.sort_by_key(|a| a.1.started_at_ms);
         v.into_iter().map(|(_, info)| info).collect()
     }
 

@@ -38,7 +38,7 @@ cargo build --bin reflect-desktop-daemon --bin reflect-desktop-daemonctl
 ./target/debug/reflect-desktop-daemonctl start
 ./target/debug/reflect-desktop-daemonctl stop
 ./target/debug/reflect-desktop-daemonctl command-preview
-./target/debug/reflect-desktop-daemonctl --listen 0.0.0.0:4732 --token <token> --data-dir /Users/admin/Library/Application\ Support/com.cnb.reflectdesktop.app start
+./target/debug/reflect-desktop-daemonctl --listen 0.0.0.0:4732 --token <token> --data-dir ~/Library/Application Support/com.asketisch.reflectdesktop start
 ```
 
 有用覆盖选项：

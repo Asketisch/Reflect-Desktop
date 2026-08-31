@@ -62,10 +62,7 @@ pub async fn reflect_kms_create(
 
 /// 删除一个知识库。
 #[tauri::command]
-pub async fn reflect_kms_delete(
-    agent: State<'_, MinimalAgent>,
-    name: String,
-) -> CommandResult<()> {
+pub async fn reflect_kms_delete(agent: State<'_, MinimalAgent>, name: String) -> CommandResult<()> {
     validate_kms_name("wiki name", &name)?;
     agent
         .kms_manager()

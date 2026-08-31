@@ -323,7 +323,7 @@ pub fn scan_dir_for_assets(dir: &Path) -> Result<Vec<MediaAsset>, MediaError> {
         });
     }
     // 按修改时间倒序(最新在前)。
-    out.sort_by(|a, b| b.modified_at_ms.cmp(&a.modified_at_ms));
+    out.sort_by_key(|a| std::cmp::Reverse(a.modified_at_ms));
     Ok(out)
 }
 
@@ -470,7 +470,11 @@ mod tests {
 
     #[test]
     fn computer_use_action_serializes_tagged() {
-        let action = ComputerUseAction::MouseClick { x: 10, y: 20, button: "left".into() };
+        let action = ComputerUseAction::MouseClick {
+            x: 10,
+            y: 20,
+            button: "left".into(),
+        };
         let v = serde_json::to_value(&action).unwrap();
         assert_eq!(v["kind"], "mouseClick");
         assert_eq!(v["params"]["x"], 10);
@@ -480,7 +484,10 @@ mod tests {
     fn computer_use_action_summary() {
         let s = ComputerUseAction::MouseMove { x: 1, y: 2 }.summary();
         assert!(s.contains("Mouse"));
-        let s2 = ComputerUseAction::KeyCombo { keys: "ctrl+c".into() }.summary();
+        let s2 = ComputerUseAction::KeyCombo {
+            keys: "ctrl+c".into(),
+        }
+        .summary();
         assert!(s2.contains("ctrl+c"));
     }
 
@@ -491,7 +498,9 @@ mod tests {
             reason: "no display".into(),
         };
         assert!(e.to_string().contains("screenshot"));
-        let e2 = MediaError::NotFound { message: "x".into() };
+        let e2 = MediaError::NotFound {
+            message: "x".into(),
+        };
         assert!(e2.to_string().contains("x"));
     }
 
@@ -525,7 +534,13 @@ mod tests {
     #[test]
     fn unavailable_computer_backend_returns_unavailable() {
         let backend = UnavailableComputerBackend::new();
-        assert_eq!(backend.screenshot().unwrap_err().to_string().contains("screenshot"), true);
+        assert!(
+            backend
+                .screenshot()
+                .unwrap_err()
+                .to_string()
+                .contains("screenshot")
+        );
         let act = ComputerUseAction::Screenshot;
         assert!(backend.execute(&act).is_err());
     }

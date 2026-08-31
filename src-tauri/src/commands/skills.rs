@@ -1,6 +1,6 @@
 //! Skills 列表 + 轻量 YAML frontmatter 解析。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -46,10 +46,7 @@ fn collect_skills_in(dir: &PathBuf, out: &mut Vec<SkillInfo>) -> CommandResult<(
         let path = entry.path();
         // file_type() 基于 symlink_metadata,不跟随链接:目录符号链接
         // 可能成环(或指回祖先目录),is_dir() 会跟随导致无限递归 abort。
-        let is_dir = entry
-            .file_type()
-            .map(|t| t.is_dir())
-            .unwrap_or(false);
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
         if is_dir {
             collect_skills_in(&path, out)?;
         } else if path.file_name().and_then(|s| s.to_str()) == Some("SKILL.md") {
@@ -63,7 +60,7 @@ fn collect_skills_in(dir: &PathBuf, out: &mut Vec<SkillInfo>) -> CommandResult<(
     Ok(())
 }
 
-fn parse_skill_frontmatter(content: &str, path: &PathBuf) -> Option<SkillInfo> {
+fn parse_skill_frontmatter(content: &str, path: &Path) -> Option<SkillInfo> {
     // 极简 YAML frontmatter 解析器:抽取首个 `---\n...\n---` 块。
     let stripped = content.strip_prefix("---")?;
     let rest = stripped.trim_start_matches('\n');

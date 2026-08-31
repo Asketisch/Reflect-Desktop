@@ -34,7 +34,13 @@ impl MemoryStore {
     }
 
     /// 新增 memory entry。
-    pub(crate) fn add(&self, scope: &str, key: &str, value: &str, project_root: &Path) -> anyhow::Result<()> {
+    pub(crate) fn add(
+        &self,
+        scope: &str,
+        key: &str,
+        value: &str,
+        project_root: &Path,
+    ) -> anyhow::Result<()> {
         let path = self.path(scope, project_root)?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -93,7 +99,10 @@ fn find_exact_heading_line(text: &str, heading: &str) -> Option<(usize, usize)> 
     while let Some(rel) = text[from..].find(heading) {
         let start = from + rel;
         let at_line_start = start == 0 || text.as_bytes()[start - 1] == b'\n';
-        let line_end = text[start..].find('\n').map(|i| start + i).unwrap_or(text.len());
+        let line_end = text[start..]
+            .find('\n')
+            .map(|i| start + i)
+            .unwrap_or(text.len());
         if at_line_start && text[start..line_end].trim_end() == heading {
             return Some((start, line_end));
         }

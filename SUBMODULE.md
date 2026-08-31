@@ -1,6 +1,6 @@
 # Reflect-Agent Submodule 复用指南
 
-本仓库(ReflectDesktop)通过 **git submodule** 复用 [Reflect-Agent](https://cnb.cool/Demon1019/Reflect-Agent) 的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
+本仓库(ReflectDesktop)通过 **git submodule** 复用 [Reflect-Agent](https://github.com/Asketisch/Reflect-Agent) 的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
 
 > 历史:ReflectDesktop 之前用 `vendor/` 目录 + `scripts/vendor-sync.sh`(rsync 手动同步 21 个 crate)。该方式无版本指针、同步易漂移,已于本次重构迁移为 git submodule。
 
@@ -23,7 +23,7 @@ ReflectDesktop (本仓库,workspace 消费端)
 ### 克隆(带 submodule)
 
 ```bash
-git clone --recursive https://cnb.cool/Demon1019/Reflect-Desktop.git
+git clone --recursive https://github.com/Asketisch/ReflectDesktop.git
 ```
 
 ### 已克隆仓库初始化
@@ -62,11 +62,11 @@ git submodule update --remote reflect-agent
 
 ## 当前 submodule 指针
 
-```
-reflect-agent → 分支 refactor/split-tui-and-bootstrap
+```bash
+git submodule status reflect-agent
 ```
 
-合并到 Reflect-Agent main 后,应将 submodule 指向 main。
+submodule 默认跟踪 Reflect-Agent 的 `main` 分支(`git submodule update --remote` 拉取其最新提交)。
 
 ## 旧 vendor 模式迁移记录
 

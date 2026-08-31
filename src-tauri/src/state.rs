@@ -22,6 +22,7 @@ use tokio::sync::broadcast;
 
 pub use remote_config::{RemoteConfig, RemoteStatus};
 
+mod activity;
 mod agent;
 mod install;
 pub(crate) mod quota;
@@ -30,7 +31,6 @@ pub(crate) mod reload;
 mod remote_config;
 mod session;
 mod submit;
-mod activity;
 mod thread_factory;
 
 pub use agent::AgentStatus;
@@ -193,7 +193,10 @@ impl MinimalAgent {
     pub(crate) fn spawn_cron_scheduler(
         &self,
         sender: tokio::sync::mpsc::Sender<reflect_protocol::Submission>,
-    ) -> (reflect_stream::cron::CronScheduler, reflect_stream::cron::CronDriverHandle) {
+    ) -> (
+        reflect_stream::cron::CronScheduler,
+        reflect_stream::cron::CronDriverHandle,
+    ) {
         let scheduler = reflect_stream::cron::CronScheduler::new(
             Some(sender),
             reflect_protocol::ThreadId::new(),
@@ -264,12 +267,16 @@ impl MinimalAgent {
     /// 新增 memory entry。向对应 scope 的 `MEMORY.md` 追加
     /// `## <key>\n<value>`。
     pub fn add_memory(&self, scope: String, key: String, value: String) -> anyhow::Result<()> {
-        self.inner.memory_store.add(&scope, &key, &value, &self.workspace())
+        self.inner
+            .memory_store
+            .add(&scope, &key, &value, &self.workspace())
     }
 
     /// 删除 memory entry,移除对应的 `## <key>` 块。
     pub fn remove_memory(&self, scope: String, key: String) -> anyhow::Result<()> {
-        self.inner.memory_store.remove(&scope, &key, &self.workspace())
+        self.inner
+            .memory_store
+            .remove(&scope, &key, &self.workspace())
     }
 
     /// 列出已注册的 hook。

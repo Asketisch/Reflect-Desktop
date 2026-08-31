@@ -142,7 +142,7 @@ mod tests {
         search_file(&p, "println", &mut hits, 10, &mut truncated);
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].line, 2);
-        assert!(truncated == false);
+        assert!(!truncated);
     }
 
     #[test]

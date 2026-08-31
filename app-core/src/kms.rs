@@ -111,7 +111,9 @@ impl std::error::Error for KmsError {}
 
 impl From<std::io::Error> for KmsError {
     fn from(e: std::io::Error) -> Self {
-        KmsError::IoError { message: e.to_string() }
+        KmsError::IoError {
+            message: e.to_string(),
+        }
     }
 }
 
@@ -143,14 +145,23 @@ impl KnowledgeManager {
 
     /// 获取 Wiki 内页面文件的路径。
     pub fn page_path(&self, wiki: &str, page: &str) -> PathBuf {
-        self.root.join(wiki).join("pages").join(format!("{}.md", page))
+        self.root
+            .join(wiki)
+            .join("pages")
+            .join(format!("{}.md", page))
     }
 
     /// 创建新的知识库。
-    pub fn create_wiki(&self, name: &str, description: Option<String>) -> Result<WikiInfo, KmsError> {
+    pub fn create_wiki(
+        &self,
+        name: &str,
+        description: Option<String>,
+    ) -> Result<WikiInfo, KmsError> {
         let wiki_path = self.wiki_path(name);
         if wiki_path.exists() {
-            return Err(KmsError::WikiAlreadyExists { name: name.to_string() });
+            return Err(KmsError::WikiAlreadyExists {
+                name: name.to_string(),
+            });
         }
 
         std::fs::create_dir_all(&wiki_path)?;
@@ -178,7 +189,9 @@ impl KnowledgeManager {
     pub fn delete_wiki(&self, name: &str) -> Result<(), KmsError> {
         let wiki_path = self.wiki_path(name);
         if !wiki_path.exists() {
-            return Err(KmsError::WikiNotFound { name: name.to_string() });
+            return Err(KmsError::WikiNotFound {
+                name: name.to_string(),
+            });
         }
         std::fs::remove_dir_all(&wiki_path)?;
         Ok(())
@@ -205,7 +218,10 @@ impl KnowledgeManager {
             let page_count = count_md_files(&pages_dir);
 
             let description = if path.join("index.md").exists() {
-                std::fs::read_to_string(path.join("index.md")).ok().as_deref().and_then(extract_description)
+                std::fs::read_to_string(path.join("index.md"))
+                    .ok()
+                    .as_deref()
+                    .and_then(extract_description)
             } else {
                 None
             };
@@ -234,7 +250,9 @@ impl KnowledgeManager {
     ) -> Result<Page, KmsError> {
         let wiki_path = self.wiki_path(wiki);
         if !wiki_path.exists() {
-            return Err(KmsError::WikiNotFound { name: wiki.to_string() });
+            return Err(KmsError::WikiNotFound {
+                name: wiki.to_string(),
+            });
         }
 
         std::fs::create_dir_all(wiki_path.join("pages"))?;
@@ -294,7 +312,9 @@ impl KnowledgeManager {
     pub fn list_pages(&self, wiki: &str) -> Result<Vec<Page>, KmsError> {
         let wiki_path = self.wiki_path(wiki);
         if !wiki_path.exists() {
-            return Err(KmsError::WikiNotFound { name: wiki.to_string() });
+            return Err(KmsError::WikiNotFound {
+                name: wiki.to_string(),
+            });
         }
 
         let pages_dir = wiki_path.join("pages");
@@ -449,7 +469,7 @@ fn count_md_files(dir: &Path) -> usize {
                 .filter_map(|e| e.ok())
                 .filter(|e| {
                     let p = e.path();
-                    p.is_file() && p.extension().map_or(false, |ext| ext == "md")
+                    p.is_file() && p.extension().is_some_and(|ext| ext == "md")
                 })
                 .count()
         })
@@ -536,7 +556,9 @@ mod tests {
     #[test]
     fn create_and_list_wiki() {
         let (manager, _dir) = create_test_manager();
-        let wiki = manager.create_wiki("test-wiki", Some("Test wiki".to_string())).unwrap();
+        let wiki = manager
+            .create_wiki("test-wiki", Some("Test wiki".to_string()))
+            .unwrap();
         assert_eq!(wiki.name, "test-wiki");
         assert_eq!(wiki.page_count, 0);
 
@@ -579,8 +601,12 @@ mod tests {
     fn list_pages() {
         let (manager, _dir) = create_test_manager();
         manager.create_wiki("test-wiki", None).unwrap();
-        manager.save_page("test-wiki", "page1", "Content 1", None, vec![]).unwrap();
-        manager.save_page("test-wiki", "page2", "Content 2", None, vec![]).unwrap();
+        manager
+            .save_page("test-wiki", "page1", "Content 1", None, vec![])
+            .unwrap();
+        manager
+            .save_page("test-wiki", "page2", "Content 2", None, vec![])
+            .unwrap();
 
         let pages = manager.list_pages("test-wiki").unwrap();
         assert_eq!(pages.len(), 2);
@@ -590,8 +616,24 @@ mod tests {
     fn search_pages() {
         let (manager, _dir) = create_test_manager();
         manager.create_wiki("test-wiki", None).unwrap();
-        manager.save_page("test-wiki", "hello", "# Hello World\nThis is a test page.", None, vec![]).unwrap();
-        manager.save_page("test-wiki", "goodbye", "# Goodbye\nThis is another page.", None, vec![]).unwrap();
+        manager
+            .save_page(
+                "test-wiki",
+                "hello",
+                "# Hello World\nThis is a test page.",
+                None,
+                vec![],
+            )
+            .unwrap();
+        manager
+            .save_page(
+                "test-wiki",
+                "goodbye",
+                "# Goodbye\nThis is another page.",
+                None,
+                vec![],
+            )
+            .unwrap();
 
         let results = manager.search("test");
         assert_eq!(results.len(), 1);

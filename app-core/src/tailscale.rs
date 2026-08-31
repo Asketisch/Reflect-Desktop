@@ -121,8 +121,8 @@ async fn run_probe() -> std::result::Result<TailscaleStatus, String> {
     if !status_output.status.success() {
         return Err("tailscale status exited non-zero".into());
     }
-    let value: serde_json::Value =
-        serde_json::from_slice(&status_output.stdout).map_err(|e| format!("parse tailscale json: {e}"))?;
+    let value: serde_json::Value = serde_json::from_slice(&status_output.stdout)
+        .map_err(|e| format!("parse tailscale json: {e}"))?;
 
     let running = value
         .get("BackendState")

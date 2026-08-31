@@ -335,7 +335,7 @@ crates/reflect-gui/src/
 {
   "productName": "Reflect",
   "version": "0.1.0",
-  "identifier": "com.cnb.reflect.gui",
+  "identifier": "com.asketisch.reflectdesktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
@@ -376,8 +376,8 @@ crates/reflect-gui/src/
     "category": "DeveloperTool",
     "shortDescription": "AI coding agent GUI",
     "longDescription": "Reflect GUI for Reflect-Agent",
-    "publisher": "CNB",
-    "homepage": "https://github.com/CNB/Reflect"
+    "publisher": "Asketisch",
+    "homepage": "https://github.com/Asketisch/ReflectDesktop"
   },
   "plugins": {
     "updater": {
@@ -639,7 +639,7 @@ fn main() {
 - `macOSPrivateApi: true` —— vibrancy / overlay
 - `titleBarStyle: "Overlay"` —— 自定义标题栏
 - `transparent: true` —— 透明背景 + vibrancy 效果
-- 路径：`~/Library/Application Support/com.cnb.reflect.gui/`
+- 路径：`~/Library/Application Support/com.asketisch.reflectdesktop/`
 - dock icon + tray 都启用
 
 ### 6.2 Windows

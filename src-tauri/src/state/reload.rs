@@ -131,7 +131,11 @@ mod tests {
             "已绑定会话必须强制重绑到新 registry"
         );
         assert_eq!(agent.bound_session_id(), Some(sid), "会话 id 保持不变");
-        assert_eq!(agent.model_spec(), "openai/gpt-4o", "model spec 随 provider 更新(openai 默认模型)");
+        assert_eq!(
+            agent.model_spec(),
+            "openai/gpt-4o",
+            "model spec 随 provider 更新(openai 默认模型)"
+        );
     }
 
     /// 未绑定会话时只换 registry,不建新线程。

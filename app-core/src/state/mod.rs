@@ -155,7 +155,8 @@ impl Default for RenderState {
             config_reloaded_at: None,
             sidebar_visible: true,
             inspector_visible: true,
-            statusline_template: "{{model}} · {{tokens}}/{{contextWindow}} ({{percent}}%) · {{cwd}}".to_string(),
+            statusline_template:
+                "{{model}} · {{tokens}}/{{contextWindow}} ({{percent}}%) · {{cwd}}".to_string(),
             active_theme: "dark-default".to_string(),
             keymap: default_keymap(),
             command_palette_query: String::new(),

@@ -16,11 +16,11 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use reflect_llm::{
-    ChatEvent, ChatMessage, ChatRequest, ModelRegistry, SystemBlock, SystemBlocks, ContentBlock,
+    ChatEvent, ChatMessage, ChatRequest, ContentBlock, ModelRegistry, SystemBlock, SystemBlocks,
     UserContent,
 };
 use reflect_protocol::{
-    derive_title, MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId,
+    MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId, derive_title,
 };
 use reflect_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
 use serde::Serialize;
@@ -83,11 +83,9 @@ pub async fn reflect_bind_session(
         msg: "no home dir".into(),
     })?;
     // replay_session 返回空 Vec 时不报错 —— 这是合法状态(刚创建的 id)。
-    let records = replay_session(&base, &id)
-        .await
-        .map_err(|e| CommandError {
-            msg: format!("replay_session({id}) failed: {e:#}"),
-        })?;
+    let records = replay_session(&base, &id).await.map_err(|e| CommandError {
+        msg: format!("replay_session({id}) failed: {e:#}"),
+    })?;
     let preload = reflect_core::resume::records_to_preload(&records);
     // 权限模式随会话恢复:取时间序末次 PermissionModeChanged 的目标值。
     // Bypass 绝不是合法运行时目标(见 reflect-core submission_loop 安全基线),
@@ -99,8 +97,11 @@ pub async fn reflect_bind_session(
         }),
         _ => None,
     });
-    crate::state::rebind::rebind_session(&agent, id, preload, initial_mode)
-        .map_err(|e| CommandError { msg: format!("rebind_session failed: {e:#}") })?;
+    crate::state::rebind::rebind_session(&agent, id, preload, initial_mode).map_err(|e| {
+        CommandError {
+            msg: format!("rebind_session failed: {e:#}"),
+        }
+    })?;
     let mode = agent
         .inner
         .thread
@@ -261,7 +262,7 @@ pub async fn reflect_generate_session_title(
             Err(e) => {
                 return Err(CommandError {
                     msg: format!("title generation stream failed: {e}"),
-                })
+                });
             }
         }
     }
@@ -453,7 +454,6 @@ fn move_file(src: &Path, dest: &Path) -> CommandResult<()> {
     }
 }
 
-
 /// `reflect_delete_session` 的可测试核心:删除 `base` 下该 session 的
 /// 全部路径,返回删除数。
 fn delete_session_paths(base: &Path, id: &ThreadId) -> CommandResult<usize> {
@@ -486,9 +486,7 @@ pub async fn reflect_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRe
     let base = sessions_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
-    replay_session(&base, &id)
-        .await
-        .map_err(CommandError::from)
+    replay_session(&base, &id).await.map_err(CommandError::from)
 }
 
 /// 回放一个 session 的全部记录。
@@ -501,7 +499,10 @@ pub async fn reflect_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRe
 /// 今天→昨天→前天拼接,而写入端按「首次写入日期」分桶,跨午夜会话
 /// 会乱序)且非空即跳过兜底(跨 ≥3 天重开的会话历史静默丢失)。
 /// 全树扫描本身就是原兜底路径,成本可接受(首行读取定位归属文件)。
-pub(crate) async fn replay_session(base: &Path, id: &ThreadId) -> anyhow::Result<Vec<RolloutRecord>> {
+pub(crate) async fn replay_session(
+    base: &Path,
+    id: &ThreadId,
+) -> anyhow::Result<Vec<RolloutRecord>> {
     let mut records = Vec::new();
     for path in session_files(base, id) {
         records.extend(rollout_reader::replay_path(&path).await?);
@@ -534,9 +535,7 @@ pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
     let export_dir = home.join(".reflect/exports");
     std::fs::create_dir_all(&export_dir).map_err(CommandError::from)?;
     let dest = export_dir.join(format!("{}.json", id));
-    let records = replay_for_export(&id)
-        .await
-        .map_err(CommandError::from)?;
+    let records = replay_for_export(&id).await.map_err(CommandError::from)?;
     let json = serde_json::to_string_pretty(&records).map_err(|e| CommandError {
         msg: format!("json: {e}"),
     })?;
@@ -610,8 +609,13 @@ fn filename_session_match(path: &Path, id_str: &str) -> Option<PathBuf> {
     if stem == id_str {
         return Some(path.to_path_buf());
     }
-    let n = stem.strip_prefix(&format!("{id_str}."))?.parse::<usize>().ok()?;
-    (1..=MAX_ROTATED_FILES).contains(&n).then(|| path.to_path_buf())
+    let n = stem
+        .strip_prefix(&format!("{id_str}."))?
+        .parse::<usize>()
+        .ok()?;
+    (1..=MAX_ROTATED_FILES)
+        .contains(&n)
+        .then(|| path.to_path_buf())
 }
 
 // ── 列表标题精化 ────────────────────────────────────────────────────────
@@ -807,7 +811,9 @@ pub async fn reflect_search_sessions(
     let limit = limit.unwrap_or(20).max(1);
 
     let Some(base) = sessions_base() else {
-        return Err(CommandError { msg: "no home dir".into() });
+        return Err(CommandError {
+            msg: "no home dir".into(),
+        });
     };
     let mut candidates: Vec<SessionInfo> = Vec::new();
     if let Ok(mut infos) = rollout_index::list_sessions(&base) {
@@ -819,14 +825,14 @@ pub async fn reflect_search_sessions(
         }
     }
     // list_sessions 已按 started_at 倒序；两树拼接后重排一次再截断扫描窗口。
-    candidates.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    candidates.sort_by_key(|a| std::cmp::Reverse(a.started_at));
     candidates.truncate(SESSION_SEARCH_SCAN_CAP);
 
     let mut hits: Vec<SessionSearchHit> = Vec::new();
     for info in candidates {
-        let Some(path) = rollout_index::find_session_path(&base, info.session_id)
-            .or_else(|| archive_base().and_then(|a| rollout_index::find_session_path(&a, info.session_id)))
-        else {
+        let Some(path) = rollout_index::find_session_path(&base, info.session_id).or_else(|| {
+            archive_base().and_then(|a| rollout_index::find_session_path(&a, info.session_id))
+        }) else {
             continue;
         };
         let records = match replay_path_quiet(&path).await {
@@ -887,8 +893,7 @@ fn build_snippet(text: &str, match_start: usize, match_len: usize) -> String {
     let start = text
         .char_indices()
         .map(|(i, _)| i)
-        .filter(|i| *i <= match_start && match_start - *i >= SESSION_SNIPPET_CONTEXT)
-        .next_back()
+        .rfind(|i| *i <= match_start && match_start - *i >= SESSION_SNIPPET_CONTEXT)
         .unwrap_or(0);
     let end = text
         .char_indices()
@@ -918,11 +923,10 @@ fn build_snippet(text: &str, match_start: usize, match_len: usize) -> String {
     out
 }
 
-
 /// ASCII 折叠搜索 + 片段窗口的纯函数单测（`reflect_search_sessions` 核心）。
 #[cfg(test)]
 mod search_tests {
-    use super::{build_snippet, SESSION_SNIPPET_CONTEXT};
+    use super::{SESSION_SNIPPET_CONTEXT, build_snippet};
 
     #[test]
     fn snippet_folds_whitespace_and_marks_ellipsis() {
@@ -975,11 +979,7 @@ mod tests {
         if off >= all.len() {
             return Vec::new();
         }
-        let mut rest = if off > 0 {
-            all.split_off(off)
-        } else {
-            all
-        };
+        let mut rest = if off > 0 { all.split_off(off) } else { all };
         if let Some(n) = limit {
             if n < rest.len() {
                 rest.truncate(n);
@@ -1054,11 +1054,7 @@ mod tests {
         std::fs::create_dir_all(base.join("_titles")).unwrap();
         std::fs::write(base.join("_titles").join("not-a-title"), "x").unwrap();
         let empty_id = ThreadId::new();
-        std::fs::write(
-            base.join("_titles").join(format!("{empty_id}.title")),
-            "  ",
-        )
-        .unwrap();
+        std::fs::write(base.join("_titles").join(format!("{empty_id}.title")), "  ").unwrap();
         let ok_id = ThreadId::new();
         std::fs::write(
             base.join("_titles").join(format!("{ok_id}.title")),
@@ -1113,13 +1109,11 @@ mod tests {
         path
     }
 
-    const SESSION_META_LINE: &str =
-        r#"{"type":"session_meta","session_id":"11111111-2222-3333-4444-555555555555","model":"m","started_at":"2026-07-01T00:00:00Z"}"#;
+    const SESSION_META_LINE: &str = r#"{"type":"session_meta","session_id":"11111111-2222-3333-4444-555555555555","model":"m","started_at":"2026-07-01T00:00:00Z"}"#;
 
     /// 另一个 session 的 meta(干扰项夹具必须用真实不同的归属 id,
     /// 文件定位按内容 meta 优先匹配)。
-    const OTHER_SESSION_META_LINE: &str =
-        r#"{"type":"session_meta","session_id":"99999999-9999-9999-9999-999999999999","model":"m","started_at":"2026-07-01T00:00:00Z"}"#;
+    const OTHER_SESSION_META_LINE: &str = r#"{"type":"session_meta","session_id":"99999999-9999-9999-9999-999999999999","model":"m","started_at":"2026-07-01T00:00:00Z"}"#;
 
     #[test]
     fn session_files_orders_rotated_copies_chronologically() {
@@ -1127,7 +1121,11 @@ mod tests {
         let base = dir.path();
         let day = base.join("2026").join("07").join("01");
         // 乱序写入,验证排序:同目录 .1 < .2 < .3 < 活跃;跨日期目录升序。
-        write_file(&day, "11111111-2222-3333-4444-555555555555.jsonl", SESSION_META_LINE);
+        write_file(
+            &day,
+            "11111111-2222-3333-4444-555555555555.jsonl",
+            SESSION_META_LINE,
+        );
         write_file(
             &day,
             "11111111-2222-3333-4444-555555555555.1.jsonl",
@@ -1145,7 +1143,11 @@ mod tests {
             SESSION_META_LINE,
         );
         // 干扰项:其它 session(meta 归属不同)/ 非 jsonl。
-        write_file(&day, "99999999-9999-9999-9999-999999999999.jsonl", OTHER_SESSION_META_LINE);
+        write_file(
+            &day,
+            "99999999-9999-9999-9999-999999999999.jsonl",
+            OTHER_SESSION_META_LINE,
+        );
         write_file(&day, "11111111-2222-3333-4444-555555555555.json", "x");
 
         let id = ThreadId::parse_str("11111111-2222-3333-4444-555555555555").unwrap();
@@ -1204,13 +1206,21 @@ mod tests {
         let dir = tempdir().unwrap();
         let base = dir.path();
         let day = base.join("2026").join("07").join("01");
-        write_file(&day, "11111111-2222-3333-4444-555555555555.jsonl", "garbage\n");
+        write_file(
+            &day,
+            "11111111-2222-3333-4444-555555555555.jsonl",
+            "garbage\n",
+        );
         write_file(
             &day,
             "11111111-2222-3333-4444-555555555555.1.jsonl",
             "garbage\n",
         );
-        write_file(&day, "11111111-2222-3333-4444-555555555555.9.jsonl", "garbage\n");
+        write_file(
+            &day,
+            "11111111-2222-3333-4444-555555555555.9.jsonl",
+            "garbage\n",
+        );
 
         let id = ThreadId::parse_str("11111111-2222-3333-4444-555555555555").unwrap();
         let files = session_files(base, &id);
@@ -1228,12 +1238,16 @@ mod tests {
         write_file(
             &day,
             "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jsonl",
-            &format!(r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#),
+            &format!(
+                r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#
+            ),
         );
         write_file(
             &day,
             &format!("{id}.jsonl"),
-            &format!(r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#),
+            &format!(
+                r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#
+            ),
         );
         std::fs::create_dir_all(base.join("_names")).unwrap();
         std::fs::write(base.join("_names").join(format!("{id}.name")), "n").unwrap();
@@ -1248,11 +1262,17 @@ mod tests {
 
         let removed = delete_session_paths(base, &id).unwrap();
         assert_eq!(removed, 4);
-        assert!(!day.join("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jsonl").exists());
+        assert!(
+            !day.join("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jsonl")
+                .exists()
+        );
         assert!(!day.join(format!("{id}.jsonl")).exists());
         assert!(!base.join("_names").join(format!("{id}.name")).exists());
         assert!(!base.join(id.to_string()).exists());
-        assert!(day.join("99999999-9999-9999-9999-999999999999.jsonl").exists());
+        assert!(
+            day.join("99999999-9999-9999-9999-999999999999.jsonl")
+                .exists()
+        );
     }
 
     // ── 归档 / 恢复 ──────────────────────────────────────────────────────
@@ -1267,18 +1287,24 @@ mod tests {
         write_file(
             &day,
             &format!("{id}.jsonl"),
-            &format!(r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#),
+            &format!(
+                r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#
+            ),
         );
         write_file(
             &day,
             &format!("{id}.1.jsonl"),
-            &format!(r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#),
+            &format!(
+                r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#
+            ),
         );
         // 文件名错位副本也随行。
         write_file(
             &day,
             "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jsonl",
-            &format!(r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#),
+            &format!(
+                r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-08-20T00:00:00Z"}}"#
+            ),
         );
         std::fs::create_dir_all(base.join("_names")).unwrap();
         std::fs::write(base.join("_names").join(format!("{id}.name")), "归档名").unwrap();
@@ -1293,8 +1319,18 @@ mod tests {
         assert_eq!(moved, 4);
         assert!(!day.join(format!("{id}.jsonl")).exists());
         assert!(!base.join("_names").join(format!("{id}.name")).exists());
-        assert!(archive.join("2026/08/20").join(format!("{id}.jsonl")).exists());
-        assert!(archive.join("2026/08/20").join(format!("{id}.1.jsonl")).exists());
+        assert!(
+            archive
+                .join("2026/08/20")
+                .join(format!("{id}.jsonl"))
+                .exists()
+        );
+        assert!(
+            archive
+                .join("2026/08/20")
+                .join(format!("{id}.1.jsonl"))
+                .exists()
+        );
         assert!(
             archive
                 .join("2026/08/20")
@@ -1306,7 +1342,10 @@ mod tests {
             "归档名"
         );
         // 其它 session 不受影响。
-        assert!(day.join("99999999-9999-9999-9999-999999999999.jsonl").exists());
+        assert!(
+            day.join("99999999-9999-9999-9999-999999999999.jsonl")
+                .exists()
+        );
 
         // 归档树中的 session 可被索引列出(标题精化含自定义名)。
         let mut listed = rollout_index::list_sessions(&archive).unwrap();
@@ -1325,14 +1364,21 @@ mod tests {
         write_file(
             &day,
             &format!("{id}.jsonl"),
-            &format!(r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-07-01T00:00:00Z"}}"#),
+            &format!(
+                r#"{{"type":"session_meta","session_id":"{id}","model":"m","started_at":"2026-07-01T00:00:00Z"}}"#
+            ),
         );
 
         assert_eq!(move_session_tree(&base, &archive, &id).unwrap(), 1);
         assert_eq!(move_session_tree(&archive, &base, &id).unwrap(), 1);
         // 搬回后回到原相对路径,且归档树为空。
         assert!(base.join("2026/07/01").join(format!("{id}.jsonl")).exists());
-        assert!(!archive.join("2026/07/01").join(format!("{id}.jsonl")).exists());
+        assert!(
+            !archive
+                .join("2026/07/01")
+                .join(format!("{id}.jsonl"))
+                .exists()
+        );
         assert_eq!(rollout_index::list_sessions(&archive).unwrap().len(), 0);
     }
 
@@ -1350,8 +1396,7 @@ mod tests {
 
     // ── 标题精化 ────────────────────────────────────────────────────────
 
-    const BLOCK_ARRAY_USER_MSG: &str =
-        r#"{"type":"message","turn_id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","role":"user","content":[{"text":"修复滚动条问题","type":"text"}]}"#;
+    const BLOCK_ARRAY_USER_MSG: &str = r#"{"type":"message","turn_id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","role":"user","content":[{"text":"修复滚动条问题","type":"text"}]}"#;
 
     #[test]
     fn user_message_text_handles_string_and_block_array() {
@@ -1363,10 +1408,7 @@ mod tests {
             {"type": "image", "data": "xx", "mime_type": "image/png"},
             {"type": "text", "text": "滚动条"}
         ]);
-        assert_eq!(
-            message_text(&blocks).as_deref(),
-            Some("修复 滚动条")
-        );
+        assert_eq!(message_text(&blocks).as_deref(), Some("修复 滚动条"));
 
         let empty = serde_json::json!("   ");
         assert_eq!(message_text(&empty), None);
@@ -1377,10 +1419,7 @@ mod tests {
     #[test]
     fn session_file_id_strips_rotation_suffix() {
         let active = PathBuf::from("/tmp/s/2026/07/01/abc-1.jsonl");
-        assert_eq!(
-            session_file_id(&active).as_deref(),
-            Some("abc-1")
-        );
+        assert_eq!(session_file_id(&active).as_deref(), Some("abc-1"));
         let rotated = PathBuf::from("/tmp/s/2026/07/01/abc-1.2.jsonl");
         assert_eq!(session_file_id(&rotated).as_deref(), Some("abc-1"));
     }

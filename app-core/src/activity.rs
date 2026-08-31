@@ -229,10 +229,14 @@ pub enum ActivityError {
 
 impl ActivityError {
     fn io(e: std::io::Error) -> Self {
-        ActivityError::IoError { message: e.to_string() }
+        ActivityError::IoError {
+            message: e.to_string(),
+        }
     }
     fn ser(e: serde_json::Error) -> Self {
-        ActivityError::SerializeError { message: e.to_string() }
+        ActivityError::SerializeError {
+            message: e.to_string(),
+        }
     }
 }
 
@@ -423,7 +427,9 @@ impl ActivityLogger {
         // 写一行 JSON。
         let line = serde_json::to_string(event).map_err(ActivityError::ser)?;
         let writer = inner.file.as_mut().expect("file just opened");
-        writer.write_all(line.as_bytes()).map_err(ActivityError::io)?;
+        writer
+            .write_all(line.as_bytes())
+            .map_err(ActivityError::io)?;
         writer.write_all(b"\n").map_err(ActivityError::io)?;
         inner.written_bytes += line.len() as u64 + 1;
         Ok(())
@@ -462,7 +468,8 @@ mod tests {
     #[test]
     fn record_assigns_id_and_pushes() {
         let l = ActivityLogger::in_memory();
-        l.record(ev(ActivityKind::TurnStarted, "hi", Actor::user())).unwrap();
+        l.record(ev(ActivityKind::TurnStarted, "hi", Actor::user()))
+            .unwrap();
         assert_eq!(l.len(), 1);
         let list = l.list(&ActivityFilter::default()).unwrap();
         assert_eq!(list.len(), 1);
@@ -492,9 +499,12 @@ mod tests {
     #[test]
     fn filter_by_kind() {
         let l = ActivityLogger::in_memory();
-        l.record(ev(ActivityKind::TaskCreated, "t1", Actor::user())).unwrap();
-        l.record(ev(ActivityKind::AgentMessage, "m1", Actor::user())).unwrap();
-        l.record(ev(ActivityKind::TaskCreated, "t2", Actor::user())).unwrap();
+        l.record(ev(ActivityKind::TaskCreated, "t1", Actor::user()))
+            .unwrap();
+        l.record(ev(ActivityKind::AgentMessage, "m1", Actor::user()))
+            .unwrap();
+        l.record(ev(ActivityKind::TaskCreated, "t2", Actor::user()))
+            .unwrap();
         let f = ActivityFilter {
             kind: Some(ActivityKind::TaskCreated),
             ..Default::default()
@@ -507,7 +517,8 @@ mod tests {
     #[test]
     fn filter_by_actor_id() {
         let l = ActivityLogger::in_memory();
-        l.record(ev(ActivityKind::AgentMessage, "u", Actor::user())).unwrap();
+        l.record(ev(ActivityKind::AgentMessage, "u", Actor::user()))
+            .unwrap();
         l.record(ev(
             ActivityKind::AgentMessage,
             "a",
@@ -526,10 +537,15 @@ mod tests {
     #[test]
     fn filter_by_team_name() {
         let l = ActivityLogger::in_memory();
-        let mut e1 = ev(ActivityKind::TaskCreated, "t1", Actor::agent("rocket", "builder"));
+        let mut e1 = ev(
+            ActivityKind::TaskCreated,
+            "t1",
+            Actor::agent("rocket", "builder"),
+        );
         e1.team_name = Some("rocket".into());
         l.record(e1).unwrap();
-        l.record(ev(ActivityKind::AgentMessage, "m", Actor::user())).unwrap();
+        l.record(ev(ActivityKind::AgentMessage, "m", Actor::user()))
+            .unwrap();
         let f = ActivityFilter {
             team_name: Some("rocket".into()),
             ..Default::default()
@@ -560,7 +576,12 @@ mod tests {
     fn filter_limit_caps_results() {
         let l = ActivityLogger::in_memory();
         for i in 0..10 {
-            l.record(ev(ActivityKind::AgentMessage, &format!("m{i}"), Actor::user())).unwrap();
+            l.record(ev(
+                ActivityKind::AgentMessage,
+                &format!("m{i}"),
+                Actor::user(),
+            ))
+            .unwrap();
         }
         let f = ActivityFilter {
             limit: Some(3),
@@ -593,8 +614,14 @@ mod tests {
     #[test]
     fn search_mentions_empty_returns_all_mentions() {
         let l = ActivityLogger::in_memory();
-        l.record(ev(ActivityKind::Mention, "@a", Actor::user())).unwrap();
-        l.record(ev(ActivityKind::AgentMessage, "not a mention", Actor::user())).unwrap();
+        l.record(ev(ActivityKind::Mention, "@a", Actor::user()))
+            .unwrap();
+        l.record(ev(
+            ActivityKind::AgentMessage,
+            "not a mention",
+            Actor::user(),
+        ))
+        .unwrap();
         let r = l.search_mentions("").unwrap();
         assert_eq!(r.len(), 1);
     }
@@ -602,7 +629,8 @@ mod tests {
     #[test]
     fn clear_memory_empties_buf() {
         let l = ActivityLogger::in_memory();
-        l.record(ev(ActivityKind::AgentMessage, "x", Actor::user())).unwrap();
+        l.record(ev(ActivityKind::AgentMessage, "x", Actor::user()))
+            .unwrap();
         assert!(!l.is_empty());
         l.clear_memory();
         assert!(l.is_empty());

@@ -266,19 +266,19 @@ mod tests {
 
     #[test]
     fn permission_mode_changed_records() {
-        let e = mk_event(EventMsg::PermissionModeChanged(PermissionModeChangedEvent {
-            from: PermissionMode::Prompt,
-            to: PermissionMode::AcceptEdits,
-        }));
+        let e = mk_event(EventMsg::PermissionModeChanged(
+            PermissionModeChangedEvent {
+                from: PermissionMode::Prompt,
+                to: PermissionMode::AcceptEdits,
+            },
+        ));
         let a = map_event(&e).unwrap();
         assert_eq!(a.kind, ActivityKind::PermissionModeChanged);
     }
 
     #[test]
     fn agent_message_uses_system_actor() {
-        let e = mk_event(EventMsg::AgentMessage(AgentMessage {
-            text: "hi".into(),
-        }));
+        let e = mk_event(EventMsg::AgentMessage(AgentMessage { text: "hi".into() }));
         let a = map_event(&e).unwrap();
         assert_eq!(a.actor.actor_id, "system");
     }

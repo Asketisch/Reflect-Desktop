@@ -179,7 +179,11 @@ impl SquadManager {
             };
             members.push(reflect_task::TeamMemberSpec {
                 agent_id,
-                name: m.actor.display_name.clone().unwrap_or_else(|| m.role.clone()),
+                name: m
+                    .actor
+                    .display_name
+                    .clone()
+                    .unwrap_or_else(|| m.role.clone()),
                 role: m.role.clone(),
                 model: m.model.clone(),
                 system_prompt: m.system_prompt.clone(),
@@ -298,7 +302,11 @@ impl SquadManager {
             .map(|id| crate::actor::Actor::from_agent_id(id));
         let list = squad_name.to_string();
         // read-modify-write:合并 actor 到既有 metadata,而非整对象替换。
-        let current = self.task_manager.get_task(&list, task_id, false).await.map_err(tm_err)?;
+        let current = self
+            .task_manager
+            .get_task(&list, task_id, false)
+            .await
+            .map_err(tm_err)?;
         let mut metadata_obj = match &current.metadata {
             serde_json::Value::Object(map) => map.clone(),
             // 非 object(或 null):用空 map 起步,不沿用非法结构。
@@ -306,7 +314,10 @@ impl SquadManager {
         };
         match &actor {
             Some(a) => {
-                metadata_obj.insert("actor".into(), serde_json::to_value(a).unwrap_or(serde_json::Value::Null));
+                metadata_obj.insert(
+                    "actor".into(),
+                    serde_json::to_value(a).unwrap_or(serde_json::Value::Null),
+                );
             }
             None => {
                 metadata_obj.remove("actor");
@@ -482,7 +493,9 @@ mod tests {
             .await
             .unwrap();
         // 先 assign 再 clear。
-        m.assign_task("eta", task.id, Some("builder@eta".into())).await.unwrap();
+        m.assign_task("eta", task.id, Some("builder@eta".into()))
+            .await
+            .unwrap();
         let cleared = m.assign_task("eta", task.id, None).await.unwrap();
         assert!(cleared.owner.is_none());
         // 清空 assignee 后 actor 子键也应被移除。
@@ -508,7 +521,10 @@ mod tests {
             .await
             .unwrap();
         // assign 写入 actor(应保留 source / priority)。
-        let assigned = m.assign_task("theta", task.id, Some("builder@theta".into())).await.unwrap();
+        let assigned = m
+            .assign_task("theta", task.id, Some("builder@theta".into()))
+            .await
+            .unwrap();
         assert_eq!(assigned.metadata["source"], "importer");
         assert_eq!(assigned.metadata["priority"], 5);
         assert!(assigned.metadata.get("actor").is_some());
@@ -523,7 +539,9 @@ mod tests {
     async fn squad_error_display() {
         let e = SquadError::NotFound { name: "x".into() };
         assert!(e.to_string().contains("x"));
-        let e2 = SquadError::Invalid { message: "bad".into() };
+        let e2 = SquadError::Invalid {
+            message: "bad".into(),
+        };
         assert!(e2.to_string().contains("bad"));
     }
 

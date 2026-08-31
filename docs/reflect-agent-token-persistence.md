@@ -1,7 +1,7 @@
 # Reflect-Agent PR Plan: Session Token/Cost 持久化与聚合
 
 > 本文件是把 "把 token 计算逻辑放到 Reflect Agent" 的具体 PR 设计落到本地,
-> 用来拿到 Reflect-Agent 仓库(https://cnb.cool/Demon1019/Reflect-Agent)
+> 用来拿到 Reflect-Agent 仓库(https://github.com/Asketisch/Reflect-Agent)
 > 提交。不修改本仓库的 `reflect-agent/` submodule 镜像。
 
 ## 背景与动机

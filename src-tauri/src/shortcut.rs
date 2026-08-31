@@ -7,9 +7,7 @@
 //! M3.x 阶段:把 toggle 快捷键做成 settings 可配置。
 
 use tauri::{AppHandle, Manager, Runtime};
-use tauri_plugin_global_shortcut::{
-    Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
-};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 /// 注册所有全局快捷键。在 Tauri setup 阶段调用一次。
 pub fn register_global_shortcuts<R: Runtime>(app: &AppHandle<R>) -> anyhow::Result<()> {

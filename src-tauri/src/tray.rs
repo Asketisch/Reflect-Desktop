@@ -7,14 +7,14 @@
 //!
 //! 复用 `src-tauri/icons/icon32.png` 作为托盘图标 (已是 RGBA PNG)。
 
+#[allow(unused_imports)]
+use tauri::tray::TrayIcon;
 use tauri::{
+    AppHandle, Manager, Runtime,
     image::Image,
     menu::{Menu, MenuItemBuilder, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
 };
-#[allow(unused_imports)]
-use tauri::tray::TrayIcon;
 
 /// 托盘 ID —— 单一托盘实例。
 pub const TRAY_ID: &str = "reflect-tray";
@@ -87,10 +87,7 @@ fn handle_tray_menu_event<R: Runtime>(app: &AppHandle<R>, event: tauri::menu::Me
 
 /// 托盘图标 click 事件 (备用)。当前用 `show_menu_on_left_click(true)` 接管左键,
 /// 此函数只在其他鼠标按钮 (middle/right) 时进入。
-fn handle_tray_icon_event<R: Runtime>(
-    _tray: &TrayIcon<R>,
-    event: TrayIconEvent,
-) {
+fn handle_tray_icon_event<R: Runtime>(_tray: &TrayIcon<R>, event: TrayIconEvent) {
     if let TrayIconEvent::Click {
         button: MouseButton::Left,
         button_state: MouseButtonState::Up,

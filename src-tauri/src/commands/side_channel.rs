@@ -86,12 +86,9 @@ pub async fn reflect_get_side_channel(
     agent: State<'_, MinimalAgent>,
     id: String,
 ) -> CommandResult<SideChannelInfo> {
-    agent
-        .side_channels()
-        .get(&id)
-        .ok_or_else(|| CommandError {
-            msg: format!("side-channel '{id}' not found"),
-        })
+    agent.side_channels().get(&id).ok_or_else(|| CommandError {
+        msg: format!("side-channel '{id}' not found"),
+    })
 }
 
 // 重新导出 `SideChannelRegistry`,便于其他模块(尤其是事件转发器)

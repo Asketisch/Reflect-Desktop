@@ -15,17 +15,17 @@
 #![deny(missing_docs)]
 #![warn(unused_extern_crates)]
 
-pub mod state;
-pub mod reducer;
-pub mod protocol;
-pub mod side_channel;
-pub mod tailscale;
-pub mod kms;
-pub mod autopilot;
-pub mod actor;
 pub mod activity;
-pub mod squad;
+pub mod actor;
+pub mod autopilot;
+pub mod kms;
 pub mod media;
+pub mod protocol;
+pub mod reducer;
+pub mod side_channel;
+pub mod squad;
+pub mod state;
+pub mod tailscale;
 
 /// 语义版本号（与 workspace 同步）。
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

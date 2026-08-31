@@ -1,7 +1,7 @@
 {
   "productName": "ReflectDesktop",
   "version": "0.1.0",
-  "identifier": "com.cnb.reflectdesktop.app",
+  "identifier": "com.asketisch.reflectdesktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
@@ -35,9 +35,9 @@
     "category": "DeveloperTool",
     "shortDescription": "AI coding agent GUI",
     "longDescription": "Reflect GUI for Reflect-Agent",
-    "publisher": "CNB",
-    "homepage": "https://github.com/CNB/ReflectDesktop",
-    "copyright": "Copyright © 2026 CNB. Apache-2.0.",
+    "publisher": "Asketisch",
+    "homepage": "https://github.com/Asketisch/ReflectDesktop",
+    "copyright": "Copyright © 2026 Reflect Agent Contributors. Apache-2.0.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -2,8 +2,14 @@
 name = "reflect-app-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Reflect: 共享 UI-agnostic reducer / RenderState / Services bundle,供 TUI 与 GUI 复用"
+
+[lints]
+workspace = true
 
 [lib]
 name = "reflect_app_core"

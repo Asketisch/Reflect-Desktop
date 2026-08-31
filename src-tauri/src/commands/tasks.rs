@@ -80,7 +80,11 @@ pub async fn reflect_list_tasks(
     agent: State<'_, MinimalAgent>,
     list: String,
 ) -> CommandResult<Vec<Task>> {
-    agent.task_manager().list_tasks(&list, false).await.map_err(Into::into)
+    agent
+        .task_manager()
+        .list_tasks(&list, false)
+        .await
+        .map_err(Into::into)
 }
 
 /// 创建任务。`metadata` 缺省为空 JSON 对象。
@@ -176,9 +180,7 @@ pub async fn reflect_delete_task(
 
 /// 列所有 team,按 name 字典序。
 #[tauri::command]
-pub async fn reflect_list_teams(
-    agent: State<'_, MinimalAgent>,
-) -> CommandResult<Vec<TeamFile>> {
+pub async fn reflect_list_teams(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<TeamFile>> {
     agent.task_manager().list_teams().await.map_err(Into::into)
 }
 

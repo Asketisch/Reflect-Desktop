@@ -53,13 +53,14 @@ fn upsert_history(path: &Path, entry: WorkspaceInfo) -> CommandResult<()> {
     entry.session_count = prev_count;
     list.retain(|w| w.path != entry.path);
     list.insert(0, entry);
-    list.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+    list.sort_by_key(|a| std::cmp::Reverse(a.last_used));
     list.truncate(WORKSPACE_HISTORY_CAP);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string_pretty(&list)
-        .map_err(|e| CommandError { msg: format!("serialize workspaces.json: {e}") })?;
+    let json = serde_json::to_string_pretty(&list).map_err(|e| CommandError {
+        msg: format!("serialize workspaces.json: {e}"),
+    })?;
     std::fs::write(path, json)?;
     Ok(())
 }
@@ -133,9 +134,7 @@ pub async fn reflect_current_workspace(agent: State<'_, MinimalAgent>) -> Comman
 /// 对话框由插件分发到主线程；这里用 oneshot 把回调折叠回 async 返回值，
 /// 不阻塞 tokio worker。
 #[tauri::command]
-pub async fn reflect_pick_workspace_folder(
-    app: tauri::AppHandle,
-) -> CommandResult<Option<String>> {
+pub async fn reflect_pick_workspace_folder(app: tauri::AppHandle) -> CommandResult<Option<String>> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog().file().pick_folder(move |folder| {
         let picked = folder
@@ -175,7 +174,11 @@ pub async fn reflect_reveal_path(path: String) -> CommandResult<()> {
     #[cfg(all(unix, not(target_os = "macos")))]
     let mut cmd = {
         // xdg-open 无「选中」语义：目录直接打开，文件打开所在目录。
-        let target = if p.is_dir() { p.clone() } else { parent_or_err(&p)? };
+        let target = if p.is_dir() {
+            p.clone()
+        } else {
+            parent_or_err(&p)?
+        };
         let mut c = std::process::Command::new("xdg-open");
         c.arg(&target);
         c

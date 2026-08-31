@@ -8,9 +8,22 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
 license = "Apache-2.0"
-repository = "https://github.com/CNB/ReflectDesktop"
+repository = "https://github.com/Asketisch/ReflectDesktop"
+homepage = "https://github.com/Asketisch/ReflectDesktop"
 authors = ["Reflect Agent Contributors"]
+
+# ── 成员 crate 统一 lint 策略 ──────────────────────────────────────
+# 通过清单级 [lints](而非 CI 的 RUSTFLAGS=-D warnings)拒绝警告:
+# 清单级 deny 只作用于本仓库自有 crate。reflect-agent/ submodule 以
+# path 依赖参与编译,cargo 视其为"本地包",全局 -D warnings 会连带
+# 拒绝上游警告并阻塞 CI;上游代码的警告应由 Reflect-Agent 仓库修复。
+[workspace.lints.rust]
+warnings = "deny"
+
+[workspace.lints.clippy]
+all = "deny"
 
 # ── 核心依赖:从 reflect-agent submodule 通过 path 引用 ──
 # 注:Cargo 不支持嵌套 workspace,这里只用 path 依赖,不把核心 crate 列入 members。

@@ -78,8 +78,7 @@ fn normalize_image_data(v: serde_json::Value) -> CommandResult<serde_json::Value
 
 /// 小型 base64 解码器(与 reflect-llm 内手写编码器配对;src-tauri 无 base64 依赖)。
 fn base64_decode(input: &str) -> Option<Vec<u8>> {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut rev = [255u8; 256];
     for (i, &c) in ALPHABET.iter().enumerate() {
         rev[c as usize] = i as u8;
@@ -297,7 +296,9 @@ pub(crate) fn parse_permission_mode(s: &str) -> CommandResult<PermissionMode> {
         "bypass" => PermissionMode::Bypass,
         other => {
             return Err(CommandError {
-                msg: format!("invalid permission mode '{other}'; expected auto|prompt|deny|plan|accept_edits|bubble|bypass"),
+                msg: format!(
+                    "invalid permission mode '{other}'; expected auto|prompt|deny|plan|accept_edits|bubble|bypass"
+                ),
             });
         }
     })
@@ -350,7 +351,10 @@ mod tests {
         });
         let out = normalize_image_data(v).unwrap();
         let items = out["op"]["items"].as_array().unwrap();
-        assert_eq!(items[1]["data"], serde_json::json!([72u8, 101, 108, 108, 111]));
+        assert_eq!(
+            items[1]["data"],
+            serde_json::json!([72u8, 101, 108, 108, 111])
+        );
         assert_eq!(items[2]["data"], serde_json::json!([65u8]));
         assert_eq!(items[0]["text"], "看图");
     }
@@ -381,9 +385,18 @@ mod tests {
         );
         assert_eq!(parse_permission_mode("deny").unwrap(), PermissionMode::Deny);
         assert_eq!(parse_permission_mode("plan").unwrap(), PermissionMode::Plan);
-        assert_eq!(parse_permission_mode("accept_edits").unwrap(), PermissionMode::AcceptEdits);
-        assert_eq!(parse_permission_mode("bubble").unwrap(), PermissionMode::Bubble);
-        assert_eq!(parse_permission_mode("bypass").unwrap(), PermissionMode::Bypass);
+        assert_eq!(
+            parse_permission_mode("accept_edits").unwrap(),
+            PermissionMode::AcceptEdits
+        );
+        assert_eq!(
+            parse_permission_mode("bubble").unwrap(),
+            PermissionMode::Bubble
+        );
+        assert_eq!(
+            parse_permission_mode("bypass").unwrap(),
+            PermissionMode::Bypass
+        );
         assert!(parse_permission_mode("wat").is_err());
     }
 

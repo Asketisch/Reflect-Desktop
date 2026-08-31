@@ -37,7 +37,10 @@ pub(crate) fn build_registry(
         match cfg_snapshot.to_registry() {
             Ok(r) => Arc::new(r),
             Err(e) => {
-                warn!("[reflect-gui] to_registry failed ({}); falling back to empty registry", e);
+                warn!(
+                    "[reflect-gui] to_registry failed ({}); falling back to empty registry",
+                    e
+                );
                 Arc::new(ModelRegistry::new())
             }
         }
@@ -79,7 +82,8 @@ pub(crate) fn construct_thread(
 
     let sanitizer = Arc::new(Sanitizer::with_defaults());
     let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(
-        reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks).build_engine(),
+        reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks)
+            .build_engine(),
     );
 
     // 持久化:仅在 sid = Some 时挂 recorder + 固定 id。bind 命令前不挂,

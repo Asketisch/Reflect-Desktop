@@ -65,7 +65,7 @@ pub async fn reflect_list_dir(
     let mut entries: Vec<DirEntry> = Vec::new();
     let mut truncated = false;
     const CAP: usize = 2_000;
-    walk_dir(&root, &root, 0, max_d, &mut entries, &mut truncated, CAP);
+    walk_dir(&root, 0, max_d, &mut entries, &mut truncated, CAP);
     Ok(DirListing {
         root: root.display().to_string(),
         entries,
@@ -74,7 +74,6 @@ pub async fn reflect_list_dir(
 }
 
 fn walk_dir(
-    root: &Path,
     dir: &Path,
     depth: usize,
     max_depth: usize,
@@ -91,7 +90,7 @@ fn walk_dir(
         Err(_) => return,
     };
     let mut sorted: Vec<_> = read.filter_map(|e| e.ok()).collect();
-    sorted.sort_by_key(|e| std::cmp::Reverse(depth_first_sort_key(&e)));
+    sorted.sort_by_key(|e| std::cmp::Reverse(depth_first_sort_key(e)));
     for entry in sorted {
         if out.len() >= cap {
             *truncated = true;
@@ -128,7 +127,7 @@ fn walk_dir(
             depth,
         });
         if kind == "dir" && depth + 1 < max_depth {
-            walk_dir(root, &path, depth + 1, max_depth, out, truncated, cap);
+            walk_dir(&path, depth + 1, max_depth, out, truncated, cap);
         }
     }
 }

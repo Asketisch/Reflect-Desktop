@@ -13,8 +13,8 @@
 use serde::Serialize;
 use std::str::FromStr;
 
-use tauri::State;
 use lsp_types::Uri;
+use tauri::State;
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -96,27 +96,40 @@ pub async fn reflect_lsp_warmup(
 ) -> CommandResult<LspWarmupResult> {
     let mgr = agent.inner.lsp_manager.lock().clone();
     let Some(mgr) = mgr else {
-        return Ok(LspWarmupResult { warmed: false, server: None });
+        return Ok(LspWarmupResult {
+            warmed: false,
+            server: None,
+        });
     };
     let abs = crate::commands::files::resolve_under_workspace(&agent.workspace(), &path)?;
     let handles = mgr.all_handles().await;
     if handles.is_empty() {
-        return Ok(LspWarmupResult { warmed: false, server: None });
+        return Ok(LspWarmupResult {
+            warmed: false,
+            server: None,
+        });
     }
     let workspace = agent.workspace();
-    let Some(route) =
-        reflect_lsp::matching::pick_server_for(&abs, &workspace, &handles, None)
+    let Some(route) = reflect_lsp::matching::pick_server_for(&abs, &workspace, &handles, None)
     else {
-        return Ok(LspWarmupResult { warmed: false, server: None });
+        return Ok(LspWarmupResult {
+            warmed: false,
+            server: None,
+        });
     };
-    let client = mgr.get_client(&route.server_name).await.ok_or_else(|| CommandError {
-        msg: format!("lsp server {} disappeared during warmup", route.server_name),
-    })?;
+    let client = mgr
+        .get_client(&route.server_name)
+        .await
+        .ok_or_else(|| CommandError {
+            msg: format!("lsp server {} disappeared during warmup", route.server_name),
+        })?;
     let uri = file_uri(&abs)?;
     client
         .ensure_open(&abs, &uri, &route.language_id)
         .await
-        .map_err(|e| CommandError { msg: format!("lsp warmup: {e}") })?;
+        .map_err(|e| CommandError {
+            msg: format!("lsp warmup: {e}"),
+        })?;
     tracing::info!(server = %route.server_name, path = %abs.display(), "file warmed");
     Ok(LspWarmupResult {
         warmed: true,
@@ -127,9 +140,12 @@ pub async fn reflect_lsp_warmup(
 /// 绝对路径 → LSP `file://` URI。与 reflect-lsp `tool.rs::path_to_uri`
 /// 同款 `url::Url` 中转(该 helper 非 pub,应用层平移一份)。
 fn file_uri(path: &std::path::Path) -> Result<Uri, CommandError> {
-    let url = url::Url::from_file_path(path)
-        .map_err(|()| CommandError { msg: "file:// conversion failed (path not absolute)".into() })?;
-    Uri::from_str(url.as_str()).map_err(|e| CommandError { msg: format!("uri parse: {e}") })
+    let url = url::Url::from_file_path(path).map_err(|()| CommandError {
+        msg: "file:// conversion failed (path not absolute)".into(),
+    })?;
+    Uri::from_str(url.as_str()).map_err(|e| CommandError {
+        msg: format!("uri parse: {e}"),
+    })
 }
 
 #[cfg(test)]
@@ -139,7 +155,10 @@ mod tests {
     #[test]
     fn file_uri_roundtrip() {
         let uri = file_uri(std::path::Path::new("/tmp/x/a b.rs")).unwrap();
-        assert!(uri.as_str().starts_with("file:///tmp/x/a%20b.rs") || uri.as_str().starts_with("file:///tmp/x/a b.rs"));
+        assert!(
+            uri.as_str().starts_with("file:///tmp/x/a%20b.rs")
+                || uri.as_str().starts_with("file:///tmp/x/a b.rs")
+        );
         // 相对路径必须报错,不允许静默发出错误 URI。
         assert!(file_uri(std::path::Path::new("relative/x.py")).is_err());
     }

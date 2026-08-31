@@ -12,9 +12,9 @@ use std::sync::Arc;
 use reflect_tools::{
     ToolRegistry,
     builtins::{
-        BashTool, DeleteTool, EditTool, EnterPlanModeTool, EnterWorktreeTool,
-        ExitPlanModeTool, ExitWorktreeTool, GlobTool, GrepTool, NotebookEditTool, ReadTool,
-        ToolSearchTool, WebFetchTool, WebSearchTool, WriteTool,
+        BashTool, DeleteTool, EditTool, EnterPlanModeTool, EnterWorktreeTool, ExitPlanModeTool,
+        ExitWorktreeTool, GlobTool, GrepTool, NotebookEditTool, ReadTool, ToolSearchTool,
+        WebFetchTool, WebSearchTool, WriteTool,
     },
 };
 

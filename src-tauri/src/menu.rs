@@ -9,8 +9,8 @@
 //!   (M1.x → M3.x 阶段再做 13 个剩余的 settings 化快捷键)。
 
 use tauri::{
-    menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu},
     AppHandle, Emitter, Manager, Runtime, WindowEvent,
+    menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu},
 };
 
 // ====== Reflect (App) 菜单 ======
@@ -63,7 +63,17 @@ fn build_reflect_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Submenu<R
         app,
         app_name,
         true,
-        &[&about, &check, &settings, &sep, &hide, &hide_others, &show_all, &sep2, &quit],
+        &[
+            &about,
+            &check,
+            &settings,
+            &sep,
+            &hide,
+            &hide_others,
+            &show_all,
+            &sep2,
+            &quit,
+        ],
     )
 }
 

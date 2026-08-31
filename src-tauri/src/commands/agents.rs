@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use reflect_agent_def::{load_agents_dir, parse_agent_str, AgentDefinition};
+use reflect_agent_def::{AgentDefinition, load_agents_dir, parse_agent_str};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -119,7 +119,8 @@ pub async fn reflect_list_agent_defs(
     _agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<AgentDefinition>> {
     let dir = agents_dir()?;
-    let map: HashMap<String, AgentDefinition> = load_agents_dir(&dir).map_err(CommandError::from)?;
+    let map: HashMap<String, AgentDefinition> =
+        load_agents_dir(&dir).map_err(CommandError::from)?;
     let mut v: Vec<AgentDefinition> = map.into_values().collect();
     v.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(v)

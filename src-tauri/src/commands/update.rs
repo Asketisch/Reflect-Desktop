@@ -16,7 +16,8 @@ pub struct UpdateInfo {
 }
 
 /// Default release manifest endpoint. 可通过 env `REFLECT_UPDATE_URL` 覆盖。
-const DEFAULT_UPDATE_URL: &str = "https://api.github.com/repos/CNB/ReflectDesktop/releases/latest";
+const DEFAULT_UPDATE_URL: &str =
+    "https://api.github.com/repos/Asketisch/ReflectDesktop/releases/latest";
 
 #[tauri::command]
 pub async fn reflect_check_update() -> CommandResult<UpdateInfo> {

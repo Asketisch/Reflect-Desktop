@@ -1,0 +1,163 @@
+# ReflectDesktop 持续集成。
+#
+# push / PR 触发:前端(typecheck + vitest)与 Rust(fmt + clippy + test)。
+# 注意:本仓库通过 `reflect-agent/` submodule 引用核心 crate,
+# 必须递归 checkout submodule 才能编译。
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 只给最小权限:读源码 + 写 cache。Release 由独立 workflow 处理。
+permissions:
+  contents: read
+
+# 取消同分支前序冗余运行,节省 CI 资源。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  frontend:
+    name: frontend (typecheck + test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # 本仓库 gitignore 了 pnpm-lock.yaml,因此有意不传 --frozen-lockfile。
+      - name: Install frontend deps
+        run: pnpm install
+
+      - name: pnpm typecheck
+        run: pnpm typecheck
+
+      - name: pnpm test
+        run: pnpm test
+
+  fmt:
+    name: rust fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      # 只检查本仓库自有 crate(app-core + src-tauri):
+      # reflect-agent/ submodule 的格式由上游 Reflect-Agent 仓库的 CI 负责,
+      # 避免上游格式状态阻塞本仓库。
+      - name: cargo fmt --check (own crates)
+        run: cargo fmt -p reflect-app-core -p reflect-desktop -- --check
+
+  clippy:
+    name: rust clippy (${{ matrix.os }})
+    needs: fmt
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+
+      # Linux:Tauri 编译期依赖(wry / tao 走 glib + webkit2gtk)。
+      # 包名与 .github/workflows/release.yml、tauri.conf.json deb.depends 对齐。
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf
+
+      # 警告拒绝策略在成员 crate 清单的 [lints] 表中声明(见根 Cargo.toml 注释):
+      # 只对本仓库自有 crate deny,reflect-agent/ submodule 的上游警告不阻塞本仓库。
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets
+
+  test:
+    name: rust test (${{ matrix.os }})
+    needs: fmt
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf
+
+      - name: cargo test
+        run: cargo test --workspace --all-targets

@@ -56,7 +56,9 @@ async fn real_agent_thread_emits_session_configured() {
     // 在前 10 个 event 里应当至少出现一次 SessionConfigured。
     let events = collect_events(&mut rx, 10, 500).await;
     assert!(
-        events.iter().any(|e| matches!(e.msg, EventMsg::SessionConfigured(_))),
+        events
+            .iter()
+            .any(|e| matches!(e.msg, EventMsg::SessionConfigured(_))),
         "SessionConfigured should fire within first events; got {} events: {:#?}",
         events.len(),
         events
@@ -88,7 +90,9 @@ async fn real_agent_thread_emits_error_for_stub_model() {
     let sub = Submission::with_id(
         "test-stub-model",
         Op::UserInput {
-            items: vec![UserInputItem::Text { text: "ping".into() }],
+            items: vec![UserInputItem::Text {
+                text: "ping".into(),
+            }],
             thread_settings: Default::default(),
         },
     );
@@ -127,7 +131,7 @@ async fn interrupt_token_cancels_in_flight_turn() {
     // 通过 MinimalAgent::cancel_token() 公开 getter 访问(替代私有 inner.thread)。
     let token_before = agent.cancel_token();
     assert!(
-        token_before.as_ref().map_or(false, |t| !t.is_cancelled()),
+        token_before.as_ref().is_some_and(|t| !t.is_cancelled()),
         "cancel token should start uncancelled"
     );
     agent.interrupt();
@@ -166,7 +170,11 @@ async fn broadcast_supports_multiple_subscribers() {
 #[tokio::test]
 async fn model_spec_and_workspace_accessors() {
     let agent = MinimalAgent::new_empty();
-    assert_eq!(agent.model_spec(), "stub/test", "default model is stub/test");
+    assert_eq!(
+        agent.model_spec(),
+        "stub/test",
+        "default model is stub/test"
+    );
     let ws = agent.workspace();
     assert!(
         ws.is_absolute() || !ws.as_os_str().is_empty(),

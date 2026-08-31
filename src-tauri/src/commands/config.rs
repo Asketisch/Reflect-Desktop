@@ -179,12 +179,12 @@ fn make_quota_provider(
             msg: "check_via is empty — set quota.check_via on the plan first".into(),
         });
     }
-    let src: reflect_config::QuotaSource = serde_json::from_value(serde_json::Value::String(
-        check_via.to_string(),
-    ))
-    .map_err(|_| CommandError {
-        msg: format!("unknown check_via: {check_via}"),
-    })?;
+    let src: reflect_config::QuotaSource =
+        serde_json::from_value(serde_json::Value::String(check_via.to_string())).map_err(|_| {
+            CommandError {
+                msg: format!("unknown check_via: {check_via}"),
+            }
+        })?;
     crate::state::quota::make_provider(&src).ok_or_else(|| CommandError {
         msg: format!(
             "quota query via '{check_via}' is not implemented yet (volcengine needs AK/SK signing; \

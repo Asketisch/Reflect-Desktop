@@ -19,8 +19,8 @@ use reflect_llm::ChatMessage;
 use reflect_protocol::{PermissionMode, ThreadId};
 use tracing::{debug, warn};
 
-use super::thread_factory::construct_thread;
 use super::MinimalAgent;
+use super::thread_factory::construct_thread;
 
 /// 把 agent 的 AgentThread 换绑到指定 session id(带 preload 历史)。
 ///
@@ -136,8 +136,8 @@ fn rebind_session_inner(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use crate::state::MinimalAgent;
+    use std::sync::Arc;
 
     /// rebind 之后 `bound_session_id` 必须等于目标 id,且 thread 槽不为空。
     #[tokio::test]
@@ -148,10 +148,7 @@ mod tests {
         let sid = reflect_protocol::ThreadId::new();
         rebind_session(&agent, sid, vec![], None).expect("rebind 不应失败");
         assert_eq!(agent.bound_session_id(), Some(sid));
-        assert!(
-            agent.inner.thread.lock().is_some(),
-            "thread 槽必须非空"
-        );
+        assert!(agent.inner.thread.lock().is_some(), "thread 槽必须非空");
     }
 
     /// 同 id 二次 rebind 短路:bound_session_id 与 thread Arc 都不变。

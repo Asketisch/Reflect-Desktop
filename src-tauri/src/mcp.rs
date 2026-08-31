@@ -21,9 +21,7 @@ use std::sync::Arc;
 
 use reflect_config::ReflectConfig;
 use reflect_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
-use reflect_mcp::{
-    McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter,
-};
+use reflect_mcp::{McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter};
 use reflect_protocol::{EVENT_ID_NONE, Event, EventMsg};
 use reflect_tools::{ToolRegistry, ToolSource};
 use tokio::sync::broadcast;
@@ -46,8 +44,7 @@ pub(crate) async fn bootstrap_mcp(
         }
     };
 
-    let (internal_tx, mut internal_rx) =
-        tokio::sync::mpsc::channel::<McpLifecycleEvent>(32);
+    let (internal_tx, mut internal_rx) = tokio::sync::mpsc::channel::<McpLifecycleEvent>(32);
     let manager = Arc::new(McpConnectionManager::new(internal_tx));
 
     // 后台 task:internal lifecycle event → protocol Event → session broadcast。
@@ -115,7 +112,10 @@ pub(crate) async fn bootstrap_mcp(
         });
     }
 
-    tracing::info!(mcp_servers = configs.len(), "MCP bootstrap: spawning start tasks");
+    tracing::info!(
+        mcp_servers = configs.len(),
+        "MCP bootstrap: spawning start tasks"
+    );
     Some(manager)
 }
 
@@ -141,8 +141,7 @@ pub(crate) async fn bootstrap_lsp(
         }
     };
 
-    let (internal_tx, mut internal_rx) =
-        tokio::sync::mpsc::channel::<LspLifecycleEvent>(32);
+    let (internal_tx, mut internal_rx) = tokio::sync::mpsc::channel::<LspLifecycleEvent>(32);
     let manager = Arc::new(LspConnectionManager::new(internal_tx));
 
     tokio::spawn(async move {
@@ -194,14 +193,15 @@ pub(crate) async fn bootstrap_lsp(
         });
     }
 
-    tracing::info!(lsp_servers = configs.len(), "LSP bootstrap: spawning start tasks");
+    tracing::info!(
+        lsp_servers = configs.len(),
+        "LSP bootstrap: spawning start tasks"
+    );
     Ok(Some(manager))
 }
 
 /// 把 reflect_mcp 的 transport kind 映射成 protocol 的 mirror 枚举。
-fn transport_mirror(
-    transport: reflect_mcp::McpTransport,
-) -> reflect_protocol::McpTransportMirror {
+fn transport_mirror(transport: reflect_mcp::McpTransport) -> reflect_protocol::McpTransportMirror {
     match transport {
         reflect_mcp::McpTransport::Stdio => reflect_protocol::McpTransportMirror::Stdio,
         reflect_mcp::McpTransport::Http => reflect_protocol::McpTransportMirror::Http,

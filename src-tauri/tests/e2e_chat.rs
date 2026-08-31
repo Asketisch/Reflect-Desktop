@@ -26,8 +26,11 @@
 use std::time::Duration;
 
 use reflect_desktop_lib::state::MinimalAgent;
+use reflect_llm::{
+    AnthropicClient, AnthropicConfig, ChatMessage, ChatRequest, ContentBlock, ModelClient,
+    UserContent,
+};
 use reflect_protocol::{EventMsg, Op, Submission, UserInputItem};
-use reflect_llm::{AnthropicClient, AnthropicConfig, ChatMessage, ChatRequest, ContentBlock, ModelClient, UserContent};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
@@ -49,7 +52,11 @@ fn anthropic_section() -> Option<(String, Option<String>, String)> {
     if key.is_empty() {
         return None;
     }
-    Some((key, anth.base_url.clone(), anth.model.clone().unwrap_or_default()))
+    Some((
+        key,
+        anth.base_url.clone(),
+        anth.model.clone().unwrap_or_default(),
+    ))
 }
 
 /// 端到端 #1:投递 UserInput,验证 AgentThread 事件流端到端流转。
@@ -153,8 +160,15 @@ async fn e2e_user_input_drives_agent_thread() {
     );
 
     if got_delta {
-        eprintln!("SUCCESS: agent_message_delta stream captured ({} bytes)", delta_text.len());
-        let preview = if delta_text.len() > 200 { &delta_text[..200] } else { &delta_text };
+        eprintln!(
+            "SUCCESS: agent_message_delta stream captured ({} bytes)",
+            delta_text.len()
+        );
+        let preview = if delta_text.len() > 200 {
+            &delta_text[..200]
+        } else {
+            &delta_text
+        };
         eprintln!("delta preview: {preview:?}");
     }
     if got_error {
@@ -180,7 +194,11 @@ async fn e2e_anthropic_client_streams_real_llm() {
     }
 
     // 如果 model 含 provider 前缀,剥掉(client 只要纯 model 名)。
-    let pure_model = model.split_once('/').map(|(_, m)| m).unwrap_or(&model).to_string();
+    let pure_model = model
+        .split_once('/')
+        .map(|(_, m)| m)
+        .unwrap_or(&model)
+        .to_string();
     eprintln!("pure model = {pure_model}, base = {base_url:?}");
 
     let client_cfg = AnthropicConfig {
@@ -210,7 +228,9 @@ async fn e2e_anthropic_client_streams_real_llm() {
     let mut stream = match timeout(
         Duration::from_secs(30),
         ModelClient::stream(&client, request, cancel),
-    ).await {
+    )
+    .await
+    {
         Ok(Ok(s)) => s,
         Ok(Err(e)) => {
             eprintln!("FAIL: stream init error: {e:?}");
@@ -272,8 +292,14 @@ async fn e2e_anthropic_client_streams_real_llm() {
         !delta_text.is_empty(),
         "must receive at least one non-empty Delta from AnthropicClient stream"
     );
-    eprintln!("SUCCESS: AnthropicClient stream returned text: {:?}", delta_text);
-    assert!(got_finish, "stream must finish (got ChatEvent::MessageStop)");
+    eprintln!(
+        "SUCCESS: AnthropicClient stream returned text: {:?}",
+        delta_text
+    );
+    assert!(
+        got_finish,
+        "stream must finish (got ChatEvent::MessageStop)"
+    );
 }
 
 /// 端到端 #3:Op 路径。投递 Op::Shutdown,验证 Op 投递 → AgentThread →
@@ -286,7 +312,10 @@ async fn e2e_shutdown_op_propagates() {
 
     let mut rx = agent.subscribe_session();
 
-    let id = agent.submit_op(Op::Shutdown).await.expect("submit_op must succeed");
+    let id = agent
+        .submit_op(Op::Shutdown)
+        .await
+        .expect("submit_op must succeed");
     eprintln!("submit_op returned id = {id}");
 
     // Shutdown 应快速回流(无需 LLM)。
@@ -313,8 +342,14 @@ async fn e2e_shutdown_op_propagates() {
     }
 
     assert!(got_any, "submit_op must trigger at least one event");
-    eprintln!("shutdown events: types={:?} got_complete={got_shutdown}", types);
-    assert!(got_shutdown, "must receive ShutdownComplete after Op::Shutdown");
+    eprintln!(
+        "shutdown events: types={:?} got_complete={got_shutdown}",
+        types
+    );
+    assert!(
+        got_shutdown,
+        "must receive ShutdownComplete after Op::Shutdown"
+    );
 }
 
 /// 对照测试:无 provider 时降级路径仍产出事件。
@@ -332,7 +367,9 @@ async fn e2e_degraded_mode_emits_known_event() {
     let submission = Submission::with_id(
         "e2e-deg-1",
         Op::UserInput {
-            items: vec![UserInputItem::Text { text: "hello".to_string() }],
+            items: vec![UserInputItem::Text {
+                text: "hello".to_string(),
+            }],
             thread_settings: Default::default(),
         },
     );
@@ -349,7 +386,10 @@ async fn e2e_degraded_mode_emits_known_event() {
                 if !types.contains(&t) {
                     types.push(t);
                 }
-                if matches!(event.msg, EventMsg::TurnComplete(_) | EventMsg::ShutdownComplete) {
+                if matches!(
+                    event.msg,
+                    EventMsg::TurnComplete(_) | EventMsg::ShutdownComplete
+                ) {
                     break;
                 }
             }
