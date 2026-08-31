@@ -491,18 +491,20 @@ pub async fn reflect_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRe
         .map_err(CommandError::from)
 }
 
-/// 回放一个 session 的全部记录:
+/// 回放一个 session 的全部记录。
 ///
-/// 1. 快路径:`rollout_reader::replay`(三日窗口,覆盖活跃会话);
-/// 2. 兜底:快路径为空时全树扫描该 session 的文件(历史日期目录 +
-///    轮转副本),按时间序拼接回放。JSONL 是 append-only 且轮转是
-///    rename(不复制),多文件拼接不会重复。
-async fn replay_session(base: &Path, id: &ThreadId) -> anyhow::Result<Vec<RolloutRecord>> {
-    let mut records = rollout_reader::replay(base, *id).await?;
-    if records.is_empty() {
-        for path in session_files(base, id) {
-            records.extend(rollout_reader::replay_path(&path).await?);
-        }
+/// 单一事实源:全树扫描该 session 的全部 JSONL 文件(活跃文件 + 轮转副本 +
+/// 历史日期目录),按时间序拼接回放。JSONL 是 append-only 且轮转是
+/// rename(不复制),多文件拼接不会重复。
+///
+/// 此前混用两条来源:三日快路径(`rollout_reader::replay` 按 offset
+/// 今天→昨天→前天拼接,而写入端按「首次写入日期」分桶,跨午夜会话
+/// 会乱序)且非空即跳过兜底(跨 ≥3 天重开的会话历史静默丢失)。
+/// 全树扫描本身就是原兜底路径,成本可接受(首行读取定位归属文件)。
+pub(crate) async fn replay_session(base: &Path, id: &ThreadId) -> anyhow::Result<Vec<RolloutRecord>> {
+    let mut records = Vec::new();
+    for path in session_files(base, id) {
+        records.extend(rollout_reader::replay_path(&path).await?);
     }
     Ok(records)
 }
@@ -516,6 +518,13 @@ pub(crate) async fn replay_for_preload(id: &ThreadId) -> anyhow::Result<Vec<Chat
     Ok(reflect_core::resume::records_to_preload(&records))
 }
 
+/// 导出路径(JSON / Markdown)共用的回放入口:与 bind/replay 同源,
+/// 不再各自手拼 `home.join(".reflect/sessions")` 导致读写端分叉。
+pub(crate) async fn replay_for_export(id: &ThreadId) -> anyhow::Result<Vec<RolloutRecord>> {
+    let base = sessions_base().ok_or_else(|| anyhow::anyhow!("no HOME dir for sessions"))?;
+    replay_session(&base, id).await
+}
+
 /// 把 session 导出为 JSON 到 `~/.reflect/exports/<id>.json` 并返回路径。供 ThreadsView / CommandPalette 的导出菜单使用。
 #[tauri::command]
 pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
@@ -525,7 +534,7 @@ pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
     let export_dir = home.join(".reflect/exports");
     std::fs::create_dir_all(&export_dir).map_err(CommandError::from)?;
     let dest = export_dir.join(format!("{}.json", id));
-    let records = replay_session(&home.join(".reflect/sessions"), &id)
+    let records = replay_for_export(&id)
         .await
         .map_err(CommandError::from)?;
     let json = serde_json::to_string_pretty(&records).map_err(|e| CommandError {

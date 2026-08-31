@@ -257,7 +257,12 @@ pub fn run() {
             tray::build_tray(&app.handle())?;
 
             // 2. 全局快捷键 (跨平台,plugin 注册)。
-            shortcut::register_global_shortcuts(&app.handle())?;
+            //    注册失败(如 Cmd+Shift+Space 被截图/启动器类应用占用)只降级
+            //    记日志,不阻断启动 —— 此前 `?` 上抛会让 run(...) panic,
+            //    应用完全无法打开。
+            if let Err(e) = shortcut::register_global_shortcuts(&app.handle()) {
+                tracing::warn!("[reflect-gui] global shortcut registration failed, continuing without it: {e}");
+            }
 
             // 3. 启动时清空 dock badge。
             dock::set_dock_badge(&app.handle(), None);

@@ -258,18 +258,18 @@ impl MinimalAgent {
 
     /// 列出所有 scope 下的 memory entry。
     pub fn list_memory(&self) -> anyhow::Result<Vec<crate::commands::MemoryEntry>> {
-        self.inner.memory_store.list()
+        self.inner.memory_store.list(&self.workspace())
     }
 
     /// 新增 memory entry。向对应 scope 的 `MEMORY.md` 追加
     /// `## <key>\n<value>`。
     pub fn add_memory(&self, scope: String, key: String, value: String) -> anyhow::Result<()> {
-        self.inner.memory_store.add(&scope, &key, &value)
+        self.inner.memory_store.add(&scope, &key, &value, &self.workspace())
     }
 
     /// 删除 memory entry,移除对应的 `## <key>` 块。
     pub fn remove_memory(&self, scope: String, key: String) -> anyhow::Result<()> {
-        self.inner.memory_store.remove(&scope, &key)
+        self.inner.memory_store.remove(&scope, &key, &self.workspace())
     }
 
     /// 列出已注册的 hook。

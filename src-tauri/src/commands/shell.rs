@@ -85,6 +85,7 @@ pub async fn reflect_run_shell(
         let app = app.clone();
         let id = id.clone();
         let lock = child_lock.clone();
+        let registry = agent.inner().clone();
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout).lines();
             let mut seq: u64 = 0;
@@ -128,6 +129,11 @@ pub async fn reflect_run_shell(
                     }
                 }
             }
+            drop(g);
+            // 进程已终结:把注册表条目回收掉。此前只有 kill 路径会删,
+            // 自然退出的会话在 map 里留下死条目,长期运行单调泄漏,
+            // list 也会返回早已退出的 id。kill 先行时此处为幂等 no-op。
+            let _ = registry.take_shell_session(&id);
         });
     }
 

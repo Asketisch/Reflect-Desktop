@@ -44,7 +44,13 @@ fn collect_skills_in(dir: &PathBuf, out: &mut Vec<SkillInfo>) -> CommandResult<(
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() {
+        // file_type() 基于 symlink_metadata,不跟随链接:目录符号链接
+        // 可能成环(或指回祖先目录),is_dir() 会跟随导致无限递归 abort。
+        let is_dir = entry
+            .file_type()
+            .map(|t| t.is_dir())
+            .unwrap_or(false);
+        if is_dir {
             collect_skills_in(&path, out)?;
         } else if path.file_name().and_then(|s| s.to_str()) == Some("SKILL.md") {
             if let Ok(content) = std::fs::read_to_string(&path) {

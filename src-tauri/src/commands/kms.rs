@@ -15,6 +15,31 @@ impl From<KmsError> for CommandError {
     }
 }
 
+/// 校验 KMS 名称/wiki/页面名。
+///
+/// 这些名字会被 `KnowledgeManager` 直接 `root.join(name)` 拼成路径,
+/// 不校验的话 `name="../../x"` 可以逃出 KMS 根目录 —— `delete_wiki`
+/// 会对逃逸路径执行 `remove_dir_all`（递归删除任意目录）,
+/// `save_page` 可在工作区外写文件。webview 是唯一调用方,
+/// 这条命令层就是安全边界。
+fn validate_kms_name(kind: &str, value: &str) -> CommandResult<()> {
+    let invalid = value.is_empty()
+        || value.len() > 255
+        || value == "."
+        || value == ".."
+        || value.starts_with('.')
+        || value.contains('/')
+        || value.contains('\\')
+        || value.contains('\0')
+        || value.chars().any(char::is_control);
+    if invalid {
+        return Err(CommandError {
+            msg: format!("invalid kms {kind}: {value:?}"),
+        });
+    }
+    Ok(())
+}
+
 /// 列出所有知识库。
 #[tauri::command]
 pub async fn reflect_kms_list(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<WikiInfo>> {
@@ -28,6 +53,7 @@ pub async fn reflect_kms_create(
     name: String,
     description: Option<String>,
 ) -> CommandResult<WikiInfo> {
+    validate_kms_name("wiki name", &name)?;
     agent
         .kms_manager()
         .create_wiki(&name, description)
@@ -40,6 +66,7 @@ pub async fn reflect_kms_delete(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<()> {
+    validate_kms_name("wiki name", &name)?;
     agent
         .kms_manager()
         .delete_wiki(&name)
@@ -56,6 +83,8 @@ pub async fn reflect_kms_save_page(
     title: Option<String>,
     tags: Option<Vec<String>>,
 ) -> CommandResult<Page> {
+    validate_kms_name("wiki name", &wiki)?;
+    validate_kms_name("page name", &page)?;
     agent
         .kms_manager()
         .save_page(&wiki, &page, &content, title, tags.unwrap_or_default())
@@ -69,6 +98,8 @@ pub async fn reflect_kms_get_page(
     wiki: String,
     page: String,
 ) -> CommandResult<Page> {
+    validate_kms_name("wiki name", &wiki)?;
+    validate_kms_name("page name", &page)?;
     agent
         .kms_manager()
         .get_page(&wiki, &page)
@@ -81,6 +112,7 @@ pub async fn reflect_kms_list_pages(
     agent: State<'_, MinimalAgent>,
     wiki: String,
 ) -> CommandResult<Vec<Page>> {
+    validate_kms_name("wiki name", &wiki)?;
     agent
         .kms_manager()
         .list_pages(&wiki)

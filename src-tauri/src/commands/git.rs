@@ -52,6 +52,10 @@ fn run_git(args: &[&str]) -> Result<std::process::Output, CommandError> {
     })?;
     StdCommand::new("git")
         .current_dir(&cwd)
+        // porcelain/log 输出的路径不做 C 引号转义:默认 quotepath=true 时
+        // 非 ASCII 路径是 "\346\226\207..." 形式,UI 会显示乱码且按该路径
+        // stage 会因文件不存在而失败。
+        .args(["-c", "core.quotepath=off"])
         .args(args)
         .output()
         .map_err(|e| CommandError {

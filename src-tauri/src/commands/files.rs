@@ -224,6 +224,14 @@ pub async fn reflect_write_file(
 /// 防止 `..` 逃逸以及指向工作区外的绝对路径。
 pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandResult<PathBuf> {
     let p = Path::new(path);
+    // `..` 组件一律拒绝:目标文件尚不存在时 canonicalize 失败会退回原始
+    // join 路径,而 `Path::starts_with` 是纯词法前缀比较,
+    // `ws/../etc/x` 这类路径会绕过校验被写到工作区外。
+    if p.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err(CommandError {
+            msg: format!("path must not contain '..': {path}"),
+        });
+    }
     let joined = if p.is_absolute() {
         p.to_path_buf()
     } else {
@@ -231,7 +239,18 @@ pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandRe
     };
     let canon_workspace =
         std::fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
-    let canon_joined = std::fs::canonicalize(&joined).unwrap_or(joined);
+    // 目标可能尚不存在(新建文件):此时 canonicalize 最深的已存在祖先目录
+    // 再拼回剩余组件,防止父级符号链接把真实路径指到工作区外。
+    let canon_joined = std::fs::canonicalize(&joined).unwrap_or_else(|_| {
+        for ancestor in joined.ancestors().skip(1) {
+            if let Ok(canon) = std::fs::canonicalize(ancestor) {
+                if let Ok(suffix) = joined.strip_prefix(ancestor) {
+                    return canon.join(suffix);
+                }
+            }
+        }
+        joined.clone()
+    });
     if !canon_joined.starts_with(&canon_workspace) {
         return Err(CommandError {
             msg: format!(

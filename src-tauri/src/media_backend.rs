@@ -112,11 +112,28 @@ impl ImageBackend for RealImageBackend {
             message: format!("decode failed: {e}"),
         })?;
 
-        // 缩放。
+        // 缩放。尺寸来自 IPC,必须有上限(超大值会让 resize 分配
+        // 巨大缓冲导致 OOM abort)且比例计算用 u64(u32 乘法会静默回绕)。
+        const MAX_DIMENSION: u32 = 16384;
+        for dim in [spec.width, spec.height].into_iter().flatten() {
+            if dim == 0 || dim > MAX_DIMENSION {
+                return Err(MediaError::Other {
+                    message: format!("width/height must be in 1..={MAX_DIMENSION}, got {dim}"),
+                });
+            }
+        }
         let scaled: DynamicImage = match (spec.width, spec.height) {
             (Some(w), Some(h)) => img.resize_exact(w, h, image::imageops::FilterType::Lanczos3),
-            (Some(w), None) => img.resize(w, img.height() * w / img.width().max(1), image::imageops::FilterType::Lanczos3),
-            (None, Some(h)) => img.resize(img.width() * h / img.height().max(1), h, image::imageops::FilterType::Lanczos3),
+            (Some(w), None) => {
+                let h = ((img.height() as u64) * (w as u64) / (img.width().max(1) as u64))
+                    .min(u32::MAX as u64) as u32;
+                img.resize(w, h, image::imageops::FilterType::Lanczos3)
+            }
+            (None, Some(h)) => {
+                let w = ((img.width() as u64) * (h as u64) / (img.height().max(1) as u64))
+                    .min(u32::MAX as u64) as u32;
+                img.resize(w, h, image::imageops::FilterType::Lanczos3)
+            }
             (None, None) => img,
         };
 
@@ -133,12 +150,15 @@ impl ImageBackend for RealImageBackend {
             ImageFormat::WebP => ImgFmt::WebP,
             ImageFormat::Bmp => ImgFmt::Bmp,
         };
-        scaled
-            .to_rgb8()
-            .write_to(&mut buf, img_fmt)
-            .map_err(|e| MediaError::Other {
-                message: format!("encode failed: {e}"),
-            })?;
+        // JPEG 没有透明通道,走 rgb8;PNG 保留 alpha(to_rgb8 会把透明区填黑)。
+        let encoded = if resolved_format == ImageFormat::Jpeg {
+            scaled.to_rgb8().write_to(&mut buf, img_fmt)
+        } else {
+            scaled.to_rgba8().write_to(&mut buf, img_fmt)
+        };
+        encoded.map_err(|e| MediaError::Other {
+            message: format!("encode failed: {e}"),
+        })?;
         let bytes = std::fs::metadata(output).map(|m| m.len()).unwrap_or(0);
         Ok(ImageProcessResult {
             output_path: spec.output_path.clone(),
@@ -284,17 +304,26 @@ fn press_combo(enigo: &mut Enigo, keys: &str) -> Result<(), MediaError> {
         });
     }
     // 按下所有修饰键,最后一个是主键,然后 click 主键,释放所有修饰键(逆序)。
+    // 释放必须无条件执行:主键 click 失败时若提前返回,已按下的 Ctrl/Cmd
+    // 会卡在 OS 层,影响整个桌面直到用户手动再按一次。
     let parsed: Vec<Key> = parts.iter().map(|p| parse_key(p)).collect();
-    for k in &parsed[..parsed.len().saturating_sub(1)] {
-        enigo.key(*k, Direction::Press).map_err(input_err)?;
+    let (modifiers, last) = parsed.split_at(parsed.len() - 1);
+    let mut press_error = None;
+    for k in modifiers {
+        if let Err(e) = enigo.key(*k, Direction::Press) {
+            press_error = Some(input_err(e));
+            break;
+        }
     }
-    if let Some(last) = parsed.last().copied() {
-        enigo.key(last, Click).map_err(input_err)?;
+    if press_error.is_none() {
+        if let Err(e) = enigo.key(last[0], Click) {
+            press_error = Some(input_err(e));
+        }
     }
-    for k in parsed[..parsed.len().saturating_sub(1)].iter().rev() {
-        enigo.key(*k, Direction::Release).map_err(input_err)?;
+    for k in modifiers.iter().rev() {
+        let _ = enigo.key(*k, Direction::Release);
     }
-    Ok(())
+    press_error.map_or(Ok(()), Err)
 }
 
 fn parse_key(name: &str) -> Key {

@@ -5,9 +5,9 @@
 use serde::{Deserialize, Serialize};
 
 use reflect_protocol::ThreadId;
-use reflect_rollout::reader as rollout_reader;
 
 use crate::commands::error::{CommandError, CommandResult};
+use crate::commands::sessions::replay_for_export;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MarkdownExportResult {
@@ -24,8 +24,9 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
     let home = dirs::home_dir().ok_or_else(|| CommandError {
         msg: "no HOME dir".into(),
     })?;
-    let base = home.join(".reflect/sessions");
-    let records = rollout_reader::replay(&base, id)
+    // 与 bind/replay/JSON 导出同源的回放入口(全树按时间序)。
+    // 此前只走三日快路径,旧会话导出为不报错的空稿。
+    let records = replay_for_export(&id)
         .await
         .map_err(CommandError::from)?;
 
