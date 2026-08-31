@@ -17,6 +17,11 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
+import { executeSlash, parseSlash } from '@/features/composer/slashEngine';
+import { dispatchSubmission } from '@/features/composer/dispatchSubmission';
+import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { useI18n } from '@/utils/i18n';
+import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import {
   reflect_export_session,
   reflect_save_config,
@@ -29,6 +34,10 @@ export interface PaletteToasts {
   newSession: string;
   /** "没有可清除的会话。" */
   noSessionsToClear: string;
+  /** 确认框标题（"清空全部会话"）。 */
+  clearedSessionsLabel: string;
+  /** 确认框正文："将删除 N 个会话及其历史文件，此操作不可撤销。" */
+  clearAllConfirm: (count: number) => string;
   /** "删除失败：{msg}" */
   deleteFailed: (msg: string) => string;
   /** "已清除 N 个会话。"（支持复数） */
@@ -65,6 +74,8 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
   const qc = useQueryClient();
   const submit = useAgentStore((st) => st.submit);
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { rename } = useSessions();
+  const { t } = useI18n();
   const { activeId, onNewChat, toasts } = opts;
 
   const newSession = useCallback(() => {
@@ -81,6 +92,12 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
       pushToast({ kind: 'info', message: toasts.noSessionsToClear });
       return;
     }
+    // 毁灭性批量删除,必须二次确认(与 Sidebar 单删的 confirmDialog 语义对齐)。
+    const ok = await confirmDialog({
+      title: toasts.clearedSessionsLabel,
+      message: toasts.clearAllConfirm(list.length),
+    });
+    if (!ok) return;
     for (const s of list) {
       try {
         await reflect_delete_session(s.session_id);
@@ -119,11 +136,40 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
 
   const runSlash = useCallback(
     (slash: string) => {
-      // palette 触发 fire-and-forget 式 submit；这使得 /compact 等命令
-      // 无需用户输入 composer 即可工作。
-      void submit(slash);
+      // palette 触发 fire-and-forget 式执行。必须走 slashEngine 管线:
+      // 此前直接 submit(slash) 会把 "/compact" 等当作普通文本发给模型
+      // (后端不解析 slash 文本),既污染会话历史又不执行命令。
+      void (async () => {
+        try {
+          const parsed = parseSlash(slash);
+          if (parsed.isSlash) {
+            const result = executeSlash(parsed, {
+              activeSessionId: activeId ?? null,
+              now: () => new Date(),
+            });
+            if (result.kind === 'submit_with_submission' && result.submission) {
+              await dispatchSubmission(result.submission, parsed.args, {
+                activeSessionId: activeId ?? null,
+                pushToast,
+                t,
+                rename,
+              });
+            } else if (result.kind === 'submit') {
+              await submit(result.payload ?? slash);
+            } else if (result.kind === 'reject') {
+              pushToast({ kind: 'error', message: result.message ?? '' });
+            } else {
+              pushToast({ kind: 'info', message: result.message ?? '' });
+            }
+          } else {
+            await submit(parsed.raw);
+          }
+        } catch (e) {
+          pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+        }
+      })();
     },
-    [submit],
+    [activeId, pushToast, rename, submit, t],
   );
 
   return { newSession, clearAllSessions, exportActive, saveConfig, runSlash };

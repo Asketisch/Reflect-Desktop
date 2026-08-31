@@ -61,6 +61,11 @@ export function addSubSection(toml: string, prefix: string, name: string): strin
   return `${toml.replace(/\s*$/, '')}\n\n${header}\n# TODO: edit me\n`;
 }
 
+/** 将用户输入的 key 转义后用于 RegExp（防 `(`、`[` 等字符抛 SyntaxError）。 */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * 替换表头下的内容行。如果表头不存在则追加。
  * 未知行（如其他分区）保持不变。
@@ -181,7 +186,7 @@ export function setFlag(toml: string, key: string, value: boolean): string {
     .split(',')
     .map((p) => p.trim())
     .filter(Boolean);
-  const filtered = entries.filter((p) => !new RegExp(`^"?${key}"?\\s*=`).test(p));
+  const filtered = entries.filter((p) => !new RegExp(`^"?${escapeRegExp(key)}"?\\s*=`).test(p));
   filtered.push(`"${key}" = ${value}`);
   body[idx] = `flags = { ${filtered.join(', ')} }`;
   return [...lines.slice(0, start + 1), ...body, ...lines.slice(end)].join('\n');
@@ -206,7 +211,9 @@ export function removeFlag(toml: string, key: string): string {
   }
   if (start === -1) return toml;
   const body = lines.slice(start + 1, end);
-  const updated = body.filter((l) => !new RegExp(`"?${key}"?\\s*=\\s*(true|false)`).test(l.trim()));
+  const updated = body.filter(
+    (l) => !new RegExp(`"?${escapeRegExp(key)}"?\\s*=\\s*(true|false)`).test(l.trim()),
+  );
   return [...lines.slice(0, start + 1), ...updated, ...lines.slice(end)].join('\n');
 }
 

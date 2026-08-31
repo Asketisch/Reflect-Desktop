@@ -6,7 +6,7 @@
  * `reflect_git_unstage`），并新增提交框（`reflect_git_commit`，成功后
  * toast + 刷新）。push/pull 仍留给用户终端（远端凭证不进 GUI）。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   GitBranch,
   GitCommitHorizontal,
@@ -49,7 +49,12 @@ export function GitView() {
   const [commitMessage, setCommitMessage] = useState('');
   const [mutating, setMutating] = useState(false);
 
+  // 单调请求令牌：tab 快速切换时两次 in-flight 刷新可能乱序 resolve,
+  // 后完成的旧请求会把 diff 覆盖成另一个 tab 的内容。
+  const seqRef = useRef(0);
+
   const refresh = async () => {
+    const seq = ++seqRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -58,14 +63,16 @@ export function GitView() {
         reflect_git_diff(tab === 'staged'),
         reflect_git_log(20),
       ]);
+      if (seq !== seqRef.current) return;
       setStatus(s_);
       setDiff(d_);
       setLog(l_);
       setSelected(new Set());
     } catch (e) {
+      if (seq !== seqRef.current) return;
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (seq === seqRef.current) setLoading(false);
     }
   };
 

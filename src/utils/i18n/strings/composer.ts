@@ -32,6 +32,7 @@ const composer: Record<string, StringEntry> = {
   'composer.queued.save':                    { en: 'Save',                                          'zh-CN': '保存' },
   'composer.queued.cancel':                  { en: 'Cancel',                                        'zh-CN': '取消' },
   'composer.compactRequested':               { en: 'Compact requested.',                            'zh-CN': '已请求压缩上下文。' },
+  'composer.steerCancelled':                 { en: 'Session changed while steering — message kept in the composer.', 'zh-CN': '等待中断期间已切换会话，消息未发送。' },
   'composer.exported':                       { en: 'Exported → {path}',                             'zh-CN': '已导出 → {path}' },
   'composer.exportedNoPath':                 { en: 'Exported → (no path)',                          'zh-CN': '已导出 → (无路径)' },
   'composer.unhandledSlash':                 { en: 'Unhandled slash submission: {kind}',            'zh-CN': '未处理的 slash 提交: {kind}' },

@@ -191,7 +191,11 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
         },
       });
       if (chunk.stream === 'exit') {
-        const exitCode = Number(chunk.data) || 0;
+        // 后端对信号终止的进程发送空 data（status.code() == None）;
+        // 此时保持 exitCode 为 undefined,由视图隐藏 "exit N" 尾巴,
+        // 而不是误显示成 "exit 0"。
+        const parsed = chunk.data.trim() === '' ? NaN : Number(chunk.data);
+        const exitCode = Number.isFinite(parsed) ? parsed : undefined;
         dispatch({
           type: 'session/setStatus',
           session_id: chunk.session_id,
@@ -254,8 +258,10 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
             status: 'running',
           },
           seeds: [
-            { seq: 0, stream: 'input', text: `$ ${cmd}` },
-            { seq: 1, stream: 'info', text: `cwd: ${sess.cwd}` },
+            // 负数序列号:后端 stdout 从 1 开始自增、stderr 使用 1_000_000 空间,
+            // 种子行用 0/1 会与第一条 stdout 输出撞 key。
+            { seq: -2, stream: 'input', text: `$ ${cmd}` },
+            { seq: -1, stream: 'info', text: `cwd: ${sess.cwd}` },
           ],
         });
       } catch (e) {

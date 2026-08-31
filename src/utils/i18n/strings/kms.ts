@@ -13,6 +13,8 @@ const kms: Record<string, StringEntry> = {
   'kms.create':                  { en: 'Create', 'zh-CN': '创建' },
   'kms.newPage':                 { en: 'New Page', 'zh-CN': '新建页面' },
   'kms.deleteWiki':              { en: 'Delete Wiki', 'zh-CN': '删除 Wiki' },
+  'kms.deleteWikiConfirm':       { en: 'Delete wiki "{name}"?\nThis removes all its pages permanently.', 'zh-CN': '删除 Wiki "{name}"？\n这将永久移除其中的所有页面。' },
+  'kms.editPage':                { en: 'Click to edit this page.', 'zh-CN': '点击编辑该页面。' },
   'kms.pageNamePlaceholder':     { en: 'Page name (e.g. api-design)', 'zh-CN': '页面名称 (如 api-design)' },
   'kms.pageContentPlaceholder':  { en: 'Write your page content in Markdown...', 'zh-CN': '用 Markdown 撰写页面内容…' },
   'kms.noPages':                 { en: 'No pages yet', 'zh-CN': '暂无页面' },

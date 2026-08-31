@@ -29,7 +29,7 @@
  *     → `./hooks/usePaletteActions`。
  *   - AppShell 本身只负责布局与 DOM 拼装。
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter, Outlet } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ActivityBar } from './ActivityBar';
@@ -42,6 +42,7 @@ import { unpin, useSessionPins } from '@/features/sessions/utils/pins';
 import { ModalStack } from '@/features/modals';
 import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
 import { CommandPalette } from '@/features/command-palette/CommandPalette';
+import { Toast } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
 import {
@@ -55,6 +56,31 @@ import { useCommandPaletteShortcut } from './hooks/useCommandPaletteShortcut';
 import { usePaletteActions } from './hooks/usePaletteActions';
 import { useCurrentWorkspace, CURRENT_WORKSPACE_QUERY_KEY } from './hooks/useCurrentWorkspace';
 import s from './AppShell.module.css';
+
+/**
+ * ToastHost —— 渲染 useAgentStore.toasts 全局队列。
+ * pushToast 的所有调用方（git/tasks/设置/导出失败提示等）此前只入队
+ * 从未渲染，操作反馈全部静默丢失；这里统一挂在壳层。
+ */
+function ToastHost() {
+  const toasts = useAgentStore((st) => st.toasts);
+  const dismissToast = useAgentStore((st) => st.dismissToast);
+  if (toasts.length === 0) return null;
+  return (
+    <div className={s.toastHost}>
+      {toasts.map((t) => (
+        <Toast
+          key={t.id}
+          // store 侧用 'warn'，设计系统侧是 'warning'。
+          kind={t.kind === 'warn' ? 'warning' : t.kind}
+          message={t.message}
+          durationMs={t.ttlMs}
+          onDismiss={() => dismissToast(t.id)}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function AppShell() {
   const { currentWorkspace } = useCurrentWorkspace();
@@ -119,7 +145,12 @@ export function AppShell() {
     turnFinishedBody: t('notify.turnFinished'),
   });
 
+  // 选择令牌:快速连点两个会话时,先点的跨项目 switchWorkspace 完成后
+  // 不得覆盖后一次点击的 activeId。
+  const selectSeqRef = useRef(0);
+
   const handleSelect = async (id: string) => {
+    const mySeq = ++selectSeqRef.current;
     // 工作区跟随会话:rebind 重建线程时烧入 override 工作区,
     // 跨项目点选先切到会话归属项目,保证续写/新消息用正确 cwd。
     const target = sessions.all.find((s) => s.session_id === id)?.workspace;
@@ -131,6 +162,7 @@ export function AppShell() {
         toastError(t('toast.workspaceSwitchFailed', { msg: e instanceof Error ? e.message : String(e) }));
       }
     }
+    if (mySeq !== selectSeqRef.current) return;
     setActiveId(id);
   };
 
@@ -186,6 +218,8 @@ export function AppShell() {
     toasts: {
       newSession: t('toast.newSession'),
       noSessionsToClear: t('toast.noSessionsToClear'),
+      clearedSessionsLabel: t('toast.clearAllTitle'),
+      clearAllConfirm: (count: number) => t('toast.clearAllConfirm', { count }),
       deleteFailed: (msg) => t('toast.deleteFailed', { msg }),
       clearedSessions: (count) => tp('toast.clearedSessions', count, { count }),
       noActiveToExport: t('toast.noActiveToExport'),
@@ -249,6 +283,7 @@ export function AppShell() {
         )}
       </div>
       <StatusBar />
+      <ToastHost />
       <ModalStack />
       <ConfirmDialogHost />
       <CommandPalette

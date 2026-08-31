@@ -97,7 +97,9 @@ export async function reflect_create_task(args: {
     list: args.list,
     subject: args.subject,
     description: args.description,
-    active_form: args.active_form ?? null,
+    // Tauri 2 平铺参数按 camelCase 匹配（Rust `active_form` → JS `activeForm`）;
+    // 传 snake_case 会被静默丢弃（Option 参数缺键 → None）。
+    activeForm: args.active_form ?? null,
     owner: args.owner ?? null,
     metadata: args.metadata ?? null,
   });

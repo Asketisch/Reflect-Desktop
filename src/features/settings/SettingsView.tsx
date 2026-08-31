@@ -14,7 +14,7 @@
  * 见 reflect-agent/crates/resources/reflect-config/src/schema.rs。Advanced TOML 编辑器仍然是
  * 逃生口,所有未知字段都会保留。
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import {
@@ -43,6 +43,16 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const { t, locale, setLocale } = useI18n();
 
+  // 未保存编辑保护：configQuery staleTime=0 + 窗口聚焦 refetch，会让
+  // useEffect 无条件 setRawToml(data) 把用户正在编辑的内容冲掉。
+  // 记录最近一次 seed 值与脏标记：只在缓冲未被修改（或刚保存成功）时接受刷新。
+  const seededRef = useRef<string | null>(null);
+  const dirtyRef = useRef(false);
+  const updateRawToml = useCallback((next: string) => {
+    setRawToml(next);
+    dirtyRef.current = next !== seededRef.current;
+  }, []);
+
   const configQuery = useQuery({
     queryKey: ['config'],
     queryFn: reflect_get_config,
@@ -55,7 +65,14 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   });
 
   useEffect(() => {
-    if (configQuery.data) setRawToml(configQuery.data);
+    const data = configQuery.data;
+    if (!data) return;
+    if (dirtyRef.current && rawToml !== seededRef.current) return;
+    seededRef.current = data;
+    dirtyRef.current = false;
+    setRawToml(data);
+    // rawToml 只参与脏检查读，不作为触发源（否则每次编辑都会重跑本 effect）。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configQuery.data]);
 
   const saveMutation = useMutation({
@@ -64,6 +81,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
       setSaved(true);
       setError(null);
       setTimeout(() => setSaved(false), 2500);
+      // 保存成功后以当前缓冲为基准，后续 refetch 可以安全覆盖。
+      seededRef.current = rawToml;
+      dirtyRef.current = false;
       qc.invalidateQueries({ queryKey: ['config'] });
       qc.invalidateQueries({ queryKey: ['agent-status'] });
     },
@@ -159,7 +179,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             <p className={s.sectionDesc}>{t('settings.configHelp')}</p>
             <ConfigForm
               rawToml={rawToml}
-              onChange={setRawToml}
+              onChange={updateRawToml}
               showSecrets={showSecrets}
               onToggleSecret={toggleSecret}
             />
@@ -169,11 +189,11 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
         {section === 'plans' && (
           <PlansSection
             rawToml={rawToml}
-            onChange={setRawToml}
+            onChange={updateRawToml}
             // Plans 页操作即时落盘：仅改内存 state 的话，后端 config 不变，
             // 模型选择器 / Models 页读到的仍是旧配置（「保存了却选不到」）。
             onCommit={(next) => {
-              setRawToml(next);
+              updateRawToml(next);
               saveMutation.mutate(next);
             }}
           />
@@ -231,7 +251,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             </p>
             <Textarea
               value={rawToml}
-              onChange={(e) => setRawToml(e.target.value)}
+              onChange={(e) => updateRawToml(e.target.value)}
               className={s.rawEditor}
               spellCheck={false}
             />

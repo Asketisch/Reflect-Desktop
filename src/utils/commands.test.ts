@@ -433,13 +433,13 @@ describe('commands forwarding (mapping)', () => {
 
   // ----- 终端 -----
 
-  it('terminal spawn forwards { cmd }; kill forwards snake_case { session_id }; list has no args', async () => {
+  it('terminal spawn forwards { cmd }; kill forwards camelCase { sessionId }; list has no args', async () => {
     const run = await captureCmd('reflect_run_shell', () => reflect_run_shell('ls -la'));
     expectArgs(run, { cmd: 'ls -la' });
 
     const kill = await captureCmd('reflect_kill_shell', () => reflect_kill_shell('sh-1'));
-    // 后端键是 snake_case "session_id" —— 为兼容性保留。
-    expectArgs(kill, { session_id: 'sh-1' });
+    // Tauri 2 平铺参数按 camelCase 匹配（Rust `session_id` → JS `sessionId`）。
+    expectArgs(kill, { sessionId: 'sh-1' });
 
     const list = await captureCmd('reflect_list_shell_sessions', () =>
       reflect_list_shell_sessions(),
@@ -512,7 +512,7 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(args, { list: 'sess-1' });
   });
 
-  it('reflect_create_task forwards { list, subject, description, active_form, owner, metadata } with null defaults', async () => {
+  it('reflect_create_task forwards { list, subject, description, activeForm, owner, metadata } with null defaults', async () => {
     const minimal = await captureCmd('reflect_create_task', () =>
       reflect_create_task({ list: 'L', subject: 's', description: 'd' }),
     );
@@ -520,7 +520,8 @@ describe('commands forwarding (mapping)', () => {
       list: 'L',
       subject: 's',
       description: 'd',
-      active_form: null,
+      // Tauri 2 平铺参数 camelCase 匹配;snake_case 键会被后端静默丢弃。
+      activeForm: null,
       owner: null,
       metadata: null,
     });
@@ -539,7 +540,7 @@ describe('commands forwarding (mapping)', () => {
       list: 'L',
       subject: 's',
       description: 'd',
-      active_form: 'Writing',
+      activeForm: 'Writing',
       owner: 'alice',
       metadata: { kind: 'bug' },
     });
@@ -694,11 +695,11 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(get, { id: 'side-deadbeef' });
   });
 
-  it('reflect_start_side_channel forwards { agent_name, prompt }', async () => {
+  it('reflect_start_side_channel forwards camelCase { agentName, prompt }', async () => {
     const args = await captureCmd('reflect_start_side_channel', () =>
       reflect_start_side_channel({ agent_name: 'default', prompt: 'hello' }),
     );
-    expectArgs(args, { agent_name: 'default', prompt: 'hello' });
+    expectArgs(args, { agentName: 'default', prompt: 'hello' });
   });
 
   it('reflect_cancel_side_channel forwards { id }', async () => {

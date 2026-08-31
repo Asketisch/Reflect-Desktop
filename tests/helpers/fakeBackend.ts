@@ -845,7 +845,8 @@ export function installFakeBackend(): FakeBackend {
   handle(
     'reflect_kill_shell',
     handler((args) => {
-      backend.state.shellSessions = backend.state.shellSessions.filter((s) => s !== args?.session_id);
+      // 前端经 Tauri 2 camelCase 匹配,Rust 参数 `session_id` 收到的键是 sessionId。
+      backend.state.shellSessions = backend.state.shellSessions.filter((s) => s !== args?.sessionId);
     }),
   );
   handle('reflect_list_shell_sessions', handler(() => wire(backend.state.shellSessions)));

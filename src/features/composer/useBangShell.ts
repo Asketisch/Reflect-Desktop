@@ -30,10 +30,14 @@ const outputTargets = new Map<string, (chunk: ReflectShellOutputChunk) => void>(
 
 async function ensureSharedListener(): Promise<void> {
   if (sharedListenerStarted) return;
-  sharedListenerStarted = true;
-  await onTerminalOutput((chunk) => {
-    outputTargets.get(chunk.session_id)?.(chunk);
-  });
+  try {
+    await onTerminalOutput((chunk) => {
+      outputTargets.get(chunk.session_id)?.(chunk);
+    });
+    sharedListenerStarted = true;
+  } catch {
+    // 注册失败保持 false:下一次 run 重试,而不是此后所有 run 永久收不到输出。
+  }
 }
 
 const MAX_KEEP = 5;

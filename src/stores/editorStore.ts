@@ -84,8 +84,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
     return () => {
       unsubscribe();
-      // 注意:subscribed 标志保留 —— 与 agentStore 共享同一 agent event bus,
-      // 由 AppProviders 统一负责生命周期,组件卸载不应误清。
+      // 必须重置标志:StrictMode / HMR 的 mount→cleanup→mount 序列中,
+      // 若保留 true,第二次 mount 会短路成 no-op,订阅永久丢失(与
+      // agentStore.store.ts 的 cleanup 语义保持一致)。
+      set({ subscribed: false });
     };
   },
 

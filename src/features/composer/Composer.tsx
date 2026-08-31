@@ -105,9 +105,10 @@ export function Composer() {
 
   const onSlashSelect = useCallback((command: string) => {
     setText((previous) => {
-      // 清除已有的 `/<word>` token（以及用户输入的参数），
-      // 使点击弹层条目始终产生干净的 `/<command> `。
-      const replaced = previous.replace(/\/\w*(?:\s+.*)?$/, `/${command} `);
+      // 清除已有的 `/<token>`（含连字符命令名，如 /exit-pl）以及用户
+      // 已输入的参数，使点击弹层条目始终产生干净的 `/<command> `。
+      // 此前用 `\w*` 会在 `-` 处截断，带连字符的命令永远匹配失败。
+      const replaced = previous.replace(/\/\S*(?:\s.*)?$/, `/${command} `);
       requestAnimationFrame(() => {
         const element = textareaRef.current;
         if (element) {

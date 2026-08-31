@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { dispatch } from './slashEngine';
+import { dispatchSubmission } from './dispatchSubmission';
 import type { UseAttachmentsResult } from './useAttachments';
 import { useAgent } from '@/services/agent';
 import {
@@ -9,17 +10,7 @@ import {
   SESSIONS_QUERY_KEY,
 } from '@/features/sessions/hooks/useSessions';
 import { useI18n } from '@/utils/i18n';
-import {
-  reflect_compact,
-  reflect_interrupt,
-  reflect_enter_plan_mode,
-  reflect_exit_plan_mode,
-  reflect_enter_goal_mode,
-  reflect_exit_goal_mode,
-  reflect_set_effort,
-  reflect_set_permission_mode,
-  reflect_export_session,
-} from '@/utils/commands';
+import { reflect_interrupt } from '@/utils/commands';
 import {
   useAgentStore,
   selectIsTurnRunning,
@@ -78,51 +69,12 @@ export function useComposerSubmission({
   const { t } = useI18n();
   const qc = useQueryClient();
 
-  const dispatchSubmission = useCallback(async (kind: string, args: string[]) => {
-    switch (kind) {
-      case 'compact':
-        await reflect_compact();
-        pushToast({ kind: 'info', message: t('composer.compactRequested') });
-        break;
-      case 'enter_plan_mode':
-        await reflect_enter_plan_mode(args.join(' ') || 'unspecified');
-        break;
-      case 'exit_plan_mode':
-        await reflect_exit_plan_mode();
-        break;
-      case 'enter_goal_mode':
-        await reflect_enter_goal_mode(args.join(' '));
-        break;
-      case 'exit_goal_mode':
-        await reflect_exit_goal_mode();
-        break;
-      case 'set_effort':
-        await reflect_set_effort((args[0] ?? '').toLowerCase());
-        break;
-      case 'set_permission_mode':
-        await reflect_set_permission_mode((args[0] ?? '').toLowerCase());
-        break;
-      case 'interrupt':
-        await reflect_interrupt();
-        break;
-      case 'export_session':
-        if (activeId) {
-          const path = await reflect_export_session(activeId);
-          pushToast({
-            kind: 'info',
-            message: path ? t('composer.exported', { path }) : t('composer.exportedNoPath'),
-          });
-        }
-        break;
-      case 'rename_session': {
-        const name = args.join(' ').trim();
-        if (activeId && name) await rename(activeId, name);
-        break;
-      }
-      default:
-        pushToast({ kind: 'warn', message: t('composer.unhandledSlash', { kind }) });
-    }
-  }, [activeId, pushToast, rename, t]);
+  // slash submission 分发已抽到 dispatchSubmission.ts（Composer 与命令面板共用）。
+  const runSubmission = useCallback(
+    (kind: string, args: string[]) =>
+      dispatchSubmission(kind, args, { activeSessionId: activeId, pushToast, t, rename }),
+    [activeId, pushToast, rename, t],
+  );
 
   return useCallback(async (options?: { reverseMode?: boolean }) => {
     const value = text.trim();
@@ -157,7 +109,7 @@ export function useComposerSubmission({
         if (parsed.kind === 'submit_with_submission' && parsed.submission) {
           const match = /^(\/\S+)(?:\s+(.*))?$/.exec(value);
           const args = match?.[2] ? match[2].split(/\s+/) : [];
-          await dispatchSubmission(parsed.submission, args);
+          await runSubmission(parsed.submission, args);
         } else if (parsed.kind === 'reject') {
           pushToast({ kind: 'error', message: parsed.message ?? t('composer.commandRejected') });
         } else if (parsed.kind === 'no-op') {
@@ -174,6 +126,15 @@ export function useComposerSubmission({
           // 会话历史中，模型带着进度从新指令继续。
           await reflect_interrupt();
           await waitTurnSettled();
+          // 收尾等待最长 8s,期间用户可能已切走会话(rebind 已换线程)。
+          // 用实时路由比对,消息只能进发起时所在的会话。
+          const routeSession = /^\/chat\/([^/]+)$/.exec(window.location.pathname)?.[1] ?? null;
+          const currentRouteSession = routeSession ? decodeURIComponent(routeSession) : null;
+          if (currentRouteSession !== activeId) {
+            // 消息不再替用户发出去；保留失败提示（输入已被清空至少有据可查）。
+            pushToast({ kind: 'warn', message: t('composer.steerCancelled') });
+            return;
+          }
           await useAgentStore.getState().submitItems(items, currentWorkspace ?? null);
           history.commit(value);
           void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
@@ -205,12 +166,12 @@ export function useComposerSubmission({
     activeId,
     attachments,
     currentWorkspace,
-    dispatchSubmission,
     focus,
     history,
     onBangCommand,
     pushToast,
     qc,
+    runSubmission,
     sendMode,
     setBusy,
     setSlashVisible,

@@ -7,7 +7,7 @@
  * `editorStore.rejectHunk` inverse-patch 恢复原文并写回磁盘。
  * 顶:workspace 路径 + 刷新按钮。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FolderOpen, RefreshCcw, ChevronRight, Check, Undo2, Zap } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
@@ -169,6 +169,13 @@ export function FilesView() {
 
   const path = fileQ.data?.path ?? selected ?? '';
   const hunks = pending?.hunks ?? [];
+  // editorStore 的内容版本号:Reject 落盘后 setPending 会 +1,据此驱动
+  // CodeMirrorEditor 整体替换缓冲(此前硬编码 0,该机制从未生效,
+  // Reject All 后编辑器仍显示恢复前内容,与磁盘不一致)。
+  const contentVersion = useEditorStore((st) => (selected ? st.contentVersion[selected] : undefined));
+  // 编辑器缓冲读取器:Reject All 与单块 Reject 同源 —— 用缓冲而非
+  // 查询缓存做 inverse-patch(用户有未保存修改时,用缓存会写错内容)。
+  const bufferRef = useRef<(() => string) | null>(null);
 
   return (
     <PageShell
@@ -251,7 +258,9 @@ export function FilesView() {
                     variant="ghost"
                     size="sm"
                     data-testid="files-reject-all"
-                    onClick={() => void onRejectAll(fileQ.data!.content)}
+                    onClick={() =>
+                      void onRejectAll(bufferRef.current?.() ?? fileQ.data!.content)
+                    }
                   >
                     <Icon icon={Undo2} size={12} /> {t('files.rejectAll')}
                   </Button>
@@ -269,10 +278,11 @@ export function FilesView() {
               <CodeMirrorEditor
                 path={path}
                 value={fileQ.data.content}
-                revision={0}
+                revision={contentVersion ?? 0}
                 hunks={hunks}
                 onAcceptHunk={onAcceptHunk}
                 onRejectHunk={onRejectHunk}
+                bufferRef={bufferRef}
               />
             </div>
           ) : null}

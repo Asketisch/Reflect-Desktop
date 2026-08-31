@@ -124,11 +124,14 @@ export function ChatView() {
               // 与主加载序列同构:bind(幂等)→ replay → hydrate。
               void reflect_bind_session(sessionId)
                 .then((mode) => {
+                  // 与主路径同源守卫:点 Retry 后立刻切走会话时,
+                  // 旧会话恢复出的权限模式不得覆盖新会话。
+                  if (requestIdRef.current !== myId) return null;
                   syncPermissionMode(mode);
                   return reflect_replay_session(sessionId);
                 })
                 .then((r) => {
-                  if (requestIdRef.current !== myId) return;
+                  if (requestIdRef.current !== myId || !r) return;
                   hydrateSession(sessionId, r);
                 }).catch((e: unknown) => {
                   if (requestIdRef.current !== myId) return;

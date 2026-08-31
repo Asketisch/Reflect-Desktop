@@ -54,7 +54,8 @@ export async function reflect_start_side_channel(args: {
   prompt: string;
 }): Promise<ReflectStartSideChannelResult> {
   return invoke<ReflectStartSideChannelResult>('reflect_start_side_channel', {
-    agent_name: args.agent_name,
+    // Tauri 2 平铺参数按 camelCase 匹配 Rust 参数名 `agent_name`。
+    agentName: args.agent_name,
     prompt: args.prompt,
   });
 }

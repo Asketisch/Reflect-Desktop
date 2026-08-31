@@ -4,6 +4,88 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — 全量代码 review 批次（5 路并行审查,P0/P1 全修 + 高价值 P2）
+
+交互与弹窗：
+
+- **ModalShell 焦点/键盘两处缺陷**：副作用依赖 `onClose`/`primaryAction`
+  （调用方均传内联函数）导致每次渲染重跑,把正在输入的 textarea 焦点
+  抢回 primary 按钮（AskUserModal 实际不可连续输入）;堆叠弹窗共享
+  window keydown,一次 Escape 会同时否决全部待审批。改为副作用只依赖
+  `open` + latest-ref 回调,模块级弹窗栈保证只有栈顶响应键盘。
+- **全局 toast 队列从未被渲染**：`pushToast` 只入队 `useAgentStore.toasts`,
+  全仓无宿主组件消费,git/tasks/设置/导出等失败提示全部静默丢失。
+  AppShell 新增 `ToastHost` 统一渲染（`--z-toast` 层级）。
+- **editorStore 在 StrictMode 下永久失聪**：cleanup 摘除事件订阅但保留
+  `subscribed` 标志,第二次 mount 短路成 no-op,dev 模式下 Files 页的
+  agent 编辑 review 永不出现。cleanup 现重置标志（与 agentStore 一致）。
+- **提交失败后乐观 turn 永久卡 streaming**：`reflect_submit` reject 时
+  turn 无回滚,`selectIsTurnRunning` 恒真 → 队列永不排空,会话假死;
+  `drainQueue` 先删队首再提交,失败即丢消息。现在失败落 turn 为
+  aborted + 记录 lastError,队列消息放回队首。
+- **命令面板 slash 项把字面文本发给模型**：`runSlash('/compact')` 直接
+  `submit` 文本,后端不解析 slash,命令既不执行还污染会话历史。抽出
+  `composer/dispatchSubmission.ts` 共享管线,面板与 Composer 走同一分发;
+  顺带修复 `/rename "x"` 引号剥离。
+- **KMS 编辑器永远打不开**：`editingPage` 只被赋 `null`,无法新建/编辑
+  页面。「New page」现打开空白编辑器,页面卡片可点击进入编辑;删除
+  Wiki 增加 `confirmDialog` 二次确认;搜索加 200ms 防抖。
+- **设置页后台 refetch 覆盖未保存编辑**：`staleTime: 0` + 窗口聚焦
+  refetch 会无条件覆盖 `rawToml`。增加 seed 基准 + 脏标记,只在缓冲未被
+  修改（或刚保存成功）时接受服务端刷新。
+- 其余：steer 等待收尾期间切会话的跨会话提交（实时路由比对守卫）、
+  ChatView Retry 路径缺过期守卫、`permission_bubble` 同 turn 同工具
+  气泡 id 重复（approve 误杀）、notify 的 per-turn Map 在门控拒绝/
+  `turn_aborted` 路径泄漏、GitView tab 快速切换乱序覆盖 diff（单调
+  请求令牌）、AppShell 快速连点会话的 `setActiveId` 竞态、命令面板
+  「清空全部会话」增加二次确认、`!` 直通监听注册失败永久失聪、
+  Remote 表单被后台 refetch 重置草稿、终端种子行 seq 与 stdout 冲突
+  及信号退出误显示 "exit 0"、composer slash 补全对连字符命令失效、
+  `clearSession` 残留上一会话的 token/压缩/路由数据。
+
+IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
+
+- `reflect_kill_shell`（`session_id`→`sessionId`）、
+  `reflect_start_side_channel`（`agent_name`→`agentName`）此前每次调用
+  必报 `missing required key`;`reflect_create_task` 的 `active_form`
+  （→`activeForm`）被静默丢弃。相关测试/假后端已同步为新契约。
+
+后端安全边界：
+
+- **`resolve_under_workspace` 写路径 `..` 绕过**：目标不存在时
+  canonicalize 失败退回原始 join 路径,`starts_with` 词法前缀挡不住
+  `ws/../etc/x`,渲染层可借 `reflect_write_file` 写工作区外任意文件。
+  现拒绝 `..` 组件并对最深已存在祖先做 canonicalize。
+- **KMS 路径穿越**：`reflect_kms_delete/save_page` 等的名字直接
+  `root.join(name)`,`name="../../x"` 可对任意目录执行 `remove_dir_all`。
+  命令层新增 `validate_kms_name`（拒绝分隔符/`..`/控制字符等）。
+
+后端正确性：
+
+- **会话回放单一事实源**：三日快路径按「今天→昨天→前天」拼接,而写入端
+  按首次写入日期分桶,跨午夜会话 replay/preload 乱序;且快路径非空即跳过
+  全树兜底,跨 ≥3 天重开的会话历史静默丢失。`replay_session` 改为始终
+  全树按时间序拼接;Markdown 导出此前只走快路径（旧会话导出为空稿）,
+  JSON/Markdown 导出统一走 `sessions_base()` 同源回放。
+- **app-core reducer turn 身份键错配**：`TurnStarted` 存储用 payload 的
+  `turn_id`（独立随机 UUID）,后续 per-turn 事件按 event.id（submission id）
+  查找,永远 miss → 正文/工具/完成状态全部丢失。统一为 event.id 派生键
+  （与 TS 对齐）;`TurnRewound` 按索引截断（v4 UUID 不可字典序比较）;
+  `SessionConfigured` 不再用硬编码默认 approval_policy 覆盖
+  permission_mode（会冲掉 bind 恢复的模式）;`ContextCompacted` 不再
+  写入 Turn.error。
+- **shell 会话注册表泄漏**：进程自然退出后条目永不回收（只有 kill 路径
+  删除）,map 单调增长、list 返回死 id。stdout reader 在进程终结后回收
+  条目（与 kill 竞争幂等）。
+- 其余：全局快捷键注册失败降级为日志（不再阻断启动）、tailscale 探测
+  两个调用都套超时、memory project 作用域改用活动工作区（原用进程 cwd,
+  打包后不可写）且 `remove` 改整行精确匹配（`## a` 不再误删 `## about`）、
+  media 尺寸上限 + u64 比例计算（原 u32 乘法可溢出）+ PNG 保留透明通道 +
+  组合键失败时释放修饰键（原会 OS 级卡键）、skills 扫描不跟随符号链接
+  （原可无限递归 abort）、git 输出统一 `-c core.quotepath=off`
+  （中文文件名不再显示为八进制转义、可正常 stage）、KMS `dream` 时间戳
+  不再 `unwrap()`。
+
 ### 修复 — Coding plan 保存后无法选择/切换模型
 
 - **「保存 Plan」写盘被后端拒绝（根因）**：`reflect_get_config` 返回的

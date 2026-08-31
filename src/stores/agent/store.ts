@@ -30,6 +30,7 @@ import {
   isAutoFailoverEnabled,
 } from './planFailover';
 import { reduceEvent } from './reducer';
+import { markTurn } from './turns';
 import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
 import { createToastActions, uuid } from './toast';
 import type { AgentState } from './types';
@@ -80,6 +81,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
       pendingAskUser: [],
       pendingPlan: null,
       queuedMessages: [],
+      // 会话域的遥测/路由数据一并重置:回到首页(或新会话首事件到来前)
+      // 不应展示上一个会话的 token/压缩/路由;planFailover 的
+      // currentProvider 兜底也不应读到旧会话的 provider。
+      session: null,
+      tokens: null,
+      contextWindowSize: null,
+      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
+      lastRouting: null,
     }),
   tokens: null,
   contextWindowSize: null,
@@ -131,7 +140,17 @@ export const useAgentStore = create<AgentState>((set, get) => {
         { id, items: [{ kind: 'user_text', text }], status: 'streaming' },
       ],
     }));
-    await reflect_submit(submission);
+    try {
+      await reflect_submit(submission);
+    } catch (error) {
+      // 提交失败：乐观 turn 落为 aborted 并记录错误。否则它永远停在
+      // streaming → selectIsTurnRunning 恒真 → 队列永不排空,整个会话假死。
+      set((state) => ({
+        turns: markTurn(state.turns, id, 'aborted'),
+        lastError: error instanceof Error ? error.message : String(error),
+      }));
+      throw error;
+    }
   },
 
   submitItems: async (items, workspace) => {
@@ -161,7 +180,16 @@ export const useAgentStore = create<AgentState>((set, get) => {
         },
       ],
     }));
-    await reflect_submit(submission);
+    try {
+      await reflect_submit(submission);
+    } catch (error) {
+      // 同 submit:失败回滚乐观 turn,不卡死队列。
+      set((state) => ({
+        turns: markTurn(state.turns, id, 'aborted'),
+        lastError: error instanceof Error ? error.message : String(error),
+      }));
+      throw error;
+    }
   },
 
   interrupt: async () => {
@@ -217,7 +245,21 @@ export const useAgentStore = create<AgentState>((set, get) => {
     if (selectHasPendingInteraction(state)) return;
     const [next, ...rest] = state.queuedMessages;
     set({ queuedMessages: rest });
-    await state.submitItems(next.items, next.workspace ?? undefined);
+    try {
+      await state.submitItems(next.items, next.workspace ?? undefined);
+    } catch (error) {
+      // 提交失败:消息放回队首等下一次事件重试,不静默丢弃。
+      // 若用户期间编辑过队列(该条已不在),仍放回最前,保证不丢内容。
+      const current = get();
+      const queued = current.queuedMessages.some((m) => m.id === next.id)
+        ? current.queuedMessages
+        : [next, ...current.queuedMessages];
+      current.pushToast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      set({ queuedMessages: queued });
+    }
   },
 
   compact: async () => {

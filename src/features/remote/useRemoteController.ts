@@ -113,11 +113,14 @@ export function useRemoteController(): RemoteController {
   const toggleShowForm = useCallback(() => setShowForm((v) => !v), []);
 
   // 切换表单打开时，从当前配置填充草稿。
+  // 依赖只留 showForm:表单开着时后台 config refetch 返回,
+  // 不能把用户正在编辑的 host/authToken 覆盖回服务器值。
   useEffect(() => {
     if (showForm) {
       setDraft(emptyRemoteDraft(cfgQ.data));
     }
-  }, [showForm, cfgQ.data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showForm]);
 
   const patchDraft = useCallback(
     (patch: Partial<RemoteConfigDraft>) =>

@@ -16,9 +16,16 @@ import { usePaletteActions, type PaletteToasts } from './usePaletteActions';
 import { useAgentStore } from '@/stores/agentStore';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 
+// clearAllSessions 有二次确认(ConfirmDialog);测试中自动确认。
+vi.mock('@/features/modals/ConfirmDialog', () => ({
+  confirmDialog: async () => true,
+}));
+
 const TOASTS: PaletteToasts = {
   newSession: 'New session started.',
   noSessionsToClear: 'No sessions to clear.',
+  clearedSessionsLabel: 'Clear all sessions',
+  clearAllConfirm: (count) => `Delete ${count} sessions?`,
   deleteFailed: (msg) => `Delete failed: ${msg}`,
   clearedSessions: (count) => `Cleared ${count} session(s).`,
   noActiveToExport: 'No active session to export.',
@@ -174,7 +181,7 @@ describe('usePaletteActions', () => {
     expect(toasts[toasts.length - 1].message).toBe('Save failed: boom');
   });
 
-  it('runSlash: invokes submit fire-and-forget', () => {
+  it('runSlash: slash 命令走 slashEngine 分发,不把字面文本发给模型', async () => {
     const submitSpy = vi.spyOn(useAgentStore.getState(), 'submit');
     const { result } = renderHook(
       () =>
@@ -185,8 +192,20 @@ describe('usePaletteActions', () => {
         }),
       { wrapper: wrapper(qc) },
     );
+    // /compact 是 submit_with_submission 类:必须触发 reflect_compact,
+    // 而不是把 "/compact" 作为普通文本 submit 给模型。
+    let compactCalled = false;
+    mockInvoke('reflect_compact', async () => {
+      compactCalled = true;
+      return 'ok';
+    });
     act(() => result.current.runSlash('/compact'));
-    expect(submitSpy).toHaveBeenCalledWith('/compact');
+    await waitFor(() => expect(compactCalled).toBe(true));
+    expect(submitSpy).not.toHaveBeenCalled();
+
+    // 非 slash 文本回退到普通提交。
+    act(() => result.current.runSlash('plain text'));
+    await waitFor(() => expect(submitSpy).toHaveBeenCalledWith('plain text'));
     submitSpy.mockRestore();
   });
 

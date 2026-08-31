@@ -264,7 +264,8 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
     expect(session.session_id).toMatch(/^shell-/);
 
     await commands.reflect_kill_shell(session.session_id);
-    expect(backend.lastArgsOf('reflect_kill_shell')).toEqual({ session_id: session.session_id });
+    // Tauri 2 平铺参数 camelCase 匹配（Rust `session_id` → JS `sessionId`）。
+    expect(backend.lastArgsOf('reflect_kill_shell')).toEqual({ sessionId: session.session_id });
     expect(backend.state.shellSessions).not.toContain(session.session_id);
   });
 
@@ -304,10 +305,10 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
     expect(backend.state.schedules.find((s) => s.id === 'cron-1')).toBeUndefined();
   });
 
-  it('side channel: start/cancel keyed by agent_name+prompt/id', async () => {
+  it('side channel: start/cancel keyed by camelCase agentName+prompt / id', async () => {
     await commands.reflect_start_side_channel({ agent_name: 'helper', prompt: 'research' });
     expect(backend.callsOf('reflect_start_side_channel').at(-1)?.args).toEqual({
-      agent_name: 'helper',
+      agentName: 'helper',
       prompt: 'research',
     });
 

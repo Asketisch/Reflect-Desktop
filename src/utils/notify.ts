@@ -258,32 +258,40 @@ export function useAgentNotifications(
       if (t === 'turn_complete' && options.system) {
         const startedAt = turnStartRef.current.get(turnId);
         const durationMs = startedAt === undefined ? null : Date.now() - startedAt;
-        turnStartRef.current.delete(turnId);
         const lastNotifiedAt = lastNotifiedRef.current.get(turnId);
         const gated = shouldNotifyTurnComplete(
           { focused: focusedRef.current, durationMs, lastNotifiedAt, now: Date.now() },
           options,
         );
-        if (!gated) return;
-        lastNotifiedRef.current.set(turnId, Date.now());
-        try {
-          if ('Notification' in window && Notification.permission === 'granted') {
-            const body =
-              lastMessageRef.current.get(turnId) ??
-              hooksRef.current.turnFinishedBody ??
-              'Turn finished.';
-            const notification = new Notification(hooksRef.current.title ?? 'Reflect', {
-              body: truncateBody(body),
-            });
-            notification.onclick = () => {
-              window.focus();
-              hooksRef.current.onOpenSession?.(hooksRef.current.sessionId ?? '');
-            };
+        if (gated) {
+          lastNotifiedRef.current.set(turnId, Date.now());
+          try {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              const body =
+                lastMessageRef.current.get(turnId) ??
+                hooksRef.current.turnFinishedBody ??
+                'Turn finished.';
+              const notification = new Notification(hooksRef.current.title ?? 'Reflect', {
+                body: truncateBody(body),
+              });
+              notification.onclick = () => {
+                window.focus();
+                hooksRef.current.onOpenSession?.(hooksRef.current.sessionId ?? '');
+              };
+            }
+          } catch {
+            /* ignore */
           }
-        } catch {
-          /* ignore */
         }
+      }
+
+      // turn 终止(完成/中止)统一清理 per-turn 跟踪条目 —— 与门控、
+      // system 开关无关。此前被门控拒绝或 turn_aborted 的条目永不清理,
+      // 每条泄漏一条完整回复文本。
+      if (t === 'turn_complete' || t === 'turn_aborted') {
+        turnStartRef.current.delete(turnId);
         lastMessageRef.current.delete(turnId);
+        lastNotifiedRef.current.delete(turnId);
       }
     });
   }, [options.sound, options.system, options.volume, options.onlyUnfocused, options.minDurationMs]);

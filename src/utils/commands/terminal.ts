@@ -27,7 +27,8 @@ export async function reflect_run_shell(cmd: string): Promise<ReflectShellSessio
 
 /** 按 id 终止运行中的 shell 会话。幂等。 */
 export async function reflect_kill_shell(session_id: string): Promise<void> {
-  return invoke<void>('reflect_kill_shell', { session_id });
+  // Tauri 2 平铺参数按 camelCase 匹配 Rust 参数名 `session_id`。
+  return invoke<void>('reflect_kill_shell', { sessionId: session_id });
 }
 
 /** Diagnostic：列出活动 shell 会话的 id。 */

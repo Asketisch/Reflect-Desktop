@@ -83,7 +83,13 @@ function ComplexSectionEditor({ section, rawToml, onChange }: { section: string;
       <Button
         size="sm"
         variant="ghost"
-        onClick={() => onChange(addSubSection(rawToml, section, `${section}-new`))}
+        onClick={() =>
+          onChange(
+            // 名称必须带点：addSubSection 对不含点的名称生成裸 `[section]`
+            // 头(落入 "(default)" 分区),在默认分区已存在时点击毫无效果。
+            addSubSection(rawToml, section, `${section}.${section}-new`),
+          )
+        }
       >
         {t('settings.config.addEntry', { label: section })}
       </Button>

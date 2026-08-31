@@ -39,6 +39,12 @@ export interface CodeMirrorEditorProps {
   onRejectHunk: (index: number, currentContent: string) => Promise<string | null>;
   /** 只读模式(二进制/截断回退场景)。 */
   readOnly?: boolean;
+  /**
+   * 可选:挂载后写入"读取当前编辑器缓冲"的函数,卸载时清空。
+   * 调用方(FilesView 的 Reject All)借此以缓冲而非缓存内容做
+   * inverse-patch,与单块 Reject 的内容源保持一致。
+   */
+  bufferRef?: { current: (() => string) | null };
 }
 
 const setHunksEffect = StateEffect.define<DiffHunk[]>();
@@ -174,6 +180,7 @@ export function CodeMirrorEditor({
   onAcceptHunk,
   onRejectHunk,
   readOnly = false,
+  bufferRef,
 }: CodeMirrorEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -181,6 +188,15 @@ export function CodeMirrorEditor({
   const readOnlyCompartment = useRef(new Compartment());
   const handlers = useRef({ onAcceptHunk, onRejectHunk });
   handlers.current = { onAcceptHunk, onRejectHunk };
+
+  // 暴露缓冲读取函数;卸载时归还 null。
+  useEffect(() => {
+    if (!bufferRef) return;
+    bufferRef.current = () => viewRef.current?.state.doc.toString() ?? '';
+    return () => {
+      bufferRef.current = null;
+    };
+  }, [bufferRef]);
 
   // 创建视图(一次);path 变化时切换语言并替换内容。
   useEffect(() => {

@@ -152,7 +152,12 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         pendingApprovals: [
           ...state.pendingApprovals,
           {
-            id: `bubble-${msg.tool_name}-${turnId}`,
+            // payload 没有请求 id;同 turn 同工具可能出现多个气泡,
+            // id 必须唯一,否则 approve() 按 id 过滤会一次误杀多条 UI 记录
+            // 而只应答一个后端请求。
+            id: `bubble-${msg.tool_name}-${turnId}-${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2, 8)}`,
             kind: 'tool',
             toolName: msg.tool_name,
             risk: msg.risk,
