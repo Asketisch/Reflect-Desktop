@@ -9,7 +9,7 @@
 ReflectDesktop/
 ├── reflect-agent/           # git submodule：Reflect-Agent 仓库的 reflect-* crate
 │                            # 只读镜像，不要直接修改（见 SUBMODULE.md）
-├── app-core/                # 共享的 UI 无关 reducer + 状态
+├── app-core/                # Tauri 命令层的共享领域服务（UI 无关）
 ├── src/                     # React 19 + Vite + 功能切片
 │   ├── features/
 │   │   ├── shell/           # IDE 五窗格布局（AppShell、ActivityBar、

@@ -19,7 +19,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 - 前端：React 19 + Vite + TanStack Router/Query（`src/`）
 - 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
 - 子模块：`reflect-*` 核心 crate 通过 git submodule 复用（见 `reflect-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
-- 共享核心：`app-core/`（与 UI 无关的 reducer/state，供未来 Tauri 适配层共享）
+- 共享核心：`app-core/`（UI 无关的领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / actor，供 `src-tauri` 命令层复用）
 
 ## 不可妥协的架构规则
 
@@ -187,7 +187,7 @@ pnpm test -- src/features/settings/SettingsView.test.tsx
 
 结构拆分的子模块有意允许较小规模，此处不加例外条款；大小约束的主要单元是每领域的公共入口（`commands/<domain>.rs`、`stores/agent/index.ts` 等）。
 
-如果未来某个生产入口需要超过 500 行，需在此文档说明理由，并优先将逻辑拆分到跨 crate（如将 reducer 条目提升到 `app-core::reducer::*`，宿主逻辑提升到 `app-core::host`），而非在同一文件内进行机械切片。
+如果未来某个生产入口需要超过 500 行，需在此文档说明理由，并优先将领域逻辑拆到 `app-core/` 独立模块、宿主编排逻辑拆到 `src-tauri/src/state/` 子模块，而非在同一文件内进行机械切片。
 
 - `src-tauri/src/commands/mod.rs` — 薄桶模块，重新导出各领域命令体（`commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs`，实际命令体在这些文件中，子 `mod.rs` 仅保留模块布线）
 - `src-tauri/src/events.rs` — 事件转发器，单一通道

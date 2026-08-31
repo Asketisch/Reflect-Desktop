@@ -654,7 +654,7 @@
 | **Compact / 恢复** | `vendor/reflect-{compact,recovery,rollout}/` | ✅ smart_prune + subagent registry + rollout 记录 |
 | **MCP / Skills / Hooks / Permissions** | `vendor/reflect-{mcp,skills,hooks,permissions}/` | ✅ |
 | **Plan mode** | `vendor/reflect-core/src/` + `src/features/plan/` | ✅ |
-| **app-core 共享状态** | `app-core/src/{state,reducer}/` | ✅ UI-agnostic RenderState,TUI/GUI 共用 |
+| **app-core 共享状态** | `app-core/src/{state,reducer}/` | ❌ 已移除(2026-08-31):Rust 镜像从未接线,渲染主线确定为 TS + Tauri |
 
 ### 8.2 关键缺口(Tauri 命令层 + 前端 UI 未暴露)
 

@@ -156,7 +156,7 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 
 `reflect-agent/` 是上游 `Reflect-Agent` 仓库 reflect-* crate 的只读 git submodule 镜像，通过 `git submodule update --remote` 升级（完整流程见 `SUBMODULE.md`）。引用的 crate 集合由根 `Cargo.toml` 的 `[workspace.dependencies]` 声明（如 `reflect-agent/crates/protocol/reflect-protocol/`、`reflect-agent/crates/runtime/reflect-core/` 等）。
 
-ReflectDesktop 与无头 ReflectAgent 工具共用的 UI 无关 reducer/state 类型位于 workspace 根的 `app-core/` crate（与 `reflect-agent/` 平级），不在 submodule 内。上游改动优先改 Reflect-Agent 仓库，再升级 submodule。
+`app-core/`（与 `reflect-agent/` 平级的本仓库 crate）承载 Tauri 命令层的 UI 无关领域服务（activity / kms / media / squad / side-channel / tailscale / autopilot / actor）；GUI 渲染状态由前端 `src/stores/agent/` 负责。上游核心改动优先改 Reflect-Agent 仓库，再升级 submodule。
 
 ---
 

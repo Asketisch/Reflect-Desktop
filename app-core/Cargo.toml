@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Reflect: 共享 UI-agnostic reducer / RenderState / Services bundle,供 TUI 与 GUI 复用"
+description = "Reflect Desktop 领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot 等命令逻辑（UI 无关，供 src-tauri 复用）"
 
 [lints]
 workspace = true
@@ -16,19 +16,11 @@ name = "reflect_app_core"
 path = "src/lib.rs"
 
 [dependencies]
-# Reflect crates —— 与 docs/gui/03-architecture.md §2.2 对齐
+# Reflect crates（仅保留保留模块实际使用的）
 reflect-protocol = { workspace = true }
-reflect-core     = { workspace = true }
 reflect-task     = { workspace = true }
-reflect-skills   = { workspace = true }
-reflect-memory   = { workspace = true }
-reflect-permissions = { workspace = true }
-reflect-tools    = { workspace = true }
-reflect-llm      = { workspace = true }
-reflect-hooks    = { workspace = true }
 
 # 通用
-anyhow      = { workspace = true }
 dirs        = { workspace = true }
 serde       = { workspace = true }
 serde_json  = { workspace = true }
@@ -37,4 +29,3 @@ tokio-util  = { workspace = true, features = ["rt"] }
 parking_lot = { workspace = true }
 tracing     = { workspace = true }
 tempfile    = "3"
-uuid        = { workspace = true }

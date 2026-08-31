@@ -4403,25 +4403,16 @@ dependencies = [
 name = "reflect-app-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "dirs 5.0.1",
  "parking_lot",
- "reflect-core",
- "reflect-hooks",
- "reflect-llm",
- "reflect-memory",
- "reflect-permissions",
  "reflect-protocol",
- "reflect-skills",
  "reflect-task",
- "reflect-tools",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
- "uuid",
 ]
 
 [[package]]

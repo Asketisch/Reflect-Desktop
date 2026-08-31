@@ -56,8 +56,7 @@ git commit -m "chore: bump reflect-agent submodule (<原因>)"
 
 | 症状 | 原因 | 修复 |
 |---|---|---|
-| `cargo check` 报 match 不穷尽 | `reflect-protocol` 新增 `EventMsg` / `RolloutRecord` 变体 | 在 `app-core/src/reducer/mod.rs` 与 `src-tauri/src/state/activity.rs` 补全 match 分支 |
-| `cargo check` 报 "missing field" | 协议结构体新增字段 | 适配 `app-core/src/protocol.rs` 的构造函数 |
+| `cargo check` 报 match 不穷尽 | `reflect-protocol` 新增 `EventMsg` / `RolloutRecord` 变体 | 在 `src-tauri/src/state/activity.rs` 补全 match 分支 |
 | 前端丢弃事件 | 前端 reducer 缺少新变体 | 运行 `bash scripts/dump-ts-types.sh` 后在 reducer 补全 |
 | `invoke('reflect_submit')` 报错 | Tauri 命令签名漂移 | 将 `src-tauri/src/commands/` 与新 `Op` 变体同步 |
 

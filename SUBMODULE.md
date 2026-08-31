@@ -8,7 +8,7 @@
 
 ```
 ReflectDesktop (本仓库,workspace 消费端)
-  ├─ app-core/        (Desktop 自有:UI 无关应用层,reducer / RenderState / Services)
+  ├─ app-core/        (Desktop 自有:UI 无关领域服务层,activity / kms / media / squad / side-channel / tailscale / autopilot)
   ├─ src-tauri/       (Tauri 后端,嵌入 reflect_core::AgentThread)
   └─ reflect-agent/   (submodule → Reflect-Agent 仓库)
        └─ crates/{protocol,abilities,resources,orchestration,integrations,runtime}/reflect-*
@@ -56,8 +56,8 @@ git submodule update --remote reflect-agent
 
 核心升级可能引入协议/结构变更。若 `cargo check` 报错,常见适配点:
 
-- `EventMsg` 新增 variant → `app-core/src/reducer/mod.rs` 和 `src-tauri/src/state/activity.rs` 的 match 补全
-- `Op` 变体形态变更 → `app-core/src/protocol.rs` 的构造函数适配
+- `EventMsg` 新增 variant → `src-tauri/src/state/activity.rs` 的 match 补全
+- `Op` 变体形态变更 → `src-tauri/src/commands/` 的命令封装适配
 - `AgentDefinition` 字段变更 → `src-tauri/src/commands/agents.rs` 适配
 
 ## 当前 submodule 指针

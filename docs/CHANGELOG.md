@@ -4,6 +4,20 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 移除 — app-core 未接线的 Rust 渲染状态管线（B2 脚手架）
+
+- 删除 `app-core/src/{reducer,protocol,state}` 三个模块（约 1.4k 行）：
+  与前端 `src/stores/agent/`（AgentState / reduceEvent / submissions）平行的
+  Rust 镜像实现（B2-01 RenderState / B2-08 reducer / B2-03 Op 构造器），
+  自创建起从未被 `src-tauri` 接线。渲染主线确定为 TS + Tauri，Rust 镜像
+  不再保留。
+- app-core 定位收敛为「Tauri 命令层的 UI 无关领域服务」（activity / kms /
+  media / squad / side-channel / tailscale / autopilot / actor），同步裁剪
+  7 个未使用依赖（reflect-core / llm / hooks / skills / memory /
+  permissions / tools）及 uuid / anyhow，更新 crate description。
+- 同步修订 AGENTS.md / SUBMODULE.md / docs/codebase-map.md /
+  docs/ARCHITECTURE.md 中对 app-core 旧定位（reducer/state 共享层）的描述。
+
 ### 变更 — GitHub 开源铺垫批次
 
 仓库身份与元数据：
