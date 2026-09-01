@@ -28,6 +28,7 @@ import { DiffViewer } from '@/features/git/DiffViewer';
 import { Collapsible } from './Collapsible';
 import { ToolCell } from './ToolCells';
 import { QueuedMessages } from './QueuedMessages';
+import { splitAssistantText } from './assistantText';
 import s from './MessageList.module.css';
 
 const NEAR_BOTTOM_PX = 64;
@@ -87,15 +88,7 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
     }
 
     case 'thinking':
-      return (
-        <Collapsible
-          icon={<Icon icon={Brain} size={13} />}
-          accent="info"
-          label={item.text.length > 60 ? t('chat.thinkingWith', { snippet: item.text.slice(0, 60) }) : t('chat.thinking')}
-        >
-          <pre className={s.monoText}>{item.text}</pre>
-        </Collapsible>
-      );
+      return <ThinkingCollapsible text={item.text} />;
 
     case 'tool_call': {
       // B7-05：按工具渲染（图标、参数摘要、可折叠原始参数）。
@@ -156,15 +149,43 @@ function UserBubble({ text }: { text: string }) {
   );
 }
 
+/** 思考过程折叠块（ThinkingDelta 事件与正文 <think> 分段共用）。
+ *  文字用弱化色 —— 思考与正式输出视觉分级。 */
+function ThinkingCollapsible({ text, defaultOpen = false }: { text: string; defaultOpen?: boolean }) {
+  const { t } = useI18n();
+  const snippet = text.slice(0, 60).replace(/\s+/g, ' ');
+  return (
+    <Collapsible
+      icon={<Icon icon={Brain} size={13} />}
+      accent="info"
+      defaultOpen={defaultOpen}
+      label={text.length > 60 ? t('chat.thinkingWith', { snippet }) : t('chat.thinking')}
+    >
+      <pre className={`${s.monoText} ${s.thinkingText}`}>{text}</pre>
+    </Collapsible>
+  );
+}
+
 function AssistantBubble({ text, streaming }: { text: string; streaming: boolean }) {
+  // 模型把推理以 <think> 标签混进正文、runtime 的 nudge 提醒会让模型
+  // 回显 FINAL ANSWER 标记 —— 都不属于正文,渲染前分段/剥离。
+  const { thinking, content } = splitAssistantText(text);
   return (
     <div className={s.assistantRow}>
       <div className={s.assistantAvatar} aria-hidden="true">R</div>
       <div className={s.assistantBubble}>
-        {text.length > 0 ? (
-          <Markdown text={text} />
+        {thinking && (
+          <ThinkingCollapsible
+            // 正文出现后重挂载让折叠块自动收起(默认展开仅在纯思考阶段)。
+            key={content ? 'with-content' : 'thinking-only'}
+            text={thinking}
+            defaultOpen={streaming && !content}
+          />
+        )}
+        {content.length > 0 ? (
+          <Markdown text={content} />
         ) : (
-          <span className={s.thinking}>…</span>
+          !thinking && <span className={s.thinking}>…</span>
         )}
         {streaming && <span className={s.cursor} aria-hidden="true" />}
       </div>

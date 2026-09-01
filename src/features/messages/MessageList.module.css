@@ -147,6 +147,12 @@
   color: var(--danger);
 }
 
+/* 思考过程文字 —— 比正文/工具输出更弱的视觉层级(浅色) */
+.thinkingText {
+  color: var(--text-muted);
+}
+
+
 /* ===== 错误 / 折叠 ===== */
 .errorRow {
   display: flex;

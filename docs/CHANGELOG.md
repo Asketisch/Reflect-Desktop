@@ -4,6 +4,21 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — FINAL ANSWER 标记泄漏 + 模型思考过程视觉分级
+
+- **FINAL ANSWER 标记不再渲染**：系统提示词（所有模式）与 nudge /
+  auto-continue 提醒都要求模型以 `FINAL ANSWER:` 收尾，模型（尤其
+  MiniMax-M3）会把标记照字面回显到答案里。渲染层在展示前剥离行首标记
+  （容忍 `**` / `>` / 列表符修饰）及 `<answer>` 模板占位符行，正文数据
+  原样保留。
+- **`<think>` 推理折叠显示**：MiniMax M3 / DeepSeek 系模型把推理以
+  `<think>…</think>` 标签混在正文流式输出（而非 Anthropic thinking 块），
+  此前按正文渲染。现在渲染层把思考段拆分为独立的可折叠块（复用
+  ThinkingDelta 的 thinking 折叠样式），文字用弱化色、与正文视觉分级；
+  流式中标签未闭合时整段按思考显示并默认展开，正文出现后自动收起。
+  新增纯函数 `splitAssistantText`（`assistantText.ts`）承载拆分逻辑，
+  streaming / 定稿 / 会话回放三条路径统一生效。
+
 ### 修复 — Coding plan 拉取模型后无法选择
 
 - 设置 → Coding Plans 的模型候选此前用 `<datalist>` 承载：macOS Tauri 的
