@@ -6,11 +6,23 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ### 修复 — FINAL ANSWER 标记泄漏 + 模型思考过程视觉分级
 
+- **思考分段加固**：`splitAssistantText` 的 `<think>` 识别从"任意位置首现"
+  收紧为**行首锚定 + 代码围栏感知**（围栏内的 `<think>` 字样是代码内容不
+  误判），并支持 `thinking` / `thought` / `reasoning` 别名标签；行文中
+  内联出现的 `<think>` 字样保持原文。三类思考路径的归属：Anthropic 原生
+  thinking 块与 OpenAI 兼容端点 `reasoning_content` 字段走 ThinkingDelta
+  事件（上游已支持）；标签混入正文由本模块拆分；无标签纯文本泄漏原理上
+  不可检测，不处理。
 - **FINAL ANSWER 标记不再渲染**：系统提示词（所有模式）与 nudge /
   auto-continue 提醒都要求模型以 `FINAL ANSWER:` 收尾，模型（尤其
   MiniMax-M3）会把标记照字面回显到答案里。渲染层在展示前剥离行首标记
   （容忍 `**` / `>` / 列表符修饰）及 `<answer>` 模板占位符行，正文数据
   原样保留。
+- **上游配合（Reflect-Agent，随下次 submodule 升级生效）**：运行时没有任何
+  代码消费该标记（turn 收尾判定 = 模型不再调工具，ReAct 本就等待自然结束），
+  常驻注入系统提示词纯属输出污染 —— 已从 ephemeral 提示词移除；收敛模板
+  只保留在真正需要强收口压力的边路（nudge / max-iterations force-final /
+  auto-continue）。
 - **`<think>` 推理折叠显示**：MiniMax M3 / DeepSeek 系模型把推理以
   `<think>…</think>` 标签混在正文流式输出（而非 Anthropic thinking 块），
   此前按正文渲染。现在渲染层把思考段拆分为独立的可折叠块（复用

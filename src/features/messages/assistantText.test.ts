@@ -10,16 +10,44 @@ describe('splitAssistantText', () => {
     expect(content).toBe('你好!有什么可以帮你?');
   });
 
+  it('standard DeepSeek shape (think block then newline then answer)', () => {
+    const { thinking, content } = splitAssistantText('<think>\n推理过程。\n</think>\n答案正文');
+    expect(thinking).toBe('推理过程。');
+    expect(content).toBe('答案正文');
+  });
+
   it('unclosed <think> (streaming) is all thinking, content empty', () => {
     const { thinking, content } = splitAssistantText('<think>先分析一下需求,然后');
     expect(thinking).toBe('先分析一下需求,然后');
     expect(content).toBe('');
   });
 
-  it('text before the think block is folded into thinking', () => {
-    const { thinking, content } = splitAssistantText('嗯..<think>结论:A</think>答案是 A。');
-    expect(thinking).toBe('嗯..结论:A');
-    expect(content).toBe('答案是 A。');
+  it('open tag with same-line remainder folds the remainder into thinking', () => {
+    const { thinking, content } = splitAssistantText('<think>分析中');
+    expect(thinking).toBe('分析中');
+    expect(content).toBe('');
+  });
+
+  it('alias tags (thinking / thought / reasoning) are recognized', () => {
+    for (const tag of ['thinking', 'thought', 'reasoning']) {
+      const { thinking, content } = splitAssistantText(`<${tag}>推理</${tag}>正文`);
+      expect(thinking).toBe('推理');
+      expect(content).toBe('正文');
+    }
+  });
+
+  it('<think> inside a code fence is NOT a split point', () => {
+    const raw = '看这个例子:\n```\n<think>fake</think>\n```\n完事';
+    const { thinking, content } = splitAssistantText(raw);
+    expect(thinking).toBeNull();
+    expect(content).toBe(raw);
+  });
+
+  it('inline (mid-line) <think> is left as plain text — line-start anchor avoids false positives', () => {
+    const raw = '嗯..<think>结论:A</think>答案是 A。';
+    const { thinking, content } = splitAssistantText(raw);
+    expect(thinking).toBeNull();
+    expect(content).toBe(raw);
   });
 
   it('FINAL ANSWER markers at line start are stripped, remainder kept', () => {
