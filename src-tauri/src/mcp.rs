@@ -47,6 +47,18 @@ pub(crate) async fn bootstrap_mcp(
     let (internal_tx, mut internal_rx) = tokio::sync::mpsc::channel::<McpLifecycleEvent>(32);
     let manager = Arc::new(McpConnectionManager::new(internal_tx));
 
+    // MCP 工具调用事件:adapter execute 完成后 emit `McpToolInvoked`
+    // (upstream v1.3 起 from_descriptor 需要 event_tx)。mpsc → broadcast
+    // 转发,前端按 msg.type 分发即可看到工具调用记录。
+    // (clone 必须在 lifecycle forwarder move session_tx 之前。)
+    let (invoked_tx, mut invoked_rx) = tokio::sync::mpsc::channel::<Event>(64);
+    let invoked_forward = session_tx.clone();
+    tokio::spawn(async move {
+        while let Some(ev) = invoked_rx.recv().await {
+            let _ = invoked_forward.send(ev);
+        }
+    });
+
     // 后台 task:internal lifecycle event → protocol Event → session broadcast。
     tokio::spawn(async move {
         while let Some(evt) = internal_rx.recv().await {
@@ -82,6 +94,7 @@ pub(crate) async fn bootstrap_mcp(
         let mcp_cfg: McpServerConfig = McpServerConfig::from(cfg_shape.clone());
         let mgr = manager.clone();
         let tools_clone = tools.clone();
+        let invoked_tx = invoked_tx.clone();
         tokio::spawn(async move {
             match mgr.start_server(mcp_cfg.clone()).await {
                 Ok(handle) => {
@@ -91,6 +104,7 @@ pub(crate) async fn bootstrap_mcp(
                             desc,
                             &mcp_cfg.name,
                             mcp_cfg.timeout,
+                            Some(invoked_tx.clone()),
                         );
                         let arc: Arc<dyn reflect_tools::Tool> = Arc::new(adapter);
                         if !tools_clone.register_if_absent(ToolSource::Runtime, arc) {

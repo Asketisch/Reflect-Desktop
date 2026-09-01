@@ -201,6 +201,9 @@ fn map_event(event: &Event) -> Option<ActivityEvent> {
         // AgentThread 不注册远程工具,不会收到;保穷尽忽略。
         | EventMsg::ToolExecutionRequest(_)
         | EventMsg::PluginLoaded(_)
+        // SubmissionClosed:submission 生命周期收尾信号(无用户可见语义),
+        // 与其余 lifecycle 事件一样不进 activity timeline。
+        | EventMsg::SubmissionClosed
         | EventMsg::ShutdownComplete => return None,
 
         // QuotaExhausted —— 配额耗尽(独立分支,展示为 Warn)。

@@ -53,15 +53,13 @@ pub(crate) async fn hot_reload_provider_stack(
     super::quota::install_quota_tracker(agent, new);
 
     // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
+    //    model 解析诚实化后,provider 在但无显式 model 也是降级态
+    //    (状态栏黄点 + tooltip 指引),不再编造默认模型名。
     let model_spec = new
         .resolved_model_spec()
         .unwrap_or_else(|| "stub/test".to_string());
     *agent.inner.model_spec.write() = model_spec;
-    *agent.inner.degraded_reason.lock() = if new.active_provider().is_none() {
-        Some("no provider configured — set an API key in Settings".to_string())
-    } else {
-        None
-    };
+    *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(new);
 
     // 4. 当前有绑定会话 → replay 历史 → 强制重绑(跳过同 id 短路)。
     //    旧线程的会话级 PermissionMode 原样带过去,热重载不重置权限模式。
@@ -94,6 +92,14 @@ mod tests {
     use crate::state::MinimalAgent;
 
     fn cfg_with_provider(provider: &str) -> reflect_config::ReflectConfig {
+        reflect_config::load_from_str(&format!(
+            "[active]\nprovider = \"{provider}\"\n\n[{provider}]\nmodel = \"test-model\"\n"
+        ))
+        .expect("config parses")
+    }
+
+    /// 无 model 配置的 provider 快照(诚实化:spec 为 stub,降级原因给出指引)。
+    fn cfg_with_provider_no_model(provider: &str) -> reflect_config::ReflectConfig {
         reflect_config::load_from_str(&format!("[active]\nprovider = \"{provider}\"\n"))
             .expect("config parses")
     }
@@ -133,8 +139,61 @@ mod tests {
         assert_eq!(agent.bound_session_id(), Some(sid), "会话 id 保持不变");
         assert_eq!(
             agent.model_spec(),
-            "openai/gpt-4o",
-            "model spec 随 provider 更新(openai 默认模型)"
+            "openai/test-model",
+            "model spec 随 provider 更新"
+        );
+    }
+
+    /// 诚实化回归:provider 段变化但无任何显式 model → spec 保持 stub,
+    /// 降级原因给出「有 provider 但没 model」的可行动指引(而非编造
+    /// `openai/gpt-4o` 之类的默认模型名)。
+    #[tokio::test]
+    async fn hot_reload_without_model_reports_degraded_reason() {
+        let agent = MinimalAgent::new_empty();
+        agent.install_agent_thread();
+        let old = cfg_with_provider("anthropic");
+        let new = cfg_with_provider_no_model("openai");
+        hot_reload_provider_stack(&agent, &old, &new).await;
+        assert_eq!(agent.model_spec(), "stub/test");
+        let reason = agent.inner.degraded_reason.lock().clone();
+        assert!(
+            reason.as_deref().is_some_and(|r| r.contains("no model")),
+            "降级原因应指向缺 model,实际: {reason:?}"
+        );
+    }
+
+    /// provider 与 model 都齐全 → 降级原因清空。
+    #[tokio::test]
+    async fn hot_reload_with_model_clears_degraded_reason() {
+        let agent = MinimalAgent::new_empty();
+        agent.install_agent_thread();
+        let old = cfg_with_provider_no_model("anthropic");
+        let new = cfg_with_provider("openai");
+        hot_reload_provider_stack(&agent, &old, &new).await;
+        assert_eq!(agent.model_spec(), "openai/test-model");
+        assert!(agent.inner.degraded_reason.lock().is_none());
+    }
+
+    /// v1.5:仅 `[active].credential` 变化(同 provider 下切 coding plan)
+    /// 也必须触发热重载 —— 否则 GUI 的 plan 切换对运行中会话不生效。
+    #[tokio::test]
+    async fn hot_reload_detects_credential_pin_change() {
+        let agent = MinimalAgent::new_empty();
+        agent.install_agent_thread();
+        let old = reflect_config::load_from_str(
+            "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n",
+        )
+        .unwrap();
+        let new = reflect_config::load_from_str(
+            "[active]\nprovider = \"anthropic\"\ncredential = \"MiniMax\"\n\n[anthropic]\nmodel = \"m\"\n",
+        )
+        .unwrap();
+        let registry_before = agent.inner.model_registry.lock().clone().unwrap();
+        hot_reload_provider_stack(&agent, &old, &new).await;
+        let registry_after = agent.inner.model_registry.lock().clone().unwrap();
+        assert!(
+            !std::sync::Arc::ptr_eq(&registry_before, &registry_after),
+            "钉住变化必须重建 registry(apply_to_registry 重设 preferred)"
         );
     }
 
@@ -147,6 +206,6 @@ mod tests {
         let old = cfg_with_provider("anthropic");
         let new = cfg_with_provider("openai");
         hot_reload_provider_stack(&agent, &old, &new).await;
-        assert_eq!(agent.model_spec(), "openai/gpt-4o");
+        assert_eq!(agent.model_spec(), "openai/test-model");
     }
 }

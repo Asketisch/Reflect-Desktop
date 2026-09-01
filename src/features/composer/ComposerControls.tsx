@@ -5,8 +5,13 @@
  * 桌面端：选择器贴近输入框，不必跳设置页或拼斜杠命令。
  *
  * - 模型：选项来自 coding plans（`reflect_get_config` 解析，与 ModelsView
- *   同源）；切换走 `reflect_set_model`（后端改 `[active].provider` +
- *   `[<provider>].model` → 热重载 provider 栈，协议不动）。
+ *   同源）；切换走 `reflect_set_model(provider, model, label)` —— 后端写
+ *   `[active].provider` + `[active].credential`（钉住该凭证）+ 条目/段级
+ *   model → 热重载 provider 栈，协议不动。同 provider 的两个 plan 也能
+ *   真正切换（v1.5 起 `active.credential` 钉住语义）。
+ * - 选中态单一事实源是 `[active].credential`（后端钉住），不再靠
+ *   "spec 后缀匹配 plan.model" 猜 —— 两个同 provider 空 model 的 plan
+ *   以前会被兜底链挤回同一个选项，看起来「切换不生效」。
  * - 思考深度：`reflect_get_effort` 回读 + `reflect_set_effort` 设置
  *   （乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新）。
  * - 权限模式：agentStore 的 `permissionMode`（有 `permission_mode_changed`
@@ -20,7 +25,7 @@ import { RefreshCw } from 'lucide-react';
 import { reflect_agent_status, reflect_get_config, reflect_set_model } from '@/utils/commands/config';
 import { reflect_list_provider_models, type ProviderModelInfo } from '@/utils/commands/models';
 import { reflect_get_effort, reflect_set_effort } from '@/utils/commands/permissions';
-import { listPlans, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
+import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import s from './ComposerControls.module.css';
@@ -44,6 +49,7 @@ export function ComposerControls() {
 
   const [plans, setPlans] = useState<PlanEntry[]>([]);
   const [activeProvider, setActiveProvider] = useState('');
+  const [activeCredential, setActiveCredential] = useState('');
   const [currentSpec, setCurrentSpec] = useState('');
   const [switching, setSwitching] = useState(false);
   const [effort, setEffort] = useState<Effort>('low');
@@ -53,19 +59,24 @@ export function ComposerControls() {
   const [fetchingModels, setFetchingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
-  // 配置 + 当前模型快照（挂载时一次；模型切换成功后本地更新）。
+  // 配置 + 当前模型快照。`refresh` 在切换成功后再调 —— 配置已被后端
+  // 改写(条目 model / active.credential),本地 plans 必须重读。
   useEffect(() => {
     let cancelled = false;
-    reflect_get_config()
-      .then((toml) => {
-        if (cancelled) return;
-        setPlans(listPlans(toml));
-        setActiveProvider(readActiveProvider(toml));
-      })
-      .catch(() => {/* 配置不可读时隐藏模型选择 */});
+    const refresh = async () => {
+      const toml = await reflect_get_config();
+      if (cancelled) return;
+      setPlans(listPlans(toml));
+      setActiveProvider(readActiveProvider(toml));
+      setActiveCredential(readActiveCredential(toml));
+    };
+    refresh().catch(() => {/* 配置不可读时隐藏模型选择 */});
     reflect_agent_status()
       .then((status) => {
-        if (!cancelled) setCurrentSpec(status.model);
+        if (cancelled) return;
+        // 后端诚实化:has_model=false(无 provider 或无显式 model)时
+        // status.model 是 "stub/test" 占位 —— 不展示,显示"未配置模型"。
+        setCurrentSpec(status.has_model ? status.model : '');
       })
       .catch(() => {/* 状态不可读时显示占位 */});
     reflect_get_effort()
@@ -80,15 +91,17 @@ export function ComposerControls() {
 
   const onSwitchModel = async (value: string) => {
     if (switching) return;
-    // 'model:<id>' = 从接口拉取的模型(挂到当前 active plan 的端口上)。
+    // 'model:<id>' = 从接口拉取的模型(挂到当前选中 plan 的端口上)。
     if (value.startsWith('model:')) {
-      const target = selectedPlan ?? plans.find((p) => p.provider === activeProvider);
+      const target = selectedPlan;
       if (!target) return;
       setSwitching(true);
       try {
-        const spec = await reflect_set_model(target.provider, value.slice('model:'.length));
+        const spec = await reflect_set_model(target.provider, value.slice('model:'.length), target.label);
         setCurrentSpec(spec);
         setActiveProvider(target.provider);
+        setActiveCredential(target.label);
+        await refreshPlans();
       } catch (e) {
         // 静默吞错会让「点了没反应」无法诊断 —— 后端拒绝(如未知
         // provider / 配置非法)必须可见。
@@ -105,9 +118,18 @@ export function ComposerControls() {
     if (!plan) return;
     setSwitching(true);
     try {
-      const spec = await reflect_set_model(plan.provider, plan.model);
+      const spec = await reflect_set_model(plan.provider, plan.model, plan.label);
       setCurrentSpec(spec);
       setActiveProvider(plan.provider);
+      setActiveCredential(plan.label);
+      await refreshPlans();
+      // 钉住成功但该 plan 没有 model:请求仍无模型可用 —— 明示而非静默。
+      if (!plan.model.trim()) {
+        pushToast({
+          kind: 'warn',
+          message: t('composer.controls.pinnedNoModel', { label: plan.label }),
+        });
+      }
     } catch (e) {
       pushToast({
         kind: 'error',
@@ -118,9 +140,17 @@ export function ComposerControls() {
     }
   };
 
-  /** 对当前 active plan 的 base_url + api_key 拉取可用模型列表。 */
+  /** 切换成功后重读配置(后端已改写 active.credential / 条目 model)。 */
+  const refreshPlans = async () => {
+    const toml = await reflect_get_config();
+    setPlans(listPlans(toml));
+    setActiveProvider(readActiveProvider(toml));
+    setActiveCredential(readActiveCredential(toml));
+  };
+
+  /** 对当前选中 plan 的 base_url + api_key 拉取可用模型列表。 */
   const onFetchModels = async () => {
-    const plan = selectedPlan ?? plans.find((p) => p.provider === activeProvider);
+    const plan = selectedPlan;
     if (!plan || !plan.apiKey.trim() || fetchingModels) return;
     setFetchingModels(true);
     setModelsError(null);
@@ -143,12 +173,13 @@ export function ComposerControls() {
   };
 
   const hasPlans = plans.length > 0;
-  // 选中态回退链：model 精确匹配 spec → activeProvider 下无 model 的隐式
-  // default plan → activeProvider 下第一个 plan（model 走 provider 默认）。
-  const specModel = currentSpec.includes('/') ? currentSpec.slice(currentSpec.indexOf('/') + 1) : '';
+  // 选中态单一事实源:`[active].credential` 钉住的 plan;未钉住时回落
+  // 顶层隐式 default plan,再回落该 provider 首个 plan。
   const selectedPlan =
-    plans.find((p) => p.provider === activeProvider && p.model === specModel) ??
-    plans.find((p) => p.provider === activeProvider && p.model === '') ??
+    (activeCredential
+      ? plans.find((p) => p.provider === activeProvider && p.label === activeCredential)
+      : undefined) ??
+    plans.find((p) => p.provider === activeProvider && p.topLevel) ??
     plans.find((p) => p.provider === activeProvider);
   // 接口模型列表只在归属 plan 仍被选中时显示(避免展示别的 plan 的列表)。
   const showApiModels = apiModels.length > 0 && selectedPlan != null && apiModelsFor === planKey(selectedPlan);
@@ -170,11 +201,15 @@ export function ComposerControls() {
               onChange={(event) => void onSwitchModel(event.target.value)}
               aria-label={t('composer.controls.modelAria')}
               data-testid="composer-model-select"
-              title={hasPlans ? currentSpec : t('composer.controls.modelConfigureHint')}
+              title={currentSpec || t('composer.controls.modelConfigureHint')}
             >
               {!hasPlans && <option value="">{currentSpec || t('composer.controls.modelNone')}</option>}
-              {hasPlans && !selectedPlan && currentSpec && (
-                <option value="">{t('composer.controls.modelCurrent', { spec: currentSpec })}</option>
+              {hasPlans && !selectedPlan && (
+                <option value="">
+                  {currentSpec
+                    ? t('composer.controls.modelCurrent', { spec: currentSpec })
+                    : t('composer.controls.modelNone')}
+                </option>
               )}
               {plans.map((plan) => (
                 <option key={planKey(plan)} value={planKey(plan)}>

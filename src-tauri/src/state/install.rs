@@ -34,11 +34,7 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     let model_spec = cfg_snapshot
         .resolved_model_spec()
         .unwrap_or_else(|| "stub/test".to_string());
-    let has_provider = cfg_snapshot.active_provider().is_some();
-    if !has_provider {
-        *agent.inner.degraded_reason.lock() =
-            Some("no provider configured — set an API key in Settings".to_string());
-    }
+    *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(&cfg_snapshot);
 
     // 2. 注册内置工具到共享 registry(MCP/LSP 后续也注册进来)。
     let tools = agent.inner.tools.clone();
@@ -103,7 +99,7 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
         "[reflect-gui] AgentThread installed (model={}, workspace={}, degraded={})",
         model_spec,
         workspace.display(),
-        !has_provider
+        agent.inner.degraded_reason.lock().is_some()
     );
 }
 

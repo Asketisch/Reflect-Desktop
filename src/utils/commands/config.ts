@@ -38,12 +38,22 @@ export async function reflect_save_config(toml: string): Promise<void> {
 }
 
 /**
- * 运行中切换模型(热重载 provider 栈,下一个 turn 生效)。
- * `model` 传空串 = 清除该 provider 的段级 model 覆盖,回落内置默认。
- * 返回解析后的完整 spec(如 `openai/gpt-4o`)。
+ * 运行中切换模型 / 钉住 coding plan(热重载 provider 栈,下一个 turn 生效)。
+ *
+ * `label` = 要钉住的 plan(`[[<provider>.credentials]]` 的 label):
+ * - 传非空:写入 `[active].credential` 钉住该凭证(model 写入条目自身);
+ * - 传 `undefined` / '' / 'default'(且无同名条目):不钉条目,model 写段级。
+ * `model` 传空串 = 清除对应位置的 model 覆盖。
+ *
+ * 返回解析后的完整 spec(如 `openai/gpt-4o`);无任何显式 model 时返回
+ * 空串(后端不再编造内置默认,由 UI 如实显示"未配置模型")。
  */
-export async function reflect_set_model(provider: string, model: string): Promise<string> {
-  return invoke<string>('reflect_set_model', { provider, model });
+export async function reflect_set_model(
+  provider: string,
+  model: string,
+  label?: string,
+): Promise<string> {
+  return invoke<string>('reflect_set_model', { provider, model, label: label ?? '' });
 }
 
 /** 列出当前 ToolRegistry 中所有工具(name + description)。 */

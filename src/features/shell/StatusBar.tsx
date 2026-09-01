@@ -22,6 +22,7 @@ import { reflect_agent_status, reflect_list_sessions } from '@/utils/commands';
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
 import { useI18n } from '@/utils/i18n';
 import { useContextRatio } from './useContextRatio';
+import { isUsableModelSpec } from './modelLabel';
 import s from './StatusBar.module.css';
 
 export function StatusBar() {
@@ -64,16 +65,14 @@ export function StatusBar() {
   const lspFailed = lspServers.filter((l) => l.status === 'failed').length;
 
   // 模型显示：优先 store.session（事件填充），fallback 到 status 查询。
-  // 三态：configured（绿）/ degraded 黄 / unknown 红。
+  // session 里的 "stub/test" 占位(无 provider/model 的降级线程)不算可用 ——
+  // 落到 has_model 判定,最终显示「未配置模型」。
   const status = statusQ.data;
-  const modelLabel = session
-    ? `${session.model} @ ${session.provider}`
-    : status && status.has_model
-      ? status.model
-      : null;
-  const modelKind: 'ok' | 'warn' | 'error' = session
-    ? 'ok'
-    : status && status.has_model
+  const sessionModel =
+    session && isUsableModelSpec(session.model) ? `${session.model} @ ${session.provider}` : null;
+  const modelLabel = sessionModel ?? (status && status.has_model ? status.model : null);
+  const modelKind: 'ok' | 'warn' | 'error' =
+    sessionModel != null || (status && status.has_model)
       ? 'ok'
       : status && status.degraded_reason
         ? 'warn'

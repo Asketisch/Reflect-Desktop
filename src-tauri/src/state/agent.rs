@@ -21,6 +21,24 @@ use super::remote_config::RemoteConfig;
 /// 桌面端 UI 通常只关心最近 50-100 个事件,这个容量远超实际需要。
 pub(crate) const SESSION_BROADCAST_CAPACITY: usize = 1024;
 
+/// 按配置快照计算降级原因(供 install / 热重载共用)。
+///
+/// 两级缺失分开报:无 provider(没 key)与「有 provider 但没 model」。
+/// 上游 model 解析诚实化后,后者不再编造默认模型名 —— 状态栏如实显示
+/// "未配置模型",这里给出可行动的指引。
+pub(crate) fn compute_degraded_reason(cfg: &ReflectConfig) -> Option<String> {
+    if cfg.active_provider().is_none() {
+        return Some("no provider configured — set an API key in Settings".to_string());
+    }
+    if cfg.resolved_model_spec().is_none() {
+        return Some(
+            "provider configured but no model — pick a plan/model in Settings → Models"
+                .to_string(),
+        );
+    }
+    None
+}
+
 /// Agent 共享 inner:由 `Arc<MinimalAgentInner>` 包装,所有 `MinimalAgent`
 /// 的 clone 共享同一份状态。
 pub(crate) struct MinimalAgentInner {

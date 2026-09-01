@@ -24,10 +24,10 @@ import { useI18n, type LocaleKey } from '@/utils/i18n';
 import {
   listPlans,
   maskKey,
+  readActiveCredential,
   readActiveProvider,
   type PlanEntry,
 } from '@/features/settings/config/plans';
-import { readField } from '@/features/settings/config/schema';
 import s from './ModelsView.module.css';
 
 const REASONING_EFFORTS = ['low', 'medium', 'high'] as const;
@@ -80,12 +80,12 @@ export function ModelsView() {
   });
 
   // 一键把某个 plan 设为默认:reflect_set_model 写 `[active].provider` +
-  // `[<provider>].model` 段级模型(plan 无 model = 清除覆盖,回落 provider
-  // 内置默认),后端热重载 provider 栈并强制重绑当前会话。只改 provider
-  // 不写模型名的话,同 provider 的多个 plan 切换后实际模型不变。
+  // `[active].credential`(钉住该凭证条目)+ 条目/段级 model,后端热重载
+  // provider 栈并强制重绑当前会话。v1.5 起钉住语义保证同 provider 的多个
+  // plan 切换后请求真正落到被选中的凭证端点。
   const switchProviderMutation = useMutation({
-    mutationFn: async ({ key, provider, model }: { key: string; provider: string; model: string }) =>
-      reflect_set_model(provider, model).then((spec) => ({ key, spec })),
+    mutationFn: async ({ key, provider, model, label }: { key: string; provider: string; model: string; label: string }) =>
+      reflect_set_model(provider, model, label).then((spec) => ({ key, spec })),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agent-status'] });
       qc.invalidateQueries({ queryKey: ['config'] });
@@ -95,15 +95,21 @@ export function ModelsView() {
   const toml = configQuery.data ?? '';
   const plans = listPlans(toml);
   const activeProvider = readActiveProvider(toml);
+  const activeCredential = readActiveCredential(toml);
 
   const status = statusQuery.data;
   const hasModel = Boolean(status?.has_model);
 
-  /** plan 是否就是当前默认:provider 生效 且 段级模型名与该 plan 一致
-   *  (段级为空时只有 model 为空的隐式 default plan 算默认)。仅按
-   *  provider 判定会把同端口的全部 plan 都标成「当前默认」并禁用按钮。 */
-  const isDefaultPlan = (plan: PlanEntry): boolean =>
-    plan.provider === activeProvider && readField(toml, plan.provider, 'model') === plan.model;
+  /** plan 是否就是当前默认:provider 生效 且 label 与 `[active].credential`
+   *  钉住一致(未钉住时仅顶层隐式 default plan 算默认)。判定必须**排他**
+   *  —— 此前按「段级 model 与 plan.model 相等」判,两个同 provider 空
+   *  model 的 plan 会同时被判成默认、按钮全部禁用,永远切不动。 */
+  const isDefaultPlan = (plan: PlanEntry): boolean => {
+    if (plan.provider !== activeProvider) return false;
+    return activeCredential
+      ? plan.label === activeCredential
+      : plan.topLevel && plan.label === 'default';
+  };
 
   return (
     <div className={s.root}>
@@ -195,6 +201,7 @@ export function ModelsView() {
                         key: `${plan.provider}/${plan.label}`,
                         provider: plan.provider,
                         model: plan.model,
+                        label: plan.label,
                       })
                     }
                   >

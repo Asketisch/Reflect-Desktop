@@ -69,6 +69,15 @@ export function readActiveProvider(toml: string): string {
   return readField(toml, 'active', 'provider');
 }
 
+/**
+ * 读取 `[active].credential`（被钉住的 plan label；未配置时为 ''）。
+ * 与后端 `active_credential()` 同规则：trim + 空串视为未钉住。
+ * 顶层隐式 plan 的 label 固定 'default' —— 钉它就显式写 `credential = "default"`。
+ */
+export function readActiveCredential(toml: string): string {
+  return readField(toml, 'active', 'credential').trim();
+}
+
 /** 解析三个 provider 段的全部 plan（顶层隐式条目 + credentials 数组）。 */
 export function listPlans(toml: string): PlanEntry[] {
   const out: PlanEntry[] = [];

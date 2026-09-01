@@ -23,6 +23,7 @@ import { Icon, IconButton, Tooltip, Badge } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { reflect_agent_status } from '@/utils/commands';
 import { useI18n, type LocaleKey } from '@/utils/i18n';
+import { isUsableModelSpec } from './modelLabel';
 import s from './TitleBar.module.css';
 
 /** 路径 → i18n key 映射。统一通过 t(key) 渲染。 */
@@ -91,11 +92,14 @@ export function TitleBar({
     staleTime: 30_000,
   });
 
-  const sessionLabel = session
-    ? `${session.model} @ ${session.provider}`
-    : statusQ.data?.has_model
-      ? statusQ.data.model
-      : t('shell.sessionWaiting');
+  // session 里的 "stub/test" 占位(无 provider/model 的降级线程)不算可用,
+  // 与 StatusBar 同规则落到 has_model / 会话等待文案。
+  const sessionLabel =
+    session && isUsableModelSpec(session.model)
+      ? `${session.model} @ ${session.provider}`
+      : statusQ.data?.has_model
+        ? statusQ.data.model
+        : t('shell.sessionWaiting');
 
   return (
     // data-tauri-drag-region="deep"：子树内任意非交互元素命中都触发拖动；

@@ -439,17 +439,61 @@ describe('Composer inline controls', () => {
       workspace: '/tmp',
       degraded_reason: null,
     }));
-    const calls: Array<{ provider: string; model: string }> = [];
-    mockInvoke('reflect_set_model', async (_cmd: string, args?: { provider: string; model: string }) => {
-      calls.push({ provider: args?.provider ?? '', model: args?.model ?? '' });
-      return 'openai/gpt-5-mini';
-    });
+    const calls: Array<{ provider: string; model: string; label: string }> = [];
+    mockInvoke(
+      'reflect_set_model',
+      async (_cmd: string, args?: { provider: string; model: string; label?: string }) => {
+        calls.push({ provider: args?.provider ?? '', model: args?.model ?? '', label: args?.label ?? '' });
+        return 'openai/gpt-5-mini';
+      },
+    );
     renderComposer();
 
     const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
     await waitFor(() => expect(select.options.length).toBeGreaterThan(0));
     fireEvent.change(select, { target: { value: 'openai/plan-a' } });
-    await waitFor(() => expect(calls).toEqual([{ provider: 'openai', model: 'gpt-5-mini' }]));
+    // v1.5:切换必须携带 plan label —— 后端据此写 [active].credential 钉住。
+    await waitFor(() =>
+      expect(calls).toEqual([{ provider: 'openai', model: 'gpt-5-mini', label: 'plan-a' }]),
+    );
+  });
+
+  it('pins selection via [active].credential and passes label when switching plans', async () => {
+    // 回归(用户实际配置):同 provider 两个空 model plan。修复前选中态靠
+    // spec 后缀匹配 + 空 model 兜底链,切到 MiniMax 会弹回 default;
+    // 修复后选中态单一事实源是 [active].credential 钉住。
+    mockInvoke(
+      'reflect_get_config',
+      async () =>
+        '[active]\nprovider = "anthropic"\ncredential = "MiniMax"\n\n[anthropic]\napi_key = "sk-top"\n\n[[anthropic.credentials]]\nlabel = "MiniMax"\napi_key = "sk-mm"\n',
+    );
+    mockInvoke('reflect_agent_status', async () => ({
+      ready: true,
+      has_model: false,
+      model: 'stub/test',
+      workspace: '/tmp',
+      degraded_reason: 'provider configured but no model — pick a plan/model in Settings → Models',
+    }));
+    const calls: Array<{ provider: string; model: string; label: string }> = [];
+    mockInvoke(
+      'reflect_set_model',
+      async (_cmd: string, args?: { provider: string; model: string; label?: string }) => {
+        calls.push({ provider: args?.provider ?? '', model: args?.model ?? '', label: args?.label ?? '' });
+        return '';
+      },
+    );
+    renderComposer();
+
+    const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
+    // 钉住 MiniMax → 选中态必须落在 MiniMax(而非兜底链挤回第一个 plan)。
+    await waitFor(() => expect(select.value).toBe('anthropic/MiniMax'));
+    // 切回顶层隐式 default plan:label='default' 必须原样传给后端。
+    fireEvent.change(select, { target: { value: 'anthropic/default' } });
+    await waitFor(() =>
+      expect(calls).toEqual([{ provider: 'anthropic', model: '', label: 'default' }]),
+    );
+    // has_model=false → "stub/test" 占位不得展示(诚实显示"未配置模型")。
+    expect(screen.queryByText(/stub\/test/)).toBeNull();
   });
 
   it('fetches models from provider API and switches to one of them', async () => {

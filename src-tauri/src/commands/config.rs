@@ -75,20 +75,30 @@ pub async fn reflect_save_config(
     Ok(())
 }
 
-/// 运行中切换模型(spec = `{provider}/{model}`,如 `openai/gpt-4o`)。
+/// 运行中切换模型 / 钉住 coding plan(spec = `{provider}/{model}`)。
 ///
 /// 协议 `Op` 没有 SetModel —— 模型 spec 在配置层解析
-/// (`resolved_model_spec()` = env > `[<provider>].model` > 内置默认),
+/// (`resolved_model_spec()` = env > 被钉住条目 model > 段级 model),
 /// 因此走与 ModelsView 切 coding plan 相同的路径:改 `[active].provider`
-/// + `[<provider>].model` → 写盘 → `hot_reload_provider_stack`
-/// (重建 registry + 强制重绑当前会话),下一个 turn 立即生效。
+/// + `[active].credential` + 条目/段级 model → 写盘 →
+/// `hot_reload_provider_stack`(重建 registry + 强制重绑当前会话),
+/// 下一个 turn 立即生效。
 ///
-/// `model` 传空串 = 清除该 provider 的段级 model 覆盖,回落到内置默认。
+/// `label` = 要钉住的 plan(`[[<provider>.credentials]]` 的 label):
+/// - `Some(非空)`:写入 `[active].credential`;model 写入该条目自身的
+///   `model` 字段(与前端 plan 编辑器同源,条目 model 优先于段级)。
+///   条目不存在时报错,防止钉住指向空处静默失效。
+/// - `None`/空串:不钉住(清除 `[active].credential`),model 写段级
+///   `[<provider>].model`。
+///
+/// `model` 传空串 = 清除对应位置的 model 覆盖。返回解析后的完整 spec;
+/// 无任何显式 model 时返回空串(诚实缺失,由 UI 显示"未配置模型")。
 #[tauri::command]
 pub async fn reflect_set_model(
     agent: State<'_, MinimalAgent>,
     provider: String,
     model: String,
+    label: Option<String>,
 ) -> CommandResult<String> {
     if !matches!(provider.as_str(), "anthropic" | "openai" | "ollama") {
         return Err(CommandError {
@@ -96,28 +106,67 @@ pub async fn reflect_set_model(
         });
     }
     let mut new_cfg = agent.cfg().read().clone();
-    new_cfg.active.provider = Some(provider.clone());
-    let trimmed = model.trim().to_string();
-    match provider.as_str() {
-        "anthropic" => {
-            let section = new_cfg.anthropic.get_or_insert_with(Default::default);
-            section.model = (!trimmed.is_empty()).then(|| trimmed.clone());
-        }
-        "openai" => {
-            let section = new_cfg.openai.get_or_insert_with(Default::default);
-            section.model = (!trimmed.is_empty()).then(|| trimmed.clone());
-        }
-        "ollama" => {
-            let section = new_cfg.ollama.get_or_insert_with(Default::default);
-            section.model = (!trimmed.is_empty()).then(|| trimmed.clone());
-        }
-        _ => unreachable!("provider validated above"),
-    }
+    apply_model_switch(&mut new_cfg, &provider, &model, label.as_deref())?;
     let old_cfg = persist_config(&agent, new_cfg.clone())?;
     crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await;
     let spec = new_cfg.resolved_model_spec().unwrap_or_default();
-    tracing::info!("[reflect-gui] model switched to {spec} (hot-reloaded)");
+    tracing::info!("[reflect-gui] model switched to '{spec}' (hot-reloaded)");
     Ok(spec)
+}
+
+/// `reflect_set_model` 的纯函数核心(便于无 Tauri State 单测)。
+fn apply_model_switch(
+    cfg: &mut reflect_config::ReflectConfig,
+    provider: &str,
+    model: &str,
+    label: Option<&str>,
+) -> CommandResult<()> {
+    cfg.active.provider = Some(provider.to_string());
+    let label = label.map(str::trim).filter(|l| !l.is_empty());
+    cfg.active.credential = label.map(str::to_string);
+    let model_opt = (!model.trim().is_empty()).then(|| model.trim().to_string());
+    match provider {
+        "anthropic" => {
+            let s = cfg.anthropic.get_or_insert_with(Default::default);
+            apply_section_model(&mut s.credentials, &mut s.model, label, model_opt)
+        }
+        "openai" => {
+            let s = cfg.openai.get_or_insert_with(Default::default);
+            apply_section_model(&mut s.credentials, &mut s.model, label, model_opt)
+        }
+        "ollama" => {
+            let s = cfg.ollama.get_or_insert_with(Default::default);
+            apply_section_model(&mut s.credentials, &mut s.model, label, model_opt)
+        }
+        _ => unreachable!("provider validated by caller"),
+    }
+}
+
+/// 把 model 写到正确的层级:钉住条目(`label` 命中 credentials)写条目
+/// 自身;顶层隐式 plan(label = "default" 无数组条目)或未传 label 写段级。
+/// 显式钉住却找不到条目 → 报错,避免 `[active].credential` 指向空处静默失效。
+fn apply_section_model(
+    credentials: &mut [reflect_config::CredentialConfig],
+    section_model: &mut Option<String>,
+    label: Option<&str>,
+    model_opt: Option<String>,
+) -> CommandResult<()> {
+    if let Some(entry) = label.and_then(|l| credentials.iter_mut().find(|c| c.label == l)) {
+        entry.model = model_opt;
+        return Ok(());
+    }
+    if let Some(l) = label {
+        if l != "default" {
+            return Err(CommandError {
+                msg: format!("credential label '{l}' not found in credentials"),
+            });
+        }
+        // "default" = 顶层 `[provider].api_key` 隐式 plan(无数组条目):
+        // builder 把它 wrap 成 label="default" 的池条目,钉住依然成立,
+        // model 走段级。
+    }
+    *section_model = model_opt;
+    Ok(())
 }
 
 /// 列出当前 ToolRegistry 中所有工具(name + description)。
@@ -264,5 +313,106 @@ mod tests {
         assert!(make_quota_provider("open_ai_usage").is_err());
         assert!(make_quota_provider("").is_err());
         assert!(make_quota_provider("nonsense").is_err());
+    }
+
+    /// 用户真实场景(修复前切换空转的根因):同 provider 两个 plan,
+    /// 切到带 model 的凭证条目必须写入 `[active].credential` + 条目 model,
+    /// 并由 `resolved_model_spec()` 解析出该条目的 model。
+    #[test]
+    fn apply_model_switch_pins_credential_and_writes_entry_model() {
+        let toml = r#"
+            [active]
+            provider = "anthropic"
+
+            [anthropic]
+            api_key = "sk-top"
+
+            [[anthropic.credentials]]
+            label = "MiniMax"
+            api_key = "sk-mm"
+        "#;
+        let mut cfg = reflect_config::load_from_str(toml).unwrap();
+        apply_model_switch(&mut cfg, "anthropic", "MiniMax-M3", Some("MiniMax")).unwrap();
+        assert_eq!(cfg.active.credential.as_deref(), Some("MiniMax"));
+        let entry = cfg.anthropic.as_ref().unwrap().credentials[0]
+            .model
+            .as_deref();
+        assert_eq!(entry, Some("MiniMax-M3"));
+        // 钉住条目自带 model → spec 解析取条目 model。
+        assert_eq!(
+            cfg.resolved_model_spec().as_deref(),
+            Some("anthropic/MiniMax-M3")
+        );
+    }
+
+    /// 切换顶层隐式 plan(credentials 数组无同名条目)→ model 写段级,
+    /// `[active].credential` 指向 "default"(builder 把顶层 api_key wrap
+    /// 成 label="default" 的池条目,钉住语义依然成立)。
+    #[test]
+    fn apply_model_switch_default_label_falls_back_to_section_model() {
+        let toml = r#"
+            [active]
+            provider = "anthropic"
+
+            [anthropic]
+            api_key = "sk-top"
+        "#;
+        let mut cfg = reflect_config::load_from_str(toml).unwrap();
+        apply_model_switch(&mut cfg, "anthropic", "glm-4.6", Some("default")).unwrap();
+        assert_eq!(cfg.active.credential.as_deref(), Some("default"));
+        assert_eq!(
+            cfg.anthropic.as_ref().unwrap().model.as_deref(),
+            Some("glm-4.6")
+        );
+        assert_eq!(cfg.resolved_model_spec().as_deref(), Some("anthropic/glm-4.6"));
+    }
+
+    /// 不传 label(旧调用形态)→ 不钉住,model 写段级。
+    #[test]
+    fn apply_model_switch_without_label_is_unpinned_section_model() {
+        let toml = r#"
+            [active]
+            provider = "openai"
+        "#;
+        let mut cfg = reflect_config::load_from_str(toml).unwrap();
+        apply_model_switch(&mut cfg, "openai", "gpt-4o", None).unwrap();
+        assert_eq!(cfg.active.credential, None);
+        assert_eq!(cfg.openai.as_ref().unwrap().model.as_deref(), Some("gpt-4o"));
+    }
+
+    /// 显式钉住却找不到条目 → 报错(而非静默写一个指向空处的 pin)。
+    #[test]
+    fn apply_model_switch_rejects_unknown_label() {
+        let toml = r#"
+            [active]
+            provider = "anthropic"
+
+            [anthropic]
+            api_key = "sk-top"
+        "#;
+        let mut cfg = reflect_config::load_from_str(toml).unwrap();
+        let err = apply_model_switch(&mut cfg, "anthropic", "m", Some("ghost")).unwrap_err();
+        assert!(err.msg.contains("ghost"), "{err:?}");
+    }
+
+    /// 空 model = 清除:钉住条目仍在(切 plan 本身有效),model 缺失由
+    /// `resolved_model_spec()` 如实返回 None —— GUI 显示"未配置模型"。
+    #[test]
+    fn apply_model_switch_empty_model_clears_override() {
+        let toml = r#"
+            [active]
+            provider = "anthropic"
+            credential = "MiniMax"
+
+            [[anthropic.credentials]]
+            label = "MiniMax"
+            api_key = "sk-mm"
+            model = "old-model"
+        "#;
+        let mut cfg = reflect_config::load_from_str(toml).unwrap();
+        apply_model_switch(&mut cfg, "anthropic", "  ", Some("MiniMax")).unwrap();
+        assert_eq!(cfg.active.credential.as_deref(), Some("MiniMax"));
+        assert_eq!(cfg.anthropic.as_ref().unwrap().credentials[0].model, None);
+        assert_eq!(cfg.resolved_model_spec(), None);
     }
 }

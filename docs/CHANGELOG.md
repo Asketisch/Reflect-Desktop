@@ -4,6 +4,38 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — coding plan 切换空转 + 凭证钉住 + model 显示诚实化
+
+同 provider 的多个 coding plan（如顶层 stepfun + 凭证 MiniMax，均未配
+model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model` 只写
+`[active].provider` + 段级 model，两个 plan 都不改任何字节 → 热重载跳过 →
+选中态兜底链把下拉挤回第一个 plan；同时状态栏在未配置任何模型时展示
+编造的 `anthropic/claude-3-5-sonnet-latest`（实际请求也会带着这个编造
+模型名打向第三方端点）。本次随 Reflect-Agent `2a1ea42` 全面修复：
+
+- **上游（Reflect-Agent）**：`[active]` 新增 `credential` 钉住字段，
+  `CredentialConfig` 补齐 `model` 条目级字段（GUI 此前写入一直被忽略）；
+  `apply_to_registry` 把钉住注册为 registry preferred label —— 钉住条目
+  健康则始终优先派位，其余条目仅在其 cooldown 时 failover；
+  `resolve_model`（取代 `model_for`）按 env > 钉住条目 model > 段级解析，
+  **未显式配置返回 None，不再编造内置默认**；headless 对无 provider /
+  无 model 分别 fail-fast 报因。
+- **`reflect_set_model(provider, model, label)`**：新增 `label` 参数写
+  `[active].credential`；钉住条目时 model 写入条目自身（与 plan 编辑器
+  同源），顶层隐式 plan 走段级；钉住 label 不存在时报错而非静默失效。
+  同 provider 切 plan 现在真正改变请求路由。
+- **选中态单一事实源**：Composer 控制条与 ModelsView 的「当前默认」判定
+  改读 `[active].credential`（此前 ModelsView 两个空 model plan 会同时
+  被标成默认且按钮全禁用）。
+- **诚实显示**：`has_model=false` 时状态栏/Composer 不再展示 `stub/test`
+  占位，显示「未配置模型」；install/热重载的降级原因区分「无 provider」
+  与「有 provider 但没 model」两级并给出指引。
+- 伴生修复：补齐缺失的 i18n key `composer.controls.modelCurrent`；切换到
+  无 model 的 plan 时 toast 明示；切换成功后重读配置刷新 plan 列表；
+  MCP adapter 接入 upstream `from_descriptor` 的 `event_tx`（工具调用
+  事件经 mpsc→broadcast 推前端）；activity 映射补 `SubmissionClosed` 忽略
+  分支。
+
 ### 移除 — 已完成/过时的历史设计文档
 
 - 删除 `docs/PLAN_FAILOVER.md`：coding plan 多计划配置、默认供应商热切换与
