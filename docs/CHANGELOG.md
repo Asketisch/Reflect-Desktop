@@ -4,6 +4,23 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — 未配置 hooks 时内置 verification hook 污染每个会话
+
+用户只发一句问候，模型却回复大量「收到系统提醒 / 测试失败 / 确认状态」
+自检文本（如 `cargo: command not found`）：`[hooks]` 未配置时所有内置
+hook 默认全开，其中 verification（Stop hook）对**每个 turn** 无条件跑
+`cargo test`；桌面端 Finder 启动没有 `~/.cargo/bin`（或工作区无 Rust
+项目）时命令 exit 127，被当成「测试失败」注入假提醒并**否决 turn 完成**，
+强迫模型连答数轮。两层修复：
+
+- **GUI 侧（本仓库）**：`thread_factory` 构建 hook 引擎改为**显式启用**
+  语义 —— `[hooks]` 未配置 = 不挂任何内置 hook（与 headless serve 的
+  `hooks_explicit_only` 同一原则）。需要 hook 的用户在 config 显式写
+  `[hooks] enabled = [...]`。
+- **上游（Reflect-Agent `31c6e72`）**：verification hook 把 exit 127 /
+  spawn 失败 / 信号终止视为「无法验证」→ 放行 + warn 日志，不再与真实
+  测试失败（exit ≠ 0）混为一谈；超时仍按失败处理。
+
 ### 修复 — FINAL ANSWER 标记泄漏 + 模型思考过程视觉分级
 
 - **思考分段加固**：`splitAssistantText` 的 `<think>` 识别从"任意位置首现"

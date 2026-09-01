@@ -81,10 +81,17 @@ pub(crate) fn construct_thread(
         .expect("model_registry 必须在 install 阶段已建");
 
     let sanitizer = Arc::new(Sanitizer::with_defaults());
-    let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(
-        reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks)
-            .build_engine(),
-    );
+    // 内置 hook(verification / test_runner / search_budget / plan_completion)
+    // 采用**显式启用**语义:`[hooks]` 未配置时一个都不挂,与 headless serve
+    // 的 hooks_explicit_only 同一原则。此前默认全开,verification Stop hook
+    // 会对每个 turn 跑 `cargo test`,无 toolchain 环境注入假失败并否决完成,
+    // 纯问候也被迫连答数轮。需要 hook 的用户在 config 显式写
+    // `[hooks] enabled = [...]`(或对应子段)。
+    let mut hooks_cfg = reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
+    if hooks_cfg.enabled.is_none() {
+        hooks_cfg.enabled = Some(Vec::new());
+    }
+    let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(hooks_cfg.build_engine());
 
     // 持久化:仅在 sid = Some 时挂 recorder + 固定 id。bind 命令前不挂,
     // 避免随机 id 产生空文件污染 `~/.reflect/sessions/`。
