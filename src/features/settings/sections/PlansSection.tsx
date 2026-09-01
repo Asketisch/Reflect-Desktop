@@ -465,16 +465,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
               value={form.model}
               onChange={(e) => patch({ model: e.target.value })}
               placeholder="claude-sonnet-4 / glm-4.7 …"
-              list="plan-model-options"
             />
-            <datalist id="plan-model-options">
-              {(formModelsProvider === form.provider ? formModels ?? [] : []).map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.display_name}
-                  {visionSuffix(m.supports_vision)}
-                </option>
-              ))}
-            </datalist>
             <Button
               variant="ghost"
               size="sm"
@@ -493,6 +484,35 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
             </span>
           )}
           {modelsError && <span className={s.fetchHint} data-failed>{modelsError}</span>}
+          {/* 拉取结果必须是显式可点击列表:WKWebView(macOS Tauri)对
+              <datalist> 建议下拉支持不可靠,拉取后无任何可选入口。 */}
+          {formModels && formModelsProvider === form.provider && !modelsError && formModels.length > 0 && (
+            <div
+              className={s.modelOptions}
+              role="listbox"
+              aria-label={t('settings.plans.modelsGroup')}
+              data-testid="plans-model-options"
+            >
+              {formModels.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="option"
+                  aria-selected={form.model === m.id}
+                  className={s.modelOption}
+                  data-active={form.model === m.id || undefined}
+                  onClick={() => patch({ model: m.id })}
+                  title={`${m.id}${visionSuffix(m.supports_vision)}`}
+                >
+                  <span className={s.modelOptionId}>{m.id}</span>
+                  <span className={s.modelOptionMeta}>
+                    {m.display_name && m.display_name !== m.id ? m.display_name : ''}
+                    {visionSuffix(m.supports_vision)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className={s.fieldRow}>
           <label className={s.fieldLabel}>{t('settings.plans.connectionTest')}</label>

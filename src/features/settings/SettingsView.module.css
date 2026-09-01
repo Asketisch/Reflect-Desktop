@@ -515,3 +515,54 @@
 .fetchHint[data-failed] {
   color: var(--danger);
 }
+
+/* 拉取到的模型候选列表 —— 显式 listbox + 点击填入。macOS Tauri 的
+   WKWebView 对 <datalist> 建议下拉支持不可用(拉取后无任何可选入口),
+   这是唯一跨端可靠的选择交互。 */
+.modelOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+}
+
+.modelOption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.modelOption:hover {
+  background: var(--bg-hover);
+}
+
+.modelOption[data-active] {
+  background: var(--bg-active);
+}
+
+.modelOptionId {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.modelOptionMeta {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+

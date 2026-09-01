@@ -4,6 +4,13 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — Coding plan 拉取模型后无法选择
+
+- 设置 → Coding Plans 的模型候选此前用 `<datalist>` 承载：macOS Tauri 的
+  WKWebView 对 datalist 建议下拉支持不可靠，拉取成功后没有任何可选入口。
+  改为显式 listbox（可滚动、点击即填入、当前值高亮），模型 id 等宽字体
+  展示、display_name 与视觉能力标记作次要信息。
+
 ### 修复 — coding plan 切换空转 + 凭证钉住 + model 显示诚实化
 
 同 provider 的多个 coding plan（如顶层 stepfun + 凭证 MiniMax，均未配

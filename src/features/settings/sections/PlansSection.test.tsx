@@ -187,6 +187,16 @@ describe('PlansSection', () => {
       ),
     );
     await waitFor(() => expect(screen.getByText('2 models fetched')).toBeTruthy());
+    // 拉取结果必须是显式可点击列表(WKWebView 的 datalist 不可靠):
+    // 点击候选即填入 model 输入框。
+    const options = screen.getByTestId('plans-model-options');
+    expect(within(options).getAllByRole('option')).toHaveLength(2);
+    const modelInput = screen.getByPlaceholderText('claude-sonnet-4 / glm-4.7 …') as HTMLInputElement;
+    expect(modelInput.value).toBe('');
+    fireEvent.click(within(options).getByText('claude-haiku-4'));
+    expect(modelInput.value).toBe('claude-haiku-4');
+    // 已选项高亮(data-active + aria-selected)。
+    expect(within(options).getByText('claude-haiku-4').closest('button')?.getAttribute('aria-selected')).toBe('true');
   });
 
   it('测试连接：调模型列表接口（零 token），成功显示 ✓', async () => {
