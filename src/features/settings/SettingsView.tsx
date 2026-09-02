@@ -233,7 +233,8 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             <div className={s.permGrid}>
               <PermCard mode="accept_edits" onClick={() => onPermission('accept_edits')} />
               <PermCard mode="bubble" onClick={() => onPermission('bubble')} />
-              <PermCard mode="bypass" onClick={() => onPermission('bypass')} />
+              {/* bypass 不再提供：core v1.3 安全基线把 SetPermissionMode(Bypass)
+                  一律降级 Prompt，UI 提供该选项只会造成「切了没生效」的错觉。 */}
             </div>
           </section>
         )}

@@ -68,7 +68,7 @@ const composer: Record<string, StringEntry> = {
   'composer.controls.planHint':              { en: 'Plan only — never executes tools.',             'zh-CN': '仅规划，不执行工具。' },
   'composer.controls.askHint':               { en: 'Ask before each tool call.',                    'zh-CN': '每次调用工具前询问。' },
   'composer.controls.autoHint':              { en: 'Auto-approve file edits.',                      'zh-CN': '自动批准文件编辑。' },
-  'composer.controls.yoloHint':              { en: 'Bypass all permission checks.',                 'zh-CN': '绕过所有权限检查。' },
+  'composer.controls.yoloHint':              { en: 'Auto-approve tool calls (non-blocking notices); high-risk ops still confirm.', 'zh-CN': '自动批准工具调用（气泡通知不打断）；高危操作仍需确认。' },
   'composer.bang.title':                     { en: 'Local shell runs',                              'zh-CN': '本地命令执行' },
   'composer.bang.hint':                      { en: 'Local runs are not sent to the model or saved to the session.', 'zh-CN': '本地执行不会发送给模型，也不会写入会话历史。' },
   'composer.bang.running':                   { en: 'running…',                                      'zh-CN': '运行中…' },

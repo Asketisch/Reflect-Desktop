@@ -33,12 +33,15 @@ import s from './ComposerControls.module.css';
 const EFFORTS = ['low', 'medium', 'high'] as const;
 type Effort = (typeof EFFORTS)[number];
 
-/** 常用权限模式子集（完整 7 段仍在 Settings → Permissions）。 */
+/** 常用权限模式子集（完整 7 段仍在 Settings → Permissions）。
+ *  Yolo = `bubble`：core v1.3 安全基线已废除 blanket bypass
+ *  （`SetPermissionMode(Bypass)` 一律降级 Prompt），bubble 是现存的
+ *  "免打断"档 —— 自动批准非高危工具 + 非阻塞气泡通知，高危仍弹审批。 */
 const PERMISSION_SEGMENTS = [
   { value: 'plan', labelKey: 'composer.controls.perm.plan', hintKey: 'composer.controls.planHint' },
   { value: 'prompt', labelKey: 'composer.controls.perm.ask', hintKey: 'composer.controls.askHint' },
   { value: 'accept_edits', labelKey: 'composer.controls.perm.auto', hintKey: 'composer.controls.autoHint' },
-  { value: 'bypass', labelKey: 'composer.controls.perm.yolo', hintKey: 'composer.controls.yoloHint' },
+  { value: 'bubble', labelKey: 'composer.controls.perm.yolo', hintKey: 'composer.controls.yoloHint' },
 ] as const;
 
 export function ComposerControls() {

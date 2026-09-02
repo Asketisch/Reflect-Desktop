@@ -83,11 +83,13 @@ describe('permission mode controls', () => {
     );
   });
 
-  it('permissions section exposes all 7 modes including advanced', async () => {
+  it('permissions section exposes 6 modes; bypass is no longer offered', async () => {
     const app = await openSettings();
     fireEvent.click(screen.getByText('Permissions'));
-    // 七种模式全部渲染为 PermCard 按钮（CSS Modules 混淆类名，按文本断言）。
-    for (const mode of ['auto', 'prompt', 'deny', 'plan', 'accept_edits', 'bubble', 'bypass']) {
+    // 六种模式渲染为 PermCard 按钮（CSS Modules 混淆类名，按文本断言）。
+    // bypass 不再提供：core v1.3 安全基线把 SetPermissionMode(Bypass)
+    // 一律降级 Prompt，UI 提供该选项只会造成「切了没生效」的错觉。
+    for (const mode of ['auto', 'prompt', 'deny', 'plan', 'accept_edits', 'bubble']) {
       await waitFor(() => {
         const card = Array.from(document.querySelectorAll('button')).find(
           (b) => b.textContent?.includes(mode) && b.textContent.includes('permissionMode.') === false,
@@ -95,6 +97,10 @@ describe('permission mode controls', () => {
         expect(card).toBeDefined();
       });
     }
+    const bypassCard = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('bypass'),
+    );
+    expect(bypassCard).toBeUndefined();
     // 点击高级模式卡片同样触发 IPC。
     const acceptEditsCard = Array.from(document.querySelectorAll('button')).find(
       (b) => b.textContent?.includes('accept_edits'),

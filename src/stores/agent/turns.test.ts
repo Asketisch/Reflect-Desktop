@@ -1,9 +1,16 @@
 /**
- * summarizeToolOutput 单元测试 —— 结构化 ToolOutput（live 事件与
- * 历史回放同构）的 text / diff / path 提取与兜底行为。
+ * turns 单元测试 —— summarizeToolOutput（结构化 ToolOutput 归一化）+
+ * 流式分段（upsertDelta / upsertThinking / finalizeAssistantText 只拼接
+ * 末尾同类 item，保证文本与工具调用按时序交错）。
  */
 import { describe, expect, it } from 'vitest';
-import { summarizeToolOutput } from './turns';
+import {
+  finalizeAssistantText,
+  summarizeToolOutput,
+  upsertDelta,
+  upsertThinking,
+} from './turns';
+import type { Turn, TurnItem } from './types';
 
 describe('summarizeToolOutput', () => {
   it('passes plain strings through', () => {
@@ -42,5 +49,76 @@ describe('summarizeToolOutput', () => {
 
   it('falls back to pretty JSON for unknown object shapes', () => {
     expect(summarizeToolOutput({ foo: 1 })).toEqual({ text: '{\n  "foo": 1\n}' });
+  });
+});
+
+// ====== 流式分段：文本/思考只与末尾同类 item 拼接 ======
+
+const toolCallItem: TurnItem = {
+  kind: 'tool_call',
+  toolName: 'bash',
+  callId: 'c1',
+  argsSummary: 'ls',
+  status: 'done',
+};
+
+function turnWith(...items: TurnItem[]): Turn[] {
+  return [{ id: 't1', items, status: 'streaming' }];
+}
+
+describe('upsertDelta segment interleaving', () => {
+  it('appends deltas while assistant_text is the last item', () => {
+    let turns = turnWith({ kind: 'assistant_text', text: 'Hello' });
+    turns = upsertDelta(turns, 't1', ', world');
+    expect(turns[0].items).toEqual([{ kind: 'assistant_text', text: 'Hello, world', streaming: true }]);
+  });
+
+  it('starts a new segment after a tool call instead of merging backwards', () => {
+    // 一轮多次模型迭代：文本 → 工具调用 → 新文本。新文本必须另起
+    // 气泡，工具调用保持在其真实时序位置（而非被挤到对话流底部）。
+    let turns = turnWith({ kind: 'assistant_text', text: '先调研' }, toolCallItem);
+    turns = upsertDelta(turns, 't1', '结论是…');
+    expect(turns[0].items).toEqual([
+      { kind: 'assistant_text', text: '先调研' },
+      toolCallItem,
+      { kind: 'assistant_text', text: '结论是…', streaming: true },
+    ]);
+  });
+
+  it('creates the first segment on an empty turn', () => {
+    const turns = upsertDelta(turnWith(), 't1', 'hi');
+    expect(turns[0].items).toEqual([{ kind: 'assistant_text', text: 'hi', streaming: true }]);
+  });
+});
+
+describe('upsertThinking segment interleaving', () => {
+  it('appends to a trailing thinking item', () => {
+    let turns = turnWith({ kind: 'thinking', text: 'a' });
+    turns = upsertThinking(turns, 't1', 'b');
+    expect(turns[0].items).toEqual([{ kind: 'thinking', text: 'ab' }]);
+  });
+
+  it('starts a new thinking segment after other items', () => {
+    const turns = upsertThinking(turnWith(toolCallItem), 't1', 'a');
+    expect(turns[0].items).toEqual([toolCallItem, { kind: 'thinking', text: 'a' }]);
+  });
+});
+
+describe('finalizeAssistantText', () => {
+  it('replaces a trailing assistant_text with the final text', () => {
+    const turns = finalizeAssistantText(
+      turnWith({ kind: 'assistant_text', text: 'partial', streaming: true }),
+      't1',
+      'final',
+    );
+    expect(turns[0].items).toEqual([{ kind: 'assistant_text', text: 'final', streaming: false }]);
+  });
+
+  it('appends when the turn does not end with assistant_text', () => {
+    const turns = finalizeAssistantText(turnWith(toolCallItem), 't1', 'final');
+    expect(turns[0].items).toEqual([
+      toolCallItem,
+      { kind: 'assistant_text', text: 'final', streaming: false },
+    ]);
   });
 });

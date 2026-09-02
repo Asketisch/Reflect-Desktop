@@ -18,9 +18,9 @@ const permissionMode: Record<string, StringEntry> = {
   'permissionMode.accept_edits.name': { en: 'accept_edits',                                   'zh-CN': 'accept_edits' },
   'permissionMode.accept_edits.desc': { en: 'Auto-approve file edits/writes. Other tools still require approval.', 'zh-CN': '自动批准文件编辑/写入。其他工具仍需审批。' },
   'permissionMode.bubble.name':     { en: 'bubble',                                         'zh-CN': 'bubble' },
-  'permissionMode.bubble.desc':      { en: 'Show permission prompts inline as bubbles in the chat.', 'zh-CN': '在对话中以内联气泡形式显示权限提示。' },
-  'permissionMode.bypass.name':     { en: 'bypass',                                         'zh-CN': 'bypass' },
-  'permissionMode.bypass.desc':      { en: 'Bypass all permission checks. Use with extreme caution.', 'zh-CN': '绕过所有权限检查。极其谨慎使用。' },
+  'permissionMode.bubble.desc':      { en: 'Auto-approve tools with non-blocking notices; high-risk ops still confirm.', 'zh-CN': '自动批准工具调用（气泡通知不打断）；高危操作仍需确认。' },
+  // bypass 不再提供 UI 入口：core v1.3 安全基线把 SetPermissionMode(Bypass)
+  // 一律降级 Prompt（协议枚举仅为旧配置序列化兼容保留）。
 };
 
 export default permissionMode;

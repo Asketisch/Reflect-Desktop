@@ -327,12 +327,14 @@ describe('reduceEvent — approval / ask_user / bubble', () => {
     expect(patch.pendingAskUser).toHaveLength(1);
   });
 
-  it('permission_bubble enqueues tool kind', () => {
+  it('permission_bubble 成为非阻塞 toast,不进 pendingApprovals', () => {
     const patch = reduceEvent(
       emptyState(),
       ev('t1', { type: 'permission_bubble', tool_name: 'Bash', risk: 'high' }),
     );
-    expect(patch.pendingApprovals![0]).toMatchObject({ kind: 'tool', toolName: 'Bash' });
+    // bubble 事件没有 request_id,合成 approval 会渲染成无法应答的 modal。
+    expect(patch.pendingApprovals).toBeUndefined();
+    expect(patch.toasts![0]).toMatchObject({ kind: 'info', message: '已自动批准 Bash' });
   });
 });
 

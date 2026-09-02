@@ -21,13 +21,15 @@ export function markTurn(turns: Turn[], turnId: string, status: TurnStatus): Tur
 export function upsertDelta(turns: Turn[], turnId: string, delta: string): Turn[] {
   return mapTurn(turns, turnId, (turn) => {
     const items = [...turn.items];
-    for (let i = items.length - 1; i >= 0; i--) {
-      const item = items[i];
-      if (item.kind === 'assistant_text') {
-        items[i] = { ...item, text: item.text + delta, streaming: true };
-        return { ...turn, items };
-      }
+    const last = items[items.length - 1];
+    if (last?.kind === 'assistant_text') {
+      items[items.length - 1] = { ...last, text: last.text + delta, streaming: true };
+      return { ...turn, items };
     }
+    // 只向**末尾**的 assistant_text 拼接。一轮 turn 常含多次模型迭代
+    // （文本 → 工具调用 → 文本 …），工具 item 插入后新文本必须另起
+    // 气泡，才能与事件流保持时序交错 —— 否则整轮文本都合并进首个
+    // 气泡，工具调用在视觉上全部被挤到对话流底部。
     items.push({ kind: 'assistant_text', text: delta, streaming: true });
     return { ...turn, items };
   });
@@ -36,12 +38,10 @@ export function upsertDelta(turns: Turn[], turnId: string, delta: string): Turn[
 export function upsertThinking(turns: Turn[], turnId: string, delta: string): Turn[] {
   return mapTurn(turns, turnId, (turn) => {
     const items = [...turn.items];
-    for (let i = items.length - 1; i >= 0; i--) {
-      const item = items[i];
-      if (item.kind === 'thinking') {
-        items[i] = { ...item, text: item.text + delta };
-        return { ...turn, items };
-      }
+    const last = items[items.length - 1];
+    if (last?.kind === 'thinking') {
+      items[items.length - 1] = { ...last, text: last.text + delta };
+      return { ...turn, items };
     }
     items.push({ kind: 'thinking', text: delta });
     return { ...turn, items };
@@ -55,11 +55,10 @@ export function finalizeAssistantText(
 ): Turn[] {
   return mapTurn(turns, turnId, (turn) => {
     const items = [...turn.items];
-    for (let i = items.length - 1; i >= 0; i--) {
-      if (items[i].kind === 'assistant_text') {
-        items[i] = { kind: 'assistant_text', text, streaming: false };
-        return { ...turn, items };
-      }
+    const last = items[items.length - 1];
+    if (last?.kind === 'assistant_text') {
+      items[items.length - 1] = { kind: 'assistant_text', text, streaming: false };
+      return { ...turn, items };
     }
     items.push({ kind: 'assistant_text', text, streaming: false });
     return { ...turn, items };

@@ -4,6 +4,23 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — 工具调用渲染位置漂移 + Yolo 档切换回弹
+
+- **流式文本分段**：一轮 turn 常含多次模型迭代（文本 → 工具调用 → 文本
+  …）。此前 `upsertDelta` / `upsertThinking` 把整轮文本都向**首个**文本
+  item 回溯合并，工具调用在视觉上全部被挤到对话流底部、与正文时序错位。
+  现在只向**末尾**同类 item 拼接（`finalizeAssistantText` 同口径）：工具
+  item 插入后新文本另起气泡，渲染顺序与事件流的真实时序一致。
+  （注：历史回放仍只显示落盘的最终 assistant 消息 —— rollout 每轮只记
+  `latest_content`，中途工具调用链未持久化，需上游 recorder 改进。）
+- **Yolo = bubble**：core v1.3 安全基线把 `SetPermissionMode(Bypass)` 一律
+  降级为 Prompt（blanket bypass 不再是合法运行时状态），GUI 的 Yolo 段
+  此前仍发 `bypass`，表现为「点 Yolo 自动弹回询问、bash 照样审批」。Yolo
+  段改映射 `bubble`（自动批准非高危工具 + 非阻塞气泡通知；高危操作仍强制
+  人工确认）。`permission_bubble` 事件从合成 pendingApproval（会渲染成
+  无法应答的阻塞 modal）改为 toast 通知。设置 → Permissions 移除 bypass
+  卡片，bubble 描述文案同步修正。
+
 ### 修复 — 未配置 hooks 时内置 verification hook 污染每个会话
 
 用户只发一句问候，模型却回复大量「收到系统提醒 / 测试失败 / 确认状态」

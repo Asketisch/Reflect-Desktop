@@ -147,24 +147,23 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         ],
       };
 
-    case 'permission_bubble':
-      return {
-        pendingApprovals: [
-          ...state.pendingApprovals,
-          {
-            // payload 没有请求 id;同 turn 同工具可能出现多个气泡,
-            // id 必须唯一,否则 approve() 按 id 过滤会一次误杀多条 UI 记录
-            // 而只应答一个后端请求。
-            id: `bubble-${msg.tool_name}-${turnId}-${Date.now()}-${Math.random()
-              .toString(36)
-              .slice(2, 8)}`,
-            kind: 'tool',
-            toolName: msg.tool_name,
-            risk: msg.risk,
-            turnId,
-          },
-        ],
+    case 'permission_bubble': {
+      // Bubble 模式：core 已自动批准该工具（非高危），事件只是非阻塞
+      // 通知 —— 用 toast 展示。不能进 pendingApprovals：那会渲染成
+      // blocking modal，而 bubble payload 没有 request_id，modal 无法
+      // 真正应答，只会永久悬挂。
+      const preview = msg.args_preview ? `(${msg.args_preview})` : '';
+      const toast: AgentState['toasts'][number] = {
+        id: `bubble-${msg.tool_name}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`,
+        kind: 'info',
+        message: `已自动批准 ${msg.tool_name}${preview}`,
+        ttlMs: 4000,
+        createdAt: Date.now(),
       };
+      return { toasts: [...state.toasts, toast] };
+    }
 
     case 'context_compacted': {
       // 压缩不进对话流（噪声），聚合到 Inspector 概览。后端对无变化的

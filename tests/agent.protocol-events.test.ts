@@ -255,10 +255,12 @@ describe('approval & question events', () => {
     expect(st().pendingAskUser.length).toBe(1);
   });
 
-  it('permission_bubble becomes a synthetic tool approval', () => {
+  it('permission_bubble becomes a non-blocking toast, not a synthetic approval', () => {
     emitEvent(TURN, { type: 'permission_bubble', tool_name: 'write_file', risk: 'medium' });
-    expect(st().pendingApprovals.length).toBe(1);
-    expect(st().pendingApprovals[0].toolName).toBe('write_file');
+    // bubble = core 已自动批准,只提示;合成 approval 会渲染成无法应答的 modal。
+    expect(st().pendingApprovals.length).toBe(0);
+    expect(st().toasts.length).toBe(1);
+    expect(st().toasts[0].message).toContain('write_file');
   });
 });
 

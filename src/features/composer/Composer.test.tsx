@@ -420,8 +420,9 @@ describe('Composer inline controls', () => {
     useAgentStore.setState({ permissionMode: 'prompt' });
     renderComposer();
 
-    fireEvent.click(screen.getByTestId('composer-perm-bypass'));
-    await waitFor(() => expect(calls).toEqual(['bypass']));
+    // Yolo 段 = bubble（core v1.3 安全基线已废除 blanket bypass）。
+    fireEvent.click(screen.getByTestId('composer-perm-bubble'));
+    await waitFor(() => expect(calls).toEqual(['bubble']));
     // 当前段高亮来自 store 的 permissionMode（permission_mode_changed 事件回读）。
     expect(screen.getByTestId('composer-perm-prompt').getAttribute('data-active')).toBeDefined();
   });
