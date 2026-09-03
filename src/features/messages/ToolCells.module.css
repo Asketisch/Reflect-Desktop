@@ -62,6 +62,48 @@
   border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
 }
 
+/* 框内输出区：args 下方,带小节标签 + 分隔线。 */
+.outputSection {
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.outputLabel {
+  padding: 0.3rem 0.8rem 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #888);
+}
+
+.output {
+  margin: 0;
+  padding: 0.4rem 0.8rem 0.6rem;
+  background: var(--bg-base, #0c0e11);
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.outputExtra {
+  margin: 0;
+  padding: 0 0.8rem 0.6rem;
+  background: var(--bg-base, #0c0e11);
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.outputError {
+  color: #f87171;
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }

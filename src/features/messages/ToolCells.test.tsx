@@ -1,5 +1,5 @@
 /**
- * Vitest — ToolCell (B7-05).
+ * Vitest — ToolCell (B7-05) + 调用/结果同框渲染。
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -19,6 +19,58 @@ describe('ToolCell', () => {
     expect(cell.querySelector('[data-testid="tool-args-shell"]')).toBeNull();
     fireEvent.click(cell.querySelector('button')!);
     expect(cell.querySelector('[data-testid="tool-args-shell"]')).not.toBeNull();
+  });
+
+  it('renders paired output inside the same cell (no separate box)', () => {
+    render(
+      <ToolCell
+        toolName="shell"
+        argsSummary='{"command":"ls"}'
+        status="done"
+        output={{ text: 'file-a\nfile-b', isError: false }}
+      />,
+    );
+    const cell = screen.getByTestId('tool-cell-shell');
+    // 收起时输出不渲染。
+    expect(cell.querySelector('[data-testid="tool-cell-output"]')).toBeNull();
+    fireEvent.click(cell.querySelector('button')!);
+    const section = cell.querySelector('[data-testid="tool-cell-output"]');
+    expect(section).not.toBeNull();
+    expect(section!.textContent).toContain('file-a');
+  });
+
+  it('renders error output with the error label + styling', () => {
+    render(
+      <ToolCell
+        toolName="shell"
+        argsSummary='{"command":"nope"}'
+        status="error"
+        output={{ text: 'command not found', isError: true }}
+        defaultOpen
+      />,
+    );
+    const cell = screen.getByTestId('tool-cell-shell');
+    const section = cell.querySelector('[data-testid="tool-cell-output"]');
+    expect(section!.textContent).toContain('command not found');
+    expect(section!.querySelector('[class*="outputError"]')).not.toBeNull();
+  });
+
+  it('renders diff outputs via DiffViewer when defaultOpen', () => {
+    render(
+      <ToolCell
+        toolName="write_file"
+        argsSummary='{"path":"src/a.ts"}'
+        status="done"
+        defaultOpen
+        output={{
+          text: 'wrote 12 bytes',
+          diff: '--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+new',
+          path: 'src/a.ts',
+          isError: false,
+        }}
+      />,
+    );
+    expect(document.querySelector('[data-testid="diff-viewer"]')).not.toBeNull();
   });
 
   it('uses file icon for read_file', () => {

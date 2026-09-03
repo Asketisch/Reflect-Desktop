@@ -5,12 +5,17 @@
  *   - user_text       右对齐用户气泡
  *   - assistant_text  左对齐助手 markdown + streaming 光标
  *   - thinking        可折叠 reasoning
- *   - tool_call       可折叠 tool 调用（lucide 图标 + 状态徽标）
- *   - tool_output     可折叠输出（错误用 danger 主题）
+ *   - tool_call + 配对 tool_output（callId）→ 单个 ToolCell（调用与
+ *     结果同框；diff 输出默认展开）
+ *   - tool_output     孤儿输出（无配对调用,如回放缺 tool_use）→ 独立
+ *     可折叠输出框（错误用 danger 主题）
  *   - error           红色错误条
  *
  * 上下文压缩（context_compacted）不进对话流 —— 聚合统计见 Inspector 概览。
  * session 状态行已移到 TitleBar（避免重复）。
+ *
+ * 按轮 fork：`onForkTurn` 存在时，每个非 streaming turn 尾部 hover 出现
+ * 「从此轮分叉」按钮（turn.id 即 rollout 的 turn_id，后端截至该轮复制）。
  */
 import { useEffect, useRef } from 'react';
 import {
@@ -19,21 +24,56 @@ import {
   AlertTriangle,
   MessageSquare,
   FileDiff,
+  GitBranch,
 } from 'lucide-react';
-import { Icon } from '@/features/design-system';
+import { Icon, IconButton } from '@/features/design-system';
 import { Markdown } from '@/components/Markdown';
 import { useAgentStore, type Turn, type TurnItem } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { DiffViewer } from '@/features/git/DiffViewer';
 import { Collapsible } from './Collapsible';
-import { ToolCell } from './ToolCells';
+import { ToolCell, ToolOutputBody } from './ToolCells';
 import { QueuedMessages } from './QueuedMessages';
 import { splitAssistantText } from './assistantText';
 import s from './MessageList.module.css';
 
 const NEAR_BOTTOM_PX = 64;
 
-export function MessageList() {
+type ToolCallItem = Extract<TurnItem, { kind: 'tool_call' }>;
+type ToolOutputItem = Extract<TurnItem, { kind: 'tool_output' }>;
+
+/** 渲染节点：普通 item 直渲染;tool 节点把 callId 配对的调用+输出合为一框。 */
+type RenderNode =
+  | { kind: 'item'; item: TurnItem }
+  | { kind: 'tool'; call: ToolCallItem; output?: ToolOutputItem };
+
+function groupToolNodes(items: TurnItem[]): RenderNode[] {
+  const nodes: RenderNode[] = [];
+  const callNodeIdx = new Map<string, number>();
+  for (const item of items) {
+    if (item.kind === 'tool_call') {
+      callNodeIdx.set(item.callId, nodes.length);
+      nodes.push({ kind: 'tool', call: item });
+    } else if (item.kind === 'tool_output') {
+      const idx = callNodeIdx.get(item.callId);
+      const node = idx !== undefined ? nodes[idx] : undefined;
+      if (idx !== undefined && node?.kind === 'tool' && !node.output) {
+        nodes[idx] = { kind: 'tool', call: node.call, output: item };
+      } else {
+        nodes.push({ kind: 'item', item });
+      }
+    } else {
+      nodes.push({ kind: 'item', item });
+    }
+  }
+  return nodes;
+}
+
+export function MessageList({
+  onForkTurn,
+}: {
+  /** 可选：按轮 fork —— 传入后在每个已结束 turn 上提供「从此轮分叉」入口。 */
+  onForkTurn?: (turnId: string, branch: string) => void;
+} = {}) {
   const turns = useAgentStore((st) => st.turns);
   const ref = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
@@ -57,8 +97,8 @@ export function MessageList() {
             <p className={s.emptyHint}>{t('chat.empty.hint')}</p>
           </div>
         )}
-        {turns.map((t) => (
-          <TurnView key={t.id} turn={t} />
+        {turns.map((t, i) => (
+          <TurnView key={t.id} turn={t} index={i} onForkTurn={onForkTurn} />
         ))}
         <QueuedMessages />
       </div>
@@ -66,18 +106,72 @@ export function MessageList() {
   );
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+function TurnView({
+  turn,
+  index,
+  onForkTurn,
+}: {
+  turn: Turn;
+  index: number;
+  onForkTurn?: (turnId: string, branch: string) => void;
+}) {
+  const nodes = groupToolNodes(turn.items);
+  const { t } = useI18n();
+  // 流式中的 turn 尚未落全（rollout 记录还在追加），不作为 fork 点；
+  // 历史回放与已结束的 turn 均可「从此轮（含）分叉」。
+  const canFork = Boolean(onForkTurn) && turn.status !== 'streaming';
   return (
     <div className={s.turn}>
-      {turn.items.map((item, i) => (
-        <ItemView key={i} item={item} turnStatus={turn.status} />
+      {nodes.map((node, i) => (
+        <ItemView
+          // diff 输出到达时重挂载,让 defaultOpen 生效（流式期间 output
+          // 是后到的,同一节点从无到有）。
+          key={`${i}-${node.kind === 'tool' && node.output?.diff ? 'diff' : 'flat'}`}
+          node={node}
+          turnStatus={turn.status}
+        />
       ))}
+      {canFork && (
+        <div className={s.turnActions}>
+          <IconButton
+            size="sm"
+            label={t('chat.forkFromHere')}
+            onClick={() => onForkTurn?.(turn.id, `fork@${index + 1}`)}
+            data-testid={`turn-fork-${turn.id}`}
+          >
+            <Icon icon={GitBranch} size={12} />
+          </IconButton>
+        </div>
+      )}
     </div>
   );
 }
 
-function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['status'] }) {
+function ItemView({ node, turnStatus }: { node: RenderNode; turnStatus: Turn['status'] }) {
   const { t } = useI18n();
+
+  if (node.kind === 'tool') {
+    return (
+      <ToolCell
+        toolName={node.call.toolName}
+        argsSummary={node.call.argsSummary}
+        status={node.call.status}
+        output={
+          node.output
+            ? {
+                text: node.output.text,
+                diff: node.output.diff,
+                path: node.output.path,
+                isError: node.output.isError,
+              }
+            : undefined
+        }
+        defaultOpen={Boolean(node.output?.diff)}
+      />
+    );
+  }
+
+  const item = node.item;
   switch (item.kind) {
     case 'user_text':
       return <UserBubble text={item.text} />;
@@ -90,20 +184,8 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
     case 'thinking':
       return <ThinkingCollapsible text={item.text} />;
 
-    case 'tool_call': {
-      // B7-05：按工具渲染（图标、参数摘要、可折叠原始参数）。
-      return (
-        <ToolCell
-          toolName={item.toolName}
-          argsSummary={item.argsSummary}
-          status={item.status}
-        />
-      );
-    }
-
     case 'tool_output': {
-      // edit/write 类输出带 unified diff → 用 DiffViewer 渲染改动，
-      // 标题为目标文件路径；纯文本输出保持可折叠 pre。
+      // 孤儿输出（无配对 tool_call）—— 回放数据可能缺 tool_use 块。
       if (item.diff) {
         return (
           <Collapsible
@@ -112,8 +194,7 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
             label={item.path || t('chat.diffLabel')}
             defaultOpen
           >
-            <DiffViewer diff={item.diff} />
-            {item.text && <pre className={s.monoText}>{item.text}</pre>}
+            <ToolOutputBody text={item.text} diff={item.diff} isError={item.isError} />
           </Collapsible>
         );
       }
@@ -123,7 +204,7 @@ function ItemView({ item, turnStatus }: { item: TurnItem; turnStatus: Turn['stat
           accent={item.isError ? 'danger' : 'default'}
           label={item.isError ? t('chat.outputError') : t('chat.output')}
         >
-          <pre className={`${s.monoText} ${item.isError ? s.monoTextError : ''}`}>{item.text}</pre>
+          <ToolOutputBody text={item.text} isError={item.isError} />
         </Collapsible>
       );
     }

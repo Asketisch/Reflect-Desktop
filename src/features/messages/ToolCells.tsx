@@ -3,6 +3,10 @@
  *
  * 每个 tool name(shell / file_read / file_write / web_fetch / search …)
  * 都有专属子组件:icon + args 摘要 + 可折叠 raw args。
+ *
+ * 调用与结果同框:配对的 tool_output（经 callId 分组,见 MessageList）
+ * 作为 `output` 传入,展开后在 raw args 下方渲染输出正文 / unified diff,
+ * 不再是独立的「输出」折叠框。
  */
 import { useState } from 'react';
 import {
@@ -21,13 +25,26 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Icon } from '@/features/design-system';
+import { DiffViewer } from '@/features/git/DiffViewer';
 import { useI18n } from '@/utils/i18n';
 import s from './ToolCells.module.css';
+
+/** 配对 tool_output 的渲染字段（与 TurnItem tool_output 同构）。 */
+export interface ToolCellOutput {
+  text: string;
+  diff?: string;
+  path?: string;
+  isError: boolean;
+}
 
 export interface ToolCellProps {
   toolName: string;
   argsSummary: string;
   status: 'running' | 'done' | 'error';
+  /** 配对的工具输出 —— 有则渲染进同一框内（args 下方）。 */
+  output?: ToolCellOutput;
+  /** 初始展开（输出含 diff 时 MessageList 会传 true,让改动直接可见）。 */
+  defaultOpen?: boolean;
 }
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -83,12 +100,25 @@ function summarize(name: string, args: Record<string, unknown> | null): string {
   }
 }
 
-export function ToolCell({ toolName, argsSummary, status }: ToolCellProps) {
+/** 工具输出正文:edit/write 的 unified diff 用 DiffViewer,其余为 mono pre。 */
+export function ToolOutputBody({ text, diff, isError }: ToolCellOutput) {
+  if (diff) {
+    return (
+      <>
+        <DiffViewer diff={diff} />
+        {text && <pre className={s.outputExtra}>{text}</pre>}
+      </>
+    );
+  }
+  return <pre className={`${s.output} ${isError ? s.outputError : ''}`}>{text}</pre>;
+}
+
+export function ToolCell({ toolName, argsSummary, status, output, defaultOpen = false }: ToolCellProps) {
   const { t } = useI18n();
   const Icon2 = pickIcon(toolName);
   const args = parseArgs(argsSummary);
   const summary = summarize(toolName, args);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const accent = status === 'error' ? 'danger' : status === 'done' ? 'success' : 'warning';
 
   return (
@@ -111,9 +141,19 @@ export function ToolCell({ toolName, argsSummary, status }: ToolCellProps) {
         <StatusIcon status={status} />
       </button>
       {open && (
-        <pre className={s.args} data-testid={`tool-args-${toolName}`}>
-          {argsSummary || t('chat.tool.emptyArgs')}
-        </pre>
+        <>
+          <pre className={s.args} data-testid={`tool-args-${toolName}`}>
+            {argsSummary || t('chat.tool.emptyArgs')}
+          </pre>
+          {output && (
+            <div className={s.outputSection} data-testid="tool-cell-output">
+              <div className={s.outputLabel}>
+                {output.isError ? t('chat.outputError') : t('chat.output')}
+              </div>
+              <ToolOutputBody {...output} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -9,8 +9,8 @@
  * 3. 渲染 user_text + assistant_text items
  * 4. 渲染 tool_call + error items
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MessageList } from '@/features/messages/MessageList';
 import { createTestQueryClient } from '@/test/setup.tsx';
@@ -122,5 +122,89 @@ describe('MessageList', () => {
     render(wrap(<MessageList />));
     expect(screen.getByText('src/a.ts')).toBeDefined();
     expect(document.querySelector('[data-testid="diff-viewer"]')).not.toBeNull();
+  });
+
+  it('merges paired tool_call + tool_output into one cell', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't5',
+          status: 'done',
+          items: [
+            { kind: 'user_text', text: 'run' },
+            { kind: 'tool_call', toolName: 'bash', callId: 'c1', argsSummary: '{"command":"ls"}', status: 'done' },
+            { kind: 'tool_call', toolName: 'bash', callId: 'c2', argsSummary: '{"command":"pwd"}', status: 'done' },
+            { kind: 'tool_output', callId: 'c1', text: 'file-a', isError: false },
+            { kind: 'tool_output', callId: 'c2', text: '/tmp', isError: false },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    // 每对 call+output 一个框,共 2 个（而非 2 调用 + 2 输出 = 4 个盒子）。
+    const cells = document.querySelectorAll('[data-tool="bash"]');
+    expect(cells).toHaveLength(2);
+    fireEvent.click(cells[0].querySelector('button')!);
+    const section = cells[0].querySelector('[data-testid="tool-cell-output"]');
+    expect(section).not.toBeNull();
+    expect(section!.textContent).toContain('file-a');
+    // 未展开的第二个框不显示输出。
+    expect(cells[1].querySelector('[data-testid="tool-cell-output"]')).toBeNull();
+  });
+
+  it('defaults merged diff outputs to open without a click', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't6',
+          status: 'done',
+          items: [
+            { kind: 'tool_call', toolName: 'write_file', callId: 'c9', argsSummary: '{"path":"a.ts"}', status: 'done' },
+            {
+              kind: 'tool_output',
+              callId: 'c9',
+              text: '',
+              diff: '--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new',
+              path: 'a.ts',
+              isError: false,
+            },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    // diff 输出默认展开（沿用旧独立 diff 框的行为）。
+    expect(document.querySelector('[data-testid="tool-cell-output"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="diff-viewer"]')).not.toBeNull();
+  });
+
+  it('offers a per-turn fork button that reports the turn id and 1-based branch name', () => {
+    useAgentStore.setState({
+      turns: [
+        { id: 'turn-a', status: 'done', items: [{ kind: 'user_text', text: 'first' }] },
+        { id: 'turn-b', status: 'done', items: [{ kind: 'user_text', text: 'second' }] },
+      ],
+    });
+    const onForkTurn = vi.fn();
+    render(wrap(<MessageList onForkTurn={onForkTurn} />));
+    fireEvent.click(screen.getByTestId('turn-fork-turn-b'));
+    expect(onForkTurn).toHaveBeenCalledTimes(1);
+    expect(onForkTurn).toHaveBeenCalledWith('turn-b', 'fork@2');
+  });
+
+  it('hides the per-turn fork button while that turn is still streaming', () => {
+    useAgentStore.setState({
+      turns: [{ id: 'turn-live', status: 'streaming', items: [{ kind: 'user_text', text: 'live' }] }],
+    });
+    render(wrap(<MessageList onForkTurn={vi.fn()} />));
+    expect(screen.queryByTestId('turn-fork-turn-live')).toBeNull();
+  });
+
+  it('renders no per-turn fork buttons without an onForkTurn handler', () => {
+    useAgentStore.setState({
+      turns: [{ id: 'turn-a', status: 'done', items: [{ kind: 'user_text', text: 'first' }] }],
+    });
+    render(wrap(<MessageList />));
+    expect(screen.queryByTestId('turn-fork-turn-a')).toBeNull();
   });
 });

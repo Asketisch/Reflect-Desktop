@@ -58,6 +58,19 @@
   gap: var(--space-2);
 }
 
+/* ===== 按轮 fork（hover / 聚焦时显示） ===== */
+.turnActions {
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.turn:hover .turnActions,
+.turn:focus-within .turnActions {
+  opacity: 1;
+}
+
 /* ===== 用户气泡 ===== */
 .userRow {
   display: flex;
@@ -141,10 +154,6 @@
   max-height: 320px;
   overflow: auto;
   line-height: var(--lh-normal);
-}
-
-.monoTextError {
-  color: var(--danger);
 }
 
 /* 思考过程文字 —— 比正文/工具输出更弱的视觉层级(浅色) */
