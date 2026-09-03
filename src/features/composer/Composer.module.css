@@ -34,6 +34,7 @@
 }
 
 .card {
+  position: relative;
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
@@ -45,6 +46,27 @@
 .card:focus-within {
   border-color: var(--accent-border);
   box-shadow: var(--shadow-focus);
+}
+
+/* 原生文件拖拽悬停 —— 边框高亮 + 覆盖提示层（.dropOverlay 铺满卡片）。 */
+.card[data-drag-active] {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  color: var(--accent);
+  font-size: 0.85rem;
+  pointer-events: none;
 }
 
 .textarea {

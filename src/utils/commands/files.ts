@@ -63,6 +63,30 @@ export async function reflect_read_file(path: string): Promise<ReflectFileReadRe
   return invoke<ReflectFileReadResult>('reflect_read_file', { path });
 }
 
+export interface ReflectImageBase64Result {
+  /** 文件绝对路径。 */
+  path: string;
+  /** 按扩展名推断的 MIME(`image/png` 等)。 */
+  mime_type: string;
+  /** 文件字节的 base64(不带 data-URL 前缀)。 */
+  base64: string;
+  /** 原始字节数。 */
+  size: number;
+}
+
+/**
+ * 读取图片文件为 base64 —— Composer 拖拽附件管线用。
+ *
+ * 不做工作区沙盒(拖拽来源任意),扩展名白名单 png/jpg/jpeg/gif/webp/bmp,
+ * 上限 20 MiB。返回后前端拼 `data:<mime>;base64,<b64>` 作为 inline image
+ * 附件(core 的 LocalImage item 尚未接通,必须以字节提交)。
+ */
+export async function reflect_read_image_base64(
+  path: string,
+): Promise<ReflectImageBase64Result> {
+  return invoke<ReflectImageBase64Result>('reflect_read_image_base64', { path });
+}
+
 /**
  * 写回文本文件(工作区沙盒内)。编辑器 Reject 恢复原文时用 inverse-patch
  * 重建内容后经此落盘;文件不存在时创建(含父目录)。

@@ -23,6 +23,7 @@ import { ContextUsage } from './ContextUsage';
 import { ComposerControls } from './ComposerControls';
 import { ComposerContextBar } from './ComposerContextBar';
 import { useBangShell } from './useBangShell';
+import { useComposerDragDrop } from './useComposerDragDrop';
 import { BangRunsPanel } from './BangRunsPanel';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { useActiveSession } from '@/features/sessions/hooks/useSessions';
@@ -165,9 +166,13 @@ export function Composer() {
     [attachments],
   );
 
-  // P2：拖拽投放 —— 与选择器/粘贴同一附件管线。
+  // P2：拖拽投放 —— DOM drop 仅作浏览器/测试兜底;Tauri(WKWebView)下
+  // Finder 拖入的文件不进 dataTransfer,由 useComposerDragDrop 的原生
+  // 事件接管（nativeDrop=true 时在此抑制,防双通道重复添加）。
+  const drop = useComposerDragDrop(attachments);
   const onDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
+      if (drop.nativeDrop) return;
       const files = event.dataTransfer?.files;
       if (!files || files.length === 0) return;
       event.preventDefault();
@@ -183,7 +188,7 @@ export function Composer() {
         }
       });
     },
-    [attachments],
+    [attachments, drop.nativeDrop],
   );
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
@@ -300,7 +305,18 @@ export function Composer() {
         ))}
       </div>
 
-      <div className={s.card} onDrop={onDrop} onDragOver={onDragOver} data-testid="composer-card">
+      <div
+        className={s.card}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        data-drag-active={drop.dragActive || undefined}
+        data-testid="composer-card"
+      >
+        {drop.dragActive && (
+          <div className={s.dropOverlay} data-testid="composer-drop-overlay">
+            {t('composer.drop.hint')}
+          </div>
+        )}
         <BangRunsPanel runs={bang.runs} onDismiss={bang.dismiss} onKill={(id) => void bang.kill(id)} />
         <AttachmentBar attachments={attachments.attachments} onRemove={attachments.remove} />
         <textarea

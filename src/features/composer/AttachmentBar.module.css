@@ -26,6 +26,17 @@
   white-space: nowrap;
 }
 
+/* inline image 缩略图 —— 简单预览:data-URL 直接作 src。 */
+.thumb {
+  width: 2.4rem;
+  height: 2.4rem;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  background: var(--bg-base, #0c0e11);
+  display: block;
+}
+
 .remove {
   border: 0;
   background: transparent;

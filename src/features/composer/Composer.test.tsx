@@ -80,6 +80,34 @@ describe('Composer prompt-history integration', () => {
   });
 });
 
+describe('Composer drag & drop fallback (DOM)', () => {
+  // 非 Tauri(jsdom)下原生订阅降级,nativeDrop=false —— DOM dataTransfer
+  // 兜底管线必须保持可用(Tauri 内由 useComposerDragDrop 原生事件接管)。
+  it('attaches dropped image files as inline previews', async () => {
+    renderComposer();
+    const png = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'shot.png', {
+      type: 'image/png',
+    });
+    fireEvent.drop(screen.getByTestId('composer-card'), {
+      dataTransfer: { files: [png], types: ['Files'] },
+    });
+    await waitFor(() => expect(screen.getByTestId('attachment-bar')).toBeDefined());
+    expect(screen.getByTestId('attachment-thumb')).toBeDefined();
+  });
+
+  it('attaches dropped non-image files as placeholder chips', async () => {
+    renderComposer();
+    const txt = new File(['hello'], 'notes.txt', { type: 'text/plain' });
+    fireEvent.drop(screen.getByTestId('composer-card'), {
+      dataTransfer: { files: [txt], types: ['Files'] },
+    });
+    await waitFor(() => expect(screen.getByTestId('attachment-bar')).toBeDefined());
+    expect(screen.getByTestId('attachment-bar').textContent).toContain('notes.txt');
+    // 非图片没有缩略图。
+    expect(screen.queryByTestId('attachment-thumb')).toBeNull();
+  });
+});
+
 describe('Composer send shortcut', () => {
   // 注意:不要 resetMockInvoke() —— setup.ts 的 beforeEach 已注册
   // reflect_list_sessions / reflect_rename_session 等默认 handler
