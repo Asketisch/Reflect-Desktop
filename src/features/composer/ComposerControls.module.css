@@ -55,6 +55,20 @@
   cursor: default;
 }
 
+/* 目标模式徽标（/goal 启动后的前端投影,会话切换即失效）。 */
+.goalBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--info-border);
+  border-radius: var(--radius-pill);
+  color: var(--info);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  cursor: help;
+}
+
 /* 权限模式分段（样式语义同 Composer 的 modeSwitch：Plan/Ask/Auto/Yolo）。 */
 .permSwitch {
   display: flex;

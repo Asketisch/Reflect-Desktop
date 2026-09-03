@@ -4,6 +4,30 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — `/goal` 在首页输入后「什么都没发生」（未建会话、无反馈、goal 被静默丢弃）
+
+core 的 `EnterGoalMode` 只做一件事：构造 `GoalController` 挂入当前线程
+（每轮 turn 结束自校验,未完成则 steering 续作）—— **不启动 turn、不建
+会话**。GUI 旧实现把它原样提交：在首页（无任何绑定会话）输入 `/goal`
+时,goal 挂到 install 时的幽灵线程上 —— 无会话创建、无消息、无 toast;
+切进任何会话时 rebind 重建线程,挂载的 goal 又被静默丢弃。
+
+新契约（GUI 语义：`/goal <描述>` = **开目标会话**）：
+
+- **会话守卫**：新增 `useEnsureSession` hook —— 无会话时
+  `reflect_create_session` + 路由切换,并轮询 `loadedSessionId` 等
+  ChatView 的 bind → hydrate 序列完成（提交 op 前必须等绑定,否则 op
+  落到 rebind 前的旧线程;超时 10s 显式报错而非静默挂错）。
+- **立即启动循环**：arm（`enter_goal_mode`）后**以目标文本为首条消息**
+  提交 —— 两个 op 经同一 mpsc 保序,首轮 turn 结束时校验器必然就位,
+  agent 立刻开始朝目标工作,循环滚动直到 met/blocked/预算耗尽。
+- **可见性**：启动成功 toast（含目标摘要）;Composer 控制条新增
+  🎯 goal 徽标（前端投影,会话切换/`/goal clear` 后消失 —— goal 挂在
+  线程上,rebind 即丢,协议层尚无 goal 事件,真实状态展示待上游）。
+- 斜杠 submission `enter_goal_mode` 更名 `start_goal`（slashEngine →
+  dispatchSubmission;Composer 与命令面板两条路径共用同一编排）。
+  `/goal clear` 语义不变（ExitGoalMode）。
+
 ### 修复 — `[active].credential` 悬空导致每次请求报 ALL_CREDENTIALS_EXHAUSTED (0 tried)
 
 `[active].credential` 指向不存在的凭证 label 时(配置手改 / 凭证改名后残留,

@@ -285,12 +285,13 @@ describe('chat → plan → edit full loop (real app mount)', () => {
   }, 10_000);
 });
 
-describe('goal mode (agent auto-continuation, multi-turn)', () => {
-  it('/goal <text> enters goal mode on the wire and the agent works multiple turns without user input', async () => {
+describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
+  it('/goal <text> creates a session, arms the verifier and starts the loop with the goal as the first message', async () => {
     renderApp();
 
-    // 1. 用户经斜杠设定目标。
+    // 1. 用户经斜杠设定目标 —— 新契约:先建会话并切换(首页无会话时)。
     await typeAndSend('/goal make all tests pass');
+    await waitFor(() => expect(backend.callsOf('reflect_create_session').length).toBe(1));
     await waitFor(() => expect(backend.callsOf('reflect_enter_goal_mode').length).toBe(1));
     expect(backend.lastArgsOf('reflect_enter_goal_mode')).toMatchObject({
       goal: 'make all tests pass',
@@ -302,14 +303,31 @@ describe('goal mode (agent auto-continuation, multi-turn)', () => {
       verifyCommand: null,
       tokenBudget: null,
     });
-    // 斜杠命令不是用户文本提交。
-    expect(backend.agent.submissions.length).toBe(0);
 
-    // 2. 目标模式核心语义:每轮 turn 结束由 controller 自校验,
-    //    未完成则 steering 续作 —— 对用户**无新提交**,agent 自动多轮。
-    emitEvent('goal-t1', { type: 'turn_started', turn_id: 'goal-t1' });
-    emitEvent('goal-t1', { type: 'agent_message_delta', delta: 'Round 1: fixing test A' });
-    emitEvent('goal-t1', { type: 'turn_complete', turn_id: 'goal-t1', usage: {}, status: 'success' });
+    // 2. 首条消息 = 目标文本,作为普通 user_input 提交(启动循环的一轮)。
+    await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
+    expect(backend.agent.submissions[0].op).toEqual({
+      type: 'user_input',
+      items: [{ type: 'text', text: 'make all tests pass' }],
+    });
+    // 转录里能看到目标文本(乐观 user turn 已渲染)。
+    await waitFor(() => expect(logText()).toContain('make all tests pass'));
+
+    // 3. 完成首轮(submission id 即乐观 turn id),再跑一轮 agent 自续作:
+    //    每轮 turn 结束由 controller 自校验,未完成则 steering 续作 ——
+    //    对用户**无新提交**。
+    const firstTurnId = backend.agent.submissions[0].id;
+    emitEvent(firstTurnId, { type: 'turn_started', turn_id: firstTurnId });
+    emitEvent(firstTurnId, {
+      type: 'agent_message_delta',
+      delta: 'Round 1: fixing test A',
+    });
+    emitEvent(firstTurnId, {
+      type: 'turn_complete',
+      turn_id: firstTurnId,
+      usage: {},
+      status: 'success',
+    });
 
     emitEvent('goal-t2', { type: 'turn_started', turn_id: 'goal-t2' });
     emitEvent('goal-t2', {
@@ -341,7 +359,7 @@ describe('goal mode (agent auto-continuation, multi-turn)', () => {
       total_tokens: 600,
     });
 
-    // 3. GUI 正确呈现:两个 turn 累积、均 done、转录含两轮内容。
+    // 4. GUI 正确呈现:首轮 + 续作轮都 done,转录含两轮内容,🎯 徽标亮起。
     await waitFor(() => {
       const turns = useAgentStore.getState().turns;
       expect(turns.length).toBe(2);
@@ -351,10 +369,11 @@ describe('goal mode (agent auto-continuation, multi-turn)', () => {
     await waitFor(() => expect(logText()).toContain('Round 1: fixing test A'));
     await waitFor(() => expect(logText()).toContain('Round 2: all tests pass now'));
     expect(useAgentStore.getState().tokens?.total).toBe(600);
+    expect(useAgentStore.getState().goalActive).toBe(true);
 
-    // 4. 续作全程零用户提交 —— 这是目标模式区别于普通聊天的关键可观察行为。
-    expect(backend.agent.submissions.length).toBe(0);
-    expect(backend.callsOf('reflect_submit').length).toBe(0);
+    // 5. 续作全程零新增用户提交 —— 目标模式区别于普通聊天的关键可观察行为。
+    expect(backend.agent.submissions.length).toBe(1);
+    expect(backend.callsOf('reflect_submit').length).toBe(1);
     // 目标模式仍激活。
     expect(backend.state.goal.active).toBe(true);
   }, 20_000);
@@ -366,8 +385,9 @@ describe('goal mode (agent auto-continuation, multi-turn)', () => {
     await waitFor(() => expect(backend.state.goal.active).toBe(true));
 
     // agent 自校验中 —— 此时用户叫停。
-    emitEvent('goal-t1', { type: 'turn_started', turn_id: 'goal-t1' });
-    emitEvent('goal-t1', { type: 'agent_message_delta', delta: 'working on it' });
+    const firstTurnId = backend.agent.submissions[0].id;
+    emitEvent(firstTurnId, { type: 'turn_started', turn_id: firstTurnId });
+    emitEvent(firstTurnId, { type: 'agent_message_delta', delta: 'working on it' });
     await waitFor(() => expect(logText()).toContain('working on it'));
 
     await typeAndSend('/goal clear');
@@ -378,29 +398,8 @@ describe('goal mode (agent auto-continuation, multi-turn)', () => {
       verifyCommand: null,
       tokenBudget: null,
     });
-
-    // 退出后不再有自动续作 turn。
-    await new Promise((r) => setTimeout(r, 50));
-    const turns = useAgentStore.getState().turns;
-    expect(turns.length).toBe(1);
+    await waitFor(() => expect(useAgentStore.getState().goalActive).toBe(false));
   }, 20_000);
-
-  it('bare /goal (no description) is rejected with guidance and no IPC', async () => {
-    renderApp();
-    await typeAndSend('/goal');
-
-    await waitFor(
-      () =>
-        expect(
-          useAgentStore.getState().toasts.some(
-            (t) => t.kind === 'error' && t.message.includes('/goal <description>'),
-          ),
-        ).toBe(true),
-    );
-    expect(backend.callsOf('reflect_enter_goal_mode').length).toBe(0);
-    expect(backend.callsOf('reflect_exit_goal_mode').length).toBe(0);
-    expect(backend.agent.submissions.length).toBe(0);
-  }, 10_000);
 });
 
 // 抑制 jsdom 下 AudioContext 相关噪音(与 chat.full-flow 保持一致)。

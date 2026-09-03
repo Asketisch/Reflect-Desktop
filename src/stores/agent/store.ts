@@ -70,7 +70,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
   loadedSessionId: null,
   hydrateSession: (id, records) => {
     const { turns, compactions } = turnsFromRollout(records);
-    set({ turns, compactions, loadedSessionId: id, lastError: null, queuedMessages: [] });
+    // goalActive 一并复位:goal 挂在后端线程上,rebind 造新线程即丢,
+    // 换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
+    set({ turns, compactions, loadedSessionId: id, lastError: null, queuedMessages: [], goalActive: false });
   },
   clearSession: () =>
     set({
@@ -100,6 +102,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
   planFailover: null,
   compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
   toasts: [],
+  goalActive: false,
+  setGoalActive: (active) => set({ goalActive: active }),
 
   subscribe: () => {
     if (get().subscribed) return () => {};
@@ -349,6 +353,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       planFailover: null,
       compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
       toasts: [],
+      goalActive: false,
     });
   },
   };

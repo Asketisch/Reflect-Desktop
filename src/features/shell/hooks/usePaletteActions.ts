@@ -20,6 +20,7 @@ import { useAgentStore } from '@/stores/agentStore';
 import { executeSlash, parseSlash } from '@/features/composer/slashEngine';
 import { dispatchSubmission } from '@/features/composer/dispatchSubmission';
 import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { useEnsureSession } from '@/features/sessions/hooks/useEnsureSession';
 import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import {
@@ -75,6 +76,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
   const submit = useAgentStore((st) => st.submit);
   const pushToast = useAgentStore((st) => st.pushToast);
   const { rename } = useSessions();
+  const ensureSessionReady = useEnsureSession();
   const { t } = useI18n();
   const { activeId, onNewChat, toasts } = opts;
 
@@ -153,6 +155,9 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
                 pushToast,
                 t,
                 rename,
+                ensureSessionReady: () => ensureSessionReady(activeId ?? null),
+                invalidateSessions: () =>
+                  void qc.invalidateQueries({ queryKey: ['sessions'] }),
               });
             } else if (result.kind === 'submit') {
               await submit(result.payload ?? slash);
@@ -169,7 +174,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
         }
       })();
     },
-    [activeId, pushToast, rename, submit, t],
+    [activeId, pushToast, rename, submit, t, ensureSessionReady, qc],
   );
 
   return { newSession, clearAllSessions, exportActive, saveConfig, runSlash };

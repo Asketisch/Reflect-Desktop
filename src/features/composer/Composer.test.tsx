@@ -718,3 +718,86 @@ describe('Composer context bar (workspace + git branch)', () => {
     );
   });
 });
+
+describe('Composer /goal — 开目标会话', () => {
+  // 回归背景：core 的 EnterGoalMode 只挂载自校验控制器、不启动 turn,
+  // 旧实现在首页直接把它提交给幽灵线程 —— 无会话、无消息、无反馈。
+  // 现在的契约：ensure(建会话+导航+等 bind) → arm → 以目标文本为首条
+  // 消息提交 → goalActive 投影亮起。
+  beforeEach(() => {
+    window.localStorage.clear();
+    useAgentStore.getState().reset();
+    resetMockInvoke();
+    mockInvoke('reflect_get_effort', async () => 'low');
+    mockInvoke('reflect_agent_status', async () => ({
+      has_model: true,
+      model: 'stub/test',
+      provider: 'local',
+      ready: true,
+    }));
+    mockInvoke('reflect_enter_goal_mode', async () => 'goal-mode');
+    mockInvoke('reflect_exit_goal_mode', async () => 'goal-exit');
+  });
+
+  function trackGoalFlow(opts: { createdId: string }) {
+    const calls: { create: number; arm: string[]; submit: string[] } = {
+      create: 0,
+      arm: [],
+      submit: [],
+    };
+    mockInvoke('reflect_create_session', async () => {
+      calls.create += 1;
+      return opts.createdId;
+    });
+    mockInvoke('reflect_enter_goal_mode', async (_cmd: string, args?: { goal: string }) => {
+      calls.arm.push(args?.goal ?? '');
+      return 'goal-mode';
+    });
+    mockInvoke('reflect_submit', async (_cmd: string, args?: unknown) => {
+      const submission = (args as { submission: { id: string; op: { type: string; items: Array<{ type: string; text?: string }> } } }).submission;
+      const first = submission.op.items[0];
+      calls.submit.push(first?.text ?? '');
+      return submission.id;
+    });
+    return calls;
+  }
+
+  it('creates a session, arms the verifier and submits the goal as the first message', async () => {
+    // ensureSessionReady 轮询 loadedSessionId —— 预置为即将创建的 id,
+    // 模拟 ChatView bind → hydrate 已完成（真实应用中由 ChatView 驱动）。
+    useAgentStore.setState({ loadedSessionId: 'goal-sess-1' });
+    const calls = trackGoalFlow({ createdId: 'goal-sess-1' });
+
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '/goal make all tests pass' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(calls.submit).toHaveLength(1));
+    expect(calls.create).toBe(1);
+    // 顺序敏感：先 arm（校验器在 turn 结束前就位）再发首条消息。
+    expect(calls.arm).toEqual(['make all tests pass']);
+    expect(calls.submit[0]).toBe('make all tests pass');
+    // 前端投影亮起,composer 出现 🎯 徽标。
+    expect(useAgentStore.getState().goalActive).toBe(true);
+    await waitFor(() => expect(screen.getByTestId('composer-goal-badge')).toBeDefined());
+  });
+
+  it('clears the goal projection via /goal clear', async () => {
+    useAgentStore.setState({ loadedSessionId: 'goal-sess-1' });
+    const calls = trackGoalFlow({ createdId: 'goal-sess-1' });
+    useAgentStore.getState().setGoalActive(true);
+
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '/goal clear' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(useAgentStore.getState().goalActive).toBe(false));
+    // clear 不建会话、不发消息。
+    expect(calls.create).toBe(0);
+    expect(calls.arm).toHaveLength(0);
+    expect(calls.submit).toHaveLength(0);
+    await waitFor(() => expect(screen.queryByTestId('composer-goal-badge')).toBeNull());
+  });
+});

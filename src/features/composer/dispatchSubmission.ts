@@ -16,6 +16,7 @@ import {
   reflect_set_permission_mode,
   reflect_export_session,
 } from '@/utils/commands';
+import { useAgentStore } from '@/stores/agentStore';
 import type { LocaleKey } from '@/utils/i18n';
 
 export type ToastKind = 'info' | 'success' | 'warn' | 'error';
@@ -26,6 +27,16 @@ export interface DispatchSubmissionCtx {
   t: (key: LocaleKey, vars?: Record<string, string | number>) => string;
   /** useSessions().rename —— /rename 需要落到会话列表缓存。 */
   rename: (id: string, name: string) => Promise<void>;
+  /**
+   * /goal：确保存在已绑定的会话（无会话时创建 + 导航 + 等 bind 完成），
+   * 返回可安全提交 op 的 session id。由调用方（hook 层）经
+   * `useEnsureSession` 提供 —— 路由导航只能在 hook 里做。
+   */
+  ensureSessionReady?: (activeId: string | null) => Promise<string>;
+  /** /goal 首条消息携带的当前工作区（SessionMeta.workspace 归属用）。 */
+  workspace?: string | null;
+  /** /goal 首条消息会派生会话标题，提交后刷新会话列表缓存。 */
+  invalidateSessions?: () => void;
 }
 
 /** 执行一个 slash submission kind。kind 来自 slashEngine.executeSlash 的结果。 */
@@ -46,11 +57,31 @@ export async function dispatchSubmission(
     case 'exit_plan_mode':
       await reflect_exit_plan_mode();
       break;
-    case 'enter_goal_mode':
-      await reflect_enter_goal_mode(args.join(' '));
+    case 'start_goal': {
+      // GUI 的 /goal = 开目标会话。core 的 EnterGoalMode 只挂载自校验
+      // 控制器、不启动 turn —— 不先建会话/不发首条消息的话，循环永不
+      // 开始（旧实现挂在首页幽灵线程上，表现为「什么都没发生」）。
+      const goal = args.join(' ').trim();
+      if (!ctx.ensureSessionReady) {
+        pushToast({ kind: 'warn', message: t('composer.unhandledSlash', { kind }) });
+        return;
+      }
+      await ctx.ensureSessionReady(activeSessionId);
+      // 顺序敏感：先 arm 再发消息 —— 两个 op 经同一 mpsc 保序处理，
+      // turn 结束时校验器必然已就位。
+      await reflect_enter_goal_mode(goal);
+      useAgentStore.getState().setGoalActive(true);
+      await useAgentStore.getState().submit(goal, ctx.workspace ?? null);
+      ctx.invalidateSessions?.();
+      pushToast({
+        kind: 'success',
+        message: t('composer.goalStarted', { goal: goal.length > 40 ? `${goal.slice(0, 40)}…` : goal }),
+      });
       break;
+    }
     case 'exit_goal_mode':
       await reflect_exit_goal_mode();
+      useAgentStore.getState().setGoalActive(false);
       break;
     case 'set_effort':
       await reflect_set_effort((args[0] ?? '').toLowerCase());

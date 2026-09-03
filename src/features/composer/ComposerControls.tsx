@@ -47,6 +47,7 @@ const PERMISSION_SEGMENTS = [
 export function ComposerControls() {
   const { t } = useI18n();
   const permissionMode = useAgentStore((st) => st.permissionMode);
+  const goalActive = useAgentStore((st) => st.goalActive);
   const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
   const pushToast = useAgentStore((st) => st.pushToast);
 
@@ -260,6 +261,15 @@ export function ComposerControls() {
       </div>
 
       <div className={s.right}>
+        {goalActive && (
+          <span
+            className={s.goalBadge}
+            title={t('composer.goalBadge')}
+            data-testid="composer-goal-badge"
+          >
+            🎯 {t('composer.goalBadgeLabel')}
+          </span>
+        )}
         <div className={s.permSwitch} role="radiogroup" aria-label={t('composer.controls.permissionAria')} data-testid="composer-permission-switch">
           {PERMISSION_SEGMENTS.map((segment) => (
             <button

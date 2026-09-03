@@ -21,6 +21,13 @@ vi.mock('@/features/modals/ConfirmDialog', () => ({
   confirmDialog: async () => true,
 }));
 
+// useEnsureSession(→ useActiveSession)依赖 router hooks;本文件只测
+// palette 动作编排,用静态 mock 提供最小上下文(pathname=/chat → activeId=null)。
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/chat' }),
+}));
+
 const TOASTS: PaletteToasts = {
   newSession: 'New session started.',
   noSessionsToClear: 'No sessions to clear.',

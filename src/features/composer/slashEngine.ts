@@ -100,9 +100,12 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
       if (goalText === 'clear') {
         return { kind: 'submit_with_submission', submission: 'exit_goal_mode', message: 'Exiting goal mode…' };
       }
+      // GUI 语义：/goal = 开目标会话 —— 确保有已绑定的会话,挂载自校验,
+      // 并立即以目标文本作为首条消息启动循环（core 的 EnterGoalMode 只挂
+      // 载控制器、不启动 turn;没有首条消息循环永不开始）。
       return {
         kind: 'submit_with_submission',
-        submission: 'enter_goal_mode',
+        submission: 'start_goal',
         message: `Goal mode: ${goalText}`,
       };
     }

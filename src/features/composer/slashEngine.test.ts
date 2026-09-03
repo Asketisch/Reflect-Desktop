@@ -92,6 +92,29 @@ describe('executeSlash — Tier A real dispatch', () => {
     expect(r.submission).toBe('exit_plan_mode');
   });
 
+  it('/goal <desc> → start_goal（GUI 语义:开目标会话）', () => {
+    const p = parseSlash('/goal make all tests pass');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('submit_with_submission');
+    expect(r.submission).toBe('start_goal');
+    expect(r.message).toContain('make all tests pass');
+  });
+
+  it('/goal clear → exit_goal_mode', () => {
+    const p = parseSlash('/goal clear');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.submission).toBe('exit_goal_mode');
+  });
+
+  it('/goal (no arg) → reject', () => {
+    const p = parseSlash('/goal');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('reject');
+  });
+
   it('/effort low|medium|high ok', () => {
     for (const level of ['low', 'medium', 'high']) {
       const p = parseSlash(`/effort ${level}`);

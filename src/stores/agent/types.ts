@@ -200,6 +200,13 @@ export interface AgentState {
   /** 上下文压缩聚合统计（context_compacted 事件 + 回放 compaction record）。 */
   compactions: CompactionStats;
   toasts: Toast[];
+  /**
+   * 目标模式前端投影（非后端权威状态）—— `/goal` 启动成功置 true,
+   * `/goal clear` 与会话切换（hydrate/clear）置 false。协议无 goal 事件,
+   * 切会话后端 rebind 也会丢 goal,所以按会话作用域处理。
+   */
+  goalActive: boolean;
+  setGoalActive: (active: boolean) => void;
 
   subscribe: () => () => void;
   /**

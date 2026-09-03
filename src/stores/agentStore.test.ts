@@ -34,6 +34,8 @@ const emptyState = (): AgentState => ({
   lastRouting: null,
   configReloadedAt: null,
   toasts: [],
+  goalActive: false,
+  setGoalActive: () => {},
   // Actions（reducer 测试中未使用；严格的 AgentState 类型要求它们存在）。
   subscribe: () => () => {},
   submit: async () => {},

@@ -9,6 +9,7 @@ import {
   useActiveSession,
   SESSIONS_QUERY_KEY,
 } from '@/features/sessions/hooks/useSessions';
+import { useEnsureSession } from '@/features/sessions/hooks/useEnsureSession';
 import { useI18n } from '@/utils/i18n';
 import { reflect_interrupt } from '@/utils/commands';
 import {
@@ -65,6 +66,7 @@ export function useComposerSubmission({
   const { submit } = useAgent();
   const { activeId } = useActiveSession();
   const { rename } = useSessions();
+  const ensureSessionReady = useEnsureSession();
   const pushToast = useAgentStore((state) => state.pushToast);
   const { t } = useI18n();
   const qc = useQueryClient();
@@ -72,8 +74,16 @@ export function useComposerSubmission({
   // slash submission 分发已抽到 dispatchSubmission.ts（Composer 与命令面板共用）。
   const runSubmission = useCallback(
     (kind: string, args: string[]) =>
-      dispatchSubmission(kind, args, { activeSessionId: activeId, pushToast, t, rename }),
-    [activeId, pushToast, rename, t],
+      dispatchSubmission(kind, args, {
+        activeSessionId: activeId,
+        pushToast,
+        t,
+        rename,
+        ensureSessionReady: () => ensureSessionReady(activeId),
+        workspace: currentWorkspace ?? null,
+        invalidateSessions: () => void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY }),
+      }),
+    [activeId, pushToast, rename, t, ensureSessionReady, currentWorkspace, qc],
   );
 
   return useCallback(async (options?: { reverseMode?: boolean }) => {
