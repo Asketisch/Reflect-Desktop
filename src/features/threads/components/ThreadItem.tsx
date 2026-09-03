@@ -20,6 +20,8 @@ export interface ThreadItemProps {
   onRename: (id: string, newName: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onExport: (id: string) => Promise<string | null>;
+  /** fork 历史会话为子会话（可选；成功后由调用方路由切换）。 */
+  onFork?: (id: string, branch: string) => Promise<string>;
   onArchive?: (id: string) => Promise<void>;
   onGenerateTitle?: (id: string) => Promise<string>;
   /** 多选删除（可选）：显示勾选框并参与选中集合。 */
@@ -35,6 +37,7 @@ export function ThreadItem({
   onRename,
   onDelete,
   onExport,
+  onFork,
   onArchive,
   onGenerateTitle,
   selectable = false,
@@ -133,6 +136,14 @@ export function ThreadItem({
             setMenuOpen(false);
             return path;
           }}
+          onFork={
+            onFork
+              ? async (branch) => {
+                  await onFork(session.session_id, branch);
+                  setMenuOpen(false);
+                }
+              : undefined
+          }
           onArchive={
             onArchive
               ? async () => {

@@ -1,13 +1,15 @@
 /**
- * SessionItemMenu —— session 行的操作下拉菜单（rename / export / archive / delete）。
+ * SessionItemMenu —— session 行的操作下拉菜单（rename / fork / export / archive / delete）。
  *
  * 由 Sidebar（主壳历史列表）与 ThreadsView（/sessions 全量视图）共用；
  * `onArchive` 可选（调用方未接归档能力时不渲染该菜单项）。
  *
- * - rename 用内联表单轻量处理（避免引入新 modal 原语）；
+ * - rename / fork 用内联表单轻量处理（避免引入新 modal 原语）；
  * - archive / delete 二次确认（应用内 ConfirmDialog —— window.confirm
  *   在 Tauri WKWebView 不弹窗且恒返回 false，不能用作确认）；
- * - export 调 `reflect_export_session` 并短暂展示导出路径。
+ * - export 调 `reflect_export_session` 并短暂展示导出路径；
+ * - fork 调 `reflect_fork_session` 复制历史到新子会话（分支名经内联
+ *   表单输入,默认 `manual`,与 CLI 一致）。
  */
 import { useState } from 'react';
 import type { ReflectSessionInfo } from '@/utils/commands';
@@ -20,6 +22,8 @@ export interface SessionItemMenuProps {
   onRename: (newName: string) => Promise<void>;
   onDelete: () => Promise<void>;
   onExport: () => Promise<string | null>;
+  /** 可选：fork 出子会话（入参为分支名,写入子会话自定义名）。 */
+  onFork?: (branch: string) => Promise<void>;
   /** 可选：归档（移出会话列表，可在归档区恢复）。 */
   onArchive?: () => Promise<void>;
   /** 可选：AI 重新生成标题（B；未接时隐藏菜单项）。 */
@@ -31,11 +35,14 @@ export interface SessionItemMenuProps {
   archivedRow?: boolean;
 }
 
-export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchive, onGenerateTitle, pinned, onTogglePin, archivedRow }: SessionItemMenuProps) {
+export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork, onArchive, onGenerateTitle, pinned, onTogglePin, archivedRow }: SessionItemMenuProps) {
   const { t } = useI18n();
   const [renameOpen, setRenameOpen] = useState(false);
   // 预填充当前标题(自定义名或派生值;无标题的空会话为空串)。
   const [renameValue, setRenameValue] = useState(session.title ?? '');
+  // fork 分支名表单（默认 manual,与 CLI `reflect session fork` 一致）。
+  const [forkOpen, setForkOpen] = useState(false);
+  const [forkValue, setForkValue] = useState('manual');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportPath, setExportPath] = useState<string | null>(null);
@@ -104,34 +111,56 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchi
       await onGenerateTitle?.();
     });
 
-  if (renameOpen) {
+  const handleFork = () => {
+    const branch = forkValue.trim();
+    if (!branch) return;
+    void run(async () => {
+      await onFork?.(branch);
+    });
+  };
+
+  if (renameOpen || forkOpen) {
+    const isFork = forkOpen;
     return (
-      <div className={s.menu} data-session-menu={session.session_id} role="dialog" aria-label={t('threads.renameThread')}>
+      <div className={s.menu} data-session-menu={session.session_id} role="dialog" aria-label={t(isFork ? 'threads.fork' : 'threads.renameThread')}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void handleRename();
+            if (isFork) {
+              handleFork();
+            } else {
+              void handleRename();
+            }
           }}
         >
           <input
             type="text"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            placeholder={t('threads.threadName')}
+            value={isFork ? forkValue : renameValue}
+            onChange={(e) => (isFork ? setForkValue(e.target.value) : setRenameValue(e.target.value))}
+            placeholder={t(isFork ? 'threads.forkBranchName' : 'threads.threadName')}
             disabled={pending}
             autoFocus
             className={s.input}
-            data-testid={`session-rename-input-${session.session_id}`}
+            data-testid={isFork ? `session-fork-input-${session.session_id}` : `session-rename-input-${session.session_id}`}
           />
           <div className={s.actions}>
-            <button type="button" onClick={() => setRenameOpen(false)} disabled={pending}>
+            <button
+              type="button"
+              onClick={() => (isFork ? setForkOpen(false) : setRenameOpen(false))}
+              disabled={pending}
+            >
               {t('threads.cancel')}
             </button>
-            <button type="submit" disabled={pending || !renameValue.trim()}>
-              {pending ? t('threads.saving') : t('threads.save')}
+            <button
+              type="submit"
+              disabled={pending || (isFork ? !forkValue.trim() : !renameValue.trim())}
+              data-testid={isFork ? `session-fork-confirm-${session.session_id}` : undefined}
+            >
+              {pending ? t('threads.saving') : t(isFork ? 'threads.fork' : 'threads.save')}
             </button>
           </div>
         </form>
+        {isFork && <div className={s.hint}>{t('threads.forkHint')}</div>}
         {error && <div className={s.error}>{error}</div>}
       </div>
     );
@@ -170,6 +199,18 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onArchi
           data-testid={`session-ai-rename-${session.session_id}`}
         >
           ✨ {t('threads.aiRename')}
+        </button>
+      )}
+      {onFork && (
+        <button
+          type="button"
+          role="menuitem"
+          className={s.item}
+          onClick={() => setForkOpen(true)}
+          disabled={pending}
+          data-testid={`session-fork-${session.session_id}`}
+        >
+          ⑂ {t('threads.fork')}
         </button>
       )}
       <button

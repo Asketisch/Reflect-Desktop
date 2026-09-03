@@ -40,9 +40,42 @@ describe('SessionItemMenu', () => {
     expect(screen.getByRole('menuitem', { name: /Export/ })).toBeDefined();
     expect(screen.getByRole('menuitem', { name: /Delete/ })).toBeDefined();
     expect(screen.queryByRole('menuitem', { name: /Archive/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /Fork/ })).toBeNull();
 
     rerender(<SessionItemMenu {...props} onArchive={vi.fn().mockResolvedValue(undefined)} />);
     expect(screen.getByRole('menuitem', { name: /Archive/ })).toBeDefined();
+
+    rerender(<SessionItemMenu {...props} onFork={vi.fn().mockResolvedValue(undefined)} />);
+    expect(screen.getByRole('menuitem', { name: /Fork/ })).toBeDefined();
+  });
+
+  it('opens fork form with default branch name and submits it', async () => {
+    const onFork = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(<SessionItemMenu {...baseProps()} onFork={onFork} />);
+
+    fireEvent.click(container.querySelector('[data-testid="session-fork-s1"]') as HTMLButtonElement);
+    const input = (await waitFor(() =>
+      container.querySelector('[data-testid="session-fork-input-s1"]'),
+    )) as HTMLInputElement;
+    // 默认分支名与 CLI(`reflect session fork` 无 --branch)一致。
+    expect(input.value).toBe('manual');
+
+    fireEvent.change(input, { target: { value: 'explore-rewrite' } });
+    fireEvent.submit(input.closest('form')!);
+    await waitFor(() => expect(onFork).toHaveBeenCalledWith('explore-rewrite'));
+  });
+
+  it('does not submit fork with a blank branch name', async () => {
+    const onFork = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(<SessionItemMenu {...baseProps()} onFork={onFork} />);
+
+    fireEvent.click(container.querySelector('[data-testid="session-fork-s1"]') as HTMLButtonElement);
+    const input = (await waitFor(() =>
+      container.querySelector('[data-testid="session-fork-input-s1"]'),
+    )) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '   ' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(onFork).not.toHaveBeenCalled();
   });
 
   it('opens rename input and submits new name', async () => {

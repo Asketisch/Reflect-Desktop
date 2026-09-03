@@ -88,6 +88,13 @@
   font-size: 0.75rem;
 }
 
+.hint {
+  margin-top: 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 .toast {
   margin-top: 0.4rem;
   padding: 0.3rem 0.5rem;

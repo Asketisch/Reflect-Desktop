@@ -14,6 +14,8 @@ export interface ThreadBucketGroupProps {
   onRename: (id: string, newName: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onExport: (id: string) => Promise<string | null>;
+  /** fork 历史会话为子会话（可选）；透传给 ThreadItem。 */
+  onFork?: (id: string, branch: string) => Promise<string>;
   onArchive?: (id: string) => Promise<void>;
   onGenerateTitle?: (id: string) => Promise<string>;
   /** 多选删除：勾选框渲染与选中集合（可选）。 */
@@ -29,6 +31,7 @@ export function ThreadBucketGroup({
   onRename,
   onDelete,
   onExport,
+  onFork,
   onArchive,
   onGenerateTitle,
   selectable,
@@ -48,6 +51,7 @@ export function ThreadBucketGroup({
             onRename={onRename}
             onDelete={onDelete}
             onExport={onExport}
+            onFork={onFork}
             onArchive={onArchive}
             onGenerateTitle={onGenerateTitle}
             selectable={selectable}

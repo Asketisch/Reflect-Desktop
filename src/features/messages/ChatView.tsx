@@ -11,7 +11,8 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { useAgentStore } from '@/stores/agentStore';
 import { reflect_replay_session, reflect_git_diff } from '@/utils/commands';
-import { reflect_bind_session } from '@/utils/commands/sessions';
+import { reflect_bind_session, reflect_fork_session } from '@/utils/commands/sessions';
+import { useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { useUiPrefs } from '@/utils/uiPrefs';
 import type { ReflectRolloutRecord } from '@/utils/types';
 import { useI18n } from '@/utils/i18n';
@@ -36,6 +37,29 @@ export function ChatView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+
+  // 会话横幅的 Fork 入口:一键把当前会话完整历史复制为子会话并切换过去。
+  // 分支名用 CLI 同款默认 `manual`(侧边栏菜单入口可自定义;子会话可再改名)。
+  // 按轮 fork(`upToTurnId` 截至该轮含,见 MessageList)复用同一处理链。
+  const { setActiveId } = useActiveSession();
+  const pushToast = useAgentStore((st) => st.pushToast);
+  const [forking, setForking] = useState(false);
+  const handleFork = (branch: string, upToTurnId?: string) => {
+    if (!sessionId || forking) return;
+    setForking(true);
+    reflect_fork_session(sessionId, branch, upToTurnId)
+      .then((child) => {
+        pushToast({ kind: 'success', message: t('chat.forked', { id: child }) });
+        setActiveId(child);
+      })
+      .catch((e: unknown) => {
+        pushToast({
+          kind: 'error',
+          message: t('chat.forkFailed', { msg: e instanceof Error ? e.message : String(e) }),
+        });
+      })
+      .finally(() => setForking(false));
+  };
 
   useEffect(() => {
     if (!sessionId) {
@@ -153,6 +177,17 @@ export function ChatView() {
         <div className={s.sessionBanner} role="status">
           <Icon icon={MessageSquare} size={12} />
           <span>{t('chat.viewing')} <code className={s.sessionId}>{sessionId}</code>.</span>
+          <button
+            type="button"
+            className={s.forkBtn}
+            onClick={() => handleFork('manual')}
+            disabled={forking}
+            title={t('threads.forkHint')}
+            data-testid="chat-fork"
+          >
+            <Icon icon={GitBranch} size={12} />
+            {t('threads.fork')}
+          </button>
         </div>
       )}
       {hero && <ChatHero />}
@@ -161,7 +196,7 @@ export function ChatView() {
         // 英雄态仅视觉隐藏（display:none），保持 MessageList 挂载 ——
         // 其 role="log" 区与滚动锚点被集成测试和自动滚动消费。
         <div className={s.chatArea} data-hero={hero ? 'on' : 'off'} data-testid="chat-messages-area">
-          <MessageList />
+          <MessageList onForkTurn={(turnId, branch) => handleFork(branch, turnId)} />
         </div>
       )}
       {!loading && !error && <Composer />}

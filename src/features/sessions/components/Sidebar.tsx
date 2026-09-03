@@ -66,6 +66,8 @@ interface Props {
   onRename?: (id: string, newName: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onExport?: (id: string) => Promise<string | null>;
+  /** fork 历史会话为子会话（可选）；透传给 SessionItem。 */
+  onFork?: (id: string, branch: string) => Promise<string>;
   onArchive?: (id: string) => Promise<void>;
   onGenerateTitle?: (id: string) => Promise<string>;
   /** 「打开项目…」—— 调起系统目录选择器切换工作区（可选）。 */
@@ -91,6 +93,7 @@ export function Sidebar({
   onRename,
   onDelete,
   onExport,
+  onFork,
   onArchive,
   onGenerateTitle,
   onOpenProject,
@@ -253,6 +256,7 @@ export function Sidebar({
             onRename={onRename}
             onDelete={onDelete}
             onExport={onExport}
+            onFork={onFork}
             onArchive={onArchive}
             onGenerateTitle={onGenerateTitle}
             pinnedIds={pinnedIds}
@@ -275,6 +279,7 @@ export function Sidebar({
             onRename={onRename}
             onDelete={onDelete}
             onExport={onExport}
+            onFork={onFork}
             onArchive={onArchive}
             onGenerateTitle={onGenerateTitle}
             pinnedIds={pinnedIds}

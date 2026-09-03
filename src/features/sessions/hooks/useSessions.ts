@@ -14,6 +14,7 @@ import {
   reflect_list_archived_sessions,
   reflect_list_workspaces,
   reflect_rename_session,
+  reflect_fork_session,
   reflect_generate_session_title,
   reflect_delete_session,
   reflect_archive_session,
@@ -45,6 +46,8 @@ export interface UseSessionsResult {
   refetch: () => void;
   refresh: () => void;
   rename: (id: string, newName: string) => Promise<void>;
+  /** fork 历史会话为子会话（全量复制），返回子会话 id。 */
+  fork: (id: string, branch?: string, upToTurnId?: string) => Promise<string>;
   /** AI 生成/重新生成会话标题（force=true 覆盖旧 AI 标题）。 */
   generateTitle: (id: string, force?: boolean) => Promise<string>;
   remove: (id: string) => Promise<void>;
@@ -138,6 +141,29 @@ export function useSessions(
     await renameMutation.mutateAsync({ id, newName });
   }, [renameMutation]);
 
+  const forkMutation = useMutation({
+    mutationFn: async ({
+      id,
+      branch,
+      upToTurnId,
+    }: {
+      id: string;
+      branch?: string;
+      upToTurnId?: string;
+    }) => reflect_fork_session(id, branch, upToTurnId),
+    // 子会话继承父的首条消息派生标题 + 自定义名(_names) —— 列表必须重刷。
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+    },
+  });
+
+  /** fork 历史会话,返回子会话 id（调用方路由切换）。 */
+  const fork = useCallback(
+    async (id: string, branch?: string, upToTurnId?: string) =>
+      forkMutation.mutateAsync({ id, branch, upToTurnId }),
+    [forkMutation],
+  );
+
   const remove = useCallback(async (id: string) => {
     await deleteMutation.mutateAsync(id);
   }, [deleteMutation]);
@@ -168,6 +194,7 @@ export function useSessions(
       void refetch();
     },
     rename,
+    fork,
     generateTitle,
     remove,
     archive,

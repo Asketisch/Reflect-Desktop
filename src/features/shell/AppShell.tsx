@@ -183,6 +183,14 @@ export function AppShell() {
       });
   };
 
+  // fork 历史会话:复制 JSONL 生成子会话 → 直接切换过去(ChatView 挂载
+  // 时 bind + replay 即得完整历史,可从 fork 点继续对话)。
+  const handleForkSession = async (id: string, branch: string) => {
+    const childId = await sessions.fork(id, branch);
+    setActiveId(childId);
+    return childId;
+  };
+
   // 在指定项目下新建会话:先切工作区(组头「+」入口),再预分配 id 并导航。
   const handleNewChatIn = (path: string) => {
     void switchWorkspace(path)
@@ -260,6 +268,7 @@ export function AppShell() {
               onRename={sessions.rename}
               onDelete={handleDeleteSession}
               onExport={sessions.export}
+              onFork={handleForkSession}
               onArchive={handleArchiveSession}
               onGenerateTitle={(id) => sessions.generateTitle(id, true)}
               onOpenProject={() => void handleOpenProject()}

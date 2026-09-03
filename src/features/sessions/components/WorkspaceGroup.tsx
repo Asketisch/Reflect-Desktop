@@ -27,6 +27,8 @@ export interface WorkspaceGroupProps {
   onRename?: (id: string, newName: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onExport?: (id: string) => Promise<string | null>;
+  /** fork 历史会话为子会话（可选）；透传给 SessionItem。 */
+  onFork?: (id: string, branch: string) => Promise<string>;
   onArchive?: (id: string) => Promise<void>;
   onGenerateTitle?: (id: string) => Promise<string>;
   /** 置顶（可选）；透传给 SessionItem。 */
@@ -49,6 +51,7 @@ export function WorkspaceGroup({
   onRename,
   onDelete,
   onExport,
+  onFork,
   onArchive,
   onGenerateTitle,
   pinnedIds,
@@ -104,6 +107,7 @@ export function WorkspaceGroup({
               onRename={onRename}
               onDelete={onDelete}
               onExport={onExport}
+              onFork={onFork}
               onArchive={onArchive}
               onGenerateTitle={onGenerateTitle}
               pinned={pinnedIds?.includes(sess.session_id)}

@@ -24,6 +24,8 @@ export interface SessionItemProps {
   onRename?: (id: string, newName: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onExport?: (id: string) => Promise<string | null>;
+  /** fork 历史会话为子会话;成功后由调用方路由切换（返回子 id）。 */
+  onFork?: (id: string, branch: string) => Promise<string>;
   onArchive?: (id: string) => Promise<void>;
   onGenerateTitle?: (id: string) => Promise<string>;
   /** 置顶态与切换（可选；置顶行标题前显示 📍 标记）。 */
@@ -45,6 +47,7 @@ function SessionItemImpl({
   onRename,
   onDelete,
   onExport,
+  onFork,
   onArchive,
   onGenerateTitle,
   pinned,
@@ -155,6 +158,14 @@ function SessionItemImpl({
             setMenuOpen(false);
             return path;
           }}
+          onFork={
+            onFork
+              ? async (branch) => {
+                  await onFork(session.session_id, branch);
+                  setMenuOpen(false);
+                }
+              : undefined
+          }
           onArchive={
             onArchive
               ? async () => {

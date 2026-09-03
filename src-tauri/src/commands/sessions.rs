@@ -20,7 +20,7 @@ use reflect_llm::{
     UserContent,
 };
 use reflect_protocol::{
-    MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId, derive_title,
+    MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId, TurnId, derive_title,
 };
 use reflect_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
 use serde::Serialize;
@@ -159,6 +159,52 @@ pub async fn reflect_rename_session(id: ThreadId, new_name: String) -> CommandRe
         msg: "no home dir".into(),
     })?;
     rollout_index::rename_session(&base, id, &new_name).map_err(CommandError::from)
+}
+
+/// 基于历史会话 fork 出子会话（GUI 入口，对应 CLI `reflect session fork`）。
+///
+/// 复制父会话 JSONL 生成新 session id 的子会话：`up_to_turn_id = None`
+/// 全量复制到末尾，`Some(tid)` 截至该 turn（含）；父文件 append 一条
+/// `Fork` 血缘 marker。子会话继承父的 SessionMeta model。完成后把分支名
+/// 写成子会话的自定义名（`_names`，列表中直接可辨）。
+///
+/// 纯文件操作、不触碰运行中的 AgentThread —— fork 完前端自行
+/// `reflect_bind_session(child)` 切换。`fork_with_history` 是同步 IO，
+/// 包 `spawn_blocking` 避免阻塞 tauri 异步运行时。
+#[tauri::command]
+pub async fn reflect_fork_session(
+    id: ThreadId,
+    branch: Option<String>,
+    up_to_turn_id: Option<TurnId>,
+) -> CommandResult<String> {
+    let base = sessions_base().ok_or_else(|| CommandError {
+        msg: "no home dir".into(),
+    })?;
+    // 与 CLI 一致的兜底分支名。
+    let branch_name = {
+        let raw = branch.unwrap_or_else(|| "manual".into());
+        let trimmed = raw.trim().to_string();
+        if trimmed.is_empty() {
+            "manual".into()
+        } else {
+            trimmed
+        }
+    };
+    let branch_for_marker = branch_name.clone();
+    let child_id = tokio::task::spawn_blocking(move || {
+        rollout_index::fork_with_history(&base, id, &branch_for_marker, up_to_turn_id.as_ref())
+    })
+    .await
+    .map_err(|e| CommandError {
+        msg: format!("fork task failed: {e}"),
+    })?
+    .map_err(CommandError::from)?;
+    // 分支名写成子会话的自定义名（_names,标题优先级最高）—— 会话列表里
+    // 直接可辨,不必再手动 rename。best-effort:失败不影响 fork 本身。
+    if let Some(base) = sessions_base() {
+        let _ = rollout_index::rename_session(&base, child_id, &branch_name);
+    }
+    Ok(child_id.to_string())
 }
 
 // ── AI 会话标题 ─────────────────────────────────────────────────────────

@@ -826,6 +826,8 @@ export function installFakeBackend(): FakeBackend {
   // —— 文件 / 搜索 ——
   handle('reflect_list_dir', handler(() => wire(backend.state.dirListing)));
   handle('reflect_read_file', handler(() => ({ path: 'x', content: 'fn main() {}', truncated: false })));
+  handle('reflect_read_image_base64', handler(() => ({ path: 'x', mime_type: 'image/png', base64: 'AAAA', size: 3 })));
+  handle('reflect_fork_session', handler(() => 'f0f0f0f0-0000-4000-8000-000000000001'));
   handle('reflect_search_files', handler(() => wire(backend.state.searchResult)));
 
   // —— git ——

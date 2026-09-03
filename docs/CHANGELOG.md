@@ -4,6 +4,77 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — `[active].credential` 悬空导致每次请求报 ALL_CREDENTIALS_EXHAUSTED (0 tried)
+
+`[active].credential` 指向不存在的凭证 label 时(配置手改 / 凭证改名后残留,
+如钉着 `"default"` 而池里只有 `"MiniMax"`),model spec 显式解析链
+(env > 钉住条目 > 段级)返回 None → 线程构造静默降级到 `"stub/test"` →
+路由池没有 stub provider → **每次对话报
+`ALL_CREDENTIALS_EXHAUSTED: all credentials exhausted (0 tried)`**,
+而池里明明有可用凭证、额度充足 —— 一个可自愈的配置问题被放大成硬故障。
+
+- **spec 兜底**（`state/agent.rs::resolve_model_spec_with_fallback`）：显式
+  解析失败时回退到 active provider 下**第一个带 model 的凭证条目**，与
+  `next_for` 对悬空 preferred 的「静默回落轮询」语义对齐。接入线程构造
+  （install / thread_factory / 热重载）三处。
+- **降级判定同口径**：`compute_degraded_reason` 改用兜底后的结果 —— 有
+  可用凭证就不再挂「未配置模型」黄点；真没有任何带 model 的凭证时仍诚实
+  降级。
+- 彻底解法在上游 `reflect-config::resolve_model`（悬空钉住回落首个凭证），
+  待随下次 submodule 升级生效；本修复已让桌面端不再受此配置形态影响。
+
+### 新增 — 基于历史会话 fork 出子会话（支持按轮分叉）
+
+会话列表的 kebab 菜单新增「Fork」入口（侧边栏与 /sessions 全量视图共用）：
+点击后内联输入分支名（默认 `manual`，与 CLI 一致），确认即把该会话的完整
+历史复制为一个新子会话，并自动切换过去（ChatView 挂载 → bind + replay
+即得全部历史，可从 fork 点继续对话）——原会话保持不变。GUI 此前完全没有
+fork 入口（CLI 专有 `reflect session fork`）。另外 ChatView 的「正在查看
+会话」横幅右侧也加了 Fork 按钮 —— 查看历史对话时一键开分支（默认分支名，
+成功后 toast 提示子会话 id 并切换）。
+
+**按轮分叉**：消息流中每个已结束 turn 尾部 hover 出现「从此轮 Fork」按钮
+（`turn.id` 即 rollout 的 turn_id）——例如 5 轮对话想从第 2 轮重新开始，
+点第 2 轮的按钮即得只含前两轮内容的子会话；分支名自动记为 `fork@<轮次>`
+（写入子会话自定义名，列表中可辨 fork 点）。流式中的 turn 不作为 fork 点。
+
+- **后端**：新增命令 `reflect_fork_session`（`commands/sessions.rs`），包装
+  core 既有的 `rollout_index::fork_with_history`（子会话继承父 SessionMeta
+  model，父文件 append `Fork` 血缘 marker；`up_to_turn_id` 截至某 turn
+  含——横幅按钮全量复制传 None，按轮入口传该轮 turn_id），并把分支名写成
+  子会话自定义名（`_names`，列表中直接可辨）；同步 IO 包 `spawn_blocking`。
+- **前端**：`useSessions` 新增 `fork` mutation（成功后失效会话列表缓存）；
+  `SessionItemMenu` 新增 fork 菜单项 + 分支名内联表单（复用 rename 表单
+  模式）；`Sidebar` / `ThreadsView` 经 `onFork` 接线，fork 成功后路由切换
+  到子会话；`MessageList` 新增 `onForkTurn`（每轮 hover 按钮，ChatView
+  下发处理链：fork → toast → 切换子会话）。
+
+### 新增 — 剪贴板图片附件预览 + 原生文件拖拽进对话框
+
+- **原生文件拖拽**：此前 Composer 的拖拽走 DOM `dataTransfer.files` ——
+  Tauri 的 WKWebView(macOS) 下 Finder 拖入的文件根本不进该通道，拖拽实际
+  不可用。现在经 `getCurrentWebview().onDragDropEvent` 订阅原生拖拽事件
+  （`src/utils/dragDrop.ts` 降级封装，非 Tauri 环境回退 DOM drop 兜底）：
+  拖悬时输入卡片高亮 + 提示层；图片（png/jpg/jpeg/gif/webp/bmp）经新命令
+  `reflect_read_image_base64` 读字节转 data-URL 走 inline image 附件
+  （core 的 `LocalImage` item 尚未接通，必须以字节提交），其余文件添加
+  真实路径的 file mention（由 agent 的 `/read` 按需读取）。
+- **图片缩略图预览**：附件条的 inline image 从文字 chip（`🖼 inline
+  (image/png)`）改为真实缩略图（data-URL 直接作 `<img src>`，36px
+  圆角 + mime 标签），粘贴 / 选择器 / 拖拽三条管线共用。
+- **后端**：新增应用命令 `reflect_read_image_base64`（`commands/files.rs`），
+  不做工作区沙盒（拖拽来源任意），扩展名白名单 + 20 MiB 上限防 IPC
+  payload 失控。
+
+### 改进 — 工具调用与输出合并同框
+
+工具调用和它的结果此前渲染为两个独立折叠框（调用框 + 「输出」框），视觉
+碎片化且调用/结果对应关系要靠位置猜。现在 `MessageList` 把 `tool_call` 与
+按 `callId` 配对的 `tool_output` 分组为单个 `ToolCell`：展开后 raw args 在
+上、输出在下（带小节标签），edit/write 的 unified diff 用 DiffViewer 内嵌
+且**默认展开**（沿用旧独立 diff 框的行为，流式期间 diff 后到也会自动展开）。
+无配对调用的孤儿输出（回放数据缺 tool_use 块时）保持原独立折叠框渲染。
+
 ### 修复 — 工具调用渲染位置漂移 + Yolo 档切换回弹
 
 - **流式文本分段**：一轮 turn 常含多次模型迭代（文本 → 工具调用 → 文本

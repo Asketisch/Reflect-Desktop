@@ -23,6 +23,7 @@ export function ThreadsView() {
     buckets,
     archived,
     rename,
+    fork,
     generateTitle,
     remove,
     archive,
@@ -130,6 +131,12 @@ export function ThreadsView() {
               onRename={rename}
               onDelete={remove}
               onExport={exportSession}
+              onFork={async (id, branch) => {
+                // fork 后直接切到子会话（路由驱动 → ChatView bind + replay）。
+                const child = await fork(id, branch);
+                setActiveId(child);
+                return child;
+              }}
               onArchive={handleArchive}
               onGenerateTitle={(id) => generateTitle(id, true)}
               selectable={selectMode}

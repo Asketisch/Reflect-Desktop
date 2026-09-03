@@ -58,6 +58,26 @@ export async function reflect_rename_session(id: string, new_name: string): Prom
 }
 
 /**
+ * 基于历史会话 fork 出子会话（CLI `reflect session fork` 的 GUI 入口）。
+ *
+ * 后端复制父会话 JSONL（`up_to_turn_id` 可选截至某 turn，含）生成新
+ * session id，父文件写 Fork 血缘 marker，并把 `branch` 写成子会话的
+ * 自定义名。返回子会话 id —— 调用方自行路由切换（ChatView 挂载时
+ * bind + replay 即得完整历史）。
+ */
+export async function reflect_fork_session(
+  id: string,
+  branch?: string,
+  up_to_turn_id?: string,
+): Promise<string> {
+  return invoke<string>('reflect_fork_session', {
+    id,
+    branch: branch ?? null,
+    upToTurnId: up_to_turn_id ?? null,
+  });
+}
+
+/**
  * AI 生成会话标题（B）。返回最终标题文本。
  *
  * - `force = false`（省略）：turn 收尾自动触发 —— 已有自定义名或 AI 标题时

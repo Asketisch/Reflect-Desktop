@@ -116,6 +116,72 @@ describe('ChatView', () => {
     });
   });
 
+  it('forks the current session from the banner button', async () => {
+    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    const forkCalls: Array<{ id?: string; branch?: string }> = [];
+    mockInvoke('reflect_fork_session', async (_cmd: string, args?: { id: string; branch: string }) => {
+      forkCalls.push(args ?? {});
+      return 'child-1';
+    });
+    window.__chatTestSessionId = 'sess-42';
+    window.__chatTestPath = '/chat/sess-42';
+
+    await act(async () => {
+      renderWithProviders(<ChatView />);
+    });
+    const forkBtn = await waitFor(() => {
+      const el = screen.getByTestId('chat-fork');
+      expect(el).toBeDefined();
+      return el;
+    });
+    fireEvent.click(forkBtn);
+    await waitFor(() =>
+      expect(forkCalls).toEqual([
+        { id: 'sess-42', branch: 'manual', upToTurnId: null },
+      ]),
+    );
+    // 成功 toast + 成功后子会话 id 已广播（导航由 useActiveSession 承担）。
+    await waitFor(() => {
+      const toasts = useAgentStore.getState().toasts;
+      expect(toasts.length).toBe(1);
+      expect(toasts[0].message).toContain('child-1');
+    });
+  });
+
+  it('forks up to a specific turn from the per-turn fork button', async () => {
+    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    const forkCalls: Array<{ id?: string; branch?: string; upToTurnId?: string }> = [];
+    mockInvoke('reflect_fork_session', async (_cmd: string, args?: { id: string; branch: string; upToTurnId: string }) => {
+      forkCalls.push(args ?? {});
+      return 'child-2';
+    });
+    window.__chatTestSessionId = 'sess-42';
+    window.__chatTestPath = '/chat/sess-42';
+    // 前序用例的 fork toast 会残留进全局 store,先清空再断言本用例自己的。
+    useAgentStore.setState({ toasts: [] } as any);
+
+    await act(async () => {
+      renderWithProviders(<ChatView />);
+    });
+    // replay 水合出 turn T1 后,轮尾出现「从此轮 Fork」按钮。
+    const turnForkBtn = await waitFor(() => {
+      const el = screen.getByTestId(`turn-fork-${T1}`);
+      expect(el).toBeDefined();
+      return el;
+    });
+    fireEvent.click(turnForkBtn);
+    await waitFor(() =>
+      expect(forkCalls).toEqual([
+        { id: 'sess-42', branch: 'fork@1', upToTurnId: T1 },
+      ]),
+    );
+    await waitFor(() => {
+      const toasts = useAgentStore.getState().toasts;
+      expect(toasts.length).toBe(1);
+      expect(toasts[0].message).toContain('child-2');
+    });
+  });
+
   it('shows localized error and recovers via Retry button', async () => {
     let attempts = 0;
     mockInvoke('reflect_replay_session', async () => {
