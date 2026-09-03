@@ -30,13 +30,43 @@ pub(crate) fn compute_degraded_reason(cfg: &ReflectConfig) -> Option<String> {
     if cfg.active_provider().is_none() {
         return Some("no provider configured — set an API key in Settings".to_string());
     }
-    if cfg.resolved_model_spec().is_none() {
+    // 与 spec 兜底同口径:兜底能解析出可用凭证就不算降级,否则配置里
+    // 明明有可用凭证、状态栏却挂着"未配置模型"的误导性黄点。
+    if resolve_model_spec_with_fallback(cfg).is_none() {
         return Some(
             "provider configured but no model — pick a plan/model in Settings → Models"
                 .to_string(),
         );
     }
     None
+}
+
+/// 显式 model spec 解析(env > 钉住条目 > 段级)失败时的兜底:回退到
+/// active provider 下**第一个带 model 的凭证条目**。
+///
+/// 为什么需要:`[active].credential` 可能悬空指向不存在的条目(配置手改 /
+/// 凭证 label 改名后残留,如 `"default"` vs 池里的 `"MiniMax"`),显式链
+/// 返回 None,调用方此前直接落 `"stub/test"` → 路由池没有 stub provider →
+/// 每次请求报 `ALL_CREDENTIALS_EXHAUSTED (0 tried)`,而池里明明有可用
+/// 凭证。这里与 `next_for` 对悬空 preferred 的「静默回落轮询」语义对齐:
+/// 有可用凭证就照常跑,不把可自愈的配置问题放大成硬故障。
+pub(crate) fn resolve_model_spec_with_fallback(cfg: &ReflectConfig) -> Option<String> {
+    if let Some(spec) = cfg.resolved_model_spec() {
+        return Some(spec);
+    }
+    let provider = cfg.active_provider()?;
+    let creds = match provider {
+        "anthropic" => cfg.anthropic.as_ref().map(|s| &s.credentials),
+        "openai" => cfg.openai.as_ref().map(|s| &s.credentials),
+        "ollama" => cfg.ollama.as_ref().map(|s| &s.credentials),
+        _ => None,
+    }?;
+    let model = creds
+        .iter()
+        .find(|c| c.model.as_deref().is_some_and(|m| !m.trim().is_empty()))
+        .and_then(|c| c.model.as_deref())
+        .map(str::trim)?;
+    Some(format!("{provider}/{model}"))
 }
 
 /// Agent 共享 inner:由 `Arc<MinimalAgentInner>` 包装,所有 `MinimalAgent`
@@ -183,6 +213,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
 
 #[cfg(test)]
 mod tests {
+    use super::{compute_degraded_reason, resolve_model_spec_with_fallback};
     use crate::state::MinimalAgent;
 
     #[test]
@@ -191,6 +222,79 @@ mod tests {
         assert!(agent.inner.thread.lock().is_none());
         // model_spec 初始为降级标记。
         assert_eq!(agent.model_spec(), "stub/test");
+    }
+
+    /// 悬空钉住(`[active].credential` 指向不存在的 label)+ 凭证条目带
+    /// model → 兜底回退到第一个带 model 的凭证,spec 不再落 stub/test。
+    /// 这是 `ALL_CREDENTIALS_EXHAUSTED (0 tried)` 的根因回归测试。
+    #[test]
+    fn spec_fallback_recovers_from_dangling_credential_pin() {
+        let toml = r#"
+            [active]
+            provider = "anthropic"
+            credential = "default"
+
+            [anthropic]
+            base_url = "https://api.minimaxi.com/anthropic"
+
+            [[anthropic.credentials]]
+            label = "MiniMax"
+            api_key = "sk-test"
+            base_url = "https://api.minimaxi.com/anthropic"
+            model = "MiniMax-M3"
+            weight = 1
+        "#;
+        let cfg = reflect_config::load_from_str(toml).unwrap();
+        // 显式链确实为 None(钉住 label 不存在 + 无段级 model)。
+        assert_eq!(cfg.resolved_model_spec(), None);
+        assert_eq!(
+            resolve_model_spec_with_fallback(&cfg).as_deref(),
+            Some("anthropic/MiniMax-M3")
+        );
+        // 有可用凭证 → 不再判定降级。
+        assert_eq!(compute_degraded_reason(&cfg), None);
+    }
+
+    /// 显式链可用时兜底不干预(钉住条目 model 优先,env > 钉住 > 段级)。
+    #[test]
+    fn spec_fallback_prefers_explicit_resolution() {
+        let toml = r#"
+            [active]
+            provider = "anthropic"
+            credential = "MiniMax"
+
+            [anthropic]
+            model = "section-model"
+
+            [[anthropic.credentials]]
+            label = "MiniMax"
+            api_key = "sk-test"
+            model = "MiniMax-M3"
+        "#;
+        let cfg = reflect_config::load_from_str(toml).unwrap();
+        assert_eq!(
+            resolve_model_spec_with_fallback(&cfg).as_deref(),
+            Some("anthropic/MiniMax-M3")
+        );
+    }
+
+    /// 凭证条目全部无 model(且无段级 model)→ 兜底也 None,保持诚实降级。
+    #[test]
+    fn spec_fallback_returns_none_without_any_model() {
+        let toml = r#"
+            [active]
+            provider = "anthropic"
+
+            [anthropic]
+            api_key = "sk-test"
+
+            [[anthropic.credentials]]
+            label = "a"
+            api_key = "sk-a"
+        "#;
+        let cfg = reflect_config::load_from_str(toml).unwrap();
+        assert_eq!(resolve_model_spec_with_fallback(&cfg), None);
+        assert!(compute_degraded_reason(&cfg).is_some());
     }
 
     #[test]

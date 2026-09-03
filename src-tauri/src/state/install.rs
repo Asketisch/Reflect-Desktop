@@ -31,8 +31,7 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     // 1. 读 cfg 快照 + 解析 model spec。
     let cfg_snapshot = agent.inner.cfg.read().clone();
     let workspace = agent.inner.workspace.clone();
-    let model_spec = cfg_snapshot
-        .resolved_model_spec()
+    let model_spec = super::agent::resolve_model_spec_with_fallback(&cfg_snapshot)
         .unwrap_or_else(|| "stub/test".to_string());
     *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(&cfg_snapshot);
 

@@ -70,8 +70,7 @@ pub(crate) fn construct_thread(
     initial_mode: Option<PermissionMode>,
 ) -> anyhow::Result<Arc<AgentThread>> {
     let cfg_snapshot = agent.inner.cfg.read().clone();
-    let model_spec = cfg_snapshot
-        .resolved_model_spec()
+    let model_spec = super::agent::resolve_model_spec_with_fallback(&cfg_snapshot)
         .unwrap_or_else(|| "stub/test".to_string());
     let registry = agent
         .inner

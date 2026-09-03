@@ -55,8 +55,7 @@ pub(crate) async fn hot_reload_provider_stack(
     // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
     //    model 解析诚实化后,provider 在但无显式 model 也是降级态
     //    (状态栏黄点 + tooltip 指引),不再编造默认模型名。
-    let model_spec = new
-        .resolved_model_spec()
+    let model_spec = super::agent::resolve_model_spec_with_fallback(new)
         .unwrap_or_else(|| "stub/test".to_string());
     *agent.inner.model_spec.write() = model_spec;
     *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(new);
