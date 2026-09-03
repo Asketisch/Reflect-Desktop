@@ -199,7 +199,7 @@ tempfile = "3"          # external_editor
 
 - `reflect-app-core` **不依赖** `ratatui` / `crossterm` / `tauri` / `iced`
 - 仅依赖 `reflect-protocol` 的 `KeyEvent` 抽象（需要新建，不依赖 crossterm）
-- 编译时间应保持 ≤5s（参考 `make check-fast C=reflect-tui`）
+- 编译时间应保持 ≤5s（参考 `cargo check -p reflect-app-core`）
 
 ### 2.3 不需要新增的 crate
 
