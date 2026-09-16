@@ -117,6 +117,18 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       // Desktop 内嵌 AgentThread,不注册远程工具,不会收到;保穷尽 no-op。
       return {};
 
+    case 'tool_call_output_delta':
+      // v1.4 A3:工具输出流式增量(预览;最终完整输出仍以 tool_call_end
+      // 为准,该 case 已按 end 全量重写)。GUI 暂不做实时流式追加,先
+      // 保穷尽 no-op,避免长命令期间高频重渲染。
+      return {};
+
+    case 'subagent_progress':
+    case 'subagent_status':
+      // v1.4 C1:子代理可观测双通道(进度推送 / 状态查询应答)。GUI 尚无
+      // 子代理面板,先保穷尽 no-op;类型见 src/types/protocol/event.ts。
+      return {};
+
     case 'approval_request': {
       // plan 类型的审批走独立的 plan_ready 事件 + pendingPlan + PlanReadyModal,
       // 不进 pendingApprovals(后者只收 tool / hook)。

@@ -40,10 +40,14 @@ export type EventMsgType =
   | 'agent_message_delta'
   | 'thinking_delta'
   | 'token_count'
-  // 工具 (3)
+  // 工具 (4)
   | 'tool_call_begin'
   | 'tool_call_end'
+  | 'tool_call_output_delta'
   | 'tool_execution_request'
+  // 子代理可观测 (2;v1.4 C1)
+  | 'subagent_progress'
+  | 'subagent_status'
   // 审批 (1)
   | 'approval_request'
   // 用户提问 (2)
@@ -70,7 +74,7 @@ export type EventMsgType =
   // LSP (2)
   | 'lsp_server_started'
   | 'lsp_server_failed'
-  // Plan 模式 (5)
+  // Plan 模式 (7)
   | 'plan_request'
   | 'plan_ready'
   | 'plan_approved'
@@ -148,6 +152,21 @@ export interface ToolCallEndPayload {
   output: ToolOutput;
   is_error: boolean;
   elapsed_ms: number;
+}
+
+/**
+ * `tool_call_output_delta` —— v1.4 A3:工具输出流式增量。长工具(构建 /
+ * 测试)执行期间逐段上报 stdout/stderr,实时可见;最终完整输出仍以
+ * `tool_call_end` 为准(增量只是预览,不做脱敏)。payload 镜像 Rust
+ * `ToolCallOutputDeltaEvent`。
+ */
+export interface ToolCallOutputDeltaPayload {
+  /** 与 `tool_call_begin.call_id` 配对的调用标识。 */
+  call_id: string;
+  /** 本段增量文本(按行或按块,由工具侧决定粒度)。 */
+  delta: string;
+  /** 本段是否来自标准错误流(后端 `#[serde(default)]`,可能缺省)。 */
+  is_stderr?: boolean;
 }
 
 /**
@@ -371,6 +390,62 @@ export interface QuotaExhaustedPayload {
 }
 
 // ============================================================================
+// 子代理可观测(v1.4 C1)
+// ============================================================================
+
+/** `subagent_progress.kind` —— 进度类别(snake_case,对齐 Rust `SubagentProgressKind`)。 */
+export type SubagentProgressKind = 'message' | 'tool_begin' | 'tool_end';
+
+/**
+ * `subagent_progress` —— 通道一(推送):子代理中间进度。父级
+ * `CallSubAgentTool` 把子事件流的 `agent_message` / `tool_call_begin` /
+ * `tool_call_end` 包装转发;逐字增量不转发。payload 镜像 Rust
+ * `SubagentProgressEvent`。
+ */
+export interface SubagentProgressPayload {
+  /** 子代理会话号(`SpawnedChild.session_id` 字符串形态)。 */
+  child_id: string;
+  /** 子代理角色(spec.role,如 `"explorer"`)。 */
+  role: string;
+  kind: SubagentProgressKind;
+  /** 文本载荷:message = 助手文本;tool_begin = 工具名;tool_end = 工具名(失败附 ` (failed)`)。 */
+  text: string;
+  /** 子代理内部工具调用的 call_id(tool_begin / tool_end 携带;message 省略)。 */
+  call_id?: string;
+}
+
+/** `subagent_status.children[].state`(snake_case,对齐 Rust `SubagentRunStateMirror`)。 */
+export type SubagentRunState = 'running' | 'completed' | 'failed' | 'cancelled';
+
+/** 单个子代理的状态快照(镜像 Rust `SubagentStatusSnapshot`)。 */
+export interface SubagentStatusSnapshot {
+  child_id: string;
+  role: string;
+  state: SubagentRunState;
+  /** 启动时间(RFC3339)。 */
+  started_at: string;
+  /** 终态时间;缺省 = 仍在运行。 */
+  finished_at?: string;
+  /** 已完成的图迭代次数(model_call 次数)。 */
+  iteration: number;
+  /** 正在执行的工具名;缺省 = 当前无工具在跑(或已终态)。 */
+  current_tool?: string;
+  /** 累计 token 用量(总)。 */
+  total_tokens: number;
+  /** 最近一条事件摘要(诊断用;截断到 ~200 字符)。 */
+  last_event?: string;
+}
+
+/**
+ * `subagent_status` —— 通道二(查询):`Op::QuerySubagents` 的应答快照。
+ * `children` 为空表示没有匹配的在飞/近期子代理。payload 镜像 Rust
+ * `SubagentStatusEvent`。
+ */
+export interface SubagentStatusPayload {
+  children: SubagentStatusSnapshot[];
+}
+
+// ============================================================================
 // EventMsgByType —— 判别联合
 // ============================================================================
 
@@ -394,7 +469,11 @@ export interface EventMsgByType {
   // 工具
   tool_call_begin: ToolCallBeginPayload;
   tool_call_end: ToolCallEndPayload;
+  tool_call_output_delta: ToolCallOutputDeltaPayload;
   tool_execution_request: ToolExecutionRequestPayload;
+  // 子代理可观测(v1.4 C1)
+  subagent_progress: SubagentProgressPayload;
+  subagent_status: SubagentStatusPayload;
   // 审批
   approval_request: ApprovalRequestPayload;
   ask_user_question: AskUserQuestionPayload;

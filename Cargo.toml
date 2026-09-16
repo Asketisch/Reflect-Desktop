@@ -37,6 +37,7 @@ reflect-protocol = { path = "reflect-agent/crates/protocol/reflect-protocol" }
 # abilities 层
 reflect-llm        = { path = "reflect-agent/crates/abilities/reflect-llm" }
 reflect-tools      = { path = "reflect-agent/crates/abilities/reflect-tools" }
+reflect-bm25       = { path = "reflect-agent/crates/abilities/reflect-bm25" }
 reflect-hooks      = { path = "reflect-agent/crates/abilities/reflect-hooks" }
 reflect-skills     = { path = "reflect-agent/crates/abilities/reflect-skills" }
 reflect-memory     = { path = "reflect-agent/crates/abilities/reflect-memory" }
@@ -104,7 +105,9 @@ tauri              = { version = "2", features = [] }
 tauri-build        = { version = "2", features = [] }
 
 # LLM/Tools(核心 crate 依赖,需在此声明供 workspace=true 解析)
-reqwest            = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+reqwest            = { version = "0.12", features = ["json", "stream", "gzip", "rustls-tls"] }
+tiktoken-rs        = "0.12"
+pyo3               = "0.23"
 walkdir            = "2"
 ignore             = "0.4"
 similar            = "2"

@@ -4,6 +4,23 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 变更 — reflect-agent 子模块升级（v1.4 批次）+ 新协议事件/Op 适配
+
+子模块 `31c6e72 → f7a8f24`（本地 2 个与远端同补丁的重复提交已对齐为
+上游改写后的历史,合并冲突就地消解）。升级带来的适配:
+
+- **工作区清单**:根 `Cargo.toml` 镜像新增 `reflect-bm25`（自
+  reflect-tools 抽离的叶 crate）、`tiktoken-rs`、`pyo3`;`reqwest` 对齐
+  上游补 `gzip` feature（workspace 继承以外层声明为准,缺失会静默丢
+  gzip 解压）。
+- **新事件（3）**:`tool_call_output_delta`（工具输出流式增量）、
+  `subagent_progress` / `subagent_status`（子代理可观测双通道）——
+  activity logger 归入忽略桶;前端 `src/types/protocol/event.ts` 类型
+  补全,reducer 保穷尽 no-op。
+- **新 Op（2）**:`steer`、`query_subagents` —— 仅协议层 + 前端类型
+  镜像,Desktop 尚无 Tauri 命令与 UI 入口（`PROTOCOL_BRIDGE.md` §2 注）。
+- 文档:`PROTOCOL_BRIDGE.md` §3.3 / §3.10 / §6 同步。
+
 ### 修复 — `/goal` 在首页输入后「什么都没发生」（未建会话、无反馈、goal 被静默丢弃）
 
 core 的 `EnterGoalMode` 只做一件事：构造 `GoalController` 挂入当前线程

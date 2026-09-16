@@ -197,6 +197,13 @@ fn map_event(event: &Event) -> Option<ActivityEvent> {
         | EventMsg::PlanStep(_)
         // PlanDraftUpdated:计划草稿增量更新(高频,暂无对应 ActivityKind)忽略。
         | EventMsg::PlanDraftUpdated(_)
+        // ToolCallOutputDelta:工具输出流式增量(高频 delta,与 AgentMessageDelta 同性质)忽略。
+        | EventMsg::ToolCallOutputDelta(_)
+        // SubagentProgress:子代理逐条进度推送(Message/ToolBegin/ToolEnd,高频)忽略。
+        | EventMsg::SubagentProgress(_)
+        // SubagentStatus:`Op::QuerySubagents` 的拉取式应答快照(前端 store 消费,
+        // 非生命周期里程碑)忽略。
+        | EventMsg::SubagentStatus(_)
         // ToolExecutionRequest:serve 模式远程工具执行请求,Desktop 内嵌
         // AgentThread 不注册远程工具,不会收到;保穷尽忽略。
         | EventMsg::ToolExecutionRequest(_)

@@ -33,6 +33,12 @@ pub struct Event {
 > 后端在 `commands/<domain>.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递。
 > 所有 Op 命令返回 `string`(submission id,供前端 pairing/调试)。
 
+> **v1.4 未桥接 Op**:`steer`(回合中途转向)与 `query_subagents`(子代理状态查询,
+> 应答 `subagent_status` 事件)已进入协议层(op.rs)与前端类型镜像
+> (`src/types/protocol/op.ts`),但 Desktop 尚无对应 Tauri 命令与 UI 入口 —— 
+> GUI 暂不可发起这两类提交。桥接时按既有流程新增 `commands/<domain>.rs` 命令体
+> 并回填本表。
+
 > **Goal 模式(v1.2 P1)**:`enter_goal_mode { goal, verify_command?, token_budget? }` /
 > `exit_goal_mode` 映射到 `reflect_enter_goal_mode` / `reflect_exit_goal_mode`
 > (`commands/agent.rs` / `commands/goal.ts`)。进入目标模式后,core 侧
@@ -177,12 +183,13 @@ pub struct Submission {
 | `thinking_delta` | `delta: String` | Reasoning block (collapsible) |
 | `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?` |
 
-### 3.3 Tools (3)
+### 3.3 Tools (4)
 
 | 变体 | 字段 | UI |
 |---|---|---|
 | `tool_call_begin` | `ToolCallBeginEvent` | Tool row running indicator |
 | `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled |
+| `tool_call_output_delta` | `ToolCallOutputDeltaEvent` (v1.4 A3) | none —— 长工具执行期间逐段 stdout/stderr 增量预览（完整输出仍以 `tool_call_end` 为准）；reducer no-op 保穷尽，避免高频重渲染 |
 | `tool_execution_request` | `ToolExecutionRequestEvent` (v1.3 SDK) | none —— serve 模式下 core 请求客户端本地执行其经 `Op::RegisterTools` 注册的远程工具（回执 `Op::ToolExecutionResponse`，`call_id` 配对）。Desktop 内嵌 AgentThread 不注册远程工具，reducer no-op 保穷尽 |
 
 ### 3.4 Approvals / AskUser (4)
@@ -240,6 +247,13 @@ pub struct Submission {
 | `plan_rejected` | Status hint |
 | `permission_mode_changed` | Status bar mode badge updates |
 
+### 3.10 Subagent observability (2) — v1.4+
+
+| 变体 | 字段 | UI |
+|---|---|---|
+| `subagent_progress` | `SubagentProgressEvent`（通道一:推送） | none —— 父级 `CallSubAgentTool` 转发的子代理中间进度（message / tool_begin / tool_end）；GUI 尚无子代理面板，reducer no-op 保穷尽 |
+| `subagent_status` | `SubagentStatusEvent`（通道二:查询应答） | none —— `Op::QuerySubagents` 的状态快照回执（`Op` 本身尚未在 Desktop 桥接，见 §2 注）；reducer no-op 保穷尽 |
+
 ---
 
 ## 4. ID 配对规则
@@ -294,6 +308,8 @@ export type ReflectOp =
   | { type: 'interrupt' }
   | { type: 'shutdown' }
   | { type: 'rewind'; to_turn_id?: string }
+  | { type: 'steer'; priority?: 'attachment' | 'now'; items: ReflectItem[] }   // v1.4 未桥接
+  | { type: 'query_subagents'; child_id?: string }                              // v1.4 未桥接
   | { type: 'tool_approval'; id: string; decision: ReviewDecision }
   | { type: 'hook_approval'; id: string; decision: ReviewDecision }
   | { type: 'enter_plan_mode'; task: string }
