@@ -389,15 +389,18 @@ describe('Composer queue vs steer (C)', () => {
     expect(turn?.items[0]).toEqual({ kind: 'user_text', text: '稍后发送' });
   });
 
-  it('steer mode interrupts the running turn and submits immediately', async () => {
+  it('steer mode 经 Op::Steer 转向 —— 不中断、不 submit、乐观渲染插话', async () => {
     const submitted: unknown[] = [];
     trackSubmit(submitted);
     const interrupts: number[] = [];
     mockInvoke('reflect_interrupt', async () => {
       interrupts.push(1);
-      // 中断生效：当前 turn 收尾，waitTurnSettled 轮询通过。
-      useAgentStore.setState({ turns: [{ id: 't-run', items: [], status: 'aborted' }] });
       return null;
+    });
+    const steered: Array<{ items: unknown; priority: unknown }> = [];
+    mockInvoke('reflect_steer', async (_cmd: string, args?: { items: unknown; priority: unknown }) => {
+      steered.push({ items: args?.items, priority: args?.priority });
+      return 'sub-steer';
     });
     useStreamingTurn();
     renderComposer();
@@ -409,18 +412,26 @@ describe('Composer queue vs steer (C)', () => {
     fireEvent.change(input, { target: { value: '转向：改用方案 B' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    await waitFor(() => expect(submitted).toHaveLength(1));
-    expect(interrupts).toHaveLength(1);
+    // v1.4 A2 真·转向：不打断当前 turn，消息经 reflect_steer 注入；
+    // 纯文本 → priority 'now'。
+    await waitFor(() => expect(steered).toHaveLength(1));
+    expect(steered[0].priority).toBe('now');
+    expect(interrupts).toHaveLength(0);
+    expect(submitted).toHaveLength(0);
     // Steer 不产生队列。
     expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
+    // 注入不发协议事件 —— store 乐观渲染：插话立即出现在运行中的 turn。
+    const running = useAgentStore.getState().turns.find((turn) => turn.id === 't-run');
+    expect(running?.items.at(-1)).toEqual({ kind: 'user_text', text: '转向：改用方案 B' });
   });
 
-  it('Shift+Cmd+Enter sends with the reversed mode (queue mode → steer)', async () => {
+  it('Shift+Cmd+Enter 以反转模式发送（queue → steer,单次真转向）', async () => {
     const submitted: unknown[] = [];
     trackSubmit(submitted);
-    mockInvoke('reflect_interrupt', async () => {
-      useAgentStore.setState({ turns: [{ id: 't-run', items: [], status: 'aborted' }] });
-      return null;
+    const steered: Array<{ priority: unknown }> = [];
+    mockInvoke('reflect_steer', async (_cmd: string, args?: { priority: unknown }) => {
+      steered.push({ priority: args?.priority });
+      return 'sub-steer';
     });
     useStreamingTurn();
     renderComposer();
@@ -429,7 +440,8 @@ describe('Composer queue vs steer (C)', () => {
     fireEvent.change(input, { target: { value: '单次转向' } });
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true, metaKey: true });
 
-    await waitFor(() => expect(submitted).toHaveLength(1));
+    await waitFor(() => expect(steered).toHaveLength(1));
+    expect(submitted).toHaveLength(0);
     expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
   });
 });

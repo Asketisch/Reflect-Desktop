@@ -12,11 +12,13 @@ import {
   reflect_hook_approval,
   reflect_interrupt,
   reflect_plan_approval,
+  reflect_query_subagents,
   reflect_rewind,
   reflect_save_config,
   reflect_set_effort,
   reflect_set_permission_mode,
   reflect_shutdown,
+  reflect_steer,
   reflect_submit,
   reflect_tool_approval,
 } from '@/utils/commands';
@@ -30,12 +32,14 @@ import {
   isAutoFailoverEnabled,
 } from './planFailover';
 import { reduceEvent } from './reducer';
-import { markTurn } from './turns';
+import { appendItem, markTurn } from './turns';
 import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
 import { createToastActions, uuid } from './toast';
-import type { AgentState } from './types';
+import type { AgentState, SubagentsState, TurnItem } from './types';
 
 export const useAgentStore = create<AgentState>((set, get) => {
+  // 会话作用域的子代理可观测投影的空态(复用引用,避免每处字面量)。
+  const EMPTY_SUBAGENTS: SubagentsState = { feed: [], lastStatus: null };
   // 按 plan 最大上下文自动压缩控制器(内部有开关/节流/触发闩)。
   const autoCompact = createAutoCompactController({
     getConfig: () => reflect_get_config(),
@@ -72,7 +76,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const { turns, compactions } = turnsFromRollout(records);
     // goalActive 一并复位:goal 挂在后端线程上,rebind 造新线程即丢,
     // 换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
-    set({ turns, compactions, loadedSessionId: id, lastError: null, queuedMessages: [], goalActive: false });
+    // subagents 同为会话作用域投影,replay 的历史不含子代理实时流。
+    set({ turns, compactions, loadedSessionId: id, lastError: null, queuedMessages: [], goalActive: false, subagents: EMPTY_SUBAGENTS });
   },
   clearSession: () =>
     set({
@@ -91,6 +96,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       contextWindowSize: null,
       compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
       lastRouting: null,
+      subagents: EMPTY_SUBAGENTS,
     }),
   tokens: null,
   contextWindowSize: null,
@@ -103,6 +109,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
   toasts: [],
   goalActive: false,
+  subagents: EMPTY_SUBAGENTS,
   setGoalActive: (active) => set({ goalActive: active }),
 
   subscribe: () => {
@@ -111,9 +118,15 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const unsubscribe = subscribeAgentEvent((event: ReflectEvent) => {
       const patch = reduceEvent(get(), event);
       if (Object.keys(patch).length > 0) set(patch);
-      // C：turn 收尾后自动排空跟进队列（reduce 完成后再取最新 state 判断）。
+      // C：turn 收尾后自动排空跟进队列（reduce 完成后再取最新状态判断）。
       if (event.msg.type === 'turn_complete' || event.msg.type === 'turn_aborted') {
         void get().drainQueue();
+        // v1.4 C1:本会话出现过子代理活动 → turn 收尾自动拉一次状态
+        // 快照,让 Inspector 的子代理区块反映终态(running → completed/
+        // failed/cancelled),无需手动刷新。
+        if (get().subagents.feed.length > 0) {
+          void get().querySubagents().catch(() => {});
+        }
       }
       // coding plan 额度耗尽 → 自动切换默认供应商（内部有开关 + 防抖）。
       if (event.msg.type === 'quota_exhausted' || event.msg.type === 'error') {
@@ -198,6 +211,45 @@ export const useAgentStore = create<AgentState>((set, get) => {
 
   interrupt: async () => {
     await reflect_interrupt();
+  },
+
+  steer: async (items, priority) => {
+    // 乐观渲染:引擎注入转向消息时不发协议事件(仅落 recorder),这里
+    // 把转向文本立即附加到当前运行中的 turn,让用户看到插话已送达。
+    const state = get();
+    const last = state.turns[state.turns.length - 1];
+    if (!last) {
+      // 竞态兜底:提交瞬间 turn 已收尾 → 无注入目标,退化为前端排队
+      // (下一个 UserInput turn 边界由 drainQueue 送出,语义等价)。
+      state.enqueueMessage(items);
+      return;
+    }
+    const firstText = items.find(
+      (item): item is { type: 'text'; text: string } => item.type === 'text',
+    );
+    // 以引用标识乐观项,失败时精确移除(不影响流式增量对其他项的更新)。
+    const optimistic: TurnItem = {
+      kind: 'user_text',
+      text: firstText?.text ?? `(${items.length} attachment${items.length === 1 ? '' : 's'})`,
+    };
+    set((s) => ({ turns: appendItem(s.turns, last.id, optimistic) }));
+    try {
+      await reflect_steer(items, priority);
+    } catch (error) {
+      set((s) => ({
+        turns: s.turns.map((turn) =>
+          turn.id === last.id
+            ? { ...turn, items: turn.items.filter((item) => item !== optimistic) }
+            : turn,
+        ),
+      }));
+      throw error;
+    }
+  },
+
+  querySubagents: async (childId) => {
+    // 应答经 subagent_status 事件异步到达,reducer 写 subagents.lastStatus。
+    await reflect_query_subagents(childId);
   },
 
   enqueueMessage: (items, workspace) => {
@@ -354,6 +406,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
       toasts: [],
       goalActive: false,
+      subagents: EMPTY_SUBAGENTS,
     });
   },
   };

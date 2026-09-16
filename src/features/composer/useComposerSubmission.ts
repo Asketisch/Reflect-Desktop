@@ -11,7 +11,6 @@ import {
 } from '@/features/sessions/hooks/useSessions';
 import { useEnsureSession } from '@/features/sessions/hooks/useEnsureSession';
 import { useI18n } from '@/utils/i18n';
-import { reflect_interrupt } from '@/utils/commands';
 import {
   useAgentStore,
   selectIsTurnRunning,
@@ -19,7 +18,7 @@ import {
 import type { UserInputItem } from '@/types/protocol';
 import type { PromptHistoryApi } from './usePromptHistory';
 
-/** C：运行中发送的两种语义 —— 排队（默认）或转向（中断当前 run 立即发送）。 */
+/** C：运行中发送的两种语义 —— 排队（默认,turn 收尾后送出）或转向（v1.4 A2 真·转向,安全点注入）。 */
 export type SendMode = 'queue' | 'steer';
 
 interface UseComposerSubmissionOptions {
@@ -39,16 +38,14 @@ interface UseComposerSubmissionOptions {
 }
 
 /**
- * steer：中断当前 turn，等它真正收尾（turn_aborted → 无 streaming turn）
- * 后再提交。轮询 store 而非订阅事件，避免一次性订阅的清理复杂度；
- * 超时兜底直接提交 —— 后端 mpsc 保序，中断先于新消息被处理。
+ * steer 模式(v1.4 A2 真·转向):不打断当前 run,消息经 `Op::Steer`
+ * 进会话转向队列,正在跑的 turn 在下一个 pre_loop 安全点(工具调用
+ * 之间)收割注入;无在飞 turn 时随下一个 UserInput turn 边界合并。
+ * 注入不发协议事件 —— store.steer 内部乐观渲染。纯文本按 `now`
+ * (用户中途说话)转向;带附件按 `attachment`(参考资料)转向。
  */
-async function waitTurnSettled(timeoutMs = 8000): Promise<void> {
-  const start = Date.now();
-  while (selectIsTurnRunning(useAgentStore.getState())) {
-    if (Date.now() - start > timeoutMs) return;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
+function steerPriority(items: UserInputItem[]): 'now' | 'attachment' {
+  return items.every((item) => item.type === 'text') ? 'now' : 'attachment';
 }
 
 export function useComposerSubmission({
@@ -132,22 +129,10 @@ export function useComposerSubmission({
         ];
         const running = selectIsTurnRunning(useAgentStore.getState());
         if (running && mode === 'steer') {
-          // Steer：中断当前 run，收尾后立即发送；已完成工具调用保留在
-          // 会话历史中，模型带着进度从新指令继续。
-          await reflect_interrupt();
-          await waitTurnSettled();
-          // 收尾等待最长 8s,期间用户可能已切走会话(rebind 已换线程)。
-          // 用实时路由比对,消息只能进发起时所在的会话。
-          const routeSession = /^\/chat\/([^/]+)$/.exec(window.location.pathname)?.[1] ?? null;
-          const currentRouteSession = routeSession ? decodeURIComponent(routeSession) : null;
-          if (currentRouteSession !== activeId) {
-            // 消息不再替用户发出去；保留失败提示（输入已被清空至少有据可查）。
-            pushToast({ kind: 'warn', message: t('composer.steerCancelled') });
-            return;
-          }
-          await useAgentStore.getState().submitItems(items, currentWorkspace ?? null);
+          // v1.4 A2 真·转向:不打断当前 run,下一个安全点注入;已完成
+          // 的工具调用与既有上下文全部保留,模型带着进度从新指令继续。
+          await useAgentStore.getState().steer(items, steerPriority(items));
           history.commit(value);
-          void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
         } else if (running) {
           // Queue：留在前端队列（不发后端），turn 收尾后自动排空；
           // 队列消息在消息流底部可见、可编辑、可撤销。

@@ -81,6 +81,12 @@ export {
   type PlanApprovedPayload,
   type PlanRejectedPayload,
   type PermissionModeChangedPayload,
+  type ToolCallOutputDeltaPayload,
+  type SubagentProgressKind,
+  type SubagentProgressPayload,
+  type SubagentRunState,
+  type SubagentStatusSnapshot,
+  type SubagentStatusPayload,
 } from './event';
 
 // ----- Submission / Op -----

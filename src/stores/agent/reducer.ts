@@ -1,5 +1,6 @@
 import type { ReflectEvent } from '@/types/protocol';
 import type { AgentState, PendingApproval } from './types';
+import { SUBAGENT_FEED_CAP } from './types';
 import { upsertServer } from './servers';
 import {
   appendItem,
@@ -123,11 +124,29 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       // 保穷尽 no-op,避免长命令期间高频重渲染。
       return {};
 
-    case 'subagent_progress':
+    case 'subagent_progress': {
+      // v1.4 C1 通道一:子代理进度推送 → Inspector 子代理区块的滚动
+      // feed(封顶丢弃最旧,防长会话无界增长)。
+      const entry = {
+        id: event.id,
+        childId: msg.child_id,
+        role: msg.role,
+        kind: msg.kind,
+        text: msg.text,
+        at: Date.now(),
+      };
+      const feed = [...state.subagents.feed, entry];
+      return {
+        subagents: {
+          ...state.subagents,
+          feed: feed.length > SUBAGENT_FEED_CAP ? feed.slice(-SUBAGENT_FEED_CAP) : feed,
+        },
+      };
+    }
+
     case 'subagent_status':
-      // v1.4 C1:子代理可观测双通道(进度推送 / 状态查询应答)。GUI 尚无
-      // 子代理面板,先保穷尽 no-op;类型见 src/types/protocol/event.ts。
-      return {};
+      // v1.4 C1 通道二:Op::QuerySubagents 的应答快照 → Inspector 展示。
+      return { subagents: { ...state.subagents, lastStatus: msg.children } };
 
     case 'approval_request': {
       // plan 类型的审批走独立的 plan_ready 事件 + pendingPlan + PlanReadyModal,

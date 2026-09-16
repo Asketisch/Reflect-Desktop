@@ -33,11 +33,12 @@ pub struct Event {
 > 后端在 `commands/<domain>.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递。
 > 所有 Op 命令返回 `string`(submission id,供前端 pairing/调试)。
 
-> **v1.4 未桥接 Op**:`steer`(回合中途转向)与 `query_subagents`(子代理状态查询,
-> 应答 `subagent_status` 事件)已进入协议层(op.rs)与前端类型镜像
-> (`src/types/protocol/op.ts`),但 Desktop 尚无对应 Tauri 命令与 UI 入口 —— 
-> GUI 暂不可发起这两类提交。桥接时按既有流程新增 `commands/<domain>.rs` 命令体
-> 并回填本表。
+> **v1.4 转向 / 子代理桥接**:`steer`(回合中途转向)与 `query_subagents`
+> (子代理状态查询,应答 `subagent_status` 事件)经 `reflect_steer` /
+> `reflect_query_subagents`(`commands/agent.rs`)桥接;前端 IPC 包装在
+> `src/utils/commands/agent.ts`。Steer 的注入由引擎在 pre_loop 安全点
+> 收割,**不发协议事件**(仅落 recorder),GUI 在 `store.steer` 内乐观
+> 渲染插话。
 
 > **Goal 模式(v1.2 P1)**:`enter_goal_mode { goal, verify_command?, token_budget? }` /
 > `exit_goal_mode` 映射到 `reflect_enter_goal_mode` / `reflect_exit_goal_mode`
@@ -251,8 +252,8 @@ pub struct Submission {
 
 | 变体 | 字段 | UI |
 |---|---|---|
-| `subagent_progress` | `SubagentProgressEvent`（通道一:推送） | none —— 父级 `CallSubAgentTool` 转发的子代理中间进度（message / tool_begin / tool_end）；GUI 尚无子代理面板，reducer no-op 保穷尽 |
-| `subagent_status` | `SubagentStatusEvent`（通道二:查询应答） | none —— `Op::QuerySubagents` 的状态快照回执（`Op` 本身尚未在 Desktop 桥接，见 §2 注）；reducer no-op 保穷尽 |
+| `subagent_progress` | `SubagentProgressEvent`（通道一:推送） | Inspector 子代理区块滚动 feed（封顶 200 条）—— 父级 `CallSubAgentTool` 转发的子代理中间进度（message / tool_begin / tool_end） |
+| `subagent_status` | `SubagentStatusEvent`（通道二:查询应答） | Inspector 子代理区块状态快照（`reflect_query_subagents` 发起;turn 收尾且 feed 非空时自动刷新,亦可手动） |
 
 ---
 
@@ -308,8 +309,8 @@ export type ReflectOp =
   | { type: 'interrupt' }
   | { type: 'shutdown' }
   | { type: 'rewind'; to_turn_id?: string }
-  | { type: 'steer'; priority?: 'attachment' | 'now'; items: ReflectItem[] }   // v1.4 未桥接
-  | { type: 'query_subagents'; child_id?: string }                              // v1.4 未桥接
+  | { type: 'steer'; priority?: 'attachment' | 'now'; items: ReflectItem[] }   // v1.4 A2 → reflect_steer
+  | { type: 'query_subagents'; child_id?: string }                              // v1.4 C1 → reflect_query_subagents
   | { type: 'tool_approval'; id: string; decision: ReviewDecision }
   | { type: 'hook_approval'; id: string; decision: ReviewDecision }
   | { type: 'enter_plan_mode'; task: string }

@@ -40,6 +40,9 @@ const emptyState = (): AgentState => ({
   subscribe: () => () => {},
   submit: async () => {},
   submitItems: async () => {},
+  steer: async () => {},
+  querySubagents: async () => {},
+  subagents: { feed: [], lastStatus: null },
   enqueueMessage: () => {},
   removeQueued: () => {},
   updateQueued: () => {},
@@ -596,6 +599,65 @@ describe('reduceEvent — plugin / quota', () => {
       }),
     );
     expect(patch).toEqual({});
+  });
+
+  // ====== 子代理可观测(v1.4 C1)======
+
+  it('subagent_progress 追加进 feed(封顶丢弃最旧)', () => {
+    const full = emptyState();
+    // 预填到封顶容量,再推一条应只保留最新 SUBAGENT_FEED_CAP 条。
+    const capped = {
+      ...full,
+      subagents: {
+        feed: Array.from({ length: 200 }, (_, i) => ({
+          id: `old-${i}`,
+          childId: 'c-0',
+          role: 'explorer',
+          kind: 'message' as const,
+          text: `m${i}`,
+          at: i,
+        })),
+        lastStatus: null,
+      },
+    };
+    const patch = reduceEvent(
+      capped,
+      ev('evt-new', {
+        type: 'subagent_progress',
+        child_id: 'c-1',
+        role: 'writer',
+        kind: 'tool_begin',
+        text: 'Bash',
+        call_id: 'call-9',
+      }),
+    );
+    const feed = patch.subagents?.feed ?? [];
+    expect(feed).toHaveLength(200);
+    expect(feed.at(-1)).toMatchObject({ id: 'evt-new', childId: 'c-1', role: 'writer', kind: 'tool_begin', text: 'Bash' });
+    expect(feed[0]).toMatchObject({ id: 'old-1' });
+  });
+
+  it('subagent_status 写入 lastStatus 快照', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('evt-s', {
+        type: 'subagent_status',
+        children: [
+          {
+            child_id: 'c-2',
+            role: 'writer',
+            state: 'running',
+            started_at: '2026-09-17T00:00:00Z',
+            iteration: 4,
+            current_tool: 'bash',
+            total_tokens: 1234,
+            last_event: 'tool begin: bash',
+          },
+        ],
+      }),
+    );
+    expect(patch.subagents?.lastStatus).toHaveLength(1);
+    expect(patch.subagents?.lastStatus?.[0]).toMatchObject({ child_id: 'c-2', state: 'running' });
   });
 });
 

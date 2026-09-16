@@ -2,6 +2,7 @@ export { reduceEvent } from './reducer';
 export { useAgentStore } from './store';
 export { useAgent } from './useAgent';
 export { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
+export { SUBAGENT_FEED_CAP } from './types';
 export type { ToolOutputSummary } from './turns';
 export type {
   AgentSession,
@@ -17,6 +18,8 @@ export type {
   PendingQuestion,
   QueuedMessage,
   RoutingSnapshot,
+  SubagentProgressEntry,
+  SubagentsState,
   Toast,
   ToastKind,
   TokenSnapshot,

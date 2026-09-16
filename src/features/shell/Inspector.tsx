@@ -12,9 +12,10 @@
  * 挂载，如独立测试），失败静默为空态。
  */
 import { useEffect, useState } from 'react';
-import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBranch, Gauge } from 'lucide-react';
-import { Icon, Badge, Tooltip } from '@/features/design-system';
+import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBranch, Gauge, Bot, RefreshCw } from 'lucide-react';
+import { Icon, Badge, IconButton, Tooltip } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
+import type { SubagentProgressEntry } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { reflect_list_dir, type ReflectDirEntry } from '@/utils/commands/files';
 import { reflect_git_diff } from '@/utils/commands/git';
@@ -218,6 +219,8 @@ function OverviewTab() {
         entries={lspServers.map((l) => ({ name: l.name, status: l.status, detail: l.detail }))}
       />
 
+      <SubagentsSection />
+
       {lastError && (
         <section className={s.section}>
           <h3 className={s.sectionTitle}>
@@ -300,6 +303,91 @@ function ServersSection({ icon: SectionIcon, title, count, emptyText, entries }:
         </ul>
       )}
     </section>
+  );
+}
+
+// ====== 子代理可观测（v1.4 C1 双通道） ======
+
+/**
+ * 子代理区块 —— 会话出现过子代理活动(progress feed 非空或已查询过状态)
+ * 才渲染。展示通道一的滚动进度 feed(最近 30 条)与通道二最近一次
+ * `Op::QuerySubagents` 的状态快照;turn 收尾时 store 自动刷新快照,
+ * 也可手动触发。组件内部自己读 store,避免父级多一跳订阅。
+ */
+function SubagentsSection() {
+  const feed = useAgentStore((st) => st.subagents.feed);
+  const lastStatus = useAgentStore((st) => st.subagents.lastStatus);
+  const querySubagents = useAgentStore((st) => st.querySubagents);
+  const { t } = useI18n();
+
+  if (feed.length === 0 && lastStatus === null) return null;
+
+  const statusBadge = (state: string) =>
+    state === 'running'
+      ? 'info'
+      : state === 'failed'
+        ? 'danger'
+        : state === 'completed'
+          ? 'success'
+          : 'neutral';
+
+  return (
+    <section className={s.section} data-testid="inspector-subagents">
+      <h3 className={s.sectionTitle}>
+        <Icon icon={Bot} size={14} />
+        {t('inspector.subagents')}
+        {feed.length > 0 && <Badge variant="neutral">{feed.length}</Badge>}
+        <IconButton
+          size="sm"
+          variant="default"
+          label={t('inspector.subagents.refresh')}
+          onClick={() => void querySubagents().catch(() => {})}
+        >
+          <Icon icon={RefreshCw} size={12} />
+        </IconButton>
+      </h3>
+      {lastStatus !== null && (
+        lastStatus.length === 0 ? (
+          <p className={s.empty}>{t('inspector.subagents.none')}</p>
+        ) : (
+          <ul className={s.list} data-testid="inspector-subagents-status">
+            {lastStatus.map((child) => (
+              <li key={child.child_id} className={s.row} title={child.child_id}>
+                <span className={s.name}>{child.role}</span>
+                <span className={s.value}>
+                  {child.current_tool ? `${child.current_tool} · ` : ''}
+                  {`×${child.iteration} · ${child.total_tokens.toLocaleString()}`}
+                </span>
+                <Badge variant={statusBadge(child.state)}>{child.state}</Badge>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+      {feed.length > 0 && (
+        <ul className={s.list} data-testid="inspector-subagents-feed">
+          {feed.slice(-30).map((entry) => (
+            <SubagentFeedRow key={entry.id} entry={entry} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function SubagentFeedRow({ entry }: { entry: SubagentProgressEntry }) {
+  const { t } = useI18n();
+  const kindLabel =
+    entry.kind === 'tool_begin'
+      ? t('inspector.subagents.kindToolBegin')
+      : entry.kind === 'tool_end'
+        ? t('inspector.subagents.kindToolEnd')
+        : t('inspector.subagents.kindMessage');
+  return (
+    <li className={s.row} title={`${entry.role} · ${entry.childId} · ${kindLabel}`}>
+      <span className={s.name}>{entry.role}</span>
+      <span className={s.value}>{entry.text}</span>
+    </li>
   );
 }
 

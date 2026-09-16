@@ -1,4 +1,4 @@
-import type { UserInputItem } from '@/types/protocol';
+import type { SubagentStatusSnapshot, UserInputItem } from '@/types/protocol';
 import type { RiskLevel } from '@/types/protocol/enums';
 import type { PlanApprovalChoice, ReflectRolloutRecord, ReviewDecision } from '@/utils/types';
 
@@ -171,6 +171,34 @@ export interface PlanFailoverRecord {
   at: number;
 }
 
+/**
+ * 子代理进度流单条(v1.4 C1 通道一)—— `subagent_progress` 事件的
+ * GUI 投影,Inspector 子代理区块的滚动 feed。
+ */
+export interface SubagentProgressEntry {
+  /** 来源事件 id(每条 progress 事件唯一)。 */
+  id: string;
+  childId: string;
+  role: string;
+  kind: 'message' | 'tool_begin' | 'tool_end';
+  text: string;
+  at: number;
+}
+
+/**
+ * 子代理可观测状态(v1.4 C1)—— 会话作用域,hydrate/clear/reset 复位。
+ * `lastStatus` 为最近一次 `Op::QuerySubagents` 的 `subagent_status`
+ * 应答快照;尚未查询过时为 null。
+ */
+export interface SubagentsState {
+  /** 进度推送 feed(追加式,封顶防长会话无界增长)。 */
+  feed: SubagentProgressEntry[];
+  lastStatus: SubagentStatusSnapshot[] | null;
+}
+
+/** feed 封顶条数:超出丢弃最旧(诊断流,不要求完整审计)。 */
+export const SUBAGENT_FEED_CAP = 200;
+
 export interface AgentState {
   turns: Turn[];
   session: AgentSession | null;
@@ -206,6 +234,8 @@ export interface AgentState {
    * 切会话后端 rebind 也会丢 goal,所以按会话作用域处理。
    */
   goalActive: boolean;
+  /** 子代理可观测(v1.4 C1)—— 会话作用域,见 SubagentsState。 */
+  subagents: SubagentsState;
   setGoalActive: (active: boolean) => void;
 
   subscribe: () => () => void;
@@ -217,6 +247,18 @@ export interface AgentState {
    */
   submit: (text: string, workspace?: string | null) => Promise<void>;
   submitItems: (items: UserInputItem[], workspace?: string | null) => Promise<void>;
+  /**
+   * v1.4 A2:回合中途转向 —— 不打断当前 turn,消息经 `Op::Steer` 进
+   * 会话转向队列,下一个安全点注入(引擎不发协议事件,这里乐观渲染)。
+   * 无在飞 turn 时(竞态)退化为前端排队。`priority: 'now'` = 用户中途
+   * 说话;`'attachment'` = 参考资料(缺省)。
+   */
+  steer: (items: UserInputItem[], priority?: 'now' | 'attachment') => Promise<void>;
+  /**
+   * v1.4 C1:查询子代理状态。应答 `subagent_status` 事件异步到达,
+   * reducer 写入 `subagents.lastStatus`。
+   */
+  querySubagents: (childId?: string) => Promise<void>;
   /** C：把一条跟进消息加入前端队列（turn 运行中不直发后端）。 */
   enqueueMessage: (items: UserInputItem[], workspace?: string | null) => void;
   /** C：移除队列中的一条待发送消息。 */

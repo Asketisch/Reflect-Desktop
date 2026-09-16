@@ -4,22 +4,30 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
-### 变更 — reflect-agent 子模块升级（v1.4 批次）+ 新协议事件/Op 适配
+### 变更 — reflect-agent 子模块升级(v1.4 批次)+ steer / 子代理可观测全链路接线
 
-子模块 `31c6e72 → f7a8f24`（本地 2 个与远端同补丁的重复提交已对齐为
-上游改写后的历史,合并冲突就地消解）。升级带来的适配:
+子模块 `31c6e72 → f7a8f24`(本地 2 个与远端同补丁的重复提交已对齐为
+上游改写后的历史,合并冲突就地消解)。升级适配与接线:
 
-- **工作区清单**:根 `Cargo.toml` 镜像新增 `reflect-bm25`（自
-  reflect-tools 抽离的叶 crate）、`tiktoken-rs`、`pyo3`;`reqwest` 对齐
-  上游补 `gzip` feature（workspace 继承以外层声明为准,缺失会静默丢
-  gzip 解压）。
-- **新事件（3）**:`tool_call_output_delta`（工具输出流式增量）、
-  `subagent_progress` / `subagent_status`（子代理可观测双通道）——
-  activity logger 归入忽略桶;前端 `src/types/protocol/event.ts` 类型
-  补全,reducer 保穷尽 no-op。
-- **新 Op（2）**:`steer`、`query_subagents` —— 仅协议层 + 前端类型
-  镜像,Desktop 尚无 Tauri 命令与 UI 入口（`PROTOCOL_BRIDGE.md` §2 注）。
-- 文档:`PROTOCOL_BRIDGE.md` §3.3 / §3.10 / §6 同步。
+- **工作区清单**:根 `Cargo.toml` 镜像新增 `reflect-bm25`(自
+  reflect-tools 抽离的叶 crate)、`tiktoken-rs`、`pyo3`;`reqwest` 对齐
+  上游补 `gzip` feature(workspace 继承以外层声明为准,缺失会静默丢
+  gzip 解压)。
+- **新事件(3)**:`tool_call_output_delta`(工具输出流式增量,reducer
+  no-op 保穷尽)、`subagent_progress` / `subagent_status`(子代理可观测
+  双通道);前端 `src/types/protocol/event.ts` 类型补全。
+- **新 Op(2)接线**:`reflect_steer` / `reflect_query_subagents`
+  (`commands/agent.rs` + IPC 包装)。
+  - **Steer 真实化**:Composer「转向」模式从「中断 + 重发」升级为
+    v1.4 A2 真·转向 —— 不打断当前 run,消息经 `Op::Steer` 进转向队列,
+    下一个 pre_loop 安全点注入;纯文本按 `now`(用户中途说话),带附件
+    按 `attachment`(参考资料)。引擎注入不发协议事件(仅落
+    recorder),`store.steer` 乐观渲染插话;steer 失败按引用回滚乐观项。
+  - **子代理面板**:Inspector 概览新增子代理区块 —— `subagent_progress`
+    滚动 feed(封顶 200 条)+ `subagent_status` 状态快照(角色/状态/
+    迭代数/token);turn 收尾且出现过子代理活动时自动刷新快照,亦可
+    手动刷新。会话切换(hydrate/clear/reset)复位。
+- 文档:`PROTOCOL_BRIDGE.md` §2 / §3.3 / §3.10 / §6 同步。
 
 ### 修复 — `/goal` 在首页输入后「什么都没发生」（未建会话、无反馈、goal 被静默丢弃）
 

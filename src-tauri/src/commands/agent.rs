@@ -4,7 +4,10 @@
 
 use tauri::State;
 
-use reflect_protocol::{AskUserAnswer, Op, PermissionMode, ReasoningEffortMirror, Submission};
+use reflect_protocol::{
+    AskUserAnswer, Op, PermissionMode, ReasoningEffortMirror, SteeringPriorityMirror, Submission,
+    UserInputItem,
+};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -240,6 +243,46 @@ pub async fn reflect_cycle_permission_mode(
     Ok(agent.submit_op(Op::CyclePermissionMode).await?)
 }
 
+/// v1.4 A2:回合中途转向 —— 不打断当前 turn,消息进会话转向队列,由
+/// 正在跑的 turn 在下一个 pre_loop 安全点收割注入;无在飞 turn 时随
+/// 下一个 UserInput turn 边界合并。应答只有 submission id,注入本身
+/// 不发协议事件(仅落 recorder),GUI 需乐观渲染。
+///
+/// 前端 invoke 形态:`invoke<string>('reflect_steer', { items, priority? })`。
+/// items 与 Submission 的 UserInputItem 同形(图片可能带 data-URL 字符串,
+/// 复用 `normalize_image_data` 归一);priority:`"now"`(用户中途说话,
+/// 直入上下文)或 `"attachment"`(参考资料,system-reminder 包裹;缺省)。
+#[tauri::command]
+pub async fn reflect_steer(
+    agent: State<'_, MinimalAgent>,
+    items: serde_json::Value,
+    priority: Option<String>,
+) -> CommandResult<String> {
+    let items = normalize_image_data(items)?;
+    let items: Vec<UserInputItem> = serde_json::from_value(items).map_err(|e| CommandError {
+        msg: format!("invalid steer items: {e}"),
+    })?;
+    let priority = match priority.as_deref() {
+        None | Some("") => SteeringPriorityMirror::default(),
+        Some(p) => parse_steering_priority(p)?,
+    };
+    Ok(agent.submit_op(Op::Steer { priority, items }).await?)
+}
+
+/// v1.4 C1:查询子代理状态快照。应答为 `subagent_status` 事件,经
+/// per-turn 通道 + 会话扇出双路送达(前端走 reflect_event 通道)。
+///
+/// 前端 invoke 形态:`invoke<string>('reflect_query_subagents', { childId? })`。
+#[tauri::command]
+pub async fn reflect_query_subagents(
+    agent: State<'_, MinimalAgent>,
+    child_id: Option<String>,
+) -> CommandResult<String> {
+    Ok(agent
+        .submit_op(Op::QuerySubagents { child_id })
+        .await?)
+}
+
 // ====== 目标模式(v1.2 P1,reflect-goal 编排)======
 
 /// 进入目标模式:`Op::EnterGoalMode`。core 侧构造 `GoalController`,
@@ -299,6 +342,20 @@ pub(crate) fn parse_permission_mode(s: &str) -> CommandResult<PermissionMode> {
                 msg: format!(
                     "invalid permission mode '{other}'; expected auto|prompt|deny|plan|accept_edits|bubble|bypass"
                 ),
+            });
+        }
+    })
+}
+
+/// `"now"|"attachment"` → `SteeringPriorityMirror`(缺省 attachment:
+/// 未显式声明的转向按参考资料处理,保守不冒充直接指令)。
+fn parse_steering_priority(s: &str) -> CommandResult<SteeringPriorityMirror> {
+    Ok(match s.to_ascii_lowercase().as_str() {
+        "now" => SteeringPriorityMirror::Now,
+        "attachment" => SteeringPriorityMirror::Attachment,
+        other => {
+            return Err(CommandError {
+                msg: format!("invalid steering priority '{other}'; expected now|attachment"),
             });
         }
     })
@@ -398,6 +455,19 @@ mod tests {
             PermissionMode::Bypass
         );
         assert!(parse_permission_mode("wat").is_err());
+    }
+
+    #[test]
+    fn parse_steering_priority_round_trip() {
+        assert_eq!(
+            parse_steering_priority("now").unwrap(),
+            SteeringPriorityMirror::Now
+        );
+        assert_eq!(
+            parse_steering_priority("Attachment").unwrap(),
+            SteeringPriorityMirror::Attachment
+        );
+        assert!(parse_steering_priority("urgent").is_err());
     }
 
     #[test]

@@ -25,6 +25,8 @@ export type {
   PendingQuestion,
   QueuedMessage,
   RoutingSnapshot,
+  SubagentProgressEntry,
+  SubagentsState,
   Toast,
   ToastKind,
   TokenSnapshot,

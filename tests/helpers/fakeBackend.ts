@@ -548,6 +548,11 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_rewind', handler(() => 'rewound'));
   handle('reflect_shutdown', handler(() => 'shutdown-complete'));
 
+  // —— v1.4 转向 / 子代理可观测 ——
+  // steer:引擎注入不发协议事件;GUI 依赖乐观渲染,这里仅回执 submission id。
+  handle('reflect_steer', handler(() => 'steered'));
+  handle('reflect_query_subagents', handler(() => 'queried-subagents'));
+
   // —— 审批 / 问答回执 ——
   handle(
     'reflect_tool_approval',

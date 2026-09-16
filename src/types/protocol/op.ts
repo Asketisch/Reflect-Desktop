@@ -62,12 +62,12 @@ export type ReflectSubmissionOp =
   /**
    * v1.4 A2:回合中途转向 —— 对正在跑的回合投喂补充指示(`priority:
    * 'now'`)或参考资料(`'attachment'`,默认)。不打断当前 turn,消息在
-   * 下一个安全点进入模型上下文。GUI 尚未接线(无 IPC 包装)。
+   * 下一个安全点进入模型上下文。桥接:`reflect_steer`(GUI Steer 模式)。
    */
   | { type: 'steer'; priority?: 'attachment' | 'now'; items: UserInputItem[] }
   /**
    * v1.4 C1:查询子代理状态。应答为 `subagent_status` 事件。
-   * `child_id` 缺省 = 列出全部。GUI 尚未接线(无 IPC 包装)。
+   * `child_id` 缺省 = 列出全部。桥接:`reflect_query_subagents`。
    */
   | { type: 'query_subagents'; child_id?: string }
   | { type: 'tool_approval'; id: string; decision: ReviewDecision }
