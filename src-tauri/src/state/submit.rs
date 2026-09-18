@@ -14,6 +14,9 @@ use super::MinimalAgent;
 ///
 /// 前端拿到的所有 per-turn event 都通过 session broadcast 派发,
 /// 前端按 `event.id == submission.id` 过滤出属于本次 turn 的事件。
+///
+/// 投递前做插件 slash 命令展开(`/plugin:ns:name args` → 命令正文 +
+/// `source_command` 标注;未命中透传,详见 `state/plugins.rs`)。
 pub(crate) async fn submit(
     agent: &MinimalAgent,
     submission: reflect_protocol::Submission,
@@ -25,6 +28,9 @@ pub(crate) async fn submit(
             .clone()
             .ok_or_else(|| anyhow::anyhow!("agent thread not installed yet; setup not complete"))?
     };
+
+    // 0.5 插件命令展开:挂载完成前直通,不阻塞提交。
+    let submission = super::plugins::expand_submission(&agent.plugin_runtime(), submission).await?;
 
     // 1. 拿 per-turn handle。
     let mut handle: reflect_core::TurnHandle = thread.submit(submission.clone()).await;

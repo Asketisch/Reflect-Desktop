@@ -137,6 +137,14 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) cron_driver: ParkingMutex<Option<reflect_stream::cron::CronDriverHandle>>,
     /// LSP 连接管理器(按工作区由用户手动开启;None = 未启用)。
     pub(crate) lsp_manager: ParkingMutex<Option<std::sync::Arc<reflect_lsp::LspConnectionManager>>>,
+    /// 插件运行时句柄(exec/serve 同款 `SharedPluginRuntime`;内层 `None`
+    /// = 未挂载:占位线程、HOME 缺失或 plugins 目录不存在)。真实会话
+    /// rebind 时由 `state/plugins.rs::spawn_mount` 卸旧装新;submit 边界
+    /// 用它展开 `/plugin:*` 命令。
+    pub(crate) plugin_runtime: reflect_plugin::SharedPluginRuntime,
+    /// 插件挂载串行锁:并发 rebind 的「卸旧→装新→写句柄」在此互斥,
+    /// 保证句柄最终属于最后一次 rebind 的线程。
+    pub(crate) plugin_mount_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 /// agent 诊断快照 —— 给前端显示状态徽标(ready / 是否有 API key / 模型 / 工作区)。
@@ -208,6 +216,8 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         bound_session_id: ParkingMutex::new(None),
         cron_driver: ParkingMutex::new(None),
         lsp_manager: ParkingMutex::new(None),
+        plugin_runtime: reflect_plugin::empty_plugin_runtime(),
+        plugin_mount_lock: Arc::new(tokio::sync::Mutex::new(())),
     }
 }
 

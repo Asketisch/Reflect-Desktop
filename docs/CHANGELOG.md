@@ -4,6 +4,34 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — 插件系统接线(v1.x):`[plugins]` 挂载 + `/plugin:*` 命令展开
+
+子模块 `f7a8f24 → b359883`(插件运行时自 reflect-exec 下沉为
+`reflect-plugin` 独立 crate)后,GUI 侧完成与 exec/serve 同构的接线
+(`src-tauri/src/state/plugins.rs`):
+
+- **插件挂载**:真实会话 rebind 时异步挂载 enabled 插件的五类能力
+  (skills / agents / MCP servers / slash 命令 / hooks),挂载与线程同寿
+  —— 每次 `construct_thread` 卸旧装新(`plugin_mount_lock` 串行化,
+  后完成者赢);占位线程不挂载。插件 agents 能力经最小 `SubAgentFactory`
+  (不注册内置子代理 spec)挂载;插件 MCP server 用挂载级专用 manager
+  (lifecycle 事件 v1 暂不透传前端)。`PluginLoaded` 事件经 session
+  broadcast 透传。
+- **命令展开**:`reflect_submit` 投递前对 `Op::UserInput` 首个 Text 条目
+  做 `/plugin:ns:name args` 展开(命中 → 命令正文 + `Submission.
+  source_command` 标注;未命中透传;命令文件读取失败报错给前端,消息
+  不投递)。steer 与其他 Op 不展开(与 exec submit 边界一致)。
+- **配置热重载**:设置保存时 `[plugins] enabled_plugins` 变更走轻量
+  diff 同步(不动线程);provider 栈变更触发的 rebind 全量重挂。
+- **自动受益的上游修复**(无需 GUI 改动):plan 审批信号回传
+  (`plan_approved` 事件真正发出,PlanReadyModal 关闭链路打通)、
+  bash seatbelt/Landlock 修复、skills always-on 修复、goal 模式 spec
+  回退修复。
+- 已知 v1 边界:composer 斜杠菜单暂不列插件命令(手输全名生效);
+  插件管理 UI(marketplace 安装/启停)与插件 MCP lifecycle 事件透传
+  留后续批次。
+- 文档:`PROTOCOL_BRIDGE.md` §3 Submission 信封补 `source_command`。
+
 ### 变更 — reflect-agent 子模块升级(v1.4 批次)+ steer / 子代理可观测全链路接线
 
 子模块 `31c6e72 → f7a8f24`(本地 2 个与远端同补丁的重复提交已对齐为

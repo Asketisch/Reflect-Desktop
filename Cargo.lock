@@ -4407,8 +4407,10 @@ dependencies = [
  "reflect-discussion",
  "reflect-hooks",
  "reflect-llm",
+ "reflect-mcp",
  "reflect-memory",
  "reflect-notes",
+ "reflect-plugin",
  "reflect-prompt",
  "reflect-protocol",
  "reflect-recovery",
@@ -4614,10 +4616,12 @@ dependencies = [
  "reflect-mcp",
  "reflect-memory",
  "reflect-permissions",
+ "reflect-plugin",
  "reflect-protocol",
  "reflect-rollout",
  "reflect-skills",
  "reflect-stream",
+ "reflect-subagent",
  "reflect-task",
  "reflect-tools",
  "reqwest 0.12.28",
@@ -4816,6 +4820,34 @@ dependencies = [
  "tokio",
  "toml 0.8.2",
  "tracing",
+]
+
+[[package]]
+name = "reflect-plugin"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "parking_lot",
+ "reflect-hooks",
+ "reflect-llm",
+ "reflect-mcp",
+ "reflect-protocol",
+ "reflect-skills",
+ "reflect-subagent",
+ "reflect-tools",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "toml 0.8.2",
+ "tracing",
+ "wiremock",
 ]
 
 [[package]]

@@ -8,7 +8,8 @@
 //! 本模块在保存配置后:
 //! 1. 检测 provider 相关段(`active` / `anthropic` / `openai` / `ollama` /
 //!    `routing`)是否变化;无关段(显示、MCP、hooks…)变更不打扰运行中的
-//!    会话。
+//!    会话。例外:`[plugins]` 段变更走轻量 diff 同步(挂/卸插件,不动线程,
+//!    见 `hot_reload_provider_stack` 步骤 0)。
 //! 2. 变化时重建 ModelRegistry + QuotaTracker 并热替换 inner。
 //! 3. 若当前有绑定会话,replay 其历史后 `rebind_session_forced` ——
 //!    运行中的线程换到新 registry 上,对话上下文经 preload 保留。
@@ -40,6 +41,18 @@ pub(crate) async fn hot_reload_provider_stack(
     old: &reflect_config::ReflectConfig,
     new: &reflect_config::ReflectConfig,
 ) {
+    // 0. 插件段变更:不打断会话,直接 diff 同步挂/卸(exec handle_reload
+    //    的 plugins 分支同语义)。provider 栈变更触发的 rebind 会走
+    //    spawn_mount 全量重挂,不依赖这里;此分支覆盖「只改了 [plugins]」
+    //    的场景。无绑定会话时挂载目标线程尚未重建,下次 rebind 自然生效。
+    if old.plugins.enabled_plugins != new.plugins.enabled_plugins {
+        info!(
+            "[reflect-gui] plugins section changed; diff-syncing enabled plugins: {:?}",
+            new.plugins.enabled_plugins
+        );
+        let shared = agent.plugin_runtime();
+        reflect_plugin::reload_plugins(&shared, &new.plugins.enabled_plugins).await;
+    }
     if !provider_stack_changed(old, new) {
         return;
     }

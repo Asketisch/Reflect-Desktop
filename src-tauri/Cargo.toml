@@ -69,6 +69,12 @@ reflect-stream              = { workspace = true }
 # Agent definitions:reflect-agent/crates/abilities/reflect-agent-def 的 Markdown + frontmatter 解析/加载。
 # Phase 1 第 3 项:agent profile 管理页(列表/创建/编辑/删除)。
 reflect-agent-def           = { workspace = true }
+# 插件系统(v1.x):[plugins] enabled_plugins 挂载(skills/agents/mcp/commands)
+# + `/plugin:ns:name` 用户输入展开。挂载入口 state/plugins.rs,与 exec/serve 同源。
+reflect-plugin              = { workspace = true }
+# 插件 agents 能力的宿主:SubAgentFactory(仅作 loader 挂载点,桌面端
+# 不注册内置子代理 spec —— 内置 call_* 工具是独立 feature)。
+reflect-subagent            = { workspace = true }
 # 阶段 1:真实 agent 集成所需 — sanitizer / 工具输出脱敏(默认 10 pattern)。
 # Sanitizer::with_defaults() 直接可用,无需 reflect-config 的 SanitizeSection 转换。
 uuid                        = { workspace = true }

@@ -124,11 +124,14 @@ pub struct Submission {
     pub client_user_message_id: Option<String>,
     pub trace: Option<TraceContext>,
     pub workspace: Option<String>,   // v1.x：会话归属（首条 UserInput 时写入 SessionMeta.workspace）
+    pub source_command: Option<String>, // v1.x：插件 slash 命令来源标注（后端展开时写入，前端不构造）
 }
 ```
 
 `workspace` 带 `#[serde(default, skip_serializing_if = "Option::is_none")]` —— 旧线格式不写该键，
 后端回退 `cfg.current_workspace()`；GUI 端由 `useCurrentWorkspace` 注入当前激活工作区。
+`source_command` 同为可选字段，由后端在插件命令展开（`/plugin:ns:name args` → 命令正文，
+`state/plugins.rs::expand_submission`）时标注，仅作 rollout / 遥测来源，前端不读写。
 
 ### 2.1 `UserInputItem`（`reflect-agent/crates/protocol/reflect-protocol/src/item.rs`）
 

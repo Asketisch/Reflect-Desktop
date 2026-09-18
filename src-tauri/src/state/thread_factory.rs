@@ -100,6 +100,7 @@ pub(crate) fn construct_thread(
         // 时为 Some;model_call 节点据此在调用后记录用量,窗口耗尽 → 冷却 +
         // `QuotaExhausted` 事件 + 池内 failover(与 TUI/headless 行为对齐)。
         .with_quota_tracker(agent.inner.quota_tracker.lock().clone());
+    let mut mounted_m4: Option<(ThreadId, reflect_core::config::M4Deps)> = None;
     if let Some(sid) = sid {
         let m4 = match reflect::m4_bootstrap::build_default_m4(
             &agent.workspace(),
@@ -120,7 +121,8 @@ pub(crate) fn construct_thread(
                 anyhow::bail!("build_default_m4 失败,recorder 接线回退为无持久化: {e:#}");
             }
         };
-        cfg = cfg.with_m4(m4).with_session_id(sid);
+        cfg = cfg.with_m4(m4.clone()).with_session_id(sid);
+        mounted_m4 = Some((sid, m4));
     }
     if !preload.is_empty() {
         cfg = cfg.with_preload_messages(preload);
@@ -129,11 +131,37 @@ pub(crate) fn construct_thread(
         cfg = cfg.with_initial_permission_mode(mode);
     }
 
-    Ok(Arc::new(AgentThread::new(
+    // 插件挂载材料快照:model spec 与 enabled 列表都来自本次构造用的
+    // cfg 快照,与线程配置一致。thread 构造后一并交给 spawn_mount。
+    let model_for_plugins = cfg.current_model().to_string();
+    let hook_engine_for_mount = Arc::clone(&hook_engine);
+    let registry_for_mount = Arc::clone(&registry);
+
+    let thread = Arc::new(AgentThread::new(
         cfg,
         registry,
         agent.inner.tools.clone(),
         Some(sanitizer),
         Some(hook_engine),
-    )))
+    ));
+
+    let plugin_mount = mounted_m4.map(|(sid, m4)| super::plugins::PluginMount {
+        sid,
+        thread: thread.clone(),
+        hook_engine: hook_engine_for_mount,
+        m4,
+        model: model_for_plugins,
+        registry: registry_for_mount,
+        child_registry: cfg_snapshot.to_child_registry().map(Arc::new),
+        enabled: cfg_snapshot.plugins.enabled_plugins.clone(),
+    });
+
+    // 插件运行时:仅在真实会话挂载(占位线程无 M4 依赖)。挂载异步执行
+    // (卸旧 runtime → bootstrap),不阻塞 rebind 返回;挂载完成前 submit
+    // 展开对 `/plugin:*` 直通,详见 state/plugins.rs。
+    if let Some(mount) = plugin_mount {
+        super::plugins::spawn_mount(agent, mount);
+    }
+
+    Ok(thread)
 }

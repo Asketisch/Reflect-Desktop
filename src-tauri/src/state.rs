@@ -25,6 +25,7 @@ pub use remote_config::{RemoteConfig, RemoteStatus};
 mod activity;
 mod agent;
 mod install;
+pub(crate) mod plugins;
 pub(crate) mod quota;
 pub(crate) mod rebind;
 pub(crate) mod reload;
@@ -115,6 +116,13 @@ impl MinimalAgent {
     /// 共享 ToolRegistry(MCP/LSP 后续 register_plugin_tool、tool 列表命令用)。
     pub fn tools(&self) -> Arc<ToolRegistry> {
         Arc::clone(&self.inner.tools)
+    }
+
+    /// 插件运行时句柄(submit 边界展开 `/plugin:*` 命令用;内层 `None`
+    /// = 未挂载,展开直通)。挂载由 `state/plugins.rs` 在真实会话 rebind
+    /// 时异步完成。
+    pub fn plugin_runtime(&self) -> reflect_plugin::SharedPluginRuntime {
+        self.inner.plugin_runtime.clone()
     }
 
     /// Task/Team 管理器(供多 agent 命令面调用)。
