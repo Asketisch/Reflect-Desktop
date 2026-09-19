@@ -38,3 +38,4 @@ export * from './activity';
 export * from './squad';
 export * from './notifications';
 export * from './media';
+export * from './plugins';

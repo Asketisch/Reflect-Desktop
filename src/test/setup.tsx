@@ -131,6 +131,7 @@ beforeEach(() => {
   mockInvoke('reflect_search_sessions', async () => []);
   mockInvoke('reflect_list_skills', async () => []);
   mockInvoke('reflect_list_hooks', async () => []);
+  mockInvoke('reflect_list_plugin_commands', async () => []);
   mockInvoke('reflect_toggle_hook', async () => {});
   mockInvoke('reflect_gh_pr_list', async () => []);
   mockInvoke('reflect_git_stage', async () => {});

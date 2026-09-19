@@ -23,14 +23,22 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
   不投递)。steer 与其他 Op 不展开(与 exec submit 边界一致)。
 - **配置热重载**:设置保存时 `[plugins] enabled_plugins` 变更走轻量
   diff 同步(不动线程);provider 栈变更触发的 rebind 全量重挂。
+- **插件 MCP lifecycle 透传**:插件 server 的 Started/Failed 复用
+  `mcp::spawn_mcp_lifecycle_forwarder` 推 session broadcast,前端与
+  用户 MCP 同通道可见。
+- **Composer 斜杠菜单**:新增 `reflect_list_plugin_commands` 命令 +
+  `usePluginCommands` hook(Composer 挂载即重取),已挂载插件的命令
+  追加进弹层候选(展示 frontmatter description);引擎对插件命令
+  **直通提交**(内置命令优先,插件不可劫持内置语义),展开仍由后端
+  submit 边界统一做 —— 前端保持无命令文件 IO。未挂载时与未知命令
+  同路径 reject,提示真实。
 - **自动受益的上游修复**(无需 GUI 改动):plan 审批信号回传
   (`plan_approved` 事件真正发出,PlanReadyModal 关闭链路打通)、
   bash seatbelt/Landlock 修复、skills always-on 修复、goal 模式 spec
   回退修复。
-- 已知 v1 边界:composer 斜杠菜单暂不列插件命令(手输全名生效);
-  插件管理 UI(marketplace 安装/启停)与插件 MCP lifecycle 事件透传
-  留后续批次。
-- 文档:`PROTOCOL_BRIDGE.md` §3 Submission 信封补 `source_command`。
+- 已知 v1 边界:插件管理 UI(marketplace 安装/启停)留后续批次。
+- 文档:`PROTOCOL_BRIDGE.md` §2 命令表 + §3 Submission 信封
+  (`source_command`)同步。
 
 ### 变更 — reflect-agent 子模块升级(v1.4 批次)+ steer / 子代理可观测全链路接线
 

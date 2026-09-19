@@ -21,8 +21,9 @@
 //! 有意与 exec 不同的两点:
 //! - 插件 MCP server 用**每挂载一份**的专用 `McpConnectionManager`
 //!   (exec 的 `mcp_for_plugins` 同款),不并入 `mcp.rs` 的用户 MCP manager
-//!   —— 后者由 install 异步启动,没有可复用的句柄;lifecycle 事件 v1 暂
-//!   不透传到前端(exec resume 分支同此行为)。
+//!   —— 后者由 install 异步启动,没有可复用的句柄。lifecycle 事件
+//!   (Started/Failed)经 `mcp::spawn_mcp_lifecycle_forwarder` 推 session
+//!   broadcast,前端与用户 MCP 同通道可见。
 //! - `SubAgentFactory` 只作插件 agents 能力的挂载点,**不注册内置子代理
 //!   spec**(没有 explorer 回退)—— 桌面端内置 call_* 工具是独立 feature,
 //!   不随插件接线顺带引入。
@@ -72,6 +73,7 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
     let inner = Arc::clone(&agent.inner);
     let tools = agent.inner.tools.clone();
     let mount_lock = Arc::clone(&agent.inner.plugin_mount_lock);
+    let session_tx = agent.session_tx();
     let PluginMount {
         sid,
         thread,
@@ -94,10 +96,13 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
         let old = Arc::clone(&inner.plugin_runtime);
         reload_plugins(&old, &[]).await;
 
-        // 2. 插件专用 MCP manager(生命周期随本次挂载;详见模块文档)。
-        let (lifecycle_tx, _lifecycle_rx) =
+        // 2. 插件专用 MCP manager(生命周期随本次挂载)。lifecycle 事件
+        //    (Started/Failed)复用 mcp.rs 的转换器推 session broadcast,
+        //    前端与用户 MCP 同一通道可见插件的 server 启动/失败。
+        let (lifecycle_tx, lifecycle_rx) =
             tokio::sync::mpsc::channel::<reflect_mcp::McpLifecycleEvent>(16);
         let mcp = Arc::new(McpConnectionManager::new(lifecycle_tx));
+        crate::mcp::spawn_mcp_lifecycle_forwarder(lifecycle_rx, session_tx);
 
         // 3. 最小 SubAgentFactory:只作插件 agents 能力的挂载点,不注册
         //    内置 spec(详见模块文档)。取消令牌绑本线程:rebind 取消旧

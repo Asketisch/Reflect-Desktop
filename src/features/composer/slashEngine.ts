@@ -13,7 +13,7 @@
  * B4 涵盖 46 个命令的核心语义。Tier A 9 个有"实装"的执行,其余标记为
  * 'no-op' 但仍然 parse + dispatch(避免 silent failure)。
  */
-import { SLASH_COMMANDS, type SlashCmd } from './slashCommands';
+import { SLASH_COMMANDS, type SlashCmd, isPluginCommand } from './slashCommands';
 
 export interface ParsedSlash {
   command: string;
@@ -220,5 +220,13 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
 export function dispatch(input: string, ctx: SlashContext): SlashInput | SlashResult {
   const parsed = parseSlash(input);
   if (!parsed.isSlash) return parsed;
+  // 插件命令：GUI 引擎不本地执行 —— 原样作为普通文本提交,后端 submit
+  // 边界(expand_submission)按命令 md 展开。命令表来自挂载好的插件运行时
+  // (usePluginCommands 同步进注册表);未挂载时引擎照旧 reject,
+  // 与「未知命令」同路径,提示真实。内置命令优先 —— 插件永远无法劫持
+  // `/compact` 等内置语义。
+  if (resolveCommand(parsed.command) === null && isPluginCommand(parsed.command)) {
+    return { raw: parsed.raw, isSlash: false };
+  }
   return executeSlash(parsed, ctx);
 }

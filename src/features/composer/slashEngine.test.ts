@@ -1,7 +1,8 @@
 /**
  * Vitest — slash engine 解析 + 分发测试。
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { setPluginSlashCommands, SLASH_COMMANDS } from './slashCommands';
 import {
   parseSlash,
   executeSlash,
@@ -9,9 +10,13 @@ import {
   resolveCommand,
   type ParsedSlash,
 } from './slashEngine';
-import { SLASH_COMMANDS } from './slashCommands';
 
 const CTX = { activeSessionId: 's-active', now: () => new Date('2026-01-01T00:00:00Z') };
+
+afterEach(() => {
+  // 插件命令注册表是模块级状态,用例后复位,避免串扰。
+  setPluginSlashCommands([]);
+});
 
 describe('parseSlash', () => {
   it('returns isSlash=false for plain text', () => {
@@ -216,5 +221,39 @@ describe('dispatch', () => {
     const r = dispatch('/nonexistent', CTX);
     if (!('kind' in r)) throw new Error('expected SlashResult');
     expect(r.kind).toBe('reject');
+  });
+
+  it('plugin command → PlainText 直通(原样提交,后端展开)', () => {
+    setPluginSlashCommands([{ name: 'demo:hello', description: 'say hi' }]);
+    try {
+      const r = dispatch('/demo:hello world', CTX);
+      if (!('isSlash' in r) || r.isSlash) throw new Error('expected PlainText');
+      // raw 原样保留 —— useComposerSubmission 的 PlainText 分支把它
+      // 作为普通文本 submit,后端 expand_submission 做真正展开。
+      expect(r.raw).toBe('/demo:hello world');
+    } finally {
+      setPluginSlashCommands([]);
+    }
+  });
+
+  it('未挂载同名命令时仍 reject(与未知命令同路径)', () => {
+    // 注册表为空:`/demo:hello` 不被识别为插件命令。
+    const r = dispatch('/demo:hello world', CTX);
+    if (!('kind' in r)) throw new Error('expected SlashResult');
+    expect(r.kind).toBe('reject');
+  });
+
+  it('内置命令优先:同名注册不能劫持内置语义', () => {
+    setPluginSlashCommands([{ name: 'compact', description: null }]);
+    try {
+      // resolveCommand 先命中内置 compact → 走 executeSlash,
+      // 插件注册表不参与(脏注册不会改变内置行为)。
+      const r = dispatch('/compact', CTX);
+      if (!('kind' in r)) throw new Error('expected SlashResult');
+      expect(r.kind).toBe('submit_with_submission');
+      expect(r.submission).toBe('compact');
+    } finally {
+      setPluginSlashCommands([]);
+    }
   });
 });

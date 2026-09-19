@@ -1,9 +1,15 @@
 /**
  * Vitest — SlashPopup 测试。
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { SlashPopup } from '@/features/composer/SlashPopup';
+import { setPluginSlashCommands } from '@/features/composer/slashCommands';
+
+afterEach(() => {
+  // 插件命令注册表是模块级状态,用例后复位。
+  setPluginSlashCommands([]);
+});
 
 describe('SlashPopup', () => {
   it('returns null when not visible', () => {
@@ -54,5 +60,19 @@ describe('SlashPopup', () => {
     const buttons = container.querySelectorAll('button');
     expect(buttons.length).toBeGreaterThan(0);
     buttons[3]?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+  });
+
+  it('renders plugin commands with their real description (not i18n)', () => {
+    setPluginSlashCommands([{ name: 'demo:hello', description: 'say hi to someone' }]);
+    const { container } = render(<SlashPopup query="demo" onSelect={vi.fn()} visible={true} activeIdx={0} onActiveIdxChange={vi.fn()} />);
+    expect(container.textContent).toContain('/demo:hello');
+    expect(container.textContent).toContain('say hi to someone');
+  });
+
+  it('plugin command with null description renders without crashing', () => {
+    setPluginSlashCommands([{ name: 'demo:quiet', description: null }]);
+    // 前缀匹配按命令全名 —— `demo:q` 命中 `demo:quiet`。
+    const { container } = render(<SlashPopup query="demo:q" onSelect={vi.fn()} visible={true} activeIdx={0} onActiveIdxChange={vi.fn()} />);
+    expect(container.textContent).toContain('/demo:quiet');
   });
 });

@@ -21,6 +21,8 @@ export interface SlashCmd {
   toolbared?: boolean;
   /** true = 弹层不展示（no-op stub，手输仍给引导）。 */
   hidden?: boolean;
+  /** 插件命令的真实说明文本 —— 有值时弹层直接渲染,不走 i18n summaryKey。 */
+  description?: string;
 }
 
 export const SLASH_COMMANDS: SlashCmd[] = [
@@ -78,16 +80,63 @@ export const SLASH_COMMANDS: SlashCmd[] = [
 export const TIER_A_TOOLBAR = SLASH_COMMANDS.filter((c) => c.toolbared);
 
 /**
+ * 插件 slash 命令注册表 —— 由 `usePluginCommands` 从后端
+ * (`reflect_list_plugin_commands`)拉取后写入,与挂载状态联动。
+ *
+ * 插件命令与内置命令的分界:内置命令由 `slashEngine.executeSlash` 本地
+ * 执行;插件命令引擎不解析,`dispatch` 对其返回 PlainText 原样提交,
+ * 由后端 submit 边界展开(`expand_submission`)—— 命令 md 的读取与
+ * `$ARGUMENTS` 替换只在后端做,前端保持无 IO。
+ */
+export interface PluginSlashCommand {
+  /** 命令全名(`plugin:ns:name` 形式,如 `demo:hello`)。 */
+  name: string;
+  /** 命令说明(md frontmatter `description`)。 */
+  description: string | null;
+}
+
+let pluginCommands: PluginSlashCommand[] = [];
+
+/** 覆写插件命令注册表(空数组 = 清空,退回纯内置列表)。 */
+export function setPluginSlashCommands(commands: PluginSlashCommand[]): void {
+  pluginCommands = commands;
+}
+
+export function getPluginSlashCommands(): PluginSlashCommand[] {
+  return pluginCommands;
+}
+
+/** 输入的命令名是否为已挂载插件命令(精确匹配)。 */
+export function isPluginCommand(name: string): boolean {
+  const n = name.toLowerCase();
+  return pluginCommands.some((c) => c.name.toLowerCase() === n);
+}
+
+/**
  * 弹层候选过滤：剔除 hidden stub + 按 query 前缀匹配（name / alias）。
  * Composer 与 SlashPopup 共用，保证「键盘选中项」与「渲染列表」同源。
+ * 插件命令追加在内置命令之后,同样按前缀匹配。
  */
 export function filterSlashCommands(query: string): SlashCmd[] {
   const q = query.toLowerCase().replace(/^\//, '');
   const visible = SLASH_COMMANDS.filter((c) => !c.hidden);
-  if (!q) return visible;
-  return visible.filter(
-    (c) =>
-      c.name.toLowerCase().startsWith(q) ||
-      c.aliases?.some((a) => a.toLowerCase().startsWith(q)),
-  );
+  const pluginMatches = pluginCommands
+    .filter((c) => c.name.toLowerCase().startsWith(q))
+    .map(
+      (c): SlashCmd => ({
+        name: c.name,
+        category: 'system',
+        summaryKey: '',
+        description: c.description ?? undefined,
+      }),
+    );
+  if (!q) return [...visible, ...pluginMatches];
+  return [
+    ...visible.filter(
+      (c) =>
+        c.name.toLowerCase().startsWith(q) ||
+        c.aliases?.some((a) => a.toLowerCase().startsWith(q)),
+    ),
+    ...pluginMatches,
+  ];
 }

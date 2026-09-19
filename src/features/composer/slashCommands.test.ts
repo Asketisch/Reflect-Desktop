@@ -1,8 +1,20 @@
 /**
- * Vitest — SLASH_COMMANDS 数据完整性测试。
+ * Vitest — SLASH_COMMANDS 数据完整性测试 + 插件命令注册表。
  */
-import { describe, it, expect } from 'vitest';
-import { SLASH_COMMANDS, TIER_A_TOOLBAR } from '@/features/composer/slashCommands';
+import { describe, it, expect, afterEach } from 'vitest';
+import {
+  SLASH_COMMANDS,
+  TIER_A_TOOLBAR,
+  filterSlashCommands,
+  setPluginSlashCommands,
+  getPluginSlashCommands,
+  isPluginCommand,
+} from '@/features/composer/slashCommands';
+
+afterEach(() => {
+  // 注册表是模块级状态,每个用例后复位,避免串扰。
+  setPluginSlashCommands([]);
+});
 
 describe('SLASH_COMMANDS', () => {
   it('has unique command names', () => {
@@ -53,5 +65,54 @@ describe('SLASH_COMMANDS', () => {
       if (c.aliases) allAliases.push(...c.aliases);
     }
     expect(new Set(allAliases).size).toBe(allAliases.length);
+  });
+});
+
+describe('plugin slash commands registry', () => {
+  const demo = { name: 'demo:hello', description: 'say hi' };
+
+  it('set/get 覆写注册表,空数组即清空', () => {
+    expect(getPluginSlashCommands()).toEqual([]);
+    setPluginSlashCommands([demo]);
+    expect(getPluginSlashCommands()).toEqual([demo]);
+    setPluginSlashCommands([]);
+    expect(getPluginSlashCommands()).toEqual([]);
+  });
+
+  it('isPluginCommand 精确匹配命令名(大小写不敏感)', () => {
+    setPluginSlashCommands([demo]);
+    expect(isPluginCommand('demo:hello')).toBe(true);
+    expect(isPluginCommand('DEMO:HELLO')).toBe(true);
+    expect(isPluginCommand('demo')).toBe(false);
+    expect(isPluginCommand('compact')).toBe(false);
+  });
+
+  it('注册表为空时 isPluginCommand 恒 false,弹层不出现插件候选', () => {
+    expect(isPluginCommand('demo:hello')).toBe(false);
+    const names = filterSlashCommands('').map((c) => c.name);
+    expect(names).not.toContain('demo:hello');
+  });
+
+  it('弹层候选追加插件命令(无 query 时全量附在内置之后)', () => {
+    setPluginSlashCommands([demo]);
+    const all = filterSlashCommands('');
+    expect(all.some((c) => c.name === 'demo:hello')).toBe(true);
+    // 插件命令附在内置命令之后。
+    expect(all[all.length - 1].name).toBe('demo:hello');
+    // 携带真实 description,弹层直接渲染不走 i18n。
+    expect(all.find((c) => c.name === 'demo:hello')?.description).toBe('say hi');
+  });
+
+  it('按前缀过滤:输入 `demo` 只命中插件命令,内置不误伤', () => {
+    setPluginSlashCommands([demo, { name: 'reviewer:lint', description: null }]);
+    const names = filterSlashCommands('demo').map((c) => c.name);
+    expect(names).toEqual(['demo:hello']);
+    const reviewer = filterSlashCommands('revi').map((c) => c.name);
+    expect(reviewer).toEqual(['reviewer:lint']);
+  });
+
+  it('不匹配 query 的插件命令不出现', () => {
+    setPluginSlashCommands([demo]);
+    expect(filterSlashCommands('mode').map((c) => c.name)).not.toContain('demo:hello');
   });
 });

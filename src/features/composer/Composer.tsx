@@ -19,6 +19,7 @@ import { usePromptHistory } from './usePromptHistory';
 import { useComposerInput } from './useComposerInput';
 import { useComposerDraft } from './useComposerDraft';
 import { useComposerSubmission, type SendMode } from './useComposerSubmission';
+import { usePluginCommands } from './usePluginCommands';
 import { ContextUsage } from './ContextUsage';
 import { ComposerControls } from './ComposerControls';
 import { ComposerContextBar } from './ComposerContextBar';
@@ -56,6 +57,8 @@ export function Composer() {
   const { currentWorkspace } = useCurrentWorkspace();
   // P3：`!` 终端直通 —— 本地执行面板（不进 agent 循环、不写会话历史）。
   const bang = useBangShell();
+  // 插件 slash 命令:拉取已挂载插件的命令进注册表(弹层候选 + 引擎直通)。
+  usePluginCommands();
 
   const focus = useCallback(() => textareaRef.current?.focus(), []);
   const doSubmit = useComposerSubmission({
@@ -91,8 +94,9 @@ export function Composer() {
     },
     onSlashPick: () => {
       // 已完整输入某个命令名（如 `/compact`）时放行给提交路径 ——
-      // Enter 立即执行，而非仅补全候选（保留旧行为）。
-      const exact = /^\/([a-z-]+)$/.exec(text.trim());
+      // Enter 立即执行，而非仅补全候选（保留旧行为）。字符集含 `:` /
+      // 数字 / 下划线,使插件命令全名(`demo:hello`)同样放行。
+      const exact = /^\/([a-z0-9:_-]+)$/i.exec(text.trim());
       if (exact && filterSlashCommands('').some((c) => c.name === exact[1])) {
         return false;
       }

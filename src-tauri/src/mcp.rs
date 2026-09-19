@@ -44,7 +44,7 @@ pub(crate) async fn bootstrap_mcp(
         }
     };
 
-    let (internal_tx, mut internal_rx) = tokio::sync::mpsc::channel::<McpLifecycleEvent>(32);
+    let (internal_tx, internal_rx) = tokio::sync::mpsc::channel::<McpLifecycleEvent>(32);
     let manager = Arc::new(McpConnectionManager::new(internal_tx));
 
     // MCP 工具调用事件:adapter execute 完成后 emit `McpToolInvoked`
@@ -60,34 +60,7 @@ pub(crate) async fn bootstrap_mcp(
     });
 
     // 后台 task:internal lifecycle event → protocol Event → session broadcast。
-    tokio::spawn(async move {
-        while let Some(evt) = internal_rx.recv().await {
-            let msg = match evt {
-                McpLifecycleEvent::Started {
-                    server,
-                    tools,
-                    tool_names,
-                    transport,
-                } => EventMsg::McpServerStarted(reflect_protocol::McpServerStartedEvent {
-                    server,
-                    tool_count: tools,
-                    tool_names,
-                    transport: transport_mirror(transport),
-                }),
-                McpLifecycleEvent::Failed {
-                    server,
-                    error,
-                    will_retry,
-                } => EventMsg::McpServerFailed(reflect_protocol::McpServerFailedEvent {
-                    server,
-                    error,
-                    will_retry,
-                }),
-                McpLifecycleEvent::Stopped { server: _ } => continue,
-            };
-            let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
-        }
-    });
+    spawn_mcp_lifecycle_forwarder(internal_rx, session_tx);
 
     // 并发启动每个 server;每个 task 拿 handle 后注册其 tools。
     for cfg_shape in &configs {
@@ -221,4 +194,42 @@ fn transport_mirror(transport: reflect_mcp::McpTransport) -> reflect_protocol::M
         reflect_mcp::McpTransport::Http => reflect_protocol::McpTransportMirror::Http,
         reflect_mcp::McpTransport::Sse => reflect_protocol::McpTransportMirror::Sse,
     }
+}
+
+/// 把 `McpConnectionManager` 的 internal lifecycle event 流转成协议事件推
+/// session broadcast(Started / Failed;Stopped 静默)。用户 MCP
+/// (`bootstrap_mcp`)与插件 MCP(`state/plugins.rs` 挂载级 manager)共用
+/// 同一转换,前端按 `msg.type` 分发即可见两类 server 的启动/失败。
+pub(crate) fn spawn_mcp_lifecycle_forwarder(
+    mut internal_rx: tokio::sync::mpsc::Receiver<McpLifecycleEvent>,
+    session_tx: broadcast::Sender<Event>,
+) {
+    tokio::spawn(async move {
+        while let Some(evt) = internal_rx.recv().await {
+            let msg = match evt {
+                McpLifecycleEvent::Started {
+                    server,
+                    tools,
+                    tool_names,
+                    transport,
+                } => EventMsg::McpServerStarted(reflect_protocol::McpServerStartedEvent {
+                    server,
+                    tool_count: tools,
+                    tool_names,
+                    transport: transport_mirror(transport),
+                }),
+                McpLifecycleEvent::Failed {
+                    server,
+                    error,
+                    will_retry,
+                } => EventMsg::McpServerFailed(reflect_protocol::McpServerFailedEvent {
+                    server,
+                    error,
+                    will_retry,
+                }),
+                McpLifecycleEvent::Stopped { server: _ } => continue,
+            };
+            let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
+        }
+    });
 }

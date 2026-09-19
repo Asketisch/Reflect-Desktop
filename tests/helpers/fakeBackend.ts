@@ -883,6 +883,8 @@ export function installFakeBackend(): FakeBackend {
   // —— 技能 / 钩子 ——
   handle('reflect_list_skills', handler(() => wire(backend.state.skills)));
   handle('reflect_list_hooks', handler(() => wire(backend.state.hooks)));
+  // 插件 slash 命令列表(fakeBackend 无插件运行时,恒空列表)。
+  handle('reflect_list_plugin_commands', handler(() => wire([])));
   handle(
     'reflect_toggle_hook',
     handler((args) => {

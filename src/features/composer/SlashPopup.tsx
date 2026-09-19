@@ -51,7 +51,9 @@ export function SlashPopup({ query, onSelect, visible, activeIdx, onActiveIdxCha
           aria-selected={i === activeIdx}
         >
           <span className={s.name}>/{c.name}</span>
-          <span className={s.summary}>{t(c.summaryKey as Parameters<typeof t>[0])}</span>
+          <span className={s.summary}>
+            {c.description ?? t(c.summaryKey as Parameters<typeof t>[0])}
+          </span>
         </button>
       ))}
     </div>
