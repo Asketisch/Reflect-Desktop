@@ -161,6 +161,53 @@ describe('LLM output events', () => {
       credentialLabel: 'main',
     });
   });
+
+  it('token_count accumulates sessionCost and keeps last-call cost', () => {
+    emitEvent(TURN, {
+      type: 'token_count',
+      input_tokens: 100,
+      output_tokens: 50,
+      cached_tokens: 0,
+      cache_write_tokens: 0,
+      total_tokens: 150,
+      cost_usd: 0.0021,
+    });
+    emitEvent(TURN, {
+      type: 'token_count',
+      input_tokens: 80,
+      output_tokens: 30,
+      cached_tokens: 0,
+      cache_write_tokens: 0,
+      total_tokens: 110,
+      cost_usd: 0.0017,
+    });
+    const tokens = st().tokens;
+    expect(tokens?.cost).toBeCloseTo(0.0017); // 最近一次调用
+    expect(tokens?.sessionCost).toBeCloseTo(0.0038); // 累计
+  });
+
+  it('token_count without cost_usd keeps null cost and does not grow sessionCost', () => {
+    emitEvent(TURN, {
+      type: 'token_count',
+      input_tokens: 10,
+      output_tokens: 5,
+      cached_tokens: 0,
+      cache_write_tokens: 0,
+      total_tokens: 15,
+      cost_usd: 0.01,
+    });
+    emitEvent(TURN, {
+      type: 'token_count',
+      input_tokens: 10,
+      output_tokens: 5,
+      cached_tokens: 0,
+      cache_write_tokens: 0,
+      total_tokens: 15,
+    });
+    const tokens = st().tokens;
+    expect(tokens?.cost).toBeNull(); // 未定价模型
+    expect(tokens?.sessionCost).toBeCloseTo(0.01); // 累计不增
+  });
 });
 
 describe('tool events', () => {

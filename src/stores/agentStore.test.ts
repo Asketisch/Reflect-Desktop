@@ -224,6 +224,8 @@ describe('reduceEvent — LLM output', () => {
       total: 1500,
       provider: 'anthropic',
       credentialLabel: 'main-key',
+      cost: null,
+      sessionCost: 0,
     });
   });
 

@@ -364,7 +364,10 @@ mod tests {
             cfg.anthropic.as_ref().unwrap().model.as_deref(),
             Some("glm-4.6")
         );
-        assert_eq!(cfg.resolved_model_spec().as_deref(), Some("anthropic/glm-4.6"));
+        assert_eq!(
+            cfg.resolved_model_spec().as_deref(),
+            Some("anthropic/glm-4.6")
+        );
     }
 
     /// 不传 label(旧调用形态)→ 不钉住,model 写段级。
@@ -377,7 +380,10 @@ mod tests {
         let mut cfg = reflect_config::load_from_str(toml).unwrap();
         apply_model_switch(&mut cfg, "openai", "gpt-4o", None).unwrap();
         assert_eq!(cfg.active.credential, None);
-        assert_eq!(cfg.openai.as_ref().unwrap().model.as_deref(), Some("gpt-4o"));
+        assert_eq!(
+            cfg.openai.as_ref().unwrap().model.as_deref(),
+            Some("gpt-4o")
+        );
     }
 
     /// 显式钉住却找不到条目 → 报错(而非静默写一个指向空处的 pin)。

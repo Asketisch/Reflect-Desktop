@@ -34,8 +34,7 @@ pub(crate) fn compute_degraded_reason(cfg: &ReflectConfig) -> Option<String> {
     // 明明有可用凭证、状态栏却挂着"未配置模型"的误导性黄点。
     if resolve_model_spec_with_fallback(cfg).is_none() {
         return Some(
-            "provider configured but no model — pick a plan/model in Settings → Models"
-                .to_string(),
+            "provider configured but no model — pick a plan/model in Settings → Models".to_string(),
         );
     }
     None

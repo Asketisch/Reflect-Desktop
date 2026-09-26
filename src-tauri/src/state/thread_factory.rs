@@ -86,7 +86,8 @@ pub(crate) fn construct_thread(
     // 会对每个 turn 跑 `cargo test`,无 toolchain 环境注入假失败并否决完成,
     // 纯问候也被迫连答数轮。需要 hook 的用户在 config 显式写
     // `[hooks] enabled = [...]`(或对应子段)。
-    let mut hooks_cfg = reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
+    let mut hooks_cfg =
+        reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
     if hooks_cfg.enabled.is_none() {
         hooks_cfg.enabled = Some(Vec::new());
     }

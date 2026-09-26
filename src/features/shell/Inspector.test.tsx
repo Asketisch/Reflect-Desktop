@@ -48,6 +48,8 @@ describe('Inspector — token usage section', () => {
       input: 1200,
       output: 300,
       cached: 200,
+      cost: null,
+      sessionCost: 0,
       cacheWrite: 500,
       total: 1500,
       provider: 'anthropic',
@@ -70,6 +72,8 @@ describe('Inspector — token usage section', () => {
       cached: 0,
       cacheWrite: 0,
       total: 15,
+      cost: null,
+      sessionCost: 0,
     });
     const { container } = render(wrap(<Inspector />));
     const text = container.textContent ?? '';
@@ -85,6 +89,8 @@ describe('Inspector — token usage section', () => {
       cached: 0,
       cacheWrite: 0,
       total: 15,
+      cost: null,
+      sessionCost: 0,
     });
     const { container } = render(wrap(<Inspector />));
     const text = container.textContent ?? '';
@@ -108,8 +114,8 @@ describe('Inspector tabs', () => {
 
   it('defaults to overview with context gauge, composition and session metrics', () => {
     setTokens({
-      input: 300, output: 120, cached: 60, cacheWrite: 10, total: 420, 
-      provider: 'openai', credentialLabel: 'default',
+      input: 300, output: 120, cached: 60, cacheWrite: 10, total: 420,
+      provider: 'openai', credentialLabel: 'default', cost: null, sessionCost: 0,
     });
     useAgentStore.setState({ contextWindowSize: 1000, turns: [{ id: 't1', items: [] }] } as never);
     render(wrap(<Inspector />));

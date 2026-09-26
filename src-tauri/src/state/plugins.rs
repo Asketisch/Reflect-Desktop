@@ -30,8 +30,8 @@
 
 use std::sync::Arc;
 
-use reflect_core::config::M4Deps;
 use reflect_core::AgentThread;
+use reflect_core::config::M4Deps;
 use reflect_hooks::HookEngine;
 use reflect_llm::SharedModelRegistry;
 use reflect_mcp::McpConnectionManager;
@@ -133,7 +133,10 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
         .await;
         let mounted = runtime.lock().await.take();
         *inner.plugin_runtime.lock().await = mounted;
-        tracing::debug!("[reflect-gui] plugin runtime mounted (enabled={:?})", enabled);
+        tracing::debug!(
+            "[reflect-gui] plugin runtime mounted (enabled={:?})",
+            enabled
+        );
     });
 }
 
@@ -264,8 +267,8 @@ mod tests {
         std::fs::write(&cmd, "---\ndescription: demo\n---\nSay hi to $ARGUMENTS.\n").unwrap();
         let registry = registry_with_command("demo:hello", &cmd);
 
-        let out = expand_with_registry(&registry, submission_with_text("/demo:hello world"))
-            .unwrap();
+        let out =
+            expand_with_registry(&registry, submission_with_text("/demo:hello world")).unwrap();
         assert_eq!(first_text(&out), Some("Say hi to world."));
         assert_eq!(out.source_command.as_deref(), Some("demo:hello"));
     }
@@ -300,4 +303,3 @@ mod tests {
         assert_eq!(out.source_command, None);
     }
 }
-

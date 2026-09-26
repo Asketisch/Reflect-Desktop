@@ -305,9 +305,7 @@ pub async fn reflect_read_image_base64(path: String) -> CommandResult<ImageBase6
     let p = PathBuf::from(&path);
     let Some(mime) = image_mime_by_extension(&p) else {
         return Err(CommandError {
-            msg: format!(
-                "not a supported image file: {path} (expected png/jpg/jpeg/gif/webp/bmp)"
-            ),
+            msg: format!("not a supported image file: {path} (expected png/jpg/jpeg/gif/webp/bmp)"),
         });
     };
     let meta = std::fs::metadata(&p).map_err(CommandError::from)?;
@@ -376,7 +374,9 @@ mod tests {
     fn read_image_base64_rejects_non_image() {
         let err = tokio::runtime::Runtime::new()
             .unwrap()
-            .block_on(reflect_read_image_base64("/tmp/reflect-not-an-image.txt".into()))
+            .block_on(reflect_read_image_base64(
+                "/tmp/reflect-not-an-image.txt".into(),
+            ))
             .unwrap_err();
         assert!(err.msg.contains("not a supported image file"));
     }

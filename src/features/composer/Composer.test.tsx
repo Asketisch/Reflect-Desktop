@@ -311,6 +311,8 @@ describe('Composer run-state controls (E/C)', () => {
         cached: 0,
         cacheWrite: 0,
         total: 4000,
+        cost: null,
+        sessionCost: 0,
       },
       contextWindowSize: 100000,
     });
@@ -328,6 +330,8 @@ describe('Composer run-state controls (E/C)', () => {
         cached: 0,
         cacheWrite: 0,
         total: 85000,
+        cost: null,
+        sessionCost: 0,
       },
       contextWindowSize: 100000,
     });

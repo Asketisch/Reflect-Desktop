@@ -27,6 +27,8 @@ const shell: Record<string, StringEntry> = {
   'shell.errorButton':            { en: 'error',                                                  'zh-CN': '错误' },
   'shell.mcpLspFailed':           { en: '{mcp} MCP / {lsp} LSP failed',                           'zh-CN': '{mcp} 个 MCP / {lsp} 个 LSP 失败' },
   'shell.failedCount':            { en: '{count} failed',                                         'zh-CN': '{count} 个失败' },
+  'shell.costLast':               { en: 'Last call cost',                                         'zh-CN': '最近一次费用' },
+  'shell.costSession':            { en: 'Session cost',                                           'zh-CN': '本会话累计费用' },
   'shell.mcpCount':               { en: 'MCP {count}',                                            'zh-CN': 'MCP {count}' },
   'shell.sessionCount':           { en: '{count} session{plural} on disk',                        'zh-CN': '磁盘上 {count} 个会话' },
   'shell.logoTitle':              { en: 'Reflect Desktop',                                        'zh-CN': 'Reflect Desktop' },

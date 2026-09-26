@@ -101,6 +101,11 @@ export interface TokenSnapshot {
   provider?: string | null;
   /** 命中的 credential label,未上报时为 null。 */
   credentialLabel?: string | null;
+  /** 最近一次 model 调用的费用(USD,引擎按价目表计算),模型未定价时为 null。 */
+  cost: number | null;
+  /** 会话累计费用(USD):Σ 每次 token_count 事件的 cost_usd。
+   *  仅累计 live 事件;回放 hydrate 的历史不含(与 CompactionStats.tokensSaved 同策略)。 */
+  sessionCost: number;
 }
 
 export interface McpInvocation {

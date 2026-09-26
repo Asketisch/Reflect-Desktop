@@ -71,6 +71,10 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
           total: msg.total_tokens,
           provider: msg.provider ?? null,
           credentialLabel: msg.credential_label ?? null,
+          // 费用:引擎按模型价目算好随事件携带;未定价模型为 null。
+          // sessionCost 只累计 live 事件,回放 hydrate 不重复计费。
+          cost: msg.cost_usd ?? null,
+          sessionCost: (state.tokens?.sessionCost ?? 0) + (msg.cost_usd ?? 0),
         },
       };
 

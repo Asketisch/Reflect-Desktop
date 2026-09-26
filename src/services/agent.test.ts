@@ -158,6 +158,8 @@ describe('reduceEvent', () => {
       total: 150,
       provider: null,
       credentialLabel: null,
+      cost: null,
+      sessionCost: 0,
     });
   });
 });

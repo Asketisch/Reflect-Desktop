@@ -143,6 +143,12 @@ export function StatusBar() {
               `${t('inspector.tokenCached')}: ${tokens.cached.toLocaleString()}`,
               `${t('inspector.tokenCacheWrite')}: ${tokens.cacheWrite.toLocaleString()}`,
               `${t('inspector.tokenTotal')}: ${tokens.total.toLocaleString()}`,
+              ...(tokens.cost != null
+                ? [`${t('shell.costLast')}: $${tokens.cost.toFixed(4)}`]
+                : []),
+              ...(tokens.sessionCost > 0
+                ? [`${t('shell.costSession')}: $${tokens.sessionCost.toFixed(4)}`]
+                : []),
             ]
               .filter(Boolean)
               .join('\n')}
@@ -152,6 +158,13 @@ export function StatusBar() {
             <span className={s.itemMuted} data-testid="statusbar-tokens">
               <Icon icon={Coins} size={11} />
               {tokens.total.toLocaleString()}
+            </span>
+          </Tooltip>
+        )}
+        {tokens != null && tokens.sessionCost > 0 && (
+          <Tooltip label={`${t('shell.costSession')}: $${tokens.sessionCost.toFixed(4)}`} side="top">
+            <span className={s.itemMuted} data-testid="statusbar-cost">
+              {`$${tokens.sessionCost < 1 ? tokens.sessionCost.toFixed(4) : tokens.sessionCost.toFixed(2)}`}
             </span>
           </Tooltip>
         )}

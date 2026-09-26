@@ -16,6 +16,7 @@ import { useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { useUiPrefs } from '@/utils/uiPrefs';
 import type { ReflectRolloutRecord } from '@/utils/types';
 import { useI18n } from '@/utils/i18n';
+import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import { useAutoSessionTitle } from '@/features/sessions/hooks/useAutoSessionTitle';
 import { ChatHero, QuickPromptRow } from '@/features/home/ChatHero';
 import { ContextBanner } from './ContextBanner';
@@ -59,6 +60,26 @@ export function ChatView() {
         });
       })
       .finally(() => setForking(false));
+  };
+
+  // v1.5:对话回退 —— Op::Rewind { to_turn_id } 丢弃该 turn(含)之后的
+  // rollout 记录,引擎下一轮从更短历史回放;writer 侧先写 .bak 备份。
+  const rewind = useAgentStore((st) => st.rewind);
+  const handleRewind = async (turnId: string) => {
+    const ok = await confirmDialog({
+      title: t('chat.rewindConfirmTitle'),
+      message: t('chat.rewindConfirmMessage'),
+    });
+    if (!ok || !sessionId) return;
+    try {
+      await rewind(turnId);
+      pushToast({ kind: 'success', message: t('chat.rewound') });
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.rewindFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
   };
 
   useEffect(() => {
@@ -196,7 +217,10 @@ export function ChatView() {
         // 英雄态仅视觉隐藏（display:none），保持 MessageList 挂载 ——
         // 其 role="log" 区与滚动锚点被集成测试和自动滚动消费。
         <div className={s.chatArea} data-hero={hero ? 'on' : 'off'} data-testid="chat-messages-area">
-          <MessageList onForkTurn={(turnId, branch) => handleFork(branch, turnId)} />
+          <MessageList
+            onForkTurn={(turnId, branch) => handleFork(branch, turnId)}
+            onRewindTurn={(turnId) => void handleRewind(turnId)}
+          />
         </div>
       )}
       {!loading && !error && <Composer />}

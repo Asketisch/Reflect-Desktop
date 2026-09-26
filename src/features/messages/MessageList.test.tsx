@@ -57,6 +57,31 @@ describe('MessageList', () => {
     expect(screen.getByText('Hi there!')).toBeDefined();
   });
 
+  it('rewind button appears on done turns and fires onRewindTurn with turn id', () => {
+    const onRewind = vi.fn();
+    useAgentStore.setState({
+      turns: [
+        { id: 't1', status: 'done', items: [{ kind: 'user_text', text: 'first' }] },
+        { id: 't2', status: 'streaming', items: [{ kind: 'user_text', text: 'second' }] },
+      ],
+    });
+    render(wrap(<MessageList onRewindTurn={onRewind} />));
+    // 已结束的 turn 有 rewind 入口;streaming turn 没有(rollout 未落全)。
+    const btn = screen.getByTestId('turn-rewind-t1');
+    expect(btn).toBeDefined();
+    expect(screen.queryByTestId('turn-rewind-t2')).toBeNull();
+    fireEvent.click(btn);
+    expect(onRewind).toHaveBeenCalledWith('t1');
+  });
+
+  it('rewind button hidden when onRewindTurn not provided', () => {
+    useAgentStore.setState({
+      turns: [{ id: 't1', status: 'done', items: [{ kind: 'user_text', text: 'first' }] }],
+    });
+    render(wrap(<MessageList />));
+    expect(screen.queryByTestId('turn-rewind-t1')).toBeNull();
+  });
+
   it('renders tool_call row with status badge', () => {
     useAgentStore.setState({
       turns: [

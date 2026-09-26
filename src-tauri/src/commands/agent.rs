@@ -278,9 +278,7 @@ pub async fn reflect_query_subagents(
     agent: State<'_, MinimalAgent>,
     child_id: Option<String>,
 ) -> CommandResult<String> {
-    Ok(agent
-        .submit_op(Op::QuerySubagents { child_id })
-        .await?)
+    Ok(agent.submit_op(Op::QuerySubagents { child_id }).await?)
 }
 
 // ====== 目标模式(v1.2 P1,reflect-goal 编排)======

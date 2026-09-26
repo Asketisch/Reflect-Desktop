@@ -25,6 +25,7 @@ import {
   MessageSquare,
   FileDiff,
   GitBranch,
+  RotateCcw,
 } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
 import { Markdown } from '@/components/Markdown';
@@ -70,9 +71,12 @@ function groupToolNodes(items: TurnItem[]): RenderNode[] {
 
 export function MessageList({
   onForkTurn,
+  onRewindTurn,
 }: {
   /** 可选：按轮 fork —— 传入后在每个已结束 turn 上提供「从此轮分叉」入口。 */
   onForkTurn?: (turnId: string, branch: string) => void;
+  /** 可选：按轮回退 —— 传入后在每个已结束 turn 上提供「回退到此轮之前」入口。 */
+  onRewindTurn?: (turnId: string) => void;
 } = {}) {
   const turns = useAgentStore((st) => st.turns);
   const ref = useRef<HTMLDivElement>(null);
@@ -98,7 +102,13 @@ export function MessageList({
           </div>
         )}
         {turns.map((t, i) => (
-          <TurnView key={t.id} turn={t} index={i} onForkTurn={onForkTurn} />
+          <TurnView
+            key={t.id}
+            turn={t}
+            index={i}
+            onForkTurn={onForkTurn}
+            onRewindTurn={onRewindTurn}
+          />
         ))}
         <QueuedMessages />
       </div>
@@ -110,16 +120,21 @@ function TurnView({
   turn,
   index,
   onForkTurn,
+  onRewindTurn,
 }: {
   turn: Turn;
   index: number;
   onForkTurn?: (turnId: string, branch: string) => void;
+  onRewindTurn?: (turnId: string) => void;
 }) {
   const nodes = groupToolNodes(turn.items);
   const { t } = useI18n();
   // 流式中的 turn 尚未落全（rollout 记录还在追加），不作为 fork 点；
   // 历史回放与已结束的 turn 均可「从此轮（含）分叉」。
   const canFork = Boolean(onForkTurn) && turn.status !== 'streaming';
+  // rewind 丢弃「此轮(含)之后」的对话记录(引擎 Op::Rewind),同样只对
+  // 已落全的 turn 开放;与 fork 并列在 hover 动作行。
+  const canRewind = Boolean(onRewindTurn) && turn.status !== 'streaming';
   return (
     <div className={s.turn}>
       {nodes.map((node, i) => (
@@ -131,16 +146,28 @@ function TurnView({
           turnStatus={turn.status}
         />
       ))}
-      {canFork && (
+      {(canFork || canRewind) && (
         <div className={s.turnActions}>
-          <IconButton
-            size="sm"
-            label={t('chat.forkFromHere')}
-            onClick={() => onForkTurn?.(turn.id, `fork@${index + 1}`)}
-            data-testid={`turn-fork-${turn.id}`}
-          >
-            <Icon icon={GitBranch} size={12} />
-          </IconButton>
+          {canRewind && (
+            <IconButton
+              size="sm"
+              label={t('chat.rewindToHere')}
+              onClick={() => onRewindTurn?.(turn.id)}
+              data-testid={`turn-rewind-${turn.id}`}
+            >
+              <Icon icon={RotateCcw} size={12} />
+            </IconButton>
+          )}
+          {canFork && (
+            <IconButton
+              size="sm"
+              label={t('chat.forkFromHere')}
+              onClick={() => onForkTurn?.(turn.id, `fork@${index + 1}`)}
+              data-testid={`turn-fork-${turn.id}`}
+            >
+              <Icon icon={GitBranch} size={12} />
+            </IconButton>
+          )}
         </div>
       )}
     </div>
