@@ -85,13 +85,36 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     let cfg_for_bootstrap = cfg_snapshot.clone();
     let tools_for_bootstrap = tools.clone();
     let session_tx_for_bootstrap = agent.inner.session_tx.clone();
+    let inner_for_mcp = agent.inner.clone();
     tauri::async_runtime::spawn(async move {
-        let _ = crate::mcp::bootstrap_mcp(
+        // v1.6 接线:bootstrap_mcp 返回的 manager 此前被 `let _ =` 丢弃
+        // —— 4 个 MCP meta 工具(Resources 二件套 + Prompts 二件套)都
+        // 需要持有 manager Arc。现在:config 为空时也挂空 manager(工具
+        // 对空列表返回友好结果,与 exec/TUI 对齐),把句柄存进 inner 供
+        // 后续热重载 diff 重启用,并注册 meta 工具。
+        let manager = crate::mcp::bootstrap_mcp(
             &cfg_for_bootstrap,
-            tools_for_bootstrap,
+            tools_for_bootstrap.clone(),
             session_tx_for_bootstrap,
         )
-        .await;
+        .await
+        .unwrap_or_else(|| {
+            let (tx, _rx) = tokio::sync::mpsc::channel::<reflect_mcp::McpLifecycleEvent>(16);
+            std::sync::Arc::new(reflect_mcp::McpConnectionManager::new(tx))
+        });
+        *inner_for_mcp.mcp_manager.lock() = Some(manager.clone());
+        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::ListMcpResourcesTool::new(
+            manager.clone(),
+        )));
+        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::ReadMcpResourceTool::new(
+            manager.clone(),
+        )));
+        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::ListMcpPromptsTool::new(
+            manager.clone(),
+        )));
+        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::GetMcpPromptTool::new(
+            manager,
+        )));
     });
 
     tracing::info!(

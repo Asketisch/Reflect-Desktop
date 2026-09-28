@@ -136,6 +136,12 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) cron_driver: ParkingMutex<Option<reflect_stream::cron::CronDriverHandle>>,
     /// LSP 连接管理器(按工作区由用户手动开启;None = 未启用)。
     pub(crate) lsp_manager: ParkingMutex<Option<std::sync::Arc<reflect_lsp::LspConnectionManager>>>,
+    /// MCP 连接管理器句柄。v1.6 接线:bootstrap_mcp 的返回值此前被
+    /// `let _ =` 丢弃 —— MCP meta 工具(ListMcpResources / ReadMcpResource
+    /// / ListMcpPrompts / GetMcpPrompt)全部需要持有 manager,导致
+    /// Desktop 一直无法 list/read MCP resources / prompts。install 时
+    /// 写入;None = 未启用(config 无 [mcp_servers] 或 bootstrap 失败)。
+    pub(crate) mcp_manager: ParkingMutex<Option<std::sync::Arc<reflect_mcp::McpConnectionManager>>>,
     /// 插件运行时句柄(exec/serve 同款 `SharedPluginRuntime`;内层 `None`
     /// = 未挂载:占位线程、HOME 缺失或 plugins 目录不存在)。真实会话
     /// rebind 时由 `state/plugins.rs::spawn_mount` 卸旧装新;submit 边界
@@ -215,6 +221,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         bound_session_id: ParkingMutex::new(None),
         cron_driver: ParkingMutex::new(None),
         lsp_manager: ParkingMutex::new(None),
+        mcp_manager: ParkingMutex::new(None),
         plugin_runtime: reflect_plugin::empty_plugin_runtime(),
         plugin_mount_lock: Arc::new(tokio::sync::Mutex::new(())),
     }
