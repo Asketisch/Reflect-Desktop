@@ -3,8 +3,7 @@
 # 每周一 + PR 触发,跑 cargo-audit(RustSec Advisory Database)。
 # 结果上传到 GitHub Security tab(Code Scanning)。
 #
-# 前端 npm 依赖暂未纳入(pnpm-lock.yaml 目前被 gitignore,锁文件不可复核);
-# 待提交 lockfile 后可补 npm audit / pnpm audit job。
+# 前端 npm 依赖暂未纳入(可后续补 pnpm audit job —— pnpm-lock.yaml 已入库)。
 
 on:
   push:

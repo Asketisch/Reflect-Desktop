@@ -115,7 +115,9 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libssl-dev \
-            patchelf
+            patchelf \
+            libpipewire-0.3-dev \
+            libasound2-dev
 
       # 警告拒绝策略在成员 crate 清单的 [lints] 表中声明(见根 Cargo.toml 注释):
       # 只对本仓库自有 crate deny,reflect-agent/ submodule 的上游警告不阻塞本仓库。
@@ -157,7 +159,9 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libssl-dev \
-            patchelf
+            patchelf \
+            libpipewire-0.3-dev \
+            libasound2-dev
 
       - name: cargo test
         run: cargo test --workspace --all-targets
