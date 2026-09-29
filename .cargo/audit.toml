@@ -1,0 +1,26 @@
+# cargo-audit 配置 —— CI 的 audit workflow(cargo audit --deny warnings)读取。
+#
+# ignore 原则:只 ignore **无法在本仓库修复**的传递依赖 advisory
+# (tauri / xcap 等 upstream 锁定),出现可升级的 patched 版本时立即
+# 移除 ignore 并升级。
+# 理由注释:
+# - RUSTSEC-2026-0194 / RUSTSEC-2026-0195:quick-xml 0.30 由 xcb 1.7
+#   (xcap 0.9 的 Linux build-dep)锁定,修复版 0.41 需 xcap/xcb 上游迁移
+# - RUSTSEC-2024-0370:proc-macro-error 为 tauri 系宏库传递依赖(已停止维护)
+# - RUSTSEC-2025-0081 / 0075 / 0080 / 0100 / 0098:unic-* 系列gtk/text
+#   生态传递依赖,上游整体未迁移
+# - RUSTSEC-2024-0429:glib 0.18 由 tauri 的 GTK 绑定锁定,修复版 0.20
+#   需 tauri 升级
+
+[advisories]
+ignore = [
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+    "RUSTSEC-2024-0370",
+    "RUSTSEC-2025-0081",
+    "RUSTSEC-2025-0075",
+    "RUSTSEC-2025-0080",
+    "RUSTSEC-2025-0100",
+    "RUSTSEC-2025-0098",
+    "RUSTSEC-2024-0429",
+]

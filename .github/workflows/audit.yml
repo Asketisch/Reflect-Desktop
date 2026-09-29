@@ -39,8 +39,11 @@ jobs:
         with:
           workspaces: '. -> target'
 
+      # 锁 ^0.22:0.21.x 移除了 --format 参数且解析不了新版 advisory DB
+      # 的 CVSS 4.0 条目(RUSTSEC-2026-0073 实测);0.22 恢复 --format
+      # 并支持 CVSS 4.0。
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked --version "^0.21"
+        run: cargo install cargo-audit --locked --version "^0.22"
 
       - name: Run cargo audit
         run: cargo audit --format json --deny warnings > audit.json || AUDIT_EXIT=$?
