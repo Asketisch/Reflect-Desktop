@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient, mockInvoke, emitMockEvent, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from '@/stores/agentStore';
+
+// 慢 CI(ubuntu runner)上异步 fetch/渲染链路偶发超过 DTL 默认 1s 窗口,
+// 本文件 waitFor 统一放宽到 5s。
+configure({ asyncUtilTimeout: 5000 });
 import { Composer } from './Composer';
 
 vi.mock('@tanstack/react-router', () => ({
