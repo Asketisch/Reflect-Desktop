@@ -6,13 +6,16 @@
 //! - `Some("3")` → 显示数字 badge "3";
 //! - `Some("●")` → 显示红点 (Unicode)。
 //!
-//! 非 macOS 平台 = no-op stub。
+//! 非 macOS 平台 = no-op stub。stub 平台下本文件的 macOS 实现与入口
+//! 自然 dead —— 平台 stub 语义,抑制 dead_code(CI ubuntu 实测)。
 //!
 //! ## 主线程约束
 //!
 //! `NSApplication::sharedApplication()` 要求在 main thread 调用。
 //! 我们用 Tauri 的 `app.run_on_main_thread()` 切到主线程,这样
 //! `reflect_set_dock_badge` command 在任意线程 invoke 都安全。
+
+#![allow(dead_code)]
 
 use tauri::{AppHandle, Runtime};
 

@@ -272,8 +272,9 @@ describe('Composer @ file mention (v1.x)', () => {
       { type: 'text', text: 'look at this file' },
       { type: 'file', path: 'src/main.ts' },
     ]);
-    // 提交后附件清空。
-    expect(screen.queryByTestId('attachment-bar')).toBeNull();
+    // 提交后附件清空 —— 卸载经一帧 React 状态更新,慢 CI(ubuntu)上
+    // 同步断言偶发仍在,改 waitFor 等待消失。
+    await waitFor(() => expect(screen.queryByTestId('attachment-bar')).toBeNull());
   });
 });
 

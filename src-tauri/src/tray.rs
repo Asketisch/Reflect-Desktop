@@ -6,6 +6,12 @@
 //! - 图标作为 macOS template image 自动着色 (`icon_as_template(true)`)。
 //!
 //! 复用 `src-tauri/icons/icon32.png` 作为托盘图标 (已是 RGBA PNG)。
+//!
+//! 非 macOS 平台:托盘仅在 macOS 激活,Linux/Windows 下本文件的辅助
+//! 函数与导入自然 dead —— 平台 stub 语义,抑制 dead_code/unused_imports
+//! (CI ubuntu 实测)。
+
+#![allow(dead_code, unused_imports)]
 
 #[allow(unused_imports)]
 use tauri::tray::TrayIcon;
