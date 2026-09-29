@@ -117,7 +117,11 @@ jobs:
             libssl-dev \
             patchelf \
             libpipewire-0.3-dev \
-            libasound2-dev
+            libasound2-dev \
+            libgbm-dev \
+            libdrm-dev \
+            libegl-dev \
+            libwayland-dev
 
       # 警告拒绝策略在成员 crate 清单的 [lints] 表中声明(见根 Cargo.toml 注释):
       # 只对本仓库自有 crate deny,reflect-agent/ submodule 的上游警告不阻塞本仓库。
@@ -161,7 +165,11 @@ jobs:
             libssl-dev \
             patchelf \
             libpipewire-0.3-dev \
-            libasound2-dev
+            libasound2-dev \
+            libgbm-dev \
+            libdrm-dev \
+            libegl-dev \
+            libwayland-dev
 
       - name: cargo test
         run: cargo test --workspace --all-targets
