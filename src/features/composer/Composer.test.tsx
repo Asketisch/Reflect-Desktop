@@ -580,7 +580,12 @@ describe('Composer inline controls', () => {
     });
     renderComposer();
 
-    fireEvent.click(await screen.findByTestId('composer-fetch-models'));
+    // 按钮 disabled={fetchingModels || !hasPlans}:hasPlans 随 agent_status
+    // 异步加载,慢 CI 上 findByTestId 返回时仍是 disabled,click 静默无效
+    // (仅 ubuntu 实测)—— 先等按钮可用再点。
+    const fetchBtn = await screen.findByTestId('composer-fetch-models');
+    await waitFor(() => expect(fetchBtn).not.toBeDisabled());
+    fireEvent.click(fetchBtn);
     await waitFor(() =>
       expect(listCalls).toEqual([{ baseUrl: 'https://api.example.com/v1', apiKey: 'sk-1', endpoint: 'openai' }]),
     );
