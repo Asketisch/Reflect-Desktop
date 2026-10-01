@@ -563,6 +563,8 @@ describe('Composer inline controls', () => {
     mockInvoke(
       'reflect_list_provider_models',
       async (_cmd: string, args?: { baseUrl: string; apiKey: string; endpoint: string }) => {
+        // eslint-disable-next-line no-console
+        console.log('PROBE list_provider_models invoked', args);
         listCalls.push({ baseUrl: args?.baseUrl ?? '', apiKey: args?.apiKey ?? '', endpoint: args?.endpoint ?? '' });
         return {
           endpoint: 'openai',
@@ -583,17 +585,25 @@ describe('Composer inline controls', () => {
     // 按钮 disabled={fetchingModels || !hasPlans}:hasPlans 随 agent_status
     // 异步加载,慢 CI 上 findByTestId 返回时仍是 disabled,click 静默无效
     // (仅 ubuntu 实测)—— 先等按钮可用再点。
-    const fetchBtn = await screen.findByTestId('composer-fetch-models');
-    await waitFor(() => expect(fetchBtn).not.toBeDisabled());
-    fireEvent.click(fetchBtn);
+    // plans 经异步 get_config 加载后组件重渲染。用 queryAll + 原生
+    // disabled 属性轮询(不用 jest-dom 的 toBeDisabled —— 它在本组件
+    // 的 label>select+button 结构上行为异常,慢 CI 上偶发永不通过)。
+    await waitFor(() => {
+      const btn = screen.queryByTestId('composer-fetch-models');
+      expect(btn).not.toBeNull();
+      expect(btn?.disabled).toBe(false);
+    });
+    fireEvent.click(screen.getByTestId('composer-fetch-models'));
     await waitFor(() =>
       expect(listCalls).toEqual([{ baseUrl: 'https://api.example.com/v1', apiKey: 'sk-1', endpoint: 'openai' }]),
     );
+    // eslint-disable-next-line no-console
+    console.log('STEP5: listCalls ok');
     // 拉取结果进入下拉(带能力标记);选择后以该 model id 走 reflect_set_model。
     const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
     const option = Array.from(select.options).find((o) => o.value === 'model:gpt-4o');
     expect(option?.textContent).toContain('gpt-4o · vision');
-    fireEvent.change(select, { target: { value: 'model:gpt-4o' } });
+    fireEvent.change(screen.getByTestId('composer-model-select'), { target: { value: 'model:gpt-4o' } });
     await waitFor(() => expect(switchCalls).toEqual(['gpt-4o']));
   });
 
