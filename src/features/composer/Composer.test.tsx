@@ -589,7 +589,7 @@ describe('Composer inline controls', () => {
     // disabled 属性轮询(不用 jest-dom 的 toBeDisabled —— 它在本组件
     // 的 label>select+button 结构上行为异常,慢 CI 上偶发永不通过)。
     await waitFor(() => {
-      const btn = screen.queryByTestId('composer-fetch-models');
+      const btn = screen.queryByTestId('composer-fetch-models') as HTMLButtonElement | null;
       expect(btn).not.toBeNull();
       expect(btn?.disabled).toBe(false);
     });
